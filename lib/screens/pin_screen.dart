@@ -47,9 +47,8 @@ class _PinScreenState extends State<PinScreen> {
 
   void _verifyPin() {
     final expectedPin = widget.cachedUser['pos_pin'] ?? '';
-    
+
     if (_pin == expectedPin || expectedPin.isEmpty) {
-      // If PIN matches or no PIN was set in backend, allow entry
       final role = widget.cachedUser['role']?.toString();
       Navigator.pushReplacement(
         context,
@@ -67,7 +66,6 @@ class _PinScreenState extends State<PinScreen> {
         ),
       );
     } else {
-      // Incorrect PIN
       setState(() {
         _hasError = true;
         _pin = '';
@@ -92,6 +90,7 @@ class _PinScreenState extends State<PinScreen> {
       body: SafeArea(
         child: Stack(
           children: [
+            // Background Pattern
             Positioned.fill(
               child: CustomPaint(
                 painter: _CoffeeLuxuryPatternPainter(
@@ -101,6 +100,8 @@ class _PinScreenState extends State<PinScreen> {
                 ),
               ),
             ),
+
+            // Background Logo
             Positioned.fill(
               child: IgnorePointer(
                 child: Center(
@@ -108,7 +109,7 @@ class _PinScreenState extends State<PinScreen> {
                     opacity: 0.07,
                     child: ColorFiltered(
                       colorFilter: const ColorFilter.mode(
-                        Color(0xFFC6A15B),
+                        _coffeeGold,
                         BlendMode.modulate,
                       ),
                       child: Image.asset(
@@ -122,85 +123,128 @@ class _PinScreenState extends State<PinScreen> {
                 ),
               ),
             ),
+
             Column(
               children: [
-                // Header
+                // Header - Switch User
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 8.0,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton.icon(
                         onPressed: _logout,
-                        icon: const Icon(Icons.logout, color: Colors.white70),
-                        label: const Text('Switch User', style: TextStyle(color: Colors.white70)),
-                      )
+                        icon: const Icon(
+                          Icons.logout,
+                          color: Colors.white70,
+                          size: 20,
+                        ),
+                        label: const Text(
+                          'Switch User',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ),
                     ],
                   ),
                 ),
 
                 Expanded(
                   child: Center(
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 400),
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      padding: const EdgeInsets.all(32),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: Colors.white.withOpacity(0.16)),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Avatar — user profile image
-                          _buildUserAvatar(),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Welcome back, ${widget.cachedUser['name'] ?? 'Cashier'}',
-                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 32,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.16),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Enter PIN to unlock',
-                            style: TextStyle(color: Colors.white70, fontSize: 16),
-                          ),
-                          const SizedBox(height: 48),
-
-                          // PIN Indicators
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(
-                              _pinLength,
-                              (index) => Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 12),
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: index < _pin.length ? _coffeeGold : Colors.white.withOpacity(0.2),
-                                  border: Border.all(
-                                    color: _hasError ? Colors.red : Colors.transparent,
-                                    width: 2,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildUserAvatar(),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Welcome back, ${widget.cachedUser['name'] ?? 'Cashier'}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Enter PIN to unlock',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 32,
+                            ), // ลดจาก 48 เพื่อประหยัดพื้นที่
+                            // PIN Indicators
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                _pinLength,
+                                (index) => Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  width: 18,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: index < _pin.length
+                                        ? _coffeeGold
+                                        : Colors.white.withOpacity(0.2),
+                                    border: Border.all(
+                                      color: _hasError
+                                          ? Colors.red
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          
-                          if (_hasError)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 16.0),
-                              child: Text('Incorrect PIN', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                            )
-                          else
-                            const SizedBox(height: 32),
 
-                          const SizedBox(height: 32),
+                            // Error Message Area
+                            SizedBox(
+                              height: 40,
+                              child: _hasError
+                                  ? const Center(
+                                      child: Text(
+                                        'Incorrect PIN',
+                                        style: TextStyle(
+                                          color: Colors.redAccent,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
 
-                          // Numpad
-                          _buildNumpad(),
-                        ],
+                            // Numpad
+                            _buildNumpad(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -217,8 +261,8 @@ class _PinScreenState extends State<PinScreen> {
     final String? base64Str = widget.cachedUser['image_base64'] as String?;
     final String initials =
         (widget.cachedUser['name'] ?? 'U').toString().trim().isEmpty
-            ? 'U'
-            : (widget.cachedUser['name'] as String).trim()[0].toUpperCase();
+        ? 'U'
+        : (widget.cachedUser['name'] as String).trim()[0].toUpperCase();
 
     ImageProvider? imageProvider;
     if (base64Str != null && base64Str.isNotEmpty) {
@@ -230,8 +274,8 @@ class _PinScreenState extends State<PinScreen> {
     }
 
     return Container(
-      width: 84,
-      height: 84,
+      width: 80,
+      height: 80,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: _coffeeBrown.withOpacity(0.35),
@@ -245,7 +289,7 @@ class _PinScreenState extends State<PinScreen> {
               child: Text(
                 initials,
                 style: const TextStyle(
-                  fontSize: 34,
+                  fontSize: 32,
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
@@ -258,37 +302,16 @@ class _PinScreenState extends State<PinScreen> {
   Widget _buildNumpad() {
     return Column(
       children: [
+        _buildNumpadRow(['1', '2', '3']),
+        const SizedBox(height: 12),
+        _buildNumpadRow(['4', '5', '6']),
+        const SizedBox(height: 12),
+        _buildNumpadRow(['7', '8', '9']),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _numButton('1'),
-            _numButton('2'),
-            _numButton('3'),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _numButton('4'),
-            _numButton('5'),
-            _numButton('6'),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _numButton('7'),
-            _numButton('8'),
-            _numButton('9'),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            const SizedBox(width: 72, height: 72), // Spacer
+            const SizedBox(width: 68, height: 68),
             _numButton('0'),
             _actionButton(Icons.backspace_outlined, _onBackspace),
           ],
@@ -297,22 +320,33 @@ class _PinScreenState extends State<PinScreen> {
     );
   }
 
+  Widget _buildNumpadRow(List<String> numbers) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: numbers.map((n) => _numButton(n)).toList(),
+    );
+  }
+
   Widget _numButton(String number) {
     return InkWell(
       onTap: () => _onKeyPress(number),
-      borderRadius: BorderRadius.circular(36),
+      borderRadius: BorderRadius.circular(34),
       child: Container(
-        width: 72,
-        height: 72,
+        width: 68,
+        height: 68,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _coffeeBrown.withOpacity(0.35),
-          border: Border.all(color: Colors.white.withOpacity(0.22)),
+          color: _coffeeBrown.withOpacity(0.3),
+          border: Border.all(color: Colors.white.withOpacity(0.15)),
         ),
         child: Center(
           child: Text(
             number,
-            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ),
@@ -322,17 +356,15 @@ class _PinScreenState extends State<PinScreen> {
   Widget _actionButton(IconData icon, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(36),
+      borderRadius: BorderRadius.circular(34),
       child: Container(
-        width: 72,
-        height: 72,
+        width: 68,
+        height: 68,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white.withOpacity(0.08),
         ),
-        child: Center(
-          child: Icon(icon, color: Colors.white, size: 32),
-        ),
+        child: Center(child: Icon(icon, color: Colors.white, size: 28)),
       ),
     );
   }
@@ -384,16 +416,27 @@ class _CoffeeLuxuryPatternPainter extends CustomPainter {
       final baseY = 80.0 + (i * 120.0);
       final path = Path()
         ..moveTo(-20, baseY)
-        ..cubicTo(size.width * 0.18, baseY - 24, size.width * 0.32, baseY + 24, size.width * 0.5, baseY)
-        ..cubicTo(size.width * 0.68, baseY - 24, size.width * 0.82, baseY + 24, size.width + 20, baseY - 4);
+        ..cubicTo(
+          size.width * 0.18,
+          baseY - 24,
+          size.width * 0.32,
+          baseY + 24,
+          size.width * 0.5,
+          baseY,
+        )
+        ..cubicTo(
+          size.width * 0.68,
+          baseY - 24,
+          size.width * 0.82,
+          baseY + 24,
+          size.width + 20,
+          baseY - 4,
+        );
       canvas.drawPath(path, smokePaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _CoffeeLuxuryPatternPainter oldDelegate) {
-    return smokeColor != oldDelegate.smokeColor ||
-        medallionColor != oldDelegate.medallionColor ||
-        coffeeColor != oldDelegate.coffeeColor;
-  }
+  bool shouldRepaint(covariant _CoffeeLuxuryPatternPainter oldDelegate) =>
+      false;
 }
