@@ -311,8 +311,10 @@ class PrinterService {
 
   List<CartItem> _filterItemsForPrinter(List<CartItem> items, PrinterProfile printer) {
     if (printer.categoryFilters.isEmpty) return items;
-    final filters = printer.categoryFilters.map((e) => e.toLowerCase()).toSet();
-    return items.where((i) => filters.contains(i.product.category.toLowerCase())).toList();
+    final filters = printer.categoryFilters.map((e) => e.trim().toLowerCase()).toSet();
+    return items
+        .where((i) => filters.contains(i.product.category.trim().toLowerCase()))
+        .toList();
   }
 
 

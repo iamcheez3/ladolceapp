@@ -22,8 +22,19 @@ class _PinScreenState extends State<PinScreen> {
   String _pin = '';
   final int _pinLength = 4;
   bool _hasError = false;
+  bool _isSubmitting = false;
+  String? _firstPinEntry;
+
+  String _normalizedCachedPin() {
+    final raw = widget.cachedUser['pos_pin'];
+    if (raw == null || raw == false) return '';
+    return raw.toString().trim();
+  }
+
+  bool get _isSetupMode => _normalizedCachedPin().isEmpty;
 
   void _onKeyPress(String value) {
+    if (_isSubmitting) return;
     if (_pin.length < _pinLength) {
       setState(() {
         _pin += value;
@@ -31,12 +42,13 @@ class _PinScreenState extends State<PinScreen> {
       });
 
       if (_pin.length == _pinLength) {
-        _verifyPin();
+        _handlePinInput();
       }
     }
   }
 
   void _onBackspace() {
+    if (_isSubmitting) return;
     if (_pin.isNotEmpty) {
       setState(() {
         _pin = _pin.substring(0, _pin.length - 1);
@@ -45,32 +57,86 @@ class _PinScreenState extends State<PinScreen> {
     }
   }
 
-  void _verifyPin() {
-    final expectedPin = widget.cachedUser['pos_pin'] ?? '';
+  Future<void> _handlePinInput() async {
+    if (_isSetupMode) {
+      await _setupPinFlow();
+      return;
+    }
+    _verifyPin();
+  }
 
-    if (_pin == expectedPin || expectedPin.isEmpty) {
-      final role = widget.cachedUser['role']?.toString();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => role == 'customer'
-              ? CustomerSelfOrderScreen(
-                  customerName: widget.cachedUser['name'] ?? 'Customer',
-                  userId: widget.cachedUser['user_id'] ?? 1,
-                  partnerId: widget.cachedUser['partner_id'],
-                )
-              : PosScreen(
-                  cashierName: widget.cachedUser['name'] ?? 'Cashier',
-                  cashierId: widget.cachedUser['user_id'] ?? 1,
-                ),
-        ),
-      );
+  Future<void> _setupPinFlow() async {
+    if (_firstPinEntry == null) {
+      setState(() {
+        _firstPinEntry = _pin;
+        _pin = '';
+        _hasError = false;
+      });
+      return;
+    }
+
+    if (_pin != _firstPinEntry) {
+      setState(() {
+        _hasError = true;
+        _pin = '';
+        _firstPinEntry = null;
+      });
+      return;
+    }
+
+    try {
+      setState(() {
+        _isSubmitting = true;
+        _hasError = false;
+      });
+      await ApiService().setPosPin(_pin);
+      widget.cachedUser['pos_pin'] = _pin;
+      if (!mounted) return;
+      _goNext();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _hasError = true;
+        _pin = '';
+        _firstPinEntry = null;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  void _verifyPin() {
+    final expectedPin = _normalizedCachedPin();
+
+    if (_pin == expectedPin) {
+      _goNext();
     } else {
       setState(() {
         _hasError = true;
         _pin = '';
       });
     }
+  }
+
+  void _goNext() {
+    final role = widget.cachedUser['role']?.toString();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => role == 'customer'
+            ? CustomerSelfOrderScreen(
+                customerName: widget.cachedUser['name'] ?? 'Customer',
+                userId: widget.cachedUser['user_id'] ?? 1,
+                partnerId: widget.cachedUser['partner_id'],
+              )
+            : PosScreen(
+                cashierName: widget.cachedUser['name'] ?? 'Cashier',
+                cashierId: widget.cachedUser['user_id'] ?? 1,
+              ),
+      ),
+    );
   }
 
   void _logout() async {
@@ -188,8 +254,12 @@ class _PinScreenState extends State<PinScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Enter PIN to unlock',
+                            Text(
+                              _isSetupMode
+                                  ? (_firstPinEntry == null
+                                      ? 'Create your 4-digit PIN'
+                                      : 'Confirm your new PIN')
+                                  : 'Enter PIN to unlock',
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 16,
@@ -229,9 +299,11 @@ class _PinScreenState extends State<PinScreen> {
                             SizedBox(
                               height: 40,
                               child: _hasError
-                                  ? const Center(
+                                  ? Center(
                                       child: Text(
-                                        'Incorrect PIN',
+                                        _isSetupMode
+                                            ? 'PIN mismatch or save failed'
+                                            : 'Incorrect PIN',
                                         style: TextStyle(
                                           color: Colors.redAccent,
                                           fontWeight: FontWeight.bold,
@@ -242,7 +314,15 @@ class _PinScreenState extends State<PinScreen> {
                             ),
 
                             // Numpad
-                            _buildNumpad(),
+                            if (_isSubmitting)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              )
+                            else
+                              _buildNumpad(),
                           ],
                         ),
                       ),

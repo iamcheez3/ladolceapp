@@ -1243,3 +1243,163 @@ Priority/decision rules:
   - Set `.env` with API URL + DB, leave dev overrides empty -> login works using `.env`.
   - In login dev tools, set DB override different from `.env` -> login uses dev DB override.
   - Clear dev overrides -> app returns to `.env` values.
+
+==================================================
+44) LATEST IMPLEMENTED UPDATE (SAVE TICKET PRINT + REPRINT RELIABILITY FIX)
+==================================================
+- Request:
+  - Saving ticket no longer printed kitchen order.
+  - Reprint order only printed some items, not all.
+- Root cause:
+  - Ticket lines were marked `isPrinted=true` even when kitchen print did not actually succeed.
+  - Reprint flow applied category routing filters, which can intentionally skip unmatched items.
+  - Category filter matching was not trimming whitespace, causing accidental mismatches.
+- Implementation:
+  - Added centralized order-print helper in POS screen:
+    - `_resolveOrderPrinters()` with fallback to selected/default printer when no `printOrders` profile exists.
+    - `_printOrderItemsToKitchen()` to reuse and consistently count successful print jobs.
+  - Updated Save Ticket and Open Ticket printing:
+    - now mark lines `isPrinted=true` only if at least one printer successfully printed.
+  - Updated Reprint Order behavior:
+    - now force-prints ALL current ticket lines (ignores category filters) to avoid partial reprints.
+  - Hardened category filter matching (`trim().toLowerCase()`) in both:
+    - `pos_screen.dart`
+    - `printer_service.dart`
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `lib/services/printer_service.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Add items -> Save Ticket: kitchen slip should print.
+  - If printer is disconnected during save, reconnect and save again: same lines should still print (not permanently marked as printed).
+  - Tap Reprint Order: all items in current ticket should print, not only filtered subset.
+
+==================================================
+45) LATEST IMPLEMENTED UPDATE (DRAWER OPEN RULE ON SAVE TICKET)
+==================================================
+- Request:
+  - Saving ticket should print kitchen order only.
+  - Cash drawer must NOT open on save ticket.
+  - Drawer should open only on charge with cash or manual "Open cash drawer".
+- Implementation:
+  - Removed cash-drawer auto-open logic from `_processOpenTicket()` in POS screen.
+  - Kept existing drawer behavior in checkout path (cash payment) and manual menu action unchanged.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Save a ticket with items -> kitchen ticket prints, drawer stays closed.
+  - Charge order with cash -> drawer opens.
+  - Tap manual "Open cash drawer" -> drawer opens.
+
+==================================================
+46) LATEST IMPLEMENTED UPDATE (REPRINT LIMITED TO OPEN TICKETS)
+==================================================
+- Request:
+  - Reprint order should be usable only when an open/saved ticket is selected.
+- Implementation:
+  - Updated popup menu enable rule:
+    - `Reprint order (kitchen)` is now enabled only when both:
+      - `_activeTicketId != null`
+      - current ticket has items
+  - Added runtime guard in reprint handler:
+    - if no active ticket, show warning snackbar and block action.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - No active/open ticket selected -> Reprint menu item is disabled.
+  - Open existing ticket -> Reprint becomes enabled and prints.
+
+==================================================
+47) LATEST IMPLEMENTED UPDATE (POS SAFEAREA FOR NAVIGATION BAR)
+==================================================
+- Request:
+  - Move bottom UI content up / make it responsive for different phone navigators.
+- Implementation:
+  - Wrapped POS `Scaffold` body with `SafeArea(top: false, ...)` so content respects bottom system insets (gesture bar / navigation bar) across devices.
+  - This prevents product area content from sitting too low behind the phone navigation area.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open POS on phones with gesture navigation and 3-button navigation.
+  - Confirm bottom product area no longer sits against/under system navigation region.
+
+==================================================
+48) LATEST IMPLEMENTED UPDATE (DRAWER BOTTOM SAFEAREA FIX)
+==================================================
+- Request:
+  - Fix drawer bottom area too close to Android navigation bar.
+  - Apply same responsive behavior for this screen too.
+- Implementation:
+  - Wrapped POS drawer content with `SafeArea(top: false, ...)` so the bottom "Lock / Switch User" area stays above system navigation insets.
+  - Kept existing header spacing logic unchanged.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open drawer on phone with 3-button navigation.
+  - Confirm "Lock / Switch User" is lifted above nav bar and fully tappable.
+
+==================================================
+49) LATEST IMPLEMENTED UPDATE (FIRST LOGIN PIN SETUP FOR CASHIER)
+==================================================
+- Request:
+  - If cashier registers without PIN, first login PIN screen should set their PIN.
+- Implementation:
+  - Backend:
+    - Added authenticated endpoint `POST /api/pos/set_pin`.
+    - Validates 4-digit numeric PIN and writes to current session user `pos_pin`.
+  - Flutter API:
+    - Added `ApiService.setPosPin(pin)` to call backend and update cached user data.
+  - PIN screen:
+    - Added first-time setup flow when `pos_pin` is empty:
+      - step 1: enter new 4-digit PIN
+      - step 2: confirm PIN
+      - saves PIN via API
+      - proceeds to POS only after successful save
+    - Existing users with PIN keep normal unlock behavior.
+- Files changed:
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/auth_api.py`
+  - `lib/services/api_service.dart`
+  - `lib/screens/pin_screen.dart`
+- Commands / ops needed:
+  - Restart/upgrade `pos_backend` so new endpoint is available.
+  - Hot restart Flutter app.
+- Quick verification:
+  - Register cashier without PIN.
+  - First login -> PIN screen asks to create + confirm PIN.
+  - After confirm, user enters POS.
+  - Logout/login again -> PIN screen now requires the saved PIN.
+
+==================================================
+50) LATEST IMPLEMENTED UPDATE (PIN MISMATCH FALSE-VALUE FIX)
+==================================================
+- Request:
+  - Recheck auth/pin flow because confirm step kept mismatching.
+- Root cause:
+  - Odoo may serialize empty `Char` field as boolean `false` in JSON.
+  - PIN screen treated `false` as non-empty string (`"false"`), so setup/verify logic could mis-detect mode and mismatch.
+- Implementation:
+  - Backend auth response hardening:
+    - login response now returns `pos_pin` as string with fallback `''` (never boolean false).
+    - set_pin response also returns `pos_pin` with fallback `''`.
+  - Flutter PIN normalization:
+    - Added `_normalizedCachedPin()` to treat `null/false` as empty.
+    - `_isSetupMode` and `_verifyPin()` now use normalized value.
+- Files changed:
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/auth_api.py`
+  - `lib/screens/pin_screen.dart`
+- Commands / ops needed:
+  - Restart/upgrade `pos_backend`.
+  - Hot restart Flutter app.
+- Quick verification:
+  - Cashier with no PIN should enter setup mode (not "incorrect PIN" mode).
+  - Confirm PIN should pass when same digits are entered.
+  - Existing cashier with saved PIN should unlock normally.
