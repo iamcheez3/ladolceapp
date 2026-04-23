@@ -1,0 +1,448 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/ticket.dart';
+import '../models/product.dart';
+import '../models/cart_item.dart';
+import '../services/api_service.dart';
+
+/// Result object returned when a ticket is resumed
+class ResumedTicket {
+  final int? orderId;        // null for offline tickets
+  final String orderName;
+  final int? tableId;
+  final String? tableName;
+  final String paymentType;
+  final int? paymentMethodId;
+  final String paymentMethodName;
+  final List<CartItem> cartItems;
+  final bool isOffline;
+
+  ResumedTicket({
+    this.orderId,
+    required this.orderName,
+    this.tableId,
+    this.tableName,
+    this.paymentType = '',
+    this.paymentMethodId,
+    this.paymentMethodName = '',
+    required this.cartItems,
+    this.isOffline = false,
+  });
+}
+
+/// A display-ready ticket that merges online & offline sources
+class _DisplayTicket {
+  final int? id;           // null if offline
+  final String name;
+  final int? tableId;
+  final String? tableName;
+  final double amountTotal;
+  final String paymentType;
+  final int? paymentMethodId;
+  final String paymentMethodName;
+  final List<TicketLine> lines;
+  final bool isOffline;
+  final int? offlineIndex;
+  /// When the ticket was first opened — used to show live duration badge.
+  final DateTime? openedAt;
+
+  _DisplayTicket({
+    this.id,
+    required this.name,
+    this.tableId,
+    this.tableName,
+    required this.amountTotal,
+    this.paymentType = '',
+    this.paymentMethodId,
+    this.paymentMethodName = '',
+    required this.lines,
+    this.isOffline = false,
+    this.offlineIndex,
+    this.openedAt,
+  });
+}
+
+class TicketsScreen extends StatefulWidget {
+  final List<Product> cachedProducts;
+
+  const TicketsScreen({Key? key, required this.cachedProducts}) : super(key: key);
+
+  @override
+  State<TicketsScreen> createState() => _TicketsScreenState();
+}
+
+class _TicketsScreenState extends State<TicketsScreen> {
+  final ApiService _apiService = ApiService();
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<_DisplayTicket> _tickets = [];
+  Timer? _tickTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTickets();
+    // Rebuild every minute so duration badges stay current
+    _tickTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tickTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchTickets() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final List<_DisplayTicket> combined = [];
+
+    // ── 1. Load offline queue ──────────────────────────────────────────────
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final offlineList = prefs.getStringList('offline_orders') ?? [];
+      for (int i = 0; i < offlineList.length; i++) {
+        final raw = offlineList[i];
+        final Map<String, dynamic> data = jsonDecode(raw);
+        final rawLines = data['lines'] as List? ?? [];
+
+        final List<TicketLine> lines = rawLines.map((l) {
+          final product = widget.cachedProducts
+              .where((p) => p.id == l['product_id'])
+              .firstOrNull;
+          return TicketLine(
+            productId: l['product_id'],
+            productName: product?.name ?? 'Product #${l['product_id']}',
+            qty: (l['qty'] ?? 1).toInt(),
+            priceUnit: (l['price_unit'] ?? 0).toDouble(),
+          );
+        }).toList();
+
+        final total = lines.fold<double>(
+            0.0, (sum, l) => sum + l.qty * l.priceUnit);
+
+        combined.add(_DisplayTicket(
+          id: null,
+          name: 'OFFLINE #${i + 1}',
+          tableId: data['table_id'],
+          tableName: null,
+          amountTotal: total,
+          lines: lines,
+          isOffline: true,
+          offlineIndex: i, // Save actual index in list
+        ));
+      }
+    } catch (_) {
+      // ignore offline parse errors
+    }
+
+    // ── 2. Load online tickets from Odoo ──────────────────────────────────
+    try {
+      final onlineTickets = await _apiService.fetchOpenTickets();
+      for (final t in onlineTickets) {
+        combined.add(_DisplayTicket(
+          id: t.id,
+          name: t.name,
+          tableId: t.tableId,
+          tableName: t.tableName,
+          amountTotal: t.amountTotal,
+          paymentType: t.paymentType,
+          paymentMethodId: t.paymentMethodId,
+          paymentMethodName: t.paymentMethodName,
+          lines: t.lines,
+          isOffline: false,
+          openedAt: t.openedAt,
+        ));
+      }
+    } catch (e) {
+      if (combined.isEmpty) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+        return;
+      }
+      // If we have offline tickets, just show them even if online fails
+    }
+
+    setState(() {
+      _tickets = combined;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _resumeTicket(_DisplayTicket ticket) async {
+    List<CartItem> cartItems = [];
+    for (var line in ticket.lines) {
+      final product = widget.cachedProducts
+          .where((p) => p.id == line.productId)
+          .firstOrNull;
+      if (product != null) {
+        cartItems.add(CartItem(
+          product: product,
+          quantity: line.qty,
+          isSaved: true,
+          isPrinted: true, // already sent to kitchen when originally saved
+        ));
+      } else {
+        debugPrint('Product ${line.productId} not found in catalog');
+      }
+    }
+
+    // If it's an offline ticket, popping it removes it from the queue so it can be merged/charged
+    if (ticket.isOffline && ticket.offlineIndex != null) {
+      final prefs = await SharedPreferences.getInstance();
+      var offlineList = prefs.getStringList('offline_orders') ?? [];
+      if (ticket.offlineIndex! < offlineList.length) {
+        offlineList.removeAt(ticket.offlineIndex!);
+        await prefs.setStringList('offline_orders', offlineList);
+      }
+    }
+
+    if (!mounted) return;
+
+    Navigator.pop(
+      context,
+      ResumedTicket(
+        orderId: ticket.id,
+        orderName: ticket.name,
+
+        tableId: ticket.tableId,
+        tableName: ticket.tableName,
+        paymentType: ticket.paymentType,
+        paymentMethodId: ticket.paymentMethodId,
+        paymentMethodName: ticket.paymentMethodName,
+        cartItems: cartItems,
+        isOffline: ticket.isOffline,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text('Open Tickets'),
+        backgroundColor: const Color(0xFF1E3A8A),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _fetchTickets,
+          ),
+        ],
+      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.wifi_off, color: Colors.red, size: 64),
+            const SizedBox(height: 16),
+            Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchTickets,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_tickets.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long, size: 64, color: Colors.grey),
+            SizedBox(height: 12),
+            Text('No open tickets', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 200,
+        childAspectRatio: 0.85,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: _tickets.length,
+      itemBuilder: (context, index) {
+        final ticket = _tickets[index];
+        return _buildTicketCard(ticket);
+      },
+    );
+  }
+
+  /// Returns a human-readable "open for" string, e.g. "5 min", "1h 23m".
+  String _formatElapsed(DateTime openedAt) {
+    final diff = DateTime.now().difference(openedAt);
+    if (diff.inMinutes < 1)  return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min';
+    final h = diff.inHours;
+    final m = diff.inMinutes % 60;
+    return m == 0 ? '${h}h' : '${h}h ${m}m';
+  }
+
+  /// Color for the duration badge based on how long the table has been open.
+  Color _durationColor(DateTime openedAt) {
+    final mins = DateTime.now().difference(openedAt).inMinutes;
+    if (mins < 30)  return Colors.green.shade600;
+    if (mins < 60)  return Colors.orange.shade700;
+    return Colors.red.shade600;        // over 1 hour — draw attention
+  }
+
+  Widget _buildTicketCard(_DisplayTicket ticket) {
+    final isOffline  = ticket.isOffline;
+    final accentColor = isOffline ? Colors.orange : const Color(0xFF1E3A8A);
+    final openedAt   = ticket.openedAt;
+
+    return InkWell(
+      onTap: () => _resumeTicket(ticket),
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Header row ───────────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(
+                    isOffline ? Icons.cloud_off : Icons.receipt_long,
+                    color: accentColor,
+                    size: 18,
+                  ),
+                  Flexible(
+                    child: Text(
+                      ticket.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: accentColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+
+              // ── Offline badge OR duration badge ───────────────────────
+              if (isOffline)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '⚡ OFFLINE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else if (openedAt != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _durationColor(openedAt).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '🕐 ${_formatElapsed(openedAt)}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: _durationColor(openedAt),
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
+              const Divider(height: 1),
+
+              // ── Body ─────────────────────────────────────────────────
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      ticket.tableName != null ? Icons.table_restaurant : Icons.receipt,
+                      color: accentColor,
+                      size: 28,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      ticket.tableName ?? (ticket.tableId != null ? 'Table #${ticket.tableId}' : 'No Table'),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: ticket.tableName != null || ticket.tableId != null
+                            ? Colors.black87
+                            : Colors.grey,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    Text(
+                      '${ticket.lines.length} item${ticket.lines.length == 1 ? '' : 's'}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(height: 1),
+
+              // ── Total ────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  '₭${ticket.amountTotal.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: accentColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

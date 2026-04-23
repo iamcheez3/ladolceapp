@@ -1,0 +1,1143 @@
+Project handoff prompt (Flutter + Odoo POS)
+
+You are helping me continue development for my Flutter POS app integrated with Odoo 18.
+
+==================================================
+1) PROJECT CONTEXT
+==================================================
+- Flutter project path (Windows):
+  c:\Users\iamcheez3\Desktop\Flutter\ladolce
+
+- Odoo backend path (WSL Ubuntu):
+  \\wsl.localhost\Ubuntu\home\sith\odoo\pos
+
+- Custom addons path:
+  \\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons
+
+- Main backend module used by app:
+  pos_backend
+  - controllers/catalog_api.py
+  - models/product_template.py
+
+- Product fetch endpoint currently used by Flutter:
+  GET /api/products
+
+- Product create/update endpoint used by Flutter:
+  POST /api/pos/products
+
+==================================================
+2) WHAT THIS APP DOES (FLOW)
+==================================================
+- This is a restaurant/cafe POS system.
+- There are 2 primary ordering flows:
+  1) Cashier POS screen (staff side)
+  2) Customer self-order screen (customer side)
+
+- Products are loaded from Odoo.
+- Products may have optional toppings.
+- Cart items support selected toppings and total includes topping extra price.
+- Orders are submitted to Odoo through API endpoints.
+
+Current important behavior:
+- POS screen: when tapping a product with toppings, app asks to choose toppings (or add without).
+- Customer self-order screen: also now asks toppings before add.
+- Different topping combinations are treated as separate cart lines.
+
+==================================================
+3) IMPORTANT BACKEND COMPATIBILITY NOTES
+==================================================
+- Odoo schema differences caused crashes before.
+- In catalog_api.py, create_or_update_product was patched to be schema-safe:
+  - Only writes fields if they exist (ex: type/detailed_type, available_in_pos).
+  - Accepts topping payload keys from client and maps to many2many command.
+  - Resolves product.product id (variant id) to product.template before write.
+
+- Flutter saveProduct payload now sends:
+  - topping_ids
+  - pos_topping_ids
+  - pos_topping_ids_command (for compatibility)
+
+==================================================
+4) WHAT I WANT YOU TO DO NEXT
+==================================================
+Please do the following:
+
+1. Review both sides (Flutter + Odoo) and verify topping flow end-to-end:
+   - add topping to product in catalog management
+   - select toppings while ordering in POS screen
+   - select toppings while ordering in customer self-order screen
+   - confirm topping_ids persist to order lines in Odoo
+
+2. Make API contract clean and consistent:
+   - choose one canonical payload for toppings
+   - keep backward compatibility if possible
+   - return clear error messages
+
+3. Improve UX for topping selection:
+   - optional toppings
+   - clear “add without toppings” path
+   - show selected toppings in cart line details
+
+4. Ensure Odoo endpoint robustness:
+   - no writes to missing fields
+   - proper product variant/template id handling
+   - stable JSON responses and 4xx/5xx handling
+
+5. Add quick verification checklist:
+   - exact test steps and expected results
+   - include sample request/response JSON for /api/pos/products
+
+==================================================
+5) FILES TO CHECK FIRST
+==================================================
+Flutter:
+- lib/services/api_service.dart
+- lib/screens/pos_screen.dart
+- lib/screens/customer_self_order_screen.dart
+- lib/screens/manage_products_screen.dart
+- lib/models/cart_item.dart
+- lib/models/product.dart
+
+Odoo:
+- custom_addons/pos_backend/controllers/catalog_api.py
+- custom_addons/pos_backend/models/product_template.py
+- custom_addons/api_for_application/controllers/product_api.py
+
+==================================================
+6) RESPONSE STYLE I WANT
+==================================================
+- Give me:
+  1) Root cause(s)
+  2) Exact code changes (file-by-file)
+  3) API examples
+  4) Test checklist
+  5) Any migration/restart steps for Odoo
+
+Please keep it practical and implementation-focused.
+
+==================================================
+7) LATEST IMPLEMENTED UPDATE
+==================================================
+- POS "Move ticket" is now implemented in Flutter (not placeholder anymore).
+- In POS menu, clicking "Move ticket" now:
+  1) Loads open tickets from API
+  2) Lets user choose source ticket
+  3) Shows destination tickets (excluding selected source)
+  4) Moves all source lines into destination
+  5) Clears source ticket lines after successful move
+
+- File changed for this:
+  - lib/screens/pos_screen.dart
+
+- Notes:
+  - Move uses /api/pos/open_tickets data and updateOrder API calls.
+  - Ticket line model now supports topping_ids parsing:
+    - lib/models/ticket.dart
+
+- Updated behavior:
+  - Move ticket destination now supports:
+    1) another open ticket, OR
+    2) an empty table (creates a new ticket there, then clears source)
+  - File changed:
+    - lib/screens/pos_screen.dart
+
+- Latest update:
+  - Move Ticket UI changed from small popup to large/full-screen bottom sheet for easier tapping and selection on mobile.
+  - Backend open tickets endpoint now skips empty draft orders, so source ticket disappears after full move.
+  - Backend open tickets endpoint now returns topping_ids in each line so move can preserve toppings.
+  - Files changed:
+    - lib/screens/pos_screen.dart
+    - custom_addons/pos_backend/controllers/pos_order_api.py
+
+- Latest update:
+  - Clear Ticket now requires Admin PIN when an active/open ticket is selected in POS.
+  - Backend added secure endpoint:
+    - POST /api/pos/order/<order_id>/delete
+    - Payload: {"admin_pin": "..."}
+    - Validates admin user by pos_role='admin' and pos_pin match before delete.
+  - Flutter now prompts for admin PIN and calls delete endpoint before removing ticket from UI.
+  - Files changed:
+    - lib/screens/pos_screen.dart
+    - lib/services/api_service.dart
+    - custom_addons/pos_backend/controllers/pos_order_api.py
+
+- Latest update:
+  - Admin PIN input UI for "Clear ticket" now matches app unlock style:
+    - dark blue dialog
+    - circle PIN indicators
+    - numeric keypad (0-9 + backspace)
+    - auto-submit at 4 digits
+  - File changed:
+    - lib/screens/pos_screen.dart
+
+- Latest update:
+  - Fixed move-ticket leftovers:
+    - Backend update endpoint now deletes ticket when replace_all=true and no lines remain.
+    - Open tickets list now hides zero-qty/empty draft orders.
+    - Tables occupancy now marks OPEN only for draft orders with qty > 0 lines.
+  - Fixed stale table status in POS:
+    - POS now refreshes tables BEFORE opening table-selection dialog so T1/T2 status is correct immediately.
+  - Files changed:
+    - custom_addons/pos_backend/controllers/pos_order_api.py
+    - lib/screens/pos_screen.dart
+
+==================================================
+8) LATEST IMPLEMENTED UPDATE (UI)
+==================================================
+- Customer Self-Order UI was redesigned to match the requested reference layout, and the color palette was shifted to a navy/white base inspired by the bear logo.
+
+- Goals of this update:
+  - Match reference: category chips row + product grid + "Current Cart" preview panel on wide screens
+  - Keep existing functionality: product toppings optional, cart lines split by topping combo, checkout flow unchanged
+  - Add a sticky "View Cart" bottom bar on the customer Home tab
+
+- Main file changed:
+  - lib/screens/customer_self_order_screen.dart
+
+- What changed (behavior + layout):
+  - Home tab now renders:
+    - Top controls: banner card + search field + horizontal category chips
+    - Product grid:
+      - Phone/small width: tap product opens existing product detail bottom sheet (toppings + qty + add)
+      - Wide width (>= 900px): tap product sets a preview selection instead of opening detail
+    - Wide width only: right-side "Current Cart" panel:
+      - Shows preview item image/name, selected toppings summary ("No Toppings" if none)
+      - Qty stepper + price total for preview
+      - "Select Toppings" button opens a toppings picker bottom sheet (optional toppings)
+      - "Add to Cart" adds using current preview qty + toppings
+      - Shows current cart total
+  - Sticky bottom bar ("View Cart • {items} items • {total}") appears on the Home tab and switches to the Cart tab when tapped.
+
+- Visual theme notes (customer screen only; local palette constants):
+  - Brand navy: #0B1B6A
+  - Secondary navy: #142B8C
+  - Surface: #F6F7FB
+  - Accent: #3B82F6
+  - Gold label accent: #C6A15B
+
+- Implementation notes for next AI:
+  - The new layout is implemented without adding an actual logo asset yet (title text "LaDolce" in AppBar).
+  - If you want to show the bear logo image, add it as a Flutter asset and replace the title with `Image.asset(...)`.
+
+- Related maintenance:
+  - Fixed failing default Flutter test that referenced `MyApp` (this repo uses `PosApp`).
+  - File changed:
+    - test/widget_test.dart
+
+- Follow-up UI update (customer theme):
+  - Customer screen now uses a NAVY background with a subtle "faded luxury" pattern rendered via `CustomPainter` (no image asset required).
+  - The actual content sits on a white rounded surface card layered above the patterned navy background.
+  - File changed:
+    - lib/screens/customer_self_order_screen.dart
+
+==================================================
+9) LATEST IMPLEMENTED UPDATE (API CONTRACT HARDENING)
+==================================================
+- Canonical toppings payload for product create/update is now:
+  - `topping_ids: [int, ...]`
+- Backward compatibility remains supported in backend for:
+  - `pos_topping_ids`
+  - `pos_topping_ids_command` (legacy many2many format)
+
+- Backend robustness improvements in product catalog API:
+  - Added structured JSON helpers for consistent response formatting.
+  - Added validation with proper 4xx responses:
+    - 400 when `name` is empty
+    - 400 when `list_price` is not numeric
+    - 400 when `topping_ids` is not an integer array
+    - 404 when target product is not found
+  - Product ID resolution is now variant-safe for BOTH update and delete:
+    - If incoming ID is `product.product`, it resolves to `product.template` before write/unlink.
+
+- Flutter API payload cleanup:
+  - `saveProduct` now sends:
+    - canonical `topping_ids`
+    - legacy `pos_topping_ids` for compatibility
+  - Removed redundant `pos_topping_ids_command` from Flutter payload.
+
+- Files changed:
+  - custom_addons/pos_backend/controllers/catalog_api.py
+  - lib/services/api_service.dart
+
+==================================================
+10) LATEST IMPLEMENTED UPDATE (PROFILE OVERFLOW FIX)
+==================================================
+- Fixed customer Profile tab RenderFlex overflow on smaller phone heights (logout button area was being clipped/overflowing).
+- Layout update in Profile tab:
+  - Shifted profile content slightly upward.
+  - Made the "Customer details" card the flexible/scrollable section inside available height.
+  - Kept logout button anchored in visible bottom area with tighter spacing.
+
+- Avatar sizing update:
+  - Increased profile avatar circle size by ~1.5x as requested.
+  - Scaled related overlay elements (online dot + camera button + initials text) to match.
+
+- File changed:
+  - lib/screens/customer_self_order_screen.dart
+
+==================================================
+14) LATEST IMPLEMENTED UPDATE (LOGIN SCREEN REDESIGN)
+==================================================
+- Login screen was redesigned to match LaDolce brand style based on the navy/white bear-logo identity.
+- UI changes in login:
+  - Full-screen navy gradient background.
+  - Rounded light surface card with soft shadow.
+  - Brand logo block at top of login card.
+  - Bold "LaDolce" title + welcome subtitle.
+  - Restyled input fields (rounded, filled, navy-focused border).
+  - Password visibility toggle added.
+  - Restyled primary login button and create-account link.
+
+- Asset wiring:
+  - Login logo uses:
+    - `assets/images/ladolce_bear_logo.png`
+  - Added assets config for image folder in `pubspec.yaml`:
+    - `assets/images/`
+  - Safety fallback:
+    - If logo file is missing, login shows a pet icon fallback instead of crashing.
+
+- Files changed:
+  - lib/screens/login_screen.dart
+  - pubspec.yaml
+
+==================================================
+15) LATEST IMPLEMENTED UPDATE (REGISTER SCREEN REDESIGN)
+==================================================
+- Register screen was redesigned to match the new login branding and visual system.
+- Shared design style applied:
+  - Navy gradient background + rounded light surface card
+  - Bear logo block at top using same asset path as login
+  - Bold title/subtitle typography
+  - Rounded, filled form fields with navy focus border
+  - Styled primary action button
+
+- UX improvements:
+  - Added password show/hide toggle.
+  - Replaced radio tiles with compact `ChoiceChip` role selector for cleaner mobile layout.
+  - Added top back arrow button inside the card for quick return to login.
+  - Phone label now dynamically indicates required/optional state based on selected role.
+
+- File changed:
+  - lib/screens/register_screen.dart
+
+==================================================
+16) LATEST IMPLEMENTED UPDATE (APP ICON + LOADING SPLASH)
+==================================================
+- Added branded app icon generation setup using the bear logo asset:
+  - Package added: `flutter_launcher_icons`
+  - Config added in `pubspec.yaml` under `flutter_icons`
+  - Source image: `assets/images/ladolce_bear_logo.png`
+  - Targets: Android + iOS
+
+- Added branded native loading/splash screen setup:
+  - Package added: `flutter_native_splash`
+  - Config added in `pubspec.yaml` under `flutter_native_splash`
+  - Navy background `#0B1B6A` + centered bear logo
+  - Android 12 splash config included
+  - Targets: Android + iOS
+
+- Generation completed:
+  - `flutter pub run flutter_launcher_icons`
+  - `flutter pub run flutter_native_splash:create`
+  - Android and iOS launcher/splash assets were regenerated.
+
+- Files changed:
+  - pubspec.yaml
+  - android/app/src/main/res/** (generated launcher/splash resources)
+  - ios/Runner/** (generated launcher/splash resources)
+
+==================================================
+17) LATEST IMPLEMENTED UPDATE (BUILD FIX AFTER SPLASH SETUP)
+==================================================
+- Android build failed after splash/icon setup because old generator package `flutter_native_splash: 2.2.16` is incompatible with newer Android Gradle Plugin requirements (`namespace` missing in plugin Android module).
+
+- Fix applied:
+  - Removed generator-only packages from `dev_dependencies` after assets were already generated:
+    - `flutter_native_splash`
+    - `flutter_launcher_icons`
+  - Kept the generated Android/iOS splash and icon assets in place, so runtime branding remains unchanged.
+
+- Note:
+  - `flutter pub get` on Windows still warns about Developer Mode / symlink support in this environment, but the actual AGP namespace failure source was removed from the app dependency graph.
+
+- File changed:
+  - pubspec.yaml
+
+==================================================
+18) LATEST IMPLEMENTED UPDATE (BRAND NAVY COLOR MATCH)
+==================================================
+- Brand background color was adjusted to match logo picker value:
+  - old navy: `#0B1B6A`
+  - new navy: `#0D1565`
+
+- Updated app UI brand constants:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/screens/login_screen.dart`
+  - `lib/screens/register_screen.dart`
+
+- Updated splash/config color references:
+  - `pubspec.yaml` (`flutter_icons` / `flutter_native_splash` color fields)
+  - `android/app/src/main/res/values-v31/styles.xml`
+  - `android/app/src/main/res/values-night-v31/styles.xml`
+
+==================================================
+19) LATEST IMPLEMENTED UPDATE (POS SCREEN BRAND STYLE MATCH)
+==================================================
+- POS UI was restyled toward the same LaDolce navy/white brand language used in customer/login/register screens.
+
+- `pos_screen.dart` updates:
+  - Added brand color constants and applied brand surface as Scaffold background.
+  - AppBar switched to brand navy.
+  - Drawer header updated to navy gradient style.
+  - Drawer primary navigation icons switched to brand navy.
+  - Category tab indicator/label color switched to brand navy.
+  - Mobile bottom "View Ticket & Charge" bar switched to brand navy gradient.
+  - Product search field fill adjusted to white for cleaner branded card-like look.
+
+- `cart_sidebar.dart` updates:
+  - Save/Charge header buttons changed from green tones to navy brand tones.
+  - Current ticket title and totals now use brand navy.
+  - Quantity +/- controls and line totals for editable items now use brand navy.
+
+- `product_list.dart` update:
+  - Product price color changed to brand navy for consistency.
+
+- `main.dart` theme update:
+  - Global app seed/appbar primary color switched from old navy to brand navy (`#0D1565`).
+
+- Files changed:
+  - lib/screens/pos_screen.dart
+  - lib/widgets/cart_sidebar.dart
+  - lib/widgets/product_list.dart
+  - lib/main.dart
+
+==================================================
+13) LATEST IMPLEMENTED UPDATE (PROFILE OVERFLOW ROOT FIX)
+==================================================
+- Root cause of persistent profile overflow:
+  - Profile tab used fixed large dimensions (avatar, spacing, paddings) that exceed available vertical space on shorter phone heights.
+  - UI could still look "almost fine", but Flutter throws RenderFlex overflow in debug when total child height is larger than constraints.
+
+- Fix implemented:
+  - Added responsive compact-height profile sizing in `_buildProfileTab()` based on `constraints.maxHeight`.
+  - On compact heights, automatically reduces:
+    - top header height
+    - profile vertical translate offset
+    - avatar and overlay sizes
+    - some vertical gaps and logout bottom padding
+  - Keeps layout non-scrollable while preventing bottom overflow warnings.
+
+- File changed:
+  - lib/screens/customer_self_order_screen.dart
+
+==================================================
+12) LATEST IMPLEMENTED UPDATE (PROFILE CARD NO-SCROLL)
+==================================================
+- Customer Profile details card was changed to non-scrollable static content.
+- Removed `SingleChildScrollView` from the details block so:
+  - Full name / Phone / Email / Edit profile no longer scroll independently.
+- Reintroduced a `Spacer` below the details card to keep logout placement at the bottom zone.
+
+- File changed:
+  - lib/screens/customer_self_order_screen.dart
+
+==================================================
+11) LATEST IMPLEMENTED UPDATE (PROFILE DETAIL SIMPLIFICATION)
+==================================================
+- Customer Profile tab content was simplified per UI request:
+  - Removed "Customer details" section title.
+  - Removed `Reward points` row from details card (points remain in the badge under profile name).
+  - Removed `Customer ID` row from details card.
+
+- Logout button placement adjusted:
+  - Moved/tuned to sit in the lower bottom spacing area under the details card with more bottom padding.
+
+- File changed:
+  - lib/screens/customer_self_order_screen.dart
+  - Pattern implementation:
+    - `_LuxuryPatternPainter` draws a lightweight repeating medallion/flourish at very low opacity so it doesn't affect readability.
+
+- Customer navigation + profile update:
+  - Removed unused customer AppBar search icon (kept refresh).
+  - Reordered customer bottom tabs to: Home (0), Cart (1), History (2), Profile (3).
+    - Updated post-checkout behavior to switch to History tab index 2.
+  - Profile tab redesigned to match reference style:
+    - Curved navy header (uses `_BottomCurveClipper`) with subtle luxury pattern
+    - Avatar overlaps header + online dot indicator
+    - Menu-style rows (My Profile → edit bottom sheet, My Orders → History tab, Payment/QR → bottom sheet)
+  - File changed:
+    - lib/screens/customer_self_order_screen.dart
+
+- Edit Profile + Profile API support:
+  - Edit Profile bottom sheet restyled to match reference (light background, filled fields, close X, navy Save button).
+  - Profile avatar circle increased in size on Profile screen.
+  - API: customer profile calls now include cached Odoo `session_id` headers:
+    - Added `ApiService._authHeaders()` and used it in:
+      - `fetchCustomers()`
+      - `saveCustomer()`
+  - Files changed:
+    - lib/screens/customer_self_order_screen.dart
+    - lib/services/api_service.dart
+
+- Customer profile simplification + avatar upload:
+  - Removed menu rows (My Profile / My Orders / Payment-QR / Settings) from customer Profile tab.
+  - Replaced with a "Customer details" card showing labeled fields (name/phone/email/points/customer id) + single "Edit profile" button.
+  - Added profile avatar upload from gallery:
+    - Tap avatar (or camera button) → pick image from gallery
+    - Saves local path in `SharedPreferences` key `customer_profile_image_path_{partnerId or userId}`
+    - Displays `FileImage` when available; otherwise shows initials.
+  - Home grid/cards adjusted smaller + increased outer padding so faded navy pattern is visible around the white surface.
+  - File changed:
+    - lib/screens/customer_self_order_screen.dart
+
+- Profile header cleanup + no-scroll layout:
+  - Removed burger/menu and Edit buttons from Profile header.
+  - Profile tab no longer scrolls; layout was compacted to fit a typical phone screen height using `LayoutBuilder` + `Expanded`.
+  - File changed:
+    - lib/screens/customer_self_order_screen.dart
+
+==================================================
+20) LATEST IMPLEMENTED UPDATE (PRODUCT + CONTACT MANAGEMENT IN POS MODULE)
+==================================================
+- Requirement handled:
+  - Module now explicitly supports managing Products and Contacts from `Custom POS` menu using inherited core Odoo models.
+
+- Existing model inheritance status (confirmed):
+  - `product.template` is inherited in:
+    - `custom_addons/pos_backend/models/product_template.py`
+  - `res.partner` is inherited in:
+    - `custom_addons/pos_backend/models/res_partner.py`
+
+- New UI/actions added in POS backend module:
+  - Added product/contact management views/actions/menu entries:
+    - `views/product_contact_views.xml`
+  - Product form inheritance now exposes `pos_topping_ids` in product form:
+    - inherited view of `product.product_template_only_form_view`
+    - inserts toppings field after `list_price`
+  - Added Configuration menu entries under `Custom POS`:
+    - `Products` (model: `product.template`)
+    - `Contacts` (model: `res.partner`)
+
+- Manifest wiring:
+  - Included new XML file in module data:
+    - `custom_addons/pos_backend/__manifest__.py`
+
+- Files changed:
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\views\product_contact_views.xml`
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\__manifest__.py`
+
+- Post-change step:
+  - Upgrade `pos_backend` module in Odoo to load the new views/menus.
+
+==================================================
+21) LATEST IMPLEMENTED UPDATE (PRODUCT SUBMENU + COMBO/CATEGORY MANAGEMENT)
+==================================================
+- Requested UX/menu structure update completed:
+  - Product-related management is now grouped under a dedicated submenu in Custom POS Configuration.
+
+- Menu structure changes:
+  - Added parent submenu:
+    - `Product Management`
+  - Added child menus under it:
+    - `Products` (model: `product.template`)
+    - `Categories` (model: `product.category`)
+    - `Combos` (model: `pos_backend.combo`)
+  - Kept `Contacts` as a separate Configuration menu entry.
+
+- Combo management added:
+  - Added combo list/form views for `pos_backend.combo`.
+  - Combo form includes editable combo lines (`line_ids`) with:
+    - `product_id`
+    - `qty`
+
+- File changed:
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\views\product_contact_views.xml`
+
+- Post-change step:
+  - Upgrade `pos_backend` module so new menus/actions/views are loaded.
+
+==================================================
+22) LATEST IMPLEMENTED UPDATE (MOVE PRODUCTS/CONTACTS TO TOP CONFIG MENU)
+==================================================
+- Menu placement adjusted per request:
+  - `Products` moved to top-level under `Custom POS > Configuration`.
+  - `Contacts` remains top-level under `Custom POS > Configuration`.
+  - `Product Management` submenu is kept for grouped product setup items.
+
+- Final structure intent:
+  - Top-level in Configuration:
+    - Products
+    - Contacts
+    - Product Management (submenu)
+  - Inside `Product Management`:
+    - Categories
+    - Combos
+
+- File changed:
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\views\product_contact_views.xml`
+
+- Post-change step:
+  - Upgrade `pos_backend` module to refresh menu hierarchy.
+
+==================================================
+23) AI CONTINUATION PROTOCOL (MUST FOLLOW)
+==================================================
+Purpose:
+- This file is the source of truth for handoff context across AI sessions.
+- Any new AI must read this file first before making changes.
+
+When a new AI starts:
+1) Read this entire file from top to bottom.
+2) Assume this project is in active development; do not reset or discard existing work.
+3) Check the latest user message/prompt and treat it as highest priority over older plans.
+4) Use this file as background context, then merge with the newest prompt.
+5) If newest prompt conflicts with older notes in this file, follow newest prompt and document the change in a new "LATEST IMPLEMENTED UPDATE" section.
+
+How to continue work:
+- First confirm current state by reviewing the "FILES TO CHECK FIRST" list and the most recent "LATEST IMPLEMENTED UPDATE" sections.
+- Keep API and UI changes backward compatible where possible.
+- Prefer practical fixes with clear verification steps.
+- After finishing any task, append a new update block at the end of this file that includes:
+  1) what was requested
+  2) what was changed
+  3) files changed
+  4) any required restart/upgrade command
+  5) quick test checklist
+
+Update block format to append every session:
+==================================================
+X) LATEST IMPLEMENTED UPDATE (<SHORT TITLE>)
+==================================================
+- Request:
+  - <what user asked in this session>
+- Implementation:
+  - <what was changed and why>
+- Files changed:
+  - <path 1>
+  - <path 2>
+- Commands / ops needed:
+  - <ex: upgrade pos_backend module, restart Odoo, flutter pub get>
+- Quick verification:
+  - <step 1 + expected result>
+  - <step 2 + expected result>
+
+Priority/decision rules:
+- Rule 1: Latest direct user prompt wins.
+- Rule 2: Do not remove previous history from this file; append only.
+- Rule 3: Keep responses implementation-focused (root cause, exact file changes, API examples, checklist).
+- Rule 4: If uncertain, implement the safest compatible change and document assumptions.
+- Rule 5: Always leave the project in a handoff-ready state for the next AI.
+
+==================================================
+24) LATEST IMPLEMENTED UPDATE (PRODUCTS DROPDOWN + TOPPINGS MENU)
+==================================================
+- Request:
+  - Move Categories and Combos under the top `Products` menu dropdown.
+  - Add `Toppings` in the same Products dropdown.
+- Implementation:
+  - Converted top menu behavior so `Products` is now a parent dropdown under `Custom POS`.
+  - Added child entries under `Products`: `Products`, `Categories`, `Combos`, `Toppings`.
+  - Added `pos_backend.topping` management UI (tree/form) + window action for menu usage.
+  - Kept `Contacts` as its own top-level menu beside `Products` and `Configuration`.
+- Files changed:
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\views\product_contact_views.xml`
+- Commands / ops needed:
+  - Upgrade `pos_backend` module in Odoo.
+  - Hard refresh web client (`Ctrl+F5`) after upgrade.
+- Quick verification:
+  - Top bar shows `Products` and `Contacts` as main menus.
+  - Clicking `Products` shows dropdown items: `Products`, `Categories`, `Combos`, `Toppings`.
+  - Clicking `Toppings` opens list/form management for topping name + extra price.
+
+==================================================
+25) LATEST IMPLEMENTED UPDATE (CATEGORY VISIBILITY TOGGLE FOR APP)
+==================================================
+- Request:
+  - Add a tick field in category management so only checked categories show in the Flutter app.
+- Implementation:
+  - Added new inherited field on `product.category`:
+    - `pos_show_in_app` (boolean, default true).
+  - Updated category management UI in Odoo (`Categories`) to include `pos_show_in_app` in list and form.
+  - Updated category API:
+    - `GET /api/pos/categories` now returns `pos_show_in_app`.
+    - `POST /api/pos/categories` now accepts and saves `pos_show_in_app`.
+  - Updated product fetch API used by Flutter:
+    - `GET /api/products` now filters out products whose category has `pos_show_in_app = false`.
+  - Updated Flutter category management screen:
+    - Add/Edit Category dialog now has `Show in app` toggle.
+    - Save payload now sends `pos_show_in_app`.
+    - Category list now shows `Visible in app` / `Hidden in app`.
+- Files changed:
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\models\product_category.py`
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\models\__init__.py`
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\views\product_contact_views.xml`
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\controllers\catalog_api.py`
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\api_for_application\controllers\product_api.py`
+  - `lib/services/api_service.dart`
+  - `lib/screens/manage_categories_screen.dart`
+- Commands / ops needed:
+  - Upgrade `pos_backend` module in Odoo.
+  - Restart Odoo service if Python model changes are not reloaded automatically.
+  - Hard refresh web client (`Ctrl+F5`).
+- Quick verification:
+  - In Odoo `Products > Categories`, uncheck `Show in app` for one category.
+  - Product list in Flutter no longer shows products from that category.
+  - Re-check `Show in app` and confirm products reappear after refresh/reload.
+
+==================================================
+26) LATEST IMPLEMENTED UPDATE (POS SYNC BUTTON REFRESHES CATALOG LIVE)
+==================================================
+- Request:
+  - Make POS `Sync` button refresh app data so category hidden/visible changes appear without force-closing app.
+- Root cause:
+  - Top-right POS menu `Sync` only called offline-order sync and did not reload products/categories from server.
+- Implementation:
+  - Added shared helper in `pos_screen.dart`:
+    - `_syncOfflineAndRefreshCatalog()`
+    - Syncs offline orders, then fetches fresh catalog data (`_fetchOdooProducts(backgroundRefresh: true)`).
+  - Updated both sync entry points to use same helper:
+    - top-right `Sync` popup action
+    - Settings > `Sync Offline Data & Catalog`
+  - Added success/error snackbar feedback and proper loading state handling.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Rebuild/restart Flutter app to pick up updated sync logic.
+- Quick verification:
+  - In Odoo, toggle category `Show in app` from hidden to visible.
+  - In POS app, press top-right `Sync`.
+  - Confirm products from that category appear immediately (no app swipe/reopen needed).
+
+==================================================
+27) LATEST IMPLEMENTED UPDATE (PRODUCT + CONTACT IMAGE PIPELINE FIX)
+==================================================
+- Request:
+  - Product images still missing in app.
+  - Contact/customer profile image still not showing.
+- Root cause:
+  - Product API relied mostly on web image URLs that can fail in mobile client/network/auth scenarios.
+  - Customer API did not return partner image fields, so profile had no server image data to show.
+- Implementation:
+  - Product API now returns both:
+    - `image_url` (template-based web URL)
+    - `image_base64` (from `image_128`) for reliable mobile rendering
+  - Customer API now returns both:
+    - `image_url`
+    - `image_base64` (from partner `image_128`)
+  - Flutter product model now parses `image_base64`.
+  - Product image widgets now render from base64 first, then URL fallback:
+    - POS product grid
+    - POS product list
+    - Manage products list
+    - Customer self-order product cards
+  - Customer profile avatar now supports server image:
+    - Uses local picked image first
+    - Else falls back to API `image_base64`
+    - Else initials fallback
+- Files changed:
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\api_for_application\controllers\product_api.py`
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\controllers\pos_order_api.py`
+  - `lib/models/product.dart`
+  - `lib/widgets/product_grid.dart`
+  - `lib/widgets/product_list.dart`
+  - `lib/screens/manage_products_screen.dart`
+  - `lib/screens/customer_self_order_screen.dart`
+- Commands / ops needed:
+  - Upgrade `pos_backend` and `api_for_application` modules in Odoo (or restart Odoo service if using code auto-load is off).
+  - In app, press POS `Sync` to refresh catalog cache.
+- Quick verification:
+  - Set product image in Odoo product form and save.
+  - Press Sync in POS app and verify product cards now show image.
+  - Set contact image in Odoo contact form (customer used in app), reopen profile tab or relogin, verify avatar shows image.
+
+==================================================
+28) LATEST IMPLEMENTED UPDATE (IMAGE JSON 500 + PRODUCT GRID OVERFLOW FIX)
+==================================================
+- Request:
+  - Fix runtime API 500: `Object of type bytes is not JSON serializable`.
+  - Fix Flutter `RenderFlex overflowed by 7.0 pixels on the bottom` in product grid.
+- Root cause:
+  - Odoo `image_128` sometimes came as Python `bytes`, then `json.dumps()` failed.
+  - Product grid card height was slightly too short on phone constraints.
+- Implementation:
+  - Backend image serialization hardened:
+    - decode `bytes` to UTF-8 string before assigning `image_base64` in product and customer APIs.
+  - UI overflow fix:
+    - adjusted product grid `childAspectRatio` from `0.92` to `0.86` to give cards more vertical room.
+- Files changed:
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\api_for_application\controllers\product_api.py`
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\controllers\pos_order_api.py`
+  - `lib/widgets/product_grid.dart`
+- Commands / ops needed:
+  - Restart Odoo service (or reload code) so Python changes apply.
+  - In Flutter app, hot restart (or full restart) and press Sync.
+- Quick verification:
+  - `/api/products` should return 200 (no `bytes` JSON error).
+  - Product grid no longer shows yellow/black overflow stripes.
+
+==================================================
+29) LATEST IMPLEMENTED UPDATE (ADAPTIVE PRODUCT CARD LAYOUT)
+==================================================
+- Request:
+  - Make product cards fully adaptive so they do not overflow on different device sizes/font scales.
+- Implementation:
+  - Reworked product grid card body to responsive `LayoutBuilder` sizing:
+    - dynamic image height based on tile height
+    - adaptive paddings, text sizes, price-chip spacing
+    - compact text mode when system text scale is larger
+  - Replaced rigid fixed blocks with `Expanded` in details area so content fits within tile constraints.
+  - Kept image rendering priority:
+    - base64 image first
+    - URL fallback
+    - initials fallback
+- Files changed:
+  - `lib/widgets/product_grid.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open POS on small-screen emulator/device.
+  - Confirm no `RenderFlex overflow` stripes on product cards.
+  - Increase system font size and confirm cards still render without overflow.
+
+==================================================
+30) LATEST IMPLEMENTED UPDATE (LOYVERSE-STYLE PRINTER MANAGEMENT + CATEGORY ROUTING)
+==================================================
+- Request:
+  - Replace simple printer dialog with a printer management screen like Loyverse.
+  - Save printer details.
+  - Add features/toggles (receipts, orders, single-item ticket, grouping).
+  - Select which categories print from each printer.
+  - Match UI style closer to login/navy theme.
+- Implementation:
+  - Reworked printer system to support persistent multi-printer profiles using `SharedPreferences`.
+  - Added `PrinterProfile` model in `printer_service.dart` with:
+    - name, ip, port, paper width
+    - print receipts and bills
+    - print orders
+    - print single item per ticket
+    - group identical items
+    - category filters (routing)
+  - Added new screen:
+    - `lib/screens/printer_settings_screen.dart`
+    - list of printers + add/edit/delete
+    - save/test printer
+    - default receipt printer selection
+    - category routing checkboxes sourced from current product categories
+    - navy-styled header and clean card UI
+  - POS settings wiring:
+    - `Printer Configuration` now opens the new screen.
+    - subtitle now shows number of configured printers.
+  - Printing behavior updates:
+    - Receipts print on printers with `printReceiptsAndBills=true`.
+    - Order tickets print on printers with `printOrders=true`.
+    - Category filters are applied per printer for order tickets.
+    - Legacy single-printer fallback kept for compatibility.
+- Files changed:
+  - `lib/services/printer_service.dart`
+  - `lib/screens/printer_settings_screen.dart`
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open POS > Settings > Printer Configuration.
+  - Add printer profile, set IP/port, test print, save.
+  - Enable `Print orders` and assign category filters.
+  - Charge an order containing mixed categories and verify only matching categories print on that printer.
+
+==================================================
+31) LATEST IMPLEMENTED UPDATE (LUXURY PATTERN FOR LARGE EMPTY SPACES)
+==================================================
+- Request:
+  - Add a faded luxury background in large white/empty spaces for a more premium look.
+- Implementation:
+  - Added reusable luxury background component:
+    - `lib/theme/luxury_background.dart`
+    - Includes subtle medallion/flourish custom painter on soft surface background.
+  - Applied to screens with large whitespace/empty states:
+    - `Printers`
+    - `Manage Categories`
+    - `Manage Products`
+    - `Manage Combos`
+    - `Manage Toppings`
+  - Printer screen also now shows a styled empty-state card when no printers exist.
+- Files changed:
+  - `lib/theme/luxury_background.dart`
+  - `lib/screens/printer_settings_screen.dart`
+  - `lib/screens/manage_categories_screen.dart`
+  - `lib/screens/manage_products_screen.dart`
+  - `lib/screens/manage_combos_screen.dart`
+  - `lib/screens/manage_toppings_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open screens above when lists are empty and confirm subtle patterned background appears.
+  - Ensure list content remains readable and interactions still work.
+
+==================================================
+32) LATEST IMPLEMENTED UPDATE (PIN SCREEN UI TWEAKS)
+==================================================
+- Request:
+  - Remove "LaDolce POS" and logo from the PIN screen header.
+  - Replace the large bear logo above the "Welcome back" text with the actual user's profile picture or initials fallback.
+- Implementation:
+  - Header on pin_screen.dart was updated to align the "Switch User" button to the end and remove the left elements.
+  - _buildUserAvatar was introduced in pin_screen.dart to decode image_base64 from cachedUser and display the profile picture. It falls back to showing the user's initials if no image is available.
+- Files changed:
+  - lib/screens/pin_screen.dart`r
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open the Flutter app to the PIN screen.
+  - At the top left, the logo and "LaDolce POS" text should no longer be visible.
+  - Above the PIN pad, the user's avatar should appear instead of the bear logo.
+
+==================================================
+33) LATEST IMPLEMENTED UPDATE (HIGH-RESOLUTION IMAGES)
+==================================================
+- Request:
+  - Make the product image and customer avatars less blurry in the app.
+- Implementation:
+  - Upgraded both the product catalog API and POS order API to fetch `image_512` instead of `image_128` from Odoo.
+- Files changed:
+  - \wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\api_for_application\controllers\product_api.py
+  - \wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\controllers\pos_order_api.py
+- Commands / ops needed:
+  - Upgrade pos_backend and api_for_application modules in Odoo or Restart the Odoo backend service.
+  - Press "Sync" in the POS flutter app to refresh the cached product catalog.
+- Quick verification:
+  - Look at product cards or product detail sheets, they should no longer be blurry.
+
+==================================================
+34) LATEST IMPLEMENTED UPDATE (PRINT-ONCE KITCHEN ORDER LOGIC)
+==================================================
+- Request:
+  - When saving a ticket, items should only print to the kitchen ONCE.
+  - Charging should NOT re-print items already sent to the kitchen.
+  - "Reprint order" menu item should explicitly re-send ALL items to the kitchen (bypass once-flag).
+- Implementation:
+  - Added `isPrinted` boolean field to `CartItem` (default false).
+    - true = this line has already been fired to kitchen/bar printers.
+  - `_processOpenTicket` (new ticket save flow):
+    - Prints all items to kitchen as before, then sets `item.isPrinted = true` for each.
+  - `_saveCurrentTicket` (update existing ticket):
+    - Only prints items where !isSaved && !isPrinted (new AND unprinted).
+    - After print, marks those items `isPrinted = true` so charge won't re-print.
+  - `_processCheckout` (charge):
+    - Now calls `printReceiptToProfile()` directly only on receipt printers
+      (printReceiptsAndBills=true). Does NOT call order printers again.
+    - Added public `printReceiptToProfile()` on PrinterService as pass-through to private method.
+  - `TicketsScreen._resumeTicket`:
+    - When loading an existing ticket, sets `isPrinted: true` on all resumed lines
+      (they were already printed when the ticket was first created).
+  - Reprint Order menu item is now wired (was "Coming Soon"):
+    - Reprints ALL current cart items to kitchen printers ignoring isPrinted flag.
+    - Changed icon from refresh to print_outlined.
+- Files changed:
+  - `lib/models/cart_item.dart`
+  - `lib/screens/pos_screen.dart`
+  - `lib/screens/tickets_screen.dart`
+  - `lib/services/printer_service.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Add items, Save to ticket. Kitchen should print once.
+  - Add MORE items to same ticket, Save again. Kitchen prints only NEW items.
+  - Tap Charge. Receipt prints; kitchen does NOT re-print.
+  - Use "Reprint order (kitchen)" from 3-dot menu. All items print to kitchen again.
+
+==================================================
+35) IMPLEMENTED UPDATE (CONTEXT-AWARE POPUP MENU)
+==================================================
+- Request:
+  - "Reprint order" label should no longer say "Coming Soon".
+  - Disable: Clear ticket, Print bill, Reprint order, Split ticket, Move ticket
+    when no ticket is selected. Enable them again when a ticket IS selected.
+  - Open cash drawer and Sync should always remain enabled.
+- Implementation:
+  - Converted the `PopupMenuButton.itemBuilder` from a static `const` list to a
+    dynamic function that reads live state (`_cartItems`, `_activeTicketId`) every
+    time the menu is opened.
+  - Added a local `disablableTile()` helper that grays icon + text when disabled.
+  - Enable/disable rules:
+    - Clear ticket  → enabled if cart has items OR saved ticket id exists
+    - Print bill    → enabled if cart has items
+    - Reprint order → enabled if cart has items
+    - Split ticket  → enabled if cart has items AND saved ticket id exists
+    - Move ticket   → enabled if saved ticket id exists
+    - Open cash drawer / Sync → always enabled
+  - Added visual `PopupMenuDivider` separators between groups for readability.
+  - "Reprint order (kitchen)" label and icon updated (was "Reprint order (Coming Soon)").
+- Files changed:
+  - `lib/screens/pos_screen.dart` (itemBuilder section ~line 868)
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open the 3-dot menu with empty cart → Clear/Print/Reprint/Split/Move all gray.
+  - Add items to cart → Print bill and Reprint become tappable.
+  - Save ticket to a table → Split and Move become tappable too.
+
+==================================================
+36) IMPLEMENTED UPDATE (TICKET TIME TRACKING)
+==================================================
+- Request:
+  - Track when a ticket was first opened and when it was charged.
+  - Show how long each ticket has been open on the Open Tickets screen.
+  - Show how long each customer stayed on the Receipt History screen.
+- Implementation:
+  - Backend `models/pos_order.py`:
+    - Added `date_paid = fields.Datetime(readonly=True)` field.
+    - `action_pay()` now writes `date_paid = fields.Datetime.now()` when paying.
+    - `date_order` (already existed) = when the ticket was first opened.
+  - Backend `controllers/pos_order_api.py`:
+    - `get_open_tickets` now returns `opened_at` (= date_order) for each ticket.
+    - `get_receipt_history` now also returns `date_paid` alongside `date_order`
+      so Flutter can compute visit duration.
+  - Flutter `lib/models/ticket.dart`:
+    - Added `openedAt DateTime?` field to `OpenTicket`.
+    - Parsed from `opened_at` JSON field (UTC → local conversion).
+  - Flutter `lib/screens/tickets_screen.dart`:
+    - Added `openedAt` to `_DisplayTicket` and populated it from `OpenTicket`.
+    - Added `_formatElapsed()` helper (e.g. "5 min", "1h 23m").
+    - Added `_durationColor()` → green <30min, orange <60min, red >1h.
+    - Each ticket card shows a "🕐 X min" duration badge in place of the
+      offline badge (they are mutually exclusive).
+    - A `Timer.periodic(1 minute)` keeps badges refreshed while screen is open.
+      Timer is cancelled in `dispose()` to avoid leaks.
+  - Flutter `lib/screens/receipt_history_screen.dart`:
+    - Added `_formatVisitDuration()` helper — computes paid - opened duration.
+    - Each receipt row now shows a teal "⏱ Xm" / "⏱ Xh Ym" chip between
+      the receipt info and the chevron arrow.
+    - Chip only shows when both `date_order` and `date_paid` are present and
+      the stay was longer than 1 minute.
+- Files changed:
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\models\pos_order.py`
+  - `\\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons\pos_backend\controllers\pos_order_api.py`
+  - `lib/models/ticket.dart`
+  - `lib/screens/tickets_screen.dart`
+  - `lib/screens/receipt_history_screen.dart`
+- Commands / ops needed:
+  - Restart Odoo backend with --update=pos_backend so date_paid column is added to DB.
+    In WSL: `sudo systemctl restart odoo`
+    OR: `python3 odoo-bin -c odoo.conf --update=pos_backend`
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open Tickets screen: each ticket card shows "🕐 X min" badge (green/orange/red).
+  - Badge updates every minute while the screen is open.
+  - Charge a ticket → Receipt History screen shows "⏱ Xm" chip on that receipt.
+  - Old receipts without date_paid show no chip (backward-compatible).
+
+==================================================
+37) IMPLEMENTED UPDATE (RECEIPT DETAIL: REFUND + REPRINT)
+==================================================
+- Request:
+  - Add "Reprint Receipt" and "Refund Order" buttons to the receipt detail screen
+    (accessed from Receipt History).
+- Implementation:
+  - Backend `controllers/pos_order_api.py`:
+    - Added POST `/api/pos/order/<id>/refund` endpoint.
+    - Requires admin_pin in JSON body (validated against pos_role='admin' users).
+    - Only paid orders can be refunded.
+    - Sets order.state = 'cancelled'.
+    - Reverses loyalty reward points proportionally (same ratio used on payment).
+  - Flutter `lib/services/api_service.dart`:
+    - Added `refundOrder({orderId, adminPin})` method calling the new endpoint.
+  - Flutter `lib/services/printer_service.dart`:
+    - Added `printReceiptFromRawData(Map receiptData)` method.
+    - Accepts the raw data returned by fetchOrderReceipt() (no CartItem needed).
+    - Prints "** REPRINT **" header, all order lines, total to receipt printers.
+  - Flutter `lib/screens/receipt_detail_screen.dart` (full rewrite):
+    - Added floating action bar at the bottom with two buttons:
+      - "Reprint Receipt" (navy) -- calls printReceiptFromRawData().
+      - "Refund Order" (red) -- shows confirmation dialog with Admin PIN input,
+        calls refundOrder(). On success shows "refunded" badge and navigates back.
+    - Both buttons hidden once order is refunded (replaced by red "refunded" badge).
+    - Spinner shown during async action loading.
+    - Currency symbol pulled from receiptData so amounts display correctly.
+- Files changed:
+  - `controllers/pos_order_api.py` (backend)
+  - `lib/services/api_service.dart`
+  - `lib/services/printer_service.dart`
+  - `lib/screens/receipt_detail_screen.dart`
+- Commands / ops needed:
+  - Restart Odoo backend (new refund endpoint must be loaded).
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open any paid receipt from Receipt History.
+  - Tap "Reprint Receipt" -- receipt prints with "** REPRINT **" header.
+  - Tap "Refund Order" -- enter admin PIN -- order moves to cancelled.
+  - After refund the detail screen shows red "refunded" badge and navigates back.
+
+
+==================================================
+38) LATEST IMPLEMENTED UPDATE (LOYALTY POINTS CONFIGURATION MENU)
+==================================================
+- Request:
+  - Add loyalty point config to backend for easy when want to change, and move it to module Custom POS.
+- Implementation:
+  - Created a dedicated singleton-style model `pos.backend.loyalty.config` to manage loyalty settings (points ratio, min redeem, points label) stored in `ir.config_parameter`.
+  - Added a dedicated form view, action, and menu item under `Custom POS -> Configuration -> Loyalty Points` (matching the `Transfer Banks` config pattern), and removed them from the generic `res.config.settings`.
+  - Added a backend GET API `/api/pos/loyalty_config` that reads from the new config wrapper.
+  - Added `fetchLoyaltyConfig()` in Flutter's `ApiService` so the mobile app can load and apply the real-time config without crashing.
+- Files changed:
+  - `custom_addons/pos_backend/models/loyalty_config.py` (New)
+  - `custom_addons/pos_backend/views/loyalty_config_views.xml` (New)
+  - `custom_addons/pos_backend/models/__init__.py`
+  - `custom_addons/pos_backend/__manifest__.py`
+  - `custom_addons/pos_backend/security/ir.model.access.csv`
+  - `custom_addons/pos_backend/models/res_config_settings.py`
+  - `custom_addons/pos_backend/views/res_config_settings_views.xml`
+  - `custom_addons/pos_backend/controllers/pos_order_api.py`
+  - `lib/services/api_service.dart`
+- Commands / ops needed:
+  - Restart Odoo service (`sudo systemctl restart odoo` or stop/start).
+  - Upgrade `pos_backend` module via the Apps menu to apply the new menu items.
+  - Hot restart the Flutter app.
+- Quick verification:
+  - Ensure Odoo has the new menu: Custom POS -> Configuration -> Loyalty Points.
+  - Go to new menu, verify the settings apply correctly.
+  - In the Flutter app, ensure that `ApiService().fetchLoyaltyConfig()` successfully reads the custom parameters.
+
+==================================================
+39) LATEST IMPLEMENTED UPDATE (LOYALTY POINTS LOGS)
+==================================================
+- Request:
+  - Create a log to track when customers earn or refund points from an order, including order total and points changed.
+- Implementation:
+  - Created a new Odoo model `pos_backend.loyalty.log` with fields for `partner_id`, `order_id`, `amount_total`, `points_changed`, `log_type` (earn, redeem, refund, manual), and `date`.
+  - Updated `action_pay()` in `models/pos_order.py` to calculate `points_earned` and automatically create an `earn` log when saving to the partner.
+  - Updated `refund_order()` in `controllers/pos_order_api.py` to compute `points_to_reverse` and automatically create a `refund` log when cancelling an order via the Flutter app.
+  - Created `loyalty_log_views.xml` containing a Tree View and Search View (with Group By Customer, Type, and Date).
+  - Added the 'Loyalty Logs' menu item under `Custom POS -> Orders`.
+- Files changed:
+  - `custom_addons/pos_backend/models/loyalty_log.py` (New)
+  - `custom_addons/pos_backend/views/loyalty_log_views.xml` (New)
+  - `custom_addons/pos_backend/models/__init__.py`
+  - `custom_addons/pos_backend/__manifest__.py`
+  - `custom_addons/pos_backend/security/ir.model.access.csv`
+  - `custom_addons/pos_backend/models/pos_order.py`
+  - `custom_addons/pos_backend/controllers/pos_order_api.py`
+- Commands / ops needed:
+  - Restart Odoo service (`sudo systemctl restart odoo` or stop/start the dev server).
+  - Upgrade `pos_backend` module via the Apps menu to create the new tables and UI.
+- Quick verification:
+  - Ensure Odoo has the new menu: `Custom POS -> Orders -> Loyalty Logs`.
+  - From the Flutter app, place a paid order. In Odoo, verify a new entry in Loyalty Logs appears showing the partner, order, amount, and points earned.
+  - From the Flutter app (Receipt History), refund an order, and verify a negative points refund entry appears in the log.
+
+==================================================
+40) LATEST IMPLEMENTED UPDATE (LOYALTY CONFIG SAVE FIX)
+==================================================
+- Request:
+  - Fix Loyalty Points Configuration so that saving via the native Odoo cloud icon persists the data (previously data reset to default on reload).
+- Implementation:
+  - Removed `create="false"` and `delete="false"` from the `pos.backend.loyalty.config` form XML so Odoo correctly manages the transient record lifecycle.
+  - Overrode the `create()` and `write()` methods in `models/loyalty_config.py`.
+  - Both native Odoo saves (cloud icon auto-save) and the custom footer Save button now trigger a shared `set_values()` method, ensuring `ir.config_parameter` is aggressively and reliably updated regardless of how the form is saved.
+- Files changed:
+  - `custom_addons/pos_backend/models/loyalty_config.py`
+  - `custom_addons/pos_backend/views/loyalty_config_views.xml`
+- Commands / ops needed:
+  - Restart Odoo service (`sudo systemctl restart odoo` or stop/start the dev server).
+- Quick verification:
+  - Open Loyalty Points Configuration, change a value, click the native Top-Left Cloud Save icon.
+  - Navigate away and back to the configuration page. The updated value should remain.
