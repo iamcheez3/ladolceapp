@@ -6,13 +6,13 @@ You are helping me continue development for my Flutter POS app integrated with O
 1) PROJECT CONTEXT
 ==================================================
 - Flutter project path (Windows):
-  c:\Users\iamcheez3\Desktop\Flutter\ladolce
+  /home/sith/Desktop/ladolceapp/ladolceapp
 
 - Odoo backend path (WSL Ubuntu):
-  \\wsl.localhost\Ubuntu\home\sith\odoo\pos
+  /home/sith/Desktop/ladolcepos/ladolcepos
 
 - Custom addons path:
-  \\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons
+  /home/sith/Desktop/ladolcepos/ladolcepos/custom_addons
 
 - Main backend module used by app:
   pos_backend
@@ -24,6 +24,11 @@ You are helping me continue development for my Flutter POS app integrated with O
 
 - Product create/update endpoint used by Flutter:
   POST /api/pos/products
+
+- VM environment note (important):
+  - This machine is used for AI prompting and code editing handoff only.
+  - Do not run Android Studio, Flutter emulator/device builds, or Odoo 18 runtime commands here.
+  - Make code changes, then user will review, push to git, pull on main device, and run tests there.
 
 ==================================================
 2) WHAT THIS APP DOES (FLOW)
@@ -1141,3 +1146,62 @@ Priority/decision rules:
 - Quick verification:
   - Open Loyalty Points Configuration, change a value, click the native Top-Left Cloud Save icon.
   - Navigate away and back to the configuration page. The updated value should remain.
+
+==================================================
+41) LATEST IMPLEMENTED UPDATE (VM PATH + HANDOFF MODE NOTE)
+==================================================
+- Request:
+  - Update AI handoff paths for this VirtualBox environment.
+  - Use local Linux paths for both Flutter app and Odoo project.
+  - Add note that this machine is for prompting/edit handoff only.
+- Implementation:
+  - Updated project paths in "PROJECT CONTEXT":
+    - Flutter project path -> `/home/sith/Desktop/ladolceapp/ladolceapp`
+    - Odoo backend path -> `/home/sith/Desktop/ladolcepos/ladolcepos`
+    - Custom addons path -> `/home/sith/Desktop/ladolcepos/ladolcepos/custom_addons`
+  - Added explicit environment rule:
+    - No Android Studio/Odoo runtime execution in this VM.
+    - AI should focus on code edits and handoff context.
+    - User handles git push here, then runs/tests on main device.
+- Files changed:
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - None.
+- Quick verification:
+  - Confirm top "PROJECT CONTEXT" section shows Linux VM paths.
+  - Confirm "VM environment note" appears under the endpoint lines.
+
+==================================================
+42) LATEST IMPLEMENTED UPDATE (LOGIN STANDARD SECURITY MODULE)
+==================================================
+- Request:
+  - Create a module to enforce standard login security.
+  - Login must not contain spaces or symbols.
+  - Login should be normalized to lowercase for registration and login checks.
+  - Prevent duplicate registration for same login with case differences.
+  - Keep password behavior as default.
+- Implementation:
+  - Added new Odoo addon module:
+    - `pos_login_security`
+  - `res.users` hardening in module:
+    - Normalize `login` to lowercase + trim during create/write.
+    - Validate login format using strict regex: lowercase letters + digits only.
+    - Block case-insensitive duplicate logins.
+  - Updated auth API input normalization in POS backend:
+    - `/api/pos/register`: lowercases login input, validates format, duplicate check uses case-insensitive search.
+    - `/api/pos/login`: lowercases login input before authentication.
+  - Password handling remains unchanged (default Odoo behavior).
+- Files changed:
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_login_security/__manifest__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_login_security/__init__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_login_security/models/__init__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_login_security/models/res_users.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/auth_api.py`
+- Commands / ops needed:
+  - Restart Odoo service.
+  - Upgrade/install module `pos_login_security`.
+  - Upgrade/restart `pos_backend` (for updated auth controller).
+- Quick verification:
+  - Register with `User Name` or `user@name` login -> should return 400 invalid login format.
+  - Register with `TestUser` then try `testuser` -> second registration should be blocked as duplicate.
+  - Login with uppercase input (e.g. `TESTUSER`) for a lowercase account -> should authenticate normally.
