@@ -1205,3 +1205,41 @@ Priority/decision rules:
   - Register with `User Name` or `user@name` login -> should return 400 invalid login format.
   - Register with `TestUser` then try `testuser` -> second registration should be blocked as duplicate.
   - Login with uppercase input (e.g. `TESTUSER`) for a lowercase account -> should authenticate normally.
+
+==================================================
+43) LATEST IMPLEMENTED UPDATE (ENV + DEV MODE API/DB CONFIG)
+==================================================
+- Request:
+  - Do not use hardcoded URL in app code.
+  - Use `.env` and existing login-screen developer mode settings.
+  - Remove hardcoded direct DB payload and make DB config consistent with Odoo usage.
+- Implementation:
+  - `ApiService`:
+    - Added DB override key:
+      - `dev_db_name_override`
+    - Added `getDatabaseName()`:
+      - Priority: dev override -> `.env` `API_DB` -> null (backend auto-detect via Odoo monodb).
+    - Updated `loginUser()`:
+      - Removed hardcoded `'db': 'ladolce'`.
+      - Sends `db` only when configured.
+      - Normalizes login input to lowercase before request.
+  - `login_screen.dart` developer tools:
+    - Dev settings dialog now supports:
+      - Base URL override
+      - Database override (optional)
+    - Clear button now clears both URL + DB overrides.
+    - Saved dev state indicator supports DB-only override display.
+  - Added `.env.example` with:
+    - `API_BASE_URL`
+    - `API_DB`
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/login_screen.dart`
+  - `.env.example`
+- Commands / ops needed:
+  - Add/update real `.env` file in app root (if missing).
+  - Hot restart Flutter app.
+- Quick verification:
+  - Set `.env` with API URL + DB, leave dev overrides empty -> login works using `.env`.
+  - In login dev tools, set DB override different from `.env` -> login uses dev DB override.
+  - Clear dev overrides -> app returns to `.env` values.

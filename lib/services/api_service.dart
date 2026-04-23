@@ -11,6 +11,7 @@ import '../models/ticket.dart';
 class ApiService {
   /// Key used to store the dev IP override in SharedPreferences.
   static const String devBaseUrlKey = 'dev_base_url_override';
+  static const String devDbNameKey = 'dev_db_name_override';
 
   String get baseUrl {
     // NOTE: baseUrl is synchronous; the dev override is loaded via
@@ -31,6 +32,24 @@ class ApiService {
       return override;
     }
     return baseUrl;
+  }
+
+  /// Resolves the Odoo database name:
+  /// 1) dev override from login dev tools
+  /// 2) .env API_DB
+  /// 3) null (backend will use db_monodb())
+  Future<String?> getDatabaseName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final override = prefs.getString(devDbNameKey)?.trim();
+    if (override != null && override.isNotEmpty) {
+      return override;
+    }
+
+    final envDb = dotenv.env['API_DB']?.trim();
+    if (envDb != null && envDb.isNotEmpty) {
+      return envDb;
+    }
+    return null;
   }
 
   String resolveMediaUrl(String rawUrl) {
@@ -285,10 +304,12 @@ class ApiService {
 
   Future<Map<String, dynamic>> loginUser(String login, String password) async {
     final base = await getBaseUrl();
+    final dbName = await getDatabaseName();
     final url = Uri.parse('$base/pos/login');
+    final normalizedLogin = login.trim().toLowerCase();
     final Map<String, dynamic> payload = {
-      'db': 'ladolce',
-      'login': login,
+      if (dbName != null) 'db': dbName,
+      'login': normalizedLogin,
       'password': password,
     };
 
