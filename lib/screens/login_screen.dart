@@ -11,7 +11,7 @@ import '../services/api_service.dart';
 // Set to false before uploading to the App Store / Play Store.
 // When false, the wrench button is completely removed from the UI.
 // ─────────────────────────────────────────────────────────────────────────────
-const bool kShowDevTools = false;
+const bool kShowDevTools = true;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -58,10 +58,16 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           title: Row(
             children: const [
-              Icon(Icons.construction_rounded, size: 20, color: Color(0xFF0D1565)),
+              Icon(
+                Icons.construction_rounded,
+                size: 20,
+                color: Color(0xFF0D1565),
+              ),
               SizedBox(width: 8),
               Text(
                 'Dev: API Server',
@@ -88,7 +94,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   hintText: 'http://192.168.x.x:8069/api',
                   filled: true,
                   fillColor: const Color(0xFFF6F7FB),
-                  prefixIcon: const Icon(Icons.link_rounded, color: Color(0xFF0D1565)),
+                  prefixIcon: const Icon(
+                    Icons.link_rounded,
+                    color: Color(0xFF0D1565),
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
@@ -99,7 +108,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF0D1565), width: 1.5),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF0D1565),
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -126,7 +138,9 @@ class _LoginScreenState extends State<LoginScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D1565),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () async {
                 final value = controller.text.trim();
@@ -210,7 +224,11 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  const Icon(Icons.construction_rounded, color: Colors.white, size: 20),
+                  const Icon(
+                    Icons.construction_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   // Red dot when an override is active
                   if (_currentBaseUrl.isNotEmpty)
                     Positioned(
@@ -306,7 +324,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.circle, size: 7, color: Colors.green),
+                                  const Icon(
+                                    Icons.circle,
+                                    size: 7,
+                                    color: Colors.green,
+                                  ),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
@@ -339,21 +361,32 @@ class _LoginScreenState extends State<LoginScreen> {
                               labelText: 'Email / Login',
                               filled: true,
                               fillColor: Colors.white,
-                              prefixIcon: const Icon(Icons.person_outline, color: _brandNavy),
+                              prefixIcon: const Icon(
+                                Icons.person_outline,
+                                color: _brandNavy,
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFDCE5FF),
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFDCE5FF),
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: _brandNavy, width: 1.5),
+                                borderSide: const BorderSide(
+                                  color: _brandNavy,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
-                            validator: (value) => value!.isEmpty ? 'Please enter login' : null,
+                            validator: (value) =>
+                                value!.isEmpty ? 'Please enter login' : null,
                           ),
                           const SizedBox(height: 14),
                           TextFormField(
@@ -363,10 +396,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               labelText: 'Password',
                               filled: true,
                               fillColor: Colors.white,
-                              prefixIcon: const Icon(Icons.lock_outline, color: _brandNavy),
+                              prefixIcon: const Icon(
+                                Icons.lock_outline,
+                                color: _brandNavy,
+                              ),
                               suffixIcon: IconButton(
-                                onPressed: () =>
-                                    setState(() => _obscurePassword = !_obscurePassword),
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
                                 icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_off_outlined
@@ -376,15 +413,22 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFDCE5FF),
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFDCE5FF),
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: _brandNavy, width: 1.5),
+                                borderSide: const BorderSide(
+                                  color: _brandNavy,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                             validator: (value) =>
@@ -401,7 +445,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14)),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
                               ),
                               child: _isLoading
                                   ? const SizedBox(
@@ -415,7 +460,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : const Text(
                                       'LOGIN',
                                       style: TextStyle(
-                                          fontSize: 16, fontWeight: FontWeight.w900),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                      ),
                                     ),
                             ),
                           ),
@@ -424,7 +471,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                    builder: (_) => const RegisterScreen()),
+                                  builder: (_) => const RegisterScreen(),
+                                ),
                               );
                             },
                             child: const Text(
