@@ -309,7 +309,7 @@ class PrinterService {
     }
   }
 
-  List<CartItem> _filterItemsForPrinter(List<CartItem> items, PrinterProfile printer) {
+   List<CartItem> _filterItemsForPrinter(List<CartItem> items, PrinterProfile printer) {
     if (printer.categoryFilters.isEmpty) return items;
     final filters = printer.categoryFilters.map((e) => e.trim().toLowerCase()).toSet();
     return items

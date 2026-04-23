@@ -356,6 +356,38 @@ class ApiService {
     await prefs.remove('cached_user_session');
     await prefs.remove('cached_user_data');
   }
+  Future<void> setPosPin(String pin, int userId) async {
+  final base = await getBaseUrl();
+  final url = Uri.parse('$base/pos/set_pin');
+
+  print('==============================');
+  print('[SET PIN] POST $url');
+  print('[SET PIN] user_id: $userId | pin: $pin');
+
+  final response = await http.post(
+    url,
+    headers: {'Content-Type': 'application/json'}, // ← no session needed now
+    body: jsonEncode({'pin': pin, 'user_id': userId}),
+  ).timeout(const Duration(seconds: 6));
+
+  print('[SET PIN] STATUS: ${response.statusCode}');
+  print('[SET PIN] BODY: ${response.body}');
+  print('==============================');
+
+  final jsonResponse = jsonDecode(response.body);
+  if (response.statusCode != 200 || jsonResponse['status'] != 'success') {
+    throw Exception(jsonResponse['message'] ?? 'Failed to save PIN');
+  }
+
+  // Update local cache
+  final prefs = await SharedPreferences.getInstance();
+  final cached = prefs.getString('cached_user_data');
+  if (cached != null && cached.isNotEmpty) {
+    final data = Map<String, dynamic>.from(jsonDecode(cached));
+    data['pos_pin'] = pin;
+    await prefs.setString('cached_user_data', jsonEncode(data));
+  }
+}
 
   Future<void> setPosPin(String pin) async {
     final base = await getBaseUrl();

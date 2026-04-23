@@ -89,11 +89,15 @@ class _PinScreenState extends State<PinScreen> {
         _isSubmitting = true;
         _hasError = false;
       });
-      await ApiService().setPosPin(_pin);
+      final userId = widget.cachedUser['user_id'] as int;
+      await ApiService().setPosPin(_pin, userId);
+      
+      // ✅ Update the in-memory map so _normalizedCachedPin() reflects the new PIN
       widget.cachedUser['pos_pin'] = _pin;
+      
       if (!mounted) return;
       _goNext();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _hasError = true;
@@ -101,9 +105,7 @@ class _PinScreenState extends State<PinScreen> {
         _firstPinEntry = null;
       });
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
