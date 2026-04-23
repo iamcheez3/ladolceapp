@@ -34,6 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ── Dev tools state ──────────────────────────────────────────────────────
   String _currentBaseUrl = '';
+  String _currentDbName = '';
 
   @override
   void initState() {
@@ -44,14 +45,22 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loadCurrentUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final override = prefs.getString(ApiService.devBaseUrlKey) ?? '';
-    if (mounted) setState(() => _currentBaseUrl = override);
+    final dbOverride = prefs.getString(ApiService.devDbNameKey) ?? '';
+    if (mounted) {
+      setState(() {
+        _currentBaseUrl = override;
+        _currentDbName = dbOverride;
+      });
+    }
   }
 
   /// Opens a small dialog to edit / clear the API base URL override.
   void _showDevSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(ApiService.devBaseUrlKey) ?? '';
+    final savedDb = prefs.getString(ApiService.devDbNameKey) ?? '';
     final controller = TextEditingController(text: saved);
+    final dbController = TextEditingController(text: savedDb);
 
     if (!mounted) return;
     await showDialog(
@@ -115,6 +124,36 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: dbController,
+                autocorrect: false,
+                decoration: InputDecoration(
+                  labelText: 'Database (optional)',
+                  hintText: 'ladolce',
+                  filled: true,
+                  fillColor: const Color(0xFFF6F7FB),
+                  prefixIcon: const Icon(
+                    Icons.storage_rounded,
+                    color: Color(0xFF0D1565),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF0D1565),
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           actions: [
@@ -122,11 +161,17 @@ class _LoginScreenState extends State<LoginScreen> {
             TextButton(
               onPressed: () async {
                 await prefs.remove(ApiService.devBaseUrlKey);
-                if (mounted) setState(() => _currentBaseUrl = '');
+                await prefs.remove(ApiService.devDbNameKey);
+                if (mounted) {
+                  setState(() {
+                    _currentBaseUrl = '';
+                    _currentDbName = '';
+                  });
+                }
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('URL override cleared — using .env default'),
+                    content: Text('Dev overrides cleared — using .env/default'),
                     backgroundColor: Color(0xFF0D1565),
                   ),
                 );
@@ -144,15 +189,28 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               onPressed: () async {
                 final value = controller.text.trim();
+                final dbValue = dbController.text.trim();
                 if (value.isNotEmpty) {
                   await prefs.setString(ApiService.devBaseUrlKey, value);
-                  if (mounted) setState(() => _currentBaseUrl = value);
+                } else {
+                  await prefs.remove(ApiService.devBaseUrlKey);
+                }
+                if (dbValue.isNotEmpty) {
+                  await prefs.setString(ApiService.devDbNameKey, dbValue);
+                } else {
+                  await prefs.remove(ApiService.devDbNameKey);
+                }
+                if (mounted) {
+                  setState(() {
+                    _currentBaseUrl = value;
+                    _currentDbName = dbValue;
+                  });
                 }
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      value.isEmpty ? 'No URL entered' : 'Saved: $value',
+                      'Saved dev settings',
                     ),
                     backgroundColor: const Color(0xFF0D1565),
                   ),
@@ -343,6 +401,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                 ],
+                              ),
+                            )
+                          else if (kShowDevTools && _currentDbName.isNotEmpty)
+                            Text(
+                              'DB: $_currentDbName',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF64748B),
+                                fontFamily: 'monospace',
                               ),
                             )
                           else
