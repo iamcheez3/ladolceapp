@@ -44,8 +44,44 @@ class _PosScreenState extends State<PosScreen> {
    // ── Printer helper ────────────────────────────────────────────────────────
   List<CartItem> _filterItemsForPrinter(List<CartItem> items, PrinterProfile p) {
     if (p.categoryFilters.isEmpty) return items;
-    final filters = p.categoryFilters.map((e) => e.toLowerCase()).toSet();
-    return items.where((i) => filters.contains(i.product.category.toLowerCase())).toList();
+    final filters = p.categoryFilters.map((e) => e.trim().toLowerCase()).toSet();
+    return items
+        .where((i) => filters.contains(i.product.category.trim().toLowerCase()))
+        .toList();
+  }
+
+  List<PrinterProfile> _resolveOrderPrinters() {
+    final orderPrinters = printerService.profiles.where((p) => p.printOrders).toList();
+    if (orderPrinters.isNotEmpty) return orderPrinters;
+
+    // Fallback: if no dedicated kitchen printer is enabled, use selected/default printer
+    // so Save Ticket still sends order slips.
+    if (printerService.profiles.isEmpty) return [];
+    final selected = printerService.selectedReceiptPrinterId;
+    if (selected != null) {
+      final match =
+          printerService.profiles.where((p) => p.id == selected).toList();
+      if (match.isNotEmpty) return [match.first];
+    }
+    return [printerService.profiles.first];
+  }
+
+  Future<int> _printOrderItemsToKitchen(
+    List<CartItem> items, {
+    required bool respectCategoryFilters,
+  }) async {
+    int printedCount = 0;
+    for (final p in _resolveOrderPrinters()) {
+      final toPrint = respectCategoryFilters ? _filterItemsForPrinter(items, p) : items;
+      if (toPrint.isEmpty) continue;
+      final ok = await printerService.printOrderTicketDirect(
+        profile: p,
+        items: toPrint,
+        cashierName: widget.cashierName,
+      );
+      if (ok) printedCount++;
+    }
+    return printedCount;
   }
 
   // Search
@@ -708,6 +744,9 @@ class _PosScreenState extends State<PosScreen> {
 
                 case 'reprint':
                   // Reprint ALL items in the current ticket to kitchen/bar printers
+                  if (_activeTicketId == null) {
+                    break;
+                  }
                   if (_cartItems.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('No items in the current ticket to reprint.')),
@@ -724,24 +763,17 @@ class _PosScreenState extends State<PosScreen> {
                     break;
                   }
                   {
-                    int reprintCount = 0;
-                    for (final p in printerService.profiles.where((p) => p.printOrders)) {
-                      final filtered = _filterItemsForPrinter(_cartItems, p);
-                      if (filtered.isNotEmpty) {
-                        final ok = await printerService.printOrderTicketDirect(
-                          profile: p,
-                          items: filtered,
-                          cashierName: widget.cashierName,
-                        );
-                        if (ok) reprintCount++;
-                      }
-                    }
+                    // Reprint must send ALL lines (ignore category routing filters).
+                    final reprintCount = await _printOrderItemsToKitchen(
+                      _cartItems,
+                      respectCategoryFilters: false,
+                    );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(reprintCount > 0
                               ? '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
-                              : 'No kitchen printers with "Print orders" enabled.'),
+                              : 'No available printer could print this reprint request.'),
                           backgroundColor: reprintCount > 0 ? Colors.green : Colors.orange,
                         ),
                       );
@@ -898,9 +930,9 @@ class _PosScreenState extends State<PosScreen> {
                 ),
                 PopupMenuItem<String>(
                   value: 'reprint',
-                  enabled: hasItems,
+                  enabled: hasTicket,
                   child: disablableTile(Icons.print_outlined, 'Reprint order (kitchen)',
-                      enabled: hasItems),
+                      enabled: hasTicket),
                 ),
                 const PopupMenuDivider(),
 
@@ -944,7 +976,9 @@ class _PosScreenState extends State<PosScreen> {
       ),
       drawer: Drawer(
         backgroundColor: Colors.white,
-          child: Column(
+          child: SafeArea(
+            top: false,
+            child: Column(
             children: [
               // ── Header ──────────────────────────────────────────
               Container(
@@ -1095,11 +1129,14 @@ class _PosScreenState extends State<PosScreen> {
                 ),
               ),
             const SizedBox(height: 16),
-          ],
+            ],
+          ),
         ),
       ),
-      body: Row(
-        children: [
+      body: SafeArea(
+        top: false,
+        child: Row(
+          children: [
           // Products Section
           Expanded(
             flex: 5,
@@ -1309,7 +1346,8 @@ class _PosScreenState extends State<PosScreen> {
                 onClearCustomer: () => setState(() => _selectedCustomer = null),
               ),
             ),
-        ],
+          ],
+        ),
       ),
       // Mobile Cart floating button or bottom sheet could go here if not desktop
       bottomNavigationBar: !isDesktop && _cartItems.isNotEmpty
@@ -2510,22 +2548,18 @@ class _PosScreenState extends State<PosScreen> {
 
         // Print only the unprinted new items to kitchen/bar printers
         if (unprintedNewItems.isNotEmpty && printerService.isConfigured) {
-          for (final p in printerService.profiles.where((p) => p.printOrders)) {
-            final filtered = _filterItemsForPrinter(unprintedNewItems, p);
-            if (filtered.isNotEmpty) {
-              await printerService.printOrderTicketDirect(
-                profile: p,
-                items: filtered,
-                cashierName: widget.cashierName,
-              );
-            }
+          final printedCount = await _printOrderItemsToKitchen(
+            unprintedNewItems,
+            respectCategoryFilters: true,
+          );
+          // Only mark as printed when at least one printer succeeded.
+          if (printedCount > 0) {
+            setState(() {
+              for (final item in unprintedNewItems) {
+                item.isPrinted = true;
+              }
+            });
           }
-          // Mark those items as printed so charge won't re-send them
-          setState(() {
-            for (final item in unprintedNewItems) {
-              item.isPrinted = true;
-            }
-          });
         }
 
         // Dismiss spinner using its own context
@@ -2754,27 +2788,17 @@ class _PosScreenState extends State<PosScreen> {
         }
       }
 
-      // Auto-open cash drawer on cash payments
-      final isCash = _selectedPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
-      if (isCash) {
-        await printerService.openCashDrawer();
-      }
-
-      // Print to kitchen/bar printers and mark items as printed
+      // Print to kitchen/bar printers and mark items as printed only on success
       if (printerService.isConfigured) {
-        for (final p in printerService.profiles.where((p) => p.printOrders)) {
-          final filtered = _filterItemsForPrinter(_cartItems, p);
-          if (filtered.isNotEmpty) {
-            await printerService.printOrderTicketDirect(
-              profile: p,
-              items: filtered,
-              cashierName: widget.cashierName,
-            );
+        final printedCount = await _printOrderItemsToKitchen(
+          _cartItems,
+          respectCategoryFilters: true,
+        );
+        if (printedCount > 0) {
+          // Mark all items as printed so charge / subsequent saves don't re-print
+          for (final item in _cartItems) {
+            item.isPrinted = true;
           }
-        }
-        // Mark all items as printed so charge / subsequent saves don't re-print
-        for (final item in _cartItems) {
-          item.isPrinted = true;
         }
       }
 
