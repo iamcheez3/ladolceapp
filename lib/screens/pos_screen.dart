@@ -24,12 +24,15 @@ import 'package:intl/intl.dart';
 class PosScreen extends StatefulWidget {
   final String cashierName;
   final int cashierId;
-  
-  const PosScreen({Key? key, this.cashierName = 'Demo Cashier', this.cashierId = 1}) : super(key: key);
+
+  const PosScreen({
+    Key? key,
+    this.cashierName = 'Demo Cashier',
+    this.cashierId = 1,
+  }) : super(key: key);
 
   @override
   State<PosScreen> createState() => _PosScreenState();
-  
 }
 
 class _PosScreenState extends State<PosScreen> {
@@ -41,11 +44,16 @@ class _PosScreenState extends State<PosScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-   // ── Printer helper ────────────────────────────────────────────────────────
-  List<CartItem> _filterItemsForPrinter(List<CartItem> items, PrinterProfile p) {
+  // ── Printer helper ────────────────────────────────────────────────────────
+  List<CartItem> _filterItemsForPrinter(
+    List<CartItem> items,
+    PrinterProfile p,
+  ) {
     if (p.categoryFilters.isEmpty) return items;
     final filters = p.categoryFilters.map((e) => e.toLowerCase()).toSet();
-    return items.where((i) => filters.contains(i.product.category.toLowerCase())).toList();
+    return items
+        .where((i) => filters.contains(i.product.category.toLowerCase()))
+        .toList();
   }
 
   // Search
@@ -56,9 +64,7 @@ class _PosScreenState extends State<PosScreen> {
   // View toggle
   bool _isGridView = true;
 
-  List<Category> _categories = [
-    Category(id: 'All', name: 'All Items'),
-  ];
+  List<Category> _categories = [Category(id: 'All', name: 'All Items')];
 
   String _selectedCategoryName = 'All Items';
 
@@ -67,7 +73,6 @@ class _PosScreenState extends State<PosScreen> {
   List<PosTable> _tables = [];
   List<PaymentMethod> _paymentMethods = [];
   PaymentMethod? _selectedPaymentMethod;
-
 
   PopupMenuItem<String> _menuItem(String value, IconData icon, String label) {
     return PopupMenuItem<String>(
@@ -111,11 +116,7 @@ class _PosScreenState extends State<PosScreen> {
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isActive ? _brandNavy : Colors.black54,
-            ),
+            Icon(icon, size: 22, color: isActive ? _brandNavy : Colors.black54),
             const SizedBox(width: 14),
             Text(
               label,
@@ -130,6 +131,7 @@ class _PosScreenState extends State<PosScreen> {
       ),
     );
   }
+
   // Active ticket tracking: when a ticket is resumed, we know its backend order ID
   int? _activeTicketId;
   String? _activeTicketName;
@@ -156,22 +158,25 @@ class _PosScreenState extends State<PosScreen> {
     // ── Step 1: Load from cache instantly if available ────────────────────────
     if (!backgroundRefresh) {
       final cachedProducts = await _apiService.getCachedProducts();
-      final cachedTables   = await _apiService.getCachedTables();
-      final cachedMethods  = await _apiService.getCachedPaymentMethods();
+      final cachedTables = await _apiService.getCachedTables();
+      final cachedMethods = await _apiService.getCachedPaymentMethods();
 
       if (cachedProducts != null) {
         // We have cache — show it immediately, mark as NOT loading
-        final Set<String> uniqueCategories = cachedProducts.map((p) => p.category).toSet();
+        final Set<String> uniqueCategories = cachedProducts
+            .map((p) => p.category)
+            .toSet();
         setState(() {
           _products = cachedProducts;
-          _tables   = cachedTables   ?? [];
+          _tables = cachedTables ?? [];
           _paymentMethods = cachedMethods ?? [];
           if (_paymentMethods.isNotEmpty && _selectedPaymentMethod == null) {
             _selectedPaymentMethod = _paymentMethods.first;
           }
-          _categories = [Category(id: 'All', name: 'All Items')]..addAll(
-            uniqueCategories.map((name) => Category(id: name, name: name))
-          );
+          _categories = [Category(id: 'All', name: 'All Items')]
+            ..addAll(
+              uniqueCategories.map((name) => Category(id: name, name: name)),
+            );
           _isLoading = false; // Show products right away!
         });
 
@@ -181,7 +186,10 @@ class _PosScreenState extends State<PosScreen> {
       }
 
       // No cache — show spinner and do a full load
-      setState(() { _isLoading = true; _errorMessage = null; });
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
     }
 
     // ── Step 2: Fetch fresh data from server ──────────────────────────────────
@@ -200,16 +208,20 @@ class _PosScreenState extends State<PosScreen> {
 
       final products = await _apiService.fetchProducts(limit: 100);
       final rawCombos = await _apiService.fetchCombos();
-      final combos = rawCombos.map((c) => Product.fromCombo(Combo.fromJson(c))).toList();
-      
+      final combos = rawCombos
+          .map((c) => Product.fromCombo(Combo.fromJson(c)))
+          .toList();
+
       // Inject combos so they appear in POS
       products.addAll(combos);
-      
-      final tables   = await _apiService.fetchTables();
-      final methods  = await _apiService.fetchPaymentMethods();
 
-      final Set<String> uniqueCategories = products.map((p) => p.category).toSet();
-      
+      final tables = await _apiService.fetchTables();
+      final methods = await _apiService.fetchPaymentMethods();
+
+      final Set<String> uniqueCategories = products
+          .map((p) => p.category)
+          .toSet();
+
       // If there are combos, ensure 'Combos' is a distinct category tab
       if (combos.isNotEmpty) {
         uniqueCategories.add('Combos');
@@ -218,14 +230,15 @@ class _PosScreenState extends State<PosScreen> {
       if (mounted) {
         setState(() {
           _products = products;
-          _tables   = tables;
+          _tables = tables;
           _paymentMethods = methods;
           if (_paymentMethods.isNotEmpty && _selectedPaymentMethod == null) {
             _selectedPaymentMethod = _paymentMethods.first;
           }
-          _categories = [Category(id: 'All', name: 'All Items')]..addAll(
-            uniqueCategories.map((name) => Category(id: name, name: name))
-          );
+          _categories = [Category(id: 'All', name: 'All Items')]
+            ..addAll(
+              uniqueCategories.map((name) => Category(id: name, name: name)),
+            );
           _isLoading = false;
         });
       }
@@ -281,12 +294,14 @@ class _PosScreenState extends State<PosScreen> {
       // Check if there's already a NEW (unsaved) item with EXACTLY the same toppings
       final existingNewIndex = _cartItems.indexWhere((item) {
         if (item.product.id != product.id || item.isSaved) return false;
-        
+
         // Compare toppings exactly
-        if (item.selectedToppings.length != selectedToppings.length) return false;
+        if (item.selectedToppings.length != selectedToppings.length)
+          return false;
         final selectedIds = selectedToppings.map((t) => t.id).toSet();
         final itemToppingIds = item.selectedToppings.map((t) => t.id).toSet();
-        if (selectedIds.containsAll(itemToppingIds) && itemToppingIds.containsAll(selectedIds)) {
+        if (selectedIds.containsAll(itemToppingIds) &&
+            itemToppingIds.containsAll(selectedIds)) {
           return true;
         }
         return false;
@@ -295,7 +310,13 @@ class _PosScreenState extends State<PosScreen> {
       if (existingNewIndex >= 0) {
         _cartItems[existingNewIndex].quantity++;
       } else {
-        _cartItems.add(CartItem(product: product, isSaved: false, selectedToppings: selectedToppings));
+        _cartItems.add(
+          CartItem(
+            product: product,
+            isSaved: false,
+            selectedToppings: selectedToppings,
+          ),
+        );
       }
     });
   }
@@ -306,7 +327,9 @@ class _PosScreenState extends State<PosScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
@@ -318,7 +341,10 @@ class _PosScreenState extends State<PosScreen> {
                 children: [
                   Text(
                     'Select Toppings for ${product.name}',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Flexible(
@@ -330,7 +356,11 @@ class _PosScreenState extends State<PosScreen> {
                         final isSelected = selectedToppings.contains(topping);
                         return CheckboxListTile(
                           title: Text(topping.name),
-                          subtitle: topping.extraPrice > 0 ? Text('+₭${topping.extraPrice.toStringAsFixed(2)}') : const Text('Free'),
+                          subtitle: topping.extraPrice > 0
+                              ? Text(
+                                  '+₭${topping.extraPrice.toStringAsFixed(2)}',
+                                )
+                              : const Text('Free'),
                           value: isSelected,
                           activeColor: _brandNavy,
                           onChanged: (bool? value) {
@@ -353,7 +383,10 @@ class _PosScreenState extends State<PosScreen> {
                         child: OutlinedButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            _addDirectlyToCart(product, []); // Skip toppings completely
+                            _addDirectlyToCart(
+                              product,
+                              [],
+                            ); // Skip toppings completely
                           },
                           child: const Text('Add Without Toppings'),
                         ),
@@ -361,7 +394,10 @@ class _PosScreenState extends State<PosScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: _brandNavy, foregroundColor: Colors.white),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _brandNavy,
+                            foregroundColor: Colors.white,
+                          ),
                           onPressed: () {
                             Navigator.pop(context);
                             _addDirectlyToCart(product, selectedToppings);
@@ -408,7 +444,10 @@ class _PosScreenState extends State<PosScreen> {
       _clearCart();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ticket cleared.'), backgroundColor: Colors.orange),
+          const SnackBar(
+            content: Text('Ticket cleared.'),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
       return;
@@ -425,13 +464,19 @@ class _PosScreenState extends State<PosScreen> {
       _clearCart();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ticket removed by Admin PIN.'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Ticket removed by Admin PIN.'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cannot clear ticket: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Cannot clear ticket: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -480,7 +525,11 @@ class _PosScreenState extends State<PosScreen> {
                 child: Center(
                   child: Text(
                     number,
-                    style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
@@ -494,17 +543,23 @@ class _PosScreenState extends State<PosScreen> {
               child: SizedBox(
                 width: 72,
                 height: 72,
-                child: Center(
-                  child: Icon(icon, color: Colors.white, size: 32),
-                ),
+                child: Center(child: Icon(icon, color: Colors.white, size: 32)),
               ),
             );
           }
 
           return AlertDialog(
             backgroundColor: _brandNavy,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('Admin PIN Required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Admin PIN Required',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             content: SizedBox(
               width: 320,
               child: Column(
@@ -526,9 +581,13 @@ class _PosScreenState extends State<PosScreen> {
                         height: 18,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: index < pin.length ? Colors.white : Colors.white.withOpacity(0.25),
+                          color: index < pin.length
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.25),
                           border: Border.all(
-                            color: hasError ? Colors.redAccent : Colors.transparent,
+                            color: hasError
+                                ? Colors.redAccent
+                                : Colors.transparent,
                             width: 2,
                           ),
                         ),
@@ -538,7 +597,13 @@ class _PosScreenState extends State<PosScreen> {
                   if (hasError)
                     const Padding(
                       padding: EdgeInsets.only(top: 12),
-                      child: Text('PIN is required', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'PIN is required',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     )
                   else
                     const SizedBox(height: 12),
@@ -572,7 +637,10 @@ class _PosScreenState extends State<PosScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx, null),
-                child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ),
             ],
           );
@@ -583,22 +651,28 @@ class _PosScreenState extends State<PosScreen> {
 
   List<Product> get _filteredProducts {
     List<Product> result = _products;
-    
+
     // Filter by category
     if (_selectedCategoryName != 'All Items') {
-      result = result.where((p) => p.category == _selectedCategoryName).toList();
+      result = result
+          .where((p) => p.category == _selectedCategoryName)
+          .toList();
     }
-    
+
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      result = result.where((p) =>
-        p.name.toLowerCase().contains(query) ||
-        p.category.toLowerCase().contains(query) ||
-        (p.defaultCode != null && p.defaultCode!.toLowerCase().contains(query))
-      ).toList();
+      result = result
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(query) ||
+                p.category.toLowerCase().contains(query) ||
+                (p.defaultCode != null &&
+                    p.defaultCode!.toLowerCase().contains(query)),
+          )
+          .toList();
     }
-    
+
     return result;
   }
 
@@ -615,8 +689,10 @@ class _PosScreenState extends State<PosScreen> {
         title: InkWell(
           onTap: () async {
             final result = await Navigator.push<ResumedTicket>(
-              context, 
-              MaterialPageRoute(builder: (_) => TicketsScreen(cachedProducts: _products))
+              context,
+              MaterialPageRoute(
+                builder: (_) => TicketsScreen(cachedProducts: _products),
+              ),
             );
             if (result != null) {
               setState(() {
@@ -638,7 +714,10 @@ class _PosScreenState extends State<PosScreen> {
               children: [
                 const Icon(Icons.receipt_outlined, color: Colors.white),
                 const SizedBox(width: 8),
-                const Text('Open Tickets', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Open Tickets',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -653,12 +732,14 @@ class _PosScreenState extends State<PosScreen> {
             tooltip: _isGridView ? 'Switch to List' : 'Switch to Grid',
           ),
           const SizedBox(width: 8),
-          
+
           // Ticket / Sync Operations Menu
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_horiz_rounded),
             tooltip: 'Ticket Options',
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
             elevation: 8,
             color: Colors.white,
             onSelected: (value) async {
@@ -670,21 +751,30 @@ class _PosScreenState extends State<PosScreen> {
                 case 'print':
                   if (_cartItems.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No items in the current ticket to print.')),
+                      const SnackBar(
+                        content: Text(
+                          'No items in the current ticket to print.',
+                        ),
+                      ),
                     );
                     break;
                   }
                   if (!printerService.isConfigured) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('No printer configured. Set up a printer in Settings first.'),
+                        content: Text(
+                          'No printer configured. Set up a printer in Settings first.',
+                        ),
                         backgroundColor: Colors.orange,
                       ),
                     );
                     break;
                   }
                   {
-                    final subtotal = _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+                    final subtotal = _cartItems.fold(
+                      0.0,
+                      (sum, item) => sum + item.totalPrice,
+                    );
                     final tax = subtotal * 0.10;
                     final total = subtotal + tax;
                     final ok = await printerService.printBill(
@@ -698,7 +788,11 @@ class _PosScreenState extends State<PosScreen> {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(ok ? '🧾 Bill printed!' : 'Failed to print bill. Check printer connection.'),
+                          content: Text(
+                            ok
+                                ? '🧾 Bill printed!'
+                                : 'Failed to print bill. Check printer connection.',
+                          ),
                           backgroundColor: ok ? Colors.green : Colors.red,
                         ),
                       );
@@ -710,14 +804,20 @@ class _PosScreenState extends State<PosScreen> {
                   // Reprint ALL items in the current ticket to kitchen/bar printers
                   if (_cartItems.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No items in the current ticket to reprint.')),
+                      const SnackBar(
+                        content: Text(
+                          'No items in the current ticket to reprint.',
+                        ),
+                      ),
                     );
                     break;
                   }
                   if (!printerService.isConfigured) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('No printer configured. Set up a printer in Settings first.'),
+                        content: Text(
+                          'No printer configured. Set up a printer in Settings first.',
+                        ),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -725,7 +825,9 @@ class _PosScreenState extends State<PosScreen> {
                   }
                   {
                     int reprintCount = 0;
-                    for (final p in printerService.profiles.where((p) => p.printOrders)) {
+                    for (final p in printerService.profiles.where(
+                      (p) => p.printOrders,
+                    )) {
                       final filtered = _filterItemsForPrinter(_cartItems, p);
                       if (filtered.isNotEmpty) {
                         final ok = await printerService.printOrderTicketDirect(
@@ -739,10 +841,14 @@ class _PosScreenState extends State<PosScreen> {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(reprintCount > 0
-                              ? '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
-                              : 'No kitchen printers with "Print orders" enabled.'),
-                          backgroundColor: reprintCount > 0 ? Colors.green : Colors.orange,
+                          content: Text(
+                            reprintCount > 0
+                                ? '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
+                                : 'No kitchen printers with "Print orders" enabled.',
+                          ),
+                          backgroundColor: reprintCount > 0
+                              ? Colors.green
+                              : Colors.orange,
                         ),
                       );
                     }
@@ -751,14 +857,20 @@ class _PosScreenState extends State<PosScreen> {
                 case 'split':
                   if (_cartItems.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No items in the current ticket to split.')),
+                      const SnackBar(
+                        content: Text(
+                          'No items in the current ticket to split.',
+                        ),
+                      ),
                     );
                     break;
                   }
                   if (_activeTicketId == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Please save the ticket first before splitting.'),
+                        content: Text(
+                          'Please save the ticket first before splitting.',
+                        ),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -777,13 +889,20 @@ class _PosScreenState extends State<PosScreen> {
                     setState(() => _isLoading = true);
                     try {
                       // Build line format matching _saveCurrentTicket
-                      List<Map<String, dynamic>> toLines(List<CartItem> items) =>
-                          items.map((item) => {
-                            'product_id': item.product.id,
-                            'qty': item.quantity,
-                            'price_unit': item.product.price,
-                            'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
-                          }).toList();
+                      List<Map<String, dynamic>> toLines(
+                        List<CartItem> items,
+                      ) => items
+                          .map(
+                            (item) => {
+                              'product_id': item.product.id,
+                              'qty': item.quantity,
+                              'price_unit': item.product.price,
+                              'topping_ids': item.selectedToppings
+                                  .map((t) => t.id)
+                                  .toList(),
+                            },
+                          )
+                          .toList();
 
                       // Step 1: Replace ALL lines on the original ticket with ONLY the remaining items
                       await _apiService.updateOrder(
@@ -808,7 +927,7 @@ class _PosScreenState extends State<PosScreen> {
                       for (var item in splitResult.remainingItems) {
                         item.isSaved = true;
                       }
-                      
+
                       setState(() {
                         _cartItems = splitResult.remainingItems;
                         _isLoading = false;
@@ -817,7 +936,9 @@ class _PosScreenState extends State<PosScreen> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Ticket split! "${splitResult.newTicketName}" created.'),
+                            content: Text(
+                              'Ticket split! "${splitResult.newTicketName}" created.',
+                            ),
                             backgroundColor: Colors.green,
                           ),
                         );
@@ -826,7 +947,10 @@ class _PosScreenState extends State<PosScreen> {
                       setState(() => _isLoading = false);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Split error: $e'), backgroundColor: Colors.red),
+                          SnackBar(
+                            content: Text('Split error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                       }
                     }
@@ -842,7 +966,9 @@ class _PosScreenState extends State<PosScreen> {
                   if (!printerService.isConfigured) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('No printer configured. Set up a printer first.'),
+                        content: Text(
+                          'No printer configured. Set up a printer first.',
+                        ),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -852,7 +978,11 @@ class _PosScreenState extends State<PosScreen> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(opened ? '🗃️ Cash drawer opened!' : 'Failed to open drawer. Check printer connection.'),
+                        content: Text(
+                          opened
+                              ? '🗃️ Cash drawer opened!'
+                              : 'Failed to open drawer. Check printer connection.',
+                        ),
                         backgroundColor: opened ? Colors.green : Colors.red,
                       ),
                     );
@@ -866,11 +996,15 @@ class _PosScreenState extends State<PosScreen> {
               }
             },
             itemBuilder: (BuildContext menuCtx) {
-              final bool hasItems       = _cartItems.isNotEmpty;
-              final bool hasTicket      = _activeTicketId != null;
+              final bool hasItems = _cartItems.isNotEmpty;
+              final bool hasTicket = _activeTicketId != null;
               final bool ticketSelected = hasItems || hasTicket;
 
-              Widget disablableTile(IconData icon, String label, {required bool enabled}) {
+              Widget disablableTile(
+                IconData icon,
+                String label, {
+                required bool enabled,
+              }) {
                 final Color? col = enabled ? null : Colors.grey.shade400;
                 return ListTile(
                   dense: true,
@@ -884,8 +1018,11 @@ class _PosScreenState extends State<PosScreen> {
                 PopupMenuItem<String>(
                   value: 'clear',
                   enabled: ticketSelected,
-                  child: disablableTile(Icons.delete_outline_rounded, 'Clear ticket',
-                      enabled: ticketSelected),
+                  child: disablableTile(
+                    Icons.delete_outline_rounded,
+                    'Clear ticket',
+                    enabled: ticketSelected,
+                  ),
                 ),
                 const PopupMenuDivider(),
 
@@ -893,14 +1030,20 @@ class _PosScreenState extends State<PosScreen> {
                 PopupMenuItem<String>(
                   value: 'print',
                   enabled: hasItems,
-                  child: disablableTile(Icons.receipt_outlined, 'Print bill',
-                      enabled: hasItems),
+                  child: disablableTile(
+                    Icons.receipt_outlined,
+                    'Print bill',
+                    enabled: hasItems,
+                  ),
                 ),
                 PopupMenuItem<String>(
                   value: 'reprint',
                   enabled: hasItems,
-                  child: disablableTile(Icons.print_outlined, 'Reprint order (kitchen)',
-                      enabled: hasItems),
+                  child: disablableTile(
+                    Icons.print_outlined,
+                    'Reprint order (kitchen)',
+                    enabled: hasItems,
+                  ),
                 ),
                 const PopupMenuDivider(),
 
@@ -908,14 +1051,20 @@ class _PosScreenState extends State<PosScreen> {
                 PopupMenuItem<String>(
                   value: 'split',
                   enabled: hasItems && hasTicket,
-                  child: disablableTile(Icons.call_split_rounded, 'Split ticket',
-                      enabled: hasItems && hasTicket),
+                  child: disablableTile(
+                    Icons.call_split_rounded,
+                    'Split ticket',
+                    enabled: hasItems && hasTicket,
+                  ),
                 ),
                 PopupMenuItem<String>(
                   value: 'move',
                   enabled: hasTicket,
-                  child: disablableTile(Icons.open_in_new_rounded, 'Move ticket',
-                      enabled: hasTicket),
+                  child: disablableTile(
+                    Icons.open_in_new_rounded,
+                    'Move ticket',
+                    enabled: hasTicket,
+                  ),
                 ),
                 const PopupMenuDivider(),
 
@@ -944,156 +1093,172 @@ class _PosScreenState extends State<PosScreen> {
       ),
       drawer: Drawer(
         backgroundColor: Colors.white,
-          child: Column(
-            children: [
-              // ── Header ──────────────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_brandNavy, _brandNavy2],
+        child: Column(
+          children: [
+            // ── Header ──────────────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_brandNavy, _brandNavy2],
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Initial avatar
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white.withOpacity(0.20),
+                    child: Text(
+                      widget.cashierName.isNotEmpty
+                          ? widget.cashierName[0].toLowerCase()
+                          : '?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Initial avatar
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white.withOpacity(0.20),
-                      child: Text(
-                        widget.cashierName.isNotEmpty
-                            ? widget.cashierName[0].toLowerCase()
-                            : '?',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(fontSize: 16, color: Colors.white),
-                        children: [
-                          TextSpan(
-                            text: widget.cashierName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const TextSpan(text: ' (Cashier)'),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'POS Terminal #1',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            // ── Menu Items ───────────────────────────────────────
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  children: [
-                    _drawerItem(
-                      icon: Icons.storefront_outlined,
-                      label: 'Sales',
-                      isActive: true,
-                      onTap: () => Navigator.pop(context),
-                    ),
-                    _drawerItem(
-                      icon: Icons.receipt_long_outlined,
-                      label: 'Receipts',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ReceiptHistoryScreen()),
-                        );
-                      },
-                    ),
-                    _drawerItem(
-                      icon: Icons.fact_check_outlined,
-                      label: 'Self Orders Review',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SelfOrdersReviewScreen()),
-                        );
-                      },
-                    ),
-                    _drawerItem(
-                      icon: Icons.inventory_2_outlined,
-                      label: 'Items',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ManageItemsScreen()),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 4),
-                    _drawerItem(
-                      icon: Icons.settings_outlined,
-                      label: 'Settings',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showSettingsSheet(context);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // ── Lock / Switch User ───────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () async {
-                    await _apiService.logout();
-                    if (mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F3F8),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Row(
+                  const SizedBox(height: 14),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
                       children: [
-                        Icon(Icons.lock_outline_rounded, color: _brandNavy, size: 20),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Lock / Switch User',
-                            style: TextStyle(
-                              color: _brandNavy,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
+                        TextSpan(
+                          text: widget.cashierName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                        const TextSpan(text: ' (Cashier)'),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'POS Terminal #1',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            // ── Menu Items ───────────────────────────────────────
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                children: [
+                  _drawerItem(
+                    icon: Icons.storefront_outlined,
+                    label: 'Sales',
+                    isActive: true,
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  _drawerItem(
+                    icon: Icons.receipt_long_outlined,
+                    label: 'Receipts',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ReceiptHistoryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.fact_check_outlined,
+                    label: 'Self Orders Review',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SelfOrdersReviewScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.inventory_2_outlined,
+                    label: 'Items',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ManageItemsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  _drawerItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showSettingsSheet(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Lock / Switch User ───────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () async {
+                  await _apiService.logout();
+                  if (mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F3F8),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        color: _brandNavy,
+                        size: 20,
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Lock / Switch User',
+                          style: TextStyle(
+                            color: _brandNavy,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                    ],
+                  ),
                 ),
               ),
+            ),
             const SizedBox(height: 16),
           ],
         ),
@@ -1104,118 +1269,149 @@ class _PosScreenState extends State<PosScreen> {
           Expanded(
             flex: 5,
             child: _categories.isEmpty && _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _categories.isEmpty && _errorMessage != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                          const SizedBox(height: 16),
-                          Text('Error: $_errorMessage', style: const TextStyle(color: Colors.red)),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _isLoading = true;
-                                _errorMessage = null;
-                              });
-                              _fetchOdooProducts();
-                            },
-                            child: const Text('Retry'),
-                          )
-                        ],
-                      ),
-                    )
-              : DefaultTabController(
-                  length: _categories.length,
-                  child: Column(
-                    children: [
-                      // Permanent Search Bar
-                      Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(24),
-                            topRight: Radius.circular(24),
-                          ),
+                ? const Center(child: CircularProgressIndicator())
+                : _categories.isEmpty && _errorMessage != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 48,
                         ),
-                        margin: const EdgeInsets.only(top: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              hintText: 'Search products…',
-                              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-                              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                              suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      setState(() => _searchQuery = '');
-                                    },
-                                  )
-                                : null,
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                // borderSide: BorderSide(color: Colors.grey.shade200, width: 1),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                // borderSide: BorderSide(color: _brandNavy, width: 1.5),
-                                borderSide: BorderSide.none,
-                              ),
-                             
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: $_errorMessage',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _isLoading = true;
+                              _errorMessage = null;
+                            });
+                            _fetchOdooProducts();
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : DefaultTabController(
+                    length: _categories.length,
+                    child: Column(
+                      children: [
+                        // Permanent Search Bar
+                        Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(24),
+                              topRight: Radius.circular(24),
                             ),
-                            onChanged: (value) {
-                              setState(() => _searchQuery = value);
-                            },
+                          ),
+                          margin: const EdgeInsets.only(top: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                hintText: 'Search products…',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 15,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.search,
+                                  color: Colors.grey,
+                                ),
+                                suffixIcon: _searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          setState(() => _searchQuery = '');
+                                        },
+                                      )
+                                    : null,
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 0,
+                                  horizontal: 20,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  // borderSide: BorderSide(color: Colors.grey.shade200, width: 1),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  // borderSide: BorderSide(color: _brandNavy, width: 1.5),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                              onChanged: (value) {
+                                setState(() => _searchQuery = value);
+                              },
+                            ),
                           ),
                         ),
-                      ),
-                      
-                      // Swipeable Categories TabBar
-                      Container(
-                        color: Colors.white,
-                        child: TabBar(
-                          isScrollable: true,
-                          indicatorColor: _brandNavy,
-                          labelColor: _brandNavy,
-                          unselectedLabelColor: Colors.grey[500],
-                          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
-                          tabs: _categories.map((c) => Tab(text: c.name)).toList(),
+
+                        // Swipeable Categories TabBar
+                        Container(
+                          color: Colors.white,
+                          child: TabBar(
+                            isScrollable: true,
+                            indicatorColor: _brandNavy,
+                            labelColor: _brandNavy,
+                            unselectedLabelColor: Colors.grey[500],
+                            labelStyle: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                            unselectedLabelStyle: const TextStyle(
+                              fontWeight: FontWeight.w400,
+                            ),
+                            tabs: _categories
+                                .map((c) => Tab(text: c.name))
+                                .toList(),
+                          ),
                         ),
-                      ),
-                      const Divider(height: 1),
-                      
-                      // Products TabBarView (Grid/List)
-                      Expanded(
-                        child: _isLoading 
-                          ? const Center(child: CircularProgressIndicator())
-                          : _errorMessage != null
+                        const Divider(height: 1),
+
+                        // Products TabBarView (Grid/List)
+                        Expanded(
+                          child: _isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : _errorMessage != null
                               ? Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                                      const Icon(
+                                        Icons.error_outline,
+                                        color: Colors.red,
+                                        size: 48,
+                                      ),
                                       const SizedBox(height: 16),
-                                      Text('Error: $_errorMessage', style: const TextStyle(color: Colors.red)),
+                                      Text(
+                                        'Error: $_errorMessage',
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                        ),
+                                      ),
                                       const SizedBox(height: 16),
                                       ElevatedButton(
                                         onPressed: _fetchOdooProducts,
                                         child: const Text('Retry'),
-                                      )
+                                      ),
                                     ],
                                   ),
                                 )
@@ -1224,31 +1420,53 @@ class _PosScreenState extends State<PosScreen> {
                                     // Filter products dynamically for each tab
                                     List<Product> tabProducts = _products;
                                     if (category.name != 'All Items') {
-                                      tabProducts = tabProducts.where((p) => p.category == category.name).toList();
+                                      tabProducts = tabProducts
+                                          .where(
+                                            (p) => p.category == category.name,
+                                          )
+                                          .toList();
                                     }
-                                    
+
                                     // Apply search across the active tab's items
                                     if (_searchQuery.isNotEmpty) {
                                       final query = _searchQuery.toLowerCase();
-                                      tabProducts = tabProducts.where((p) =>
-                                        p.name.toLowerCase().contains(query) ||
-                                        p.category.toLowerCase().contains(query) ||
-                                        (p.defaultCode != null && p.defaultCode!.toLowerCase().contains(query))
-                                      ).toList();
+                                      tabProducts = tabProducts
+                                          .where(
+                                            (p) =>
+                                                p.name.toLowerCase().contains(
+                                                  query,
+                                                ) ||
+                                                p.category
+                                                    .toLowerCase()
+                                                    .contains(query) ||
+                                                (p.defaultCode != null &&
+                                                    p.defaultCode!
+                                                        .toLowerCase()
+                                                        .contains(query)),
+                                          )
+                                          .toList();
                                     }
 
                                     if (tabProducts.isEmpty) {
                                       return Center(
                                         child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
-                                            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                                            Icon(
+                                              Icons.search_off,
+                                              size: 64,
+                                              color: Colors.grey[400],
+                                            ),
                                             const SizedBox(height: 16),
                                             Text(
                                               _searchQuery.isNotEmpty
                                                   ? 'No products matching "$_searchQuery"'
                                                   : 'No products in this category',
-                                              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 16,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -1266,12 +1484,12 @@ class _PosScreenState extends State<PosScreen> {
                                           );
                                   }).toList(),
                                 ),
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
           ),
-          
+
           // Cart Section (Sidebar)
           if (isDesktop) const VerticalDivider(width: 1),
           if (isDesktop)
@@ -1283,8 +1501,10 @@ class _PosScreenState extends State<PosScreen> {
                 onClearCart: _clearCart,
                 onViewTickets: () async {
                   final result = await Navigator.push<ResumedTicket>(
-                    context, 
-                    MaterialPageRoute(builder: (_) => TicketsScreen(cachedProducts: _products))
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TicketsScreen(cachedProducts: _products),
+                    ),
                   );
                   if (result != null) {
                     setState(() {
@@ -1349,7 +1569,9 @@ class _PosScreenState extends State<PosScreen> {
                       final result = await Navigator.push<ResumedTicket>(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => TicketsScreen(cachedProducts: _products)),
+                          builder: (_) =>
+                              TicketsScreen(cachedProducts: _products),
+                        ),
                       );
                       if (result != null) {
                         setState(() {
@@ -1359,7 +1581,8 @@ class _PosScreenState extends State<PosScreen> {
                           _activeTicketTableId = result.tableId;
                           _activeTicketPaymentType = result.paymentType;
                           _activeTicketPaymentMethodId = result.paymentMethodId;
-                          _activeTicketPaymentMethodName = result.paymentMethodName;
+                          _activeTicketPaymentMethodName =
+                              result.paymentMethodName;
                         });
                       }
                     },
@@ -1422,7 +1645,8 @@ class _PosScreenState extends State<PosScreen> {
                               style: const TextStyle(fontSize: 12),
                             ),
                             TextSpan(
-                              text: 'K${NumberFormat('#,##0.00').format(total)}',
+                              text:
+                                  'K${NumberFormat('#,##0.00').format(total)}',
                               style: const TextStyle(fontSize: 18),
                             ),
                           ],
@@ -1433,7 +1657,10 @@ class _PosScreenState extends State<PosScreen> {
                 ),
                 // ── Right: button ─────────────────────────────────────
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1E3A8A),
                     borderRadius: BorderRadius.circular(28),
@@ -1476,7 +1703,10 @@ class _PosScreenState extends State<PosScreen> {
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot load open tickets: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Cannot load open tickets: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -1494,13 +1724,19 @@ class _PosScreenState extends State<PosScreen> {
     }
 
     final emptyTables = tables
-        .where((t) => (t.status == 'available' || t.status == 'empty') && !t.hasOpenOrder)
+        .where(
+          (t) =>
+              (t.status == 'available' || t.status == 'empty') &&
+              !t.hasOpenOrder,
+        )
         .toList();
 
     if (tickets.length < 2 && emptyTables.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No destination available. Open another ticket or free a table.'),
+          content: Text(
+            'No destination available. Open another ticket or free a table.',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -1513,7 +1749,9 @@ class _PosScreenState extends State<PosScreen> {
     int? destinationTicketId = canMoveToOpenTicket
         ? tickets.firstWhere((t) => t.id != sourceTicketId).id
         : null;
-    int? destinationTableId = emptyTables.isNotEmpty ? emptyTables.first.id : null;
+    int? destinationTableId = emptyTables.isNotEmpty
+        ? emptyTables.first.id
+        : null;
     bool isSubmitting = false;
 
     await showModalBottomSheet(
@@ -1522,8 +1760,12 @@ class _PosScreenState extends State<PosScreen> {
       backgroundColor: Colors.transparent,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
-          final sourceTicket = tickets.firstWhere((t) => t.id == sourceTicketId);
-          final destinationOptions = tickets.where((t) => t.id != sourceTicketId).toList();
+          final sourceTicket = tickets.firstWhere(
+            (t) => t.id == sourceTicketId,
+          );
+          final destinationOptions = tickets
+              .where((t) => t.id != sourceTicketId)
+              .toList();
 
           if (destinationMode == 'ticket' && destinationOptions.isEmpty) {
             destinationMode = 'table';
@@ -1563,17 +1805,25 @@ class _PosScreenState extends State<PosScreen> {
                           const Expanded(
                             child: Text(
                               'Move Ticket',
-                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           IconButton(
-                            onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+                            onPressed: isSubmitting
+                                ? null
+                                : () => Navigator.pop(dialogCtx),
                             icon: const Icon(Icons.close),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text('Select source ticket', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Select source ticket',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
                         value: sourceTicketId,
@@ -1590,31 +1840,46 @@ class _PosScreenState extends State<PosScreen> {
                                 if (val == null) return;
                                 setDialogState(() {
                                   sourceTicketId = val;
-                                  final destinations = tickets.where((t) => t.id != sourceTicketId).toList();
+                                  final destinations = tickets
+                                      .where((t) => t.id != sourceTicketId)
+                                      .toList();
                                   if (destinations.isNotEmpty) {
                                     destinationTicketId = destinations.first.id;
                                   }
-                                  if (destinations.isEmpty && emptyTables.isNotEmpty) {
+                                  if (destinations.isEmpty &&
+                                      emptyTables.isNotEmpty) {
                                     destinationMode = 'table';
                                   }
                                 });
                               },
                       ),
                       const SizedBox(height: 18),
-                      const Text('Move destination', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Move destination',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 8),
                       SegmentedButton<String>(
                         segments: const [
-                          ButtonSegment<String>(value: 'ticket', label: Text('Open ticket')),
-                          ButtonSegment<String>(value: 'table', label: Text('Empty table')),
+                          ButtonSegment<String>(
+                            value: 'ticket',
+                            label: Text('Open ticket'),
+                          ),
+                          ButtonSegment<String>(
+                            value: 'table',
+                            label: Text('Empty table'),
+                          ),
                         ],
                         selected: <String>{destinationMode},
                         onSelectionChanged: isSubmitting
                             ? null
                             : (selection) {
                                 final next = selection.first;
-                                if (next == 'ticket' && destinationOptions.isEmpty) return;
-                                if (next == 'table' && emptyTables.isEmpty) return;
+                                if (next == 'ticket' &&
+                                    destinationOptions.isEmpty)
+                                  return;
+                                if (next == 'table' && emptyTables.isEmpty)
+                                  return;
                                 setDialogState(() => destinationMode = next);
                               },
                       ),
@@ -1626,12 +1891,17 @@ class _PosScreenState extends State<PosScreen> {
                           items: destinationOptions.map((t) {
                             return DropdownMenuItem<int>(
                               value: t.id,
-                              child: Text('${t.name} (${t.lines.length} items)'),
+                              child: Text(
+                                '${t.name} (${t.lines.length} items)',
+                              ),
                             );
                           }).toList(),
                           onChanged: isSubmitting
                               ? null
-                              : (val) => setDialogState(() => destinationTicketId = val ?? destinationTicketId),
+                              : (val) => setDialogState(
+                                  () => destinationTicketId =
+                                      val ?? destinationTicketId,
+                                ),
                         )
                       else
                         DropdownButtonFormField<int>(
@@ -1645,7 +1915,10 @@ class _PosScreenState extends State<PosScreen> {
                           }).toList(),
                           onChanged: isSubmitting
                               ? null
-                              : (val) => setDialogState(() => destinationTableId = val ?? destinationTableId),
+                              : (val) => setDialogState(
+                                  () => destinationTableId =
+                                      val ?? destinationTableId,
+                                ),
                         ),
                       const SizedBox(height: 12),
                       Container(
@@ -1657,7 +1930,10 @@ class _PosScreenState extends State<PosScreen> {
                         ),
                         child: Text(
                           'Source total: ₭${sourceTicket.amountTotal.toStringAsFixed(2)}\nItems: ${sourceTicket.lines.length}',
-                          style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: Colors.blue.shade900,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       const Spacer(),
@@ -1665,7 +1941,9 @@ class _PosScreenState extends State<PosScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () => Navigator.pop(dialogCtx),
                               child: const Text('Cancel'),
                             ),
                           ),
@@ -1678,11 +1956,19 @@ class _PosScreenState extends State<PosScreen> {
                                       setDialogState(() => isSubmitting = true);
                                       final success = await _moveTicketItems(
                                         sourceTicketId: sourceTicketId,
-                                        destinationTicketId: destinationMode == 'ticket' ? destinationTicketId : null,
-                                        destinationTableId: destinationMode == 'table' ? destinationTableId : null,
+                                        destinationTicketId:
+                                            destinationMode == 'ticket'
+                                            ? destinationTicketId
+                                            : null,
+                                        destinationTableId:
+                                            destinationMode == 'table'
+                                            ? destinationTableId
+                                            : null,
                                       );
                                       if (!dialogCtx.mounted) return;
-                                      setDialogState(() => isSubmitting = false);
+                                      setDialogState(
+                                        () => isSubmitting = false,
+                                      );
                                       if (success) {
                                         Navigator.pop(dialogCtx);
                                       }
@@ -1695,7 +1981,10 @@ class _PosScreenState extends State<PosScreen> {
                                   ? const SizedBox(
                                       width: 16,
                                       height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
                                     )
                                   : const Text('Move Now'),
                             ),
@@ -1733,17 +2022,21 @@ class _PosScreenState extends State<PosScreen> {
       }
 
       final linesToMove = source.lines
-          .map((line) => {
-                'product_id': line.productId,
-                'qty': line.qty,
-                'price_unit': line.priceUnit,
-                'topping_ids': line.toppingIds,
-              })
+          .map(
+            (line) => {
+              'product_id': line.productId,
+              'qty': line.qty,
+              'price_unit': line.priceUnit,
+              'topping_ids': line.toppingIds,
+            },
+          )
           .toList();
 
       // 1) Move source lines into destination (existing ticket or new ticket on empty table)
       if (destinationTicketId != null) {
-        final destination = tickets.where((t) => t.id == destinationTicketId).firstOrNull;
+        final destination = tickets
+            .where((t) => t.id == destinationTicketId)
+            .firstOrNull;
         if (destination == null) {
           throw Exception('Destination ticket no longer exists.');
         }
@@ -1778,7 +2071,9 @@ class _PosScreenState extends State<PosScreen> {
             : 'table #$destinationTableId (new ticket)';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Moved items from ticket #$sourceTicketId to $movedTo'),
+            content: Text(
+              'Moved items from ticket #$sourceTicketId to $movedTo',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -1787,7 +2082,10 @@ class _PosScreenState extends State<PosScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Move ticket failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Move ticket failed: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
       return false;
@@ -1801,12 +2099,14 @@ class _PosScreenState extends State<PosScreen> {
     showModalBottomSheet(
       context: rootContext,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
         String searchQuery = '';
         List<dynamic> allCustomers = [];
         bool isLoading = true;
-        
+
         // Helper to load
         void loadData(StateSetter setSheetState) async {
           try {
@@ -1824,7 +2124,10 @@ class _PosScreenState extends State<PosScreen> {
           builder: (ctx, setSheetState) {
             if (isLoading && allCustomers.isEmpty) {
               loadData(setSheetState);
-              return const SizedBox(height: 300, child: Center(child: CircularProgressIndicator()));
+              return const SizedBox(
+                height: 300,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
 
             final filteredCustomers = allCustomers.where((c) {
@@ -1837,13 +2140,24 @@ class _PosScreenState extends State<PosScreen> {
             return FractionallySizedBox(
               heightFactor: 0.85,
               child: Padding(
-                padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 0), // Keyboard pushes it up naturally
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 0,
+                ), // Keyboard pushes it up naturally
                 child: Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Select Customer', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Select Customer',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         TextButton.icon(
                           icon: const Icon(Icons.add),
                           label: const Text('New'),
@@ -1853,7 +2167,7 @@ class _PosScreenState extends State<PosScreen> {
                               loadData(setSheetState);
                             });
                           },
-                        )
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1861,8 +2175,10 @@ class _PosScreenState extends State<PosScreen> {
                       decoration: InputDecoration(
                         hintText: 'Search by name or phone...',
                         prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0)
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
                       ),
                       onChanged: (val) {
                         setSheetState(() {
@@ -1872,48 +2188,69 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                     const SizedBox(height: 12),
                     Expanded(
-                      child: filteredCustomers.isEmpty 
-                        ? const Center(child: Text('No customers found.'))
-                        : ListView.separated(
-                            itemCount: filteredCustomers.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
-                            itemBuilder: (ctx, index) {
-                              final c = filteredCustomers[index];
-                              final String cName = c['name'] is String ? c['name'] : (c['name']?.toString() ?? '');
-                              final String cPhone = c['phone'] is String ? c['phone'] : '';
-                              return ListTile(
-                                leading: const CircleAvatar(child: Icon(Icons.person)),
-                                title: Text(cName.isNotEmpty ? cName : 'Unknown'),
-                                subtitle: cPhone.isNotEmpty ? Text(cPhone) : null,
-                                onTap: () {
-                                  // Capture messenger before popping to fix deactivated widget ancestor exception
-                                  final messenger = ScaffoldMessenger.of(rootContext);
-                                  setState(() {
-                                    _selectedCustomer = c;
-                                  });
-                                  Navigator.pop(ctx);
-                                  messenger.showSnackBar(
-                                    SnackBar(content: Text('Customer $cName selected!'), duration: const Duration(seconds: 2))
-                                  );
-                                },
-                              );
-                            },
-                          )
+                      child: filteredCustomers.isEmpty
+                          ? const Center(child: Text('No customers found.'))
+                          : ListView.separated(
+                              itemCount: filteredCustomers.length,
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (ctx, index) {
+                                final c = filteredCustomers[index];
+                                final String cName = c['name'] is String
+                                    ? c['name']
+                                    : (c['name']?.toString() ?? '');
+                                final String cPhone = c['phone'] is String
+                                    ? c['phone']
+                                    : '';
+                                return ListTile(
+                                  leading: const CircleAvatar(
+                                    child: Icon(Icons.person),
+                                  ),
+                                  title: Text(
+                                    cName.isNotEmpty ? cName : 'Unknown',
+                                  ),
+                                  subtitle: cPhone.isNotEmpty
+                                      ? Text(cPhone)
+                                      : null,
+                                  onTap: () {
+                                    // Capture messenger before popping to fix deactivated widget ancestor exception
+                                    final messenger = ScaffoldMessenger.of(
+                                      rootContext,
+                                    );
+                                    setState(() {
+                                      _selectedCustomer = c;
+                                    });
+                                    Navigator.pop(ctx);
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Customer $cName selected!',
+                                        ),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),
               ),
             );
-          }
+          },
         );
-      }
+      },
     );
   }
 
-  void _showCreateCustomerDialog(BuildContext sheetCtx, VoidCallback onCustomerCreated) {
+  void _showCreateCustomerDialog(
+    BuildContext sheetCtx,
+    VoidCallback onCustomerCreated,
+  ) {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
-    
+
     showDialog(
       context: sheetCtx,
       builder: (ctx) => AlertDialog(
@@ -1923,43 +2260,56 @@ class _PosScreenState extends State<PosScreen> {
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: phoneCtrl,
-              decoration: const InputDecoration(labelText: 'Phone', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Phone',
+                border: OutlineInputBorder(),
+              ),
               keyboardType: TextInputType.phone,
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) return;
               try {
-                await _apiService.saveCustomer(name: nameCtrl.text.trim(), phone: phoneCtrl.text.trim());
+                await _apiService.saveCustomer(
+                  name: nameCtrl.text.trim(),
+                  phone: phoneCtrl.text.trim(),
+                );
                 Navigator.pop(ctx); // Close dialog
                 onCustomerCreated(); // Trigger the callback
               } catch (e) {
-                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(e.toString())));
+                ScaffoldMessenger.of(
+                  ctx,
+                ).showSnackBar(SnackBar(content: Text(e.toString())));
               }
             },
             child: const Text('Save'),
-          )
+          ),
         ],
-      )
+      ),
     );
   }
 
-  
   void _showChargeDialog(BuildContext context) {
     if (_cartItems.isEmpty) return;
 
     final subtotal = _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final tax      = subtotal * 0.10;
-    final total    = subtotal + tax;
+    final tax = subtotal * 0.10;
+    final total = subtotal + tax;
     final bool isTransferTicket = _activeTicketPaymentType == 'transfer';
 
     if (isTransferTicket && _activeTicketPaymentMethodId != null) {
@@ -1973,8 +2323,9 @@ class _PosScreenState extends State<PosScreen> {
       _selectedPaymentMethod = _paymentMethods.first;
     }
 
-    final TextEditingController amountReceivedCtrl =
-        TextEditingController(text: total.toStringAsFixed(0));
+    final TextEditingController amountReceivedCtrl = TextEditingController(
+      text: total.toStringAsFixed(0),
+    );
 
     final fmt = NumberFormat('#,##0.00');
 
@@ -1985,15 +2336,17 @@ class _PosScreenState extends State<PosScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
           final isCash =
-              _selectedPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
+              _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
+              false;
           final amtReceived =
-              double.tryParse(amountReceivedCtrl.text.replaceAll(',', '')) ?? 0.0;
-          final changeAmount =
-              amtReceived >= total ? amtReceived - total : 0.0;
+              double.tryParse(amountReceivedCtrl.text.replaceAll(',', '')) ??
+              0.0;
+          final changeAmount = amtReceived >= total ? amtReceived - total : 0.0;
 
           return Padding(
             padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom),
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
             child: Container(
               height: MediaQuery.of(context).size.height * 0.90,
               decoration: const BoxDecoration(
@@ -2005,8 +2358,10 @@ class _PosScreenState extends State<PosScreen> {
                 children: [
                   // ── Header ────────────────────────────────────────────────
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     child: Row(
                       children: [
                         // X button (left)
@@ -2020,8 +2375,11 @@ class _PosScreenState extends State<PosScreen> {
                               color: Colors.grey.shade200,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.close,
-                                size: 18, color: Colors.black54),
+                            child: const Icon(
+                              Icons.close,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
                           ),
                         ),
                         const Spacer(),
@@ -2042,7 +2400,9 @@ class _PosScreenState extends State<PosScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          vertical: 24, horizontal: 20),
+                        vertical: 24,
+                        horizontal: 20,
+                      ),
                       decoration: BoxDecoration(
                         color: _brandNavy,
                         borderRadius: BorderRadius.circular(20),
@@ -2085,16 +2445,16 @@ class _PosScreenState extends State<PosScreen> {
                             decoration: BoxDecoration(
                               color: Colors.blue.shade50,
                               borderRadius: BorderRadius.circular(12),
-                              border:
-                                  Border.all(color: Colors.blue.shade200),
+                              border: Border.all(color: Colors.blue.shade200),
                             ),
                             child: Text(
                               _activeTicketPaymentMethodName.isNotEmpty
                                   ? 'Transfer ticket: fixed to $_activeTicketPaymentMethodName.'
                                   : 'Transfer ticket: payment method is fixed.',
                               style: TextStyle(
-                                  color: Colors.blue.shade900,
-                                  fontWeight: FontWeight.w600),
+                                color: Colors.blue.shade900,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
 
@@ -2111,8 +2471,10 @@ class _PosScreenState extends State<PosScreen> {
 
                         // ── Payment Method Pills ──────────────────────────
                         if (_paymentMethods.isEmpty)
-                          const Text('No payment methods configured.',
-                              style: TextStyle(color: Colors.grey))
+                          const Text(
+                            'No payment methods configured.',
+                            style: TextStyle(color: Colors.grey),
+                          )
                         else
                           Wrap(
                             spacing: 10,
@@ -2120,21 +2482,28 @@ class _PosScreenState extends State<PosScreen> {
                             children: _paymentMethods.map((m) {
                               final isSelected =
                                   _selectedPaymentMethod?.id == m.id;
-                              final locked = isTransferTicket &&
+                              final locked =
+                                  isTransferTicket &&
                                   _activeTicketPaymentMethodId != null;
-                              final isCashMethod =
-                                  m.name.toLowerCase().contains('cash');
+                              final isCashMethod = m.name
+                                  .toLowerCase()
+                                  .contains('cash');
 
                               return InkWell(
                                 onTap: locked
                                     ? null
                                     : () => setSheetState(
-                                        () => _selectedPaymentMethod = m),
+                                        () => _selectedPaymentMethod = m,
+                                      ),
                                 borderRadius: BorderRadius.circular(16),
                                 child: Container(
-                                  width: (MediaQuery.of(context).size.width / 2) - 26,
+                                  width:
+                                      (MediaQuery.of(context).size.width / 2) -
+                                      26,
                                   padding: const EdgeInsets.symmetric(
-                                      vertical: 18, horizontal: 12),
+                                    vertical: 18,
+                                    horizontal: 12,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(16),
@@ -2193,8 +2562,7 @@ class _PosScreenState extends State<PosScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(14),
-                              border:
-                                  Border.all(color: Colors.grey.shade300),
+                              border: Border.all(color: Colors.grey.shade300),
                             ),
                             child: Row(
                               children: [
@@ -2214,7 +2582,8 @@ class _PosScreenState extends State<PosScreen> {
                                     controller: amountReceivedCtrl,
                                     keyboardType:
                                         const TextInputType.numberWithOptions(
-                                            decimal: true),
+                                          decimal: true,
+                                        ),
                                     style: const TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w600,
@@ -2223,15 +2592,20 @@ class _PosScreenState extends State<PosScreen> {
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       contentPadding: EdgeInsets.symmetric(
-                                          vertical: 16, horizontal: 4),
+                                        vertical: 16,
+                                        horizontal: 4,
+                                      ),
                                     ),
                                     onChanged: (_) => setSheetState(() {}),
                                   ),
                                 ),
                                 if (amountReceivedCtrl.text.isNotEmpty)
                                   IconButton(
-                                    icon: const Icon(Icons.cancel_rounded,
-                                        color: Colors.black26, size: 20),
+                                    icon: const Icon(
+                                      Icons.cancel_rounded,
+                                      color: Colors.black26,
+                                      size: 20,
+                                    ),
                                     onPressed: () {
                                       amountReceivedCtrl.clear();
                                       setSheetState(() {});
@@ -2244,17 +2618,16 @@ class _PosScreenState extends State<PosScreen> {
 
                           // Change Due row
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
                                   'Change Due:',
                                   style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade500),
+                                    fontSize: 14,
+                                    color: Colors.grey.shade500,
+                                  ),
                                 ),
                                 Text(
                                   'K${fmt.format(changeAmount)}',
@@ -2284,14 +2657,20 @@ class _PosScreenState extends State<PosScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                       child: ElevatedButton(
                         onPressed: () => _processCheckout(
-                            context, setSheetState, true, subtotal, tax, total),
+                          context,
+                          setSheetState,
+                          true,
+                          subtotal,
+                          tax,
+                          total,
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF22C55E),
                           foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 18),
+                          padding: const EdgeInsets.symmetric(vertical: 18),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                           elevation: 0,
                         ),
                         child: Text(
@@ -2314,33 +2693,39 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _processCheckout(
-    BuildContext context, 
-    StateSetter setDialogState, 
-    bool printReceipt, 
-    double subtotal, 
-    double tax, 
-    double total
+    BuildContext context,
+    StateSetter setDialogState,
+    bool printReceipt,
+    double subtotal,
+    double tax,
+    double total,
   ) async {
     setDialogState(() => _isCharging = true);
 
     // Only new (unsaved) lines need to be pushed — saved ones are already on server
     final newLines = _cartItems
         .where((item) => !item.isSaved)
-        .map((item) => {
-              'product_id': item.product.id,
-              'qty': item.quantity,
-              'price_unit': item.product.price,
-              'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
-            })
+        .map(
+          (item) => {
+            'product_id': item.product.id,
+            'qty': item.quantity,
+            'price_unit': item.product.price,
+            'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
+          },
+        )
         .toList();
 
     // All lines (for offline/new-order path)
-    final allLines = _cartItems.map((item) => {
-      'product_id': item.product.id,
-      'qty': item.quantity,
-      'price_unit': item.product.price,
-      'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
-    }).toList();
+    final allLines = _cartItems
+        .map(
+          (item) => {
+            'product_id': item.product.id,
+            'qty': item.quantity,
+            'price_unit': item.product.price,
+            'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
+          },
+        )
+        .toList();
 
     try {
       final cashierId = widget.cashierId;
@@ -2388,18 +2773,22 @@ class _PosScreenState extends State<PosScreen> {
       if (context.mounted) {
         if (isOffline) {
           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(
-               content: Text('⚡ Network unavailable. Order saved offline and will auto-sync later!'),
-               backgroundColor: Colors.orange,
-               duration: Duration(seconds: 4),
-             )
+            const SnackBar(
+              content: Text(
+                '⚡ Network unavailable. Order saved offline and will auto-sync later!',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
           );
         } else {
-           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(
-               content: Text('Order ${result['order_reference']} Paid Successfully!'),
-               backgroundColor: Colors.green,
-             )
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Order ${result['order_reference']} Paid Successfully!',
+              ),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       }
@@ -2412,7 +2801,8 @@ class _PosScreenState extends State<PosScreen> {
         final receiptPrinters = printerService.profiles
             .where((p) => p.printReceiptsAndBills)
             .toList();
-        bool anyOk = receiptPrinters.isEmpty; // consider success if no receipt printer
+        bool anyOk =
+            receiptPrinters.isEmpty; // consider success if no receipt printer
         for (final p in receiptPrinters) {
           final ok = await printerService.printReceiptToProfile(
             p,
@@ -2426,21 +2816,23 @@ class _PosScreenState extends State<PosScreen> {
         }
         if (context.mounted && !anyOk) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Printer error'), backgroundColor: Colors.red),
+            const SnackBar(
+              content: Text('Printer error'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
-        final isCash = _selectedPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
+        final isCash =
+            _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
+            false;
         if (isCash) {
           await printerService.openCashDrawer();
         }
       }
       // Auto-open cash drawer on cash payments
 
-
-
       _clearCart();
       if (context.mounted) Navigator.pop(context);
-
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2455,17 +2847,19 @@ class _PosScreenState extends State<PosScreen> {
   /// Save current cart to existing ticket (update) or new ticket (table dialog)
   Future<void> _saveCurrentTicket(BuildContext context) async {
     if (_cartItems.isEmpty || _isSaving) return; // guard against double-tap
-    
+
     if (_activeTicketId != null) {
       // Only send the NEW (unsaved) items — saved items are already on the server
       final newLines = _cartItems
           .where((item) => !item.isSaved)
-          .map((item) => {
-                'product_id': item.product.id,
-                'qty': item.quantity,
-                'price_unit': item.product.price,
-                'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
-              })
+          .map(
+            (item) => {
+              'product_id': item.product.id,
+              'qty': item.quantity,
+              'price_unit': item.product.price,
+              'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
+            },
+          )
           .toList();
 
       // If there are no new items, nothing to update — just go back
@@ -2538,7 +2932,9 @@ class _PosScreenState extends State<PosScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Ticket ${_activeTicketName ?? ''} updated with ${newLines.length} new item(s)!'),
+              content: Text(
+                'Ticket ${_activeTicketName ?? ''} updated with ${newLines.length} new item(s)!',
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -2579,7 +2975,7 @@ class _PosScreenState extends State<PosScreen> {
 
   void _showTableSelectionDialog(BuildContext context) {
     if (_cartItems.isEmpty) return;
-    
+
     showDialog(
       context: context,
       barrierDismissible: !_isOpeningTicket,
@@ -2590,18 +2986,23 @@ class _PosScreenState extends State<PosScreen> {
             width: double.maxFinite,
             height: 400,
             child: _tables.isEmpty
-                ? const Center(child: Text('No tables available.\nPlease sync catalog.'))
+                ? const Center(
+                    child: Text('No tables available.\nPlease sync catalog.'),
+                  )
                 : GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 150,
-                      childAspectRatio: 1,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 150,
+                          childAspectRatio: 1,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
                     itemCount: _tables.length,
                     itemBuilder: (context, index) {
                       final table = _tables[index];
-                      final isAvailable = table.status == 'available' || table.status == 'empty';
+                      final isAvailable =
+                          table.status == 'available' ||
+                          table.status == 'empty';
                       final hasOpenOrder = table.hasOpenOrder;
 
                       // Three visual states:
@@ -2637,7 +3038,11 @@ class _PosScreenState extends State<PosScreen> {
                       return InkWell(
                         onTap: (!isAvailable || _isOpeningTicket)
                             ? null
-                            : () => _processOpenTicket(context, setDialogState, table),
+                            : () => _processOpenTicket(
+                                context,
+                                setDialogState,
+                                table,
+                              ),
                         borderRadius: BorderRadius.circular(12),
                         child: Card(
                           color: cardColor,
@@ -2656,15 +3061,26 @@ class _PosScreenState extends State<PosScreen> {
                                     Text(
                                       table.name,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                     const SizedBox(height: 4),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        const Icon(Icons.person, size: 14, color: Colors.grey),
-                                        Text('${table.capacity}',
-                                            style: const TextStyle(color: Colors.grey)),
+                                        const Icon(
+                                          Icons.person,
+                                          size: 14,
+                                          color: Colors.grey,
+                                        ),
+                                        Text(
+                                          '${table.capacity}',
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -2676,7 +3092,10 @@ class _PosScreenState extends State<PosScreen> {
                                   top: 6,
                                   right: 6,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.orange,
                                       borderRadius: BorderRadius.circular(8),
@@ -2715,14 +3134,22 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
-  Future<void> _processOpenTicket(BuildContext context, StateSetter setDialogState, PosTable table) async {
+  Future<void> _processOpenTicket(
+    BuildContext context,
+    StateSetter setDialogState,
+    PosTable table,
+  ) async {
     setDialogState(() => _isOpeningTicket = true);
 
-    final lines = _cartItems.map((item) => {
-      'product_id': item.product.id,
-      'qty': item.quantity,
-      'price_unit': item.product.price,
-    }).toList();
+    final lines = _cartItems
+        .map(
+          (item) => {
+            'product_id': item.product.id,
+            'qty': item.quantity,
+            'price_unit': item.product.price,
+          },
+        )
+        .toList();
 
     try {
       final cashierId = (widget as dynamic).cashierId ?? 1;
@@ -2739,23 +3166,26 @@ class _PosScreenState extends State<PosScreen> {
       if (context.mounted) {
         if (isOffline) {
           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(
-               content: Text('⚡ Network unavailable. Ticket for ${table.name} saved offline!'),
-               backgroundColor: Colors.orange,
-             )
+            SnackBar(
+              content: Text(
+                '⚡ Network unavailable. Ticket for ${table.name} saved offline!',
+              ),
+              backgroundColor: Colors.orange,
+            ),
           );
         } else {
-           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(
-               content: Text('Ticket opened at ${table.name}!'),
-               backgroundColor: Colors.green,
-             )
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ticket opened at ${table.name}!'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       }
 
       // Auto-open cash drawer on cash payments
-      final isCash = _selectedPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
+      final isCash =
+          _selectedPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
       if (isCash) {
         await printerService.openCashDrawer();
       }
@@ -2778,10 +3208,8 @@ class _PosScreenState extends State<PosScreen> {
         }
       }
 
-
       _clearCart();
       if (context.mounted) Navigator.pop(context);
-
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2796,14 +3224,19 @@ class _PosScreenState extends State<PosScreen> {
   void _showSettingsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Padding(
               padding: EdgeInsets.all(16.0),
-              child: Text('App Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text(
+                'App Settings',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
             const Divider(height: 1),
             ListTile(
@@ -2812,9 +3245,13 @@ class _PosScreenState extends State<PosScreen> {
               subtitle: Text(
                 printerService.profiles.isNotEmpty
                     ? '${printerService.profiles.length} printer(s) configured'
-                    : (printerService.isConfigured ? 'Connected: ${printerService.printerIp}' : 'Not configured'),
+                    : (printerService.isConfigured
+                          ? 'Connected: ${printerService.printerIp}'
+                          : 'Not configured'),
                 style: TextStyle(
-                  color: printerService.isConfigured ? Colors.green : Colors.grey,
+                  color: printerService.isConfigured
+                      ? Colors.green
+                      : Colors.grey,
                 ),
               ),
               trailing: const Icon(Icons.chevron_right),
@@ -2822,7 +3259,9 @@ class _PosScreenState extends State<PosScreen> {
                 Navigator.pop(ctx);
                 await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const PrinterSettingsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const PrinterSettingsScreen(),
+                  ),
                 );
                 if (mounted) setState(() {});
               },
