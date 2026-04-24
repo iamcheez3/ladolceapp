@@ -1403,3 +1403,113 @@ Priority/decision rules:
   - Cashier with no PIN should enter setup mode (not "incorrect PIN" mode).
   - Confirm PIN should pass when same digits are entered.
   - Existing cashier with saved PIN should unlock normally.
+
+==================================================
+52) LATEST IMPLEMENTED UPDATE (CUSTOMER BANNER + POPUP ADS + APP UPGRADER)
+==================================================
+- Request:
+  - Remove search bar in customer self-order screen and replace with banner.
+  - Add app upgrader prompt.
+  - Add popup ads in app.
+  - Make API support banner and ads and provide easy control via image upload form in POS backend.
+- Implementation:
+  - Flutter customer self-order:
+    - Removed product search bar and replaced top area with a banner card.
+    - Banner uses `banner_image_data_url` from self-order config API; falls back to branded gradient if no banner uploaded.
+    - Added popup ad dialog logic (shows image from API once per session when available and enabled).
+  - Flutter global upgrader:
+    - Added `upgrader` package and wrapped app with `UpgradeAlert` in `main.dart`.
+  - Odoo POS backend:
+    - Added new model `pos.backend.app.media.config` with upload fields:
+      - `banner_image`
+      - `ad_image`
+      - `ad_enabled`
+    - Added new admin UI menu under `Custom POS > Configuration > App Banner and Ads` with list/form to upload images.
+    - Extended `/api/pos/self_order_config` response to include:
+      - `banner_image_data_url`
+      - `ad_image_data_url`
+      - `ad_enabled`
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/main.dart`
+  - `pubspec.yaml`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/app_media_config.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/__init__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/views/app_media_config_views.xml`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/pos_order_api.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/security/ir.model.access.csv`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/__manifest__.py`
+- Commands / ops needed:
+  - Flutter app: `flutter pub get`, then hot restart.
+  - Odoo: restart service and upgrade `pos_backend` module.
+  - Hard refresh Odoo web client (`Ctrl+F5`).
+- Quick verification:
+  - In Odoo `Custom POS > Configuration > App Banner and Ads`, upload banner + ad images and enable popup ad.
+  - Open customer self-order home: top search bar should be replaced by uploaded banner.
+  - On first config load, popup ad dialog appears and can be dismissed.
+  - Confirm `/api/pos/self_order_config` returns new media keys.
+  - Open app normally and verify upgrader dialog appears when app store version is newer.
+
+==================================================
+53) LATEST IMPLEMENTED UPDATE (SPLIT BANNER/ADS + SWIPE + STICKY CATEGORY SCROLL)
+==================================================
+- Request:
+  - Separate backend control forms for app banners and popup ads.
+  - Support multiple active banners/ads and allow swipe behavior in app.
+  - In customer self-order home, banner should scroll up with content (not fixed), while category row stays pinned below AppBar.
+- Implementation:
+  - Backend split:
+    - Added model `pos.backend.app.banner` (separate form/menu for banners).
+    - Added model `pos.backend.popup.ad` (separate form/menu for popup ads).
+    - Added new admin menus under `Custom POS > Configuration`:
+      - `App Banners`
+      - `Popup Ads`
+    - Extended `/api/pos/self_order_config` to return arrays:
+      - `banners: [{id, name, image_data_url}]`
+      - `ads: [{id, name, image_data_url}]`
+    - Kept backward compatibility by still returning legacy single fields and falling back to old `pos.backend.app.media.config` if needed.
+  - Flutter customer home behavior:
+    - Banner now supports multiple images via `PageView` (swipe horizontally).
+    - Popup ad dialog now supports multiple ads via `PageView` (swipe horizontally).
+    - Home tab on mobile refactored to sliver layout:
+      - Banner in normal scroll content (moves up and disappears while scrolling).
+      - Category chips moved into pinned `SliverPersistentHeader` so they stay under AppBar.
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/app_banner.py` (New)
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/popup_ad.py` (New)
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/__init__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/views/app_banner_views.xml` (New)
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/views/popup_ad_views.xml` (New)
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/pos_order_api.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/security/ir.model.access.csv`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/__manifest__.py`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade `pos_backend`.
+  - Odoo web client: hard refresh (`Ctrl+F5`).
+  - Flutter: hot restart app.
+- Quick verification:
+  - In Odoo, create 2+ active records in `App Banners`; app home banner can swipe between them.
+  - In Odoo, create 2+ active records in `Popup Ads`; popup can swipe between ads.
+  - Scroll product page on customer home:
+    - banner scrolls away upward.
+    - category chips remain pinned below app bar.
+
+==================================================
+51) LATEST IMPLEMENTED UPDATE (CUSTOMER CARD 1:1 SQUARE LAYOUT TUNING)
+==================================================
+- Request:
+  - Make customer self-order product cards look like the provided reference with a perfect 1:1 square image area and cleaner card proportions.
+- Implementation:
+  - Updated customer Home product grid tile sizing to better fit a square-image card layout across breakpoints.
+  - Reworked product card image section to use a strict square container via `AspectRatio(aspectRatio: 1)`.
+  - Adjusted card radius, image inset spacing, add-button size/position, and text spacing so the card matches the tighter, more balanced reference style.
+  - Kept existing behavior unchanged (tap/open flow, data source, cart logic, and toppings flow).
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open Customer Self-Order Home tab on phone width.
+  - Confirm each product image renders as 1:1 square with no stretching.
+  - Confirm card text + price remain visible without overflow and overall card appearance matches reference style more closely.

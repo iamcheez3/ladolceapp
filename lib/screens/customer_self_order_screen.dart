@@ -32,7 +32,6 @@ class CustomerSelfOrderScreen extends StatefulWidget {
 
 class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   final ApiService _apiService = ApiService();
-  final TextEditingController _searchController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
   // Brand palette (based on bear logo)
@@ -52,7 +51,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   bool _isLoggingOut = false;
   bool _isLoadingSelfOrderConfig = true;
 
-  String _searchQuery = '';
   String _selectedCategory = 'All Items';
   String? _catalogError;
   int _selectedTabIndex = 0;
@@ -83,6 +81,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String _bankName = '';
   String _accountName = '';
   String _accountNumber = '';
+  List<String> _bannerImageDataUrls = [];
+  List<String> _adImageDataUrls = [];
+  bool _hasShownAdPopup = false;
   String? _profileImagePath;
 
   List<Map<String, dynamic>> _historyItems = [];
@@ -101,11 +102,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
     super.dispose();
   }
 
   String get _profileImagePrefsKey => 'customer_profile_image_path_${widget.partnerId ?? widget.userId}';
+  String get _adSuppressDatePrefsKey => 'customer_popup_ad_suppress_date_${widget.partnerId ?? widget.userId}';
 
   Future<void> _loadProfileImage() async {
     final prefs = await SharedPreferences.getInstance();
@@ -290,11 +291,145 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _bankName = (config['bank_name'] ?? '').toString();
         _accountName = (config['account_name'] ?? '').toString();
         _accountNumber = (config['account_number'] ?? '').toString();
+        final rawBanners = (config['banners'] as List?) ?? const [];
+        final rawAds = (config['ads'] as List?) ?? const [];
+        _bannerImageDataUrls = rawBanners
+            .map((e) => (e is Map ? e['image_data_url'] : null)?.toString() ?? '')
+            .where((e) => e.startsWith('data:image'))
+            .toList();
+        _adImageDataUrls = rawAds
+            .map((e) => (e is Map ? e['image_data_url'] : null)?.toString() ?? '')
+            .where((e) => e.startsWith('data:image'))
+            .toList();
+        if (_bannerImageDataUrls.isEmpty) {
+          final legacyBanner = (config['banner_image_data_url'] ?? '').toString();
+          if (legacyBanner.startsWith('data:image')) {
+            _bannerImageDataUrls = [legacyBanner];
+          }
+        }
+        if (_adImageDataUrls.isEmpty && (config['ad_enabled'] ?? true) == true) {
+          final legacyAd = (config['ad_image_data_url'] ?? '').toString();
+          if (legacyAd.startsWith('data:image')) {
+            _adImageDataUrls = [legacyAd];
+          }
+        }
         _isLoadingSelfOrderConfig = false;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showAdPopupIfAvailable());
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoadingSelfOrderConfig = false);
+    }
+  }
+
+  Uint8List? _bytesFromDataUrl(String dataUrl) {
+    if (dataUrl.isEmpty || !dataUrl.startsWith('data:image')) return null;
+    final comma = dataUrl.indexOf(',');
+    if (comma < 0) return null;
+    try {
+      return base64Decode(dataUrl.substring(comma + 1));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _showAdPopupIfAvailable() async {
+    if (!mounted || _hasShownAdPopup || _adImageDataUrls.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final suppressedDate = prefs.getString(_adSuppressDatePrefsKey) ?? '';
+    final now = DateTime.now();
+    final todayKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    if (suppressedDate == todayKey) {
+      _hasShownAdPopup = true;
+      return;
+    }
+
+    _hasShownAdPopup = true;
+    final adPageController = PageController();
+    final dontShowToday = ValueNotifier<bool>(false);
+    final shouldSuppressToday = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+          backgroundColor: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 420,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: PageView.builder(
+                    controller: adPageController,
+                    itemCount: _adImageDataUrls.length,
+                    itemBuilder: (context, index) {
+                      final bytes = _bytesFromDataUrl(_adImageDataUrls[index]);
+                      if (bytes == null) {
+                        return Container(color: Colors.white);
+                      }
+                      return Image.memory(bytes, fit: BoxFit.cover);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ValueListenableBuilder<bool>(
+                valueListenable: dontShowToday,
+                builder: (context, checked, _) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.96),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: checked,
+                          onChanged: (value) => dontShowToday.value = value ?? false,
+                          activeColor: _brandNavy,
+                        ),
+                        const Expanded(
+                          child: Text(
+                            "Don't show again today",
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(checked),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+              Material(
+                color: Colors.white.withOpacity(0.45),
+                borderRadius: BorderRadius.circular(28),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(28),
+                  onTap: () => Navigator.of(context).pop(dontShowToday.value),
+                  child: const SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: Icon(Icons.close, color: Colors.white, size: 34),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    adPageController.dispose();
+    dontShowToday.dispose();
+    if ((shouldSuppressToday ?? false) && mounted) {
+      await prefs.setString(_adSuppressDatePrefsKey, todayKey);
     }
   }
 
@@ -391,13 +526,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
     if (_selectedCategory != 'All Items') {
       result = result.where((p) => p.category == _selectedCategory).toList();
-    }
-
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      result = result.where((p) {
-        return p.name.toLowerCase().contains(query) || p.category.toLowerCase().contains(query);
-      }).toList();
     }
 
     return result;
@@ -1578,7 +1706,7 @@ Widget build(BuildContext context) {
             itemCount: items.length,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: isWide ? 3 : (isSmall ? 1 : 2),
-              childAspectRatio: isWide ? 1.02 : (isSmall ? 1.5 : 0.90),
+              childAspectRatio: isWide ? 0.8 : (isSmall ? 0.75 : 0.68),
               crossAxisSpacing: isSmall ? 8 : 10,
               mainAxisSpacing: isSmall ? 8 : 10,
             ),
@@ -1589,118 +1717,166 @@ Widget build(BuildContext context) {
             ),
           );
 
+    if (!isWide) {
+      return _buildMobileHomeSliver(isSmall: isSmall, items: items);
+    }
+
     return Column(
       children: [
-        _buildTopControls(isSmall: isSmall),
+        _buildCategoryChipsBar(isSmall: isSmall),
         Expanded(
-          child: isWide
-              ? Row(
-                  children: [
-                    Expanded(child: grid),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 360,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
-                        child: _buildCurrentCartPanel(),
-                      ),
-                    ),
-                  ],
-                )
-              : grid,
+          child: Row(
+            children: [
+              Expanded(child: grid),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 360,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
+                  child: _buildCurrentCartPanel(),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildTopControls({bool isSmall = false}) {
-  return Column(
-    children: [
-      // Search bar with softer design
-      Padding(
-        padding: EdgeInsets.fromLTRB(
-          isSmall ? 12 : 16,  // ← Use isSmall here
-          12,
-          isSmall ? 12 : 16,
-          12,
-        ),
-        child: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Search desserts, drinks...',
-            prefixIcon: const Icon(Icons.search, color: Colors.grey),
-            suffixIcon: _searchQuery.isEmpty
-                ? null
-                : IconButton(
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() => _searchQuery = '');
-                    },
-                    icon: const Icon(Icons.clear),
-                  ),
-            filled: true,
-            fillColor: const Color(0xFFF5F5F5),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _brandNavy, width: 1.5),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  Widget _buildMobileHomeSliver({required bool isSmall, required List<Product> items}) {
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(isSmall ? 12 : 16, 12, isSmall ? 12 : 16, 12),
+            child: _buildBannerCarousel(isSmall: isSmall),
           ),
-          onChanged: (value) => setState(() => _searchQuery = value),
         ),
-      ),
-      // Category chips
-      SizedBox(
-        height: 44,
-        child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          scrollDirection: Axis.horizontal,
-          itemCount: _categories.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            final category = _categories[index];
-            final selected = category.name == _selectedCategory;
-            return ChoiceChip(
-              label: Text(category.name),
-              selected: selected,
-              onSelected: (_) => setState(() => _selectedCategory = category.name),
-              selectedColor: _brandNavy,
-              backgroundColor: Colors.white,
-              side: BorderSide(
-                color: selected ? _brandNavy : const Color(0xFFE0E0E0),
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _CategoryHeaderDelegate(
+            height: 52,
+            child: Container(
+              color: _brandSurface,
+              alignment: Alignment.center,
+              child: _buildCategoryChipsBar(isSmall: isSmall),
+            ),
+          ),
+        ),
+        if (items.isEmpty)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Text('No items found')),
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              isSmall ? 8 : 12,
+              12,
+              isSmall ? 8 : 12,
+              _isCartEmpty ? 12 : 92,
+            ),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isSmall ? 1 : 2,
+                childAspectRatio: isSmall ? 0.75 : 0.68,
+                crossAxisSpacing: isSmall ? 8 : 10,
+                mainAxisSpacing: isSmall ? 8 : 10,
               ),
-              labelStyle: TextStyle(
-                color: selected ? Colors.white : Colors.black87,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: selected ? _brandNavy : const Color(0xFFE0E0E0),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildProductCard(
+                  items[index],
+                  isWide: false,
+                  isSmall: isSmall,
                 ),
+                childCount: items.length,
               ),
-            );
-          },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBannerCarousel({bool isSmall = false}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: isSmall ? 112 : 132,
+        decoration: BoxDecoration(
+          color: _brandNavy.withOpacity(0.06),
+          border: Border.all(color: _brandDivider),
+          borderRadius: BorderRadius.circular(16),
         ),
+        child: (_bannerImageDataUrls.isEmpty)
+            ? Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_brandNavy, _brandNavy2],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                alignment: Alignment.bottomLeft,
+                padding: const EdgeInsets.all(14),
+                child: const Text(
+                  'Fresh picks for you today',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+              )
+            : PageView.builder(
+                itemCount: _bannerImageDataUrls.length,
+                itemBuilder: (context, index) {
+                  final bytes = _bytesFromDataUrl(_bannerImageDataUrls[index]);
+                  if (bytes == null) return const SizedBox.shrink();
+                  return Image.memory(bytes, fit: BoxFit.cover);
+                },
+              ),
       ),
-    ],
-  );
-}
+    );
+  }
+
+  Widget _buildCategoryChipsBar({bool isSmall = false}) {
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        scrollDirection: Axis.horizontal,
+        itemCount: _categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final selected = category.name == _selectedCategory;
+          return ChoiceChip(
+            label: Text(category.name),
+            selected: selected,
+            onSelected: (_) => setState(() => _selectedCategory = category.name),
+            selectedColor: _brandNavy,
+            backgroundColor: Colors.white,
+            side: BorderSide(color: selected ? _brandNavy : const Color(0xFFE0E0E0)),
+            labelStyle: TextStyle(
+              color: selected ? Colors.white : Colors.black87,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: selected ? _brandNavy : const Color(0xFFE0E0E0)),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildProductCard(Product product, {required bool isWide, required bool isSmall}) {
     return InkWell(
       onTap: () => isWide ? _setPreviewProduct(product) : _openProductDetail(product),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE8E8E8)),
           boxShadow: [
             BoxShadow(
@@ -1713,81 +1889,82 @@ Widget build(BuildContext context) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    child: _buildProductImage(product),
+                    borderRadius: BorderRadius.circular(14),
+                    child: AspectRatio(
+                      aspectRatio: 1.2,
+                      child: _buildProductImage(product),
+                    ),
                   ),
                   Positioned(
-                    bottom: 8,
                     right: 8,
+                    bottom: 8,
                     child: Container(
-                      width: isSmall ? 32 : 36,
-                      height: isSmall ? 32 : 36,
+                      width: isSmall ? 28 : 30,
+                      height: isSmall ? 28 : 30,
                       decoration: BoxDecoration(
                         color: _brandNavy,
                         borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _brandNavy.withOpacity(0.3),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: Icon(
                         Icons.add,
                         color: Colors.white,
-                        size: isSmall ? 18 : 20,
+                        size: isSmall ? 16 : 18,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            Padding(
-              padding: EdgeInsets.all(isSmall ? 8 : 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                      fontSize: isSmall ? 13 : 15,
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: isSmall ? 11 : 13,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '₭${product.price.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _brandNavy,
-                          fontSize: isSmall ? 14 : 16,
-                        ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(isSmall ? 10 : 12, 10, isSmall ? 10 : 12, isSmall ? 10 : 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                        fontSize: isSmall ? 13 : 15,
+                        height: 1.3,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      product.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isSmall ? 10 : 11,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '₭${product.price.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _brandNavy,
+                            fontSize: isSmall ? 14 : 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -2885,4 +3062,25 @@ class _BottomCurveClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Widget child;
+
+  _CategoryHeaderDelegate({required this.height, required this.child});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+
+  @override
+  bool shouldRebuild(covariant _CategoryHeaderDelegate oldDelegate) {
+    return oldDelegate.height != height || oldDelegate.child != child;
+  }
 }
