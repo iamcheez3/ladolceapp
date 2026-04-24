@@ -389,31 +389,7 @@ class ApiService {
   }
 }
 
-  Future<void> setPosPin(String pin) async {
-    final base = await getBaseUrl();
-    final url = Uri.parse('$base/pos/set_pin');
-    final response = await http
-        .post(
-          url,
-          headers: await _authHeaders(json: true),
-          body: jsonEncode({'pin': pin}),
-        )
-        .timeout(const Duration(seconds: 6));
-
-    final jsonResponse = jsonDecode(response.body);
-    if (response.statusCode != 200 || jsonResponse['status'] != 'success') {
-      throw Exception(jsonResponse['message'] ?? 'Failed to save PIN');
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final cached = prefs.getString('cached_user_data');
-    if (cached != null && cached.isNotEmpty) {
-      final data = Map<String, dynamic>.from(jsonDecode(cached));
-      data['pos_pin'] = pin;
-      await prefs.setString('cached_user_data', jsonEncode(data));
-    }
-  }
-
+  
   Future<Map<String, dynamic>> submitOrder({
     required int userId,
     int? partnerId,
