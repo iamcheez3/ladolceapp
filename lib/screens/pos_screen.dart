@@ -51,9 +51,7 @@ class _PosScreenState extends State<PosScreen> {
   ) {
     if (p.categoryFilters.isEmpty) return items;
     final filters = p.categoryFilters.map((e) => e.toLowerCase()).toSet();
-    return items
-        .where((i) => filters.contains(i.product.category.toLowerCase()))
-        .toList();
+    return items.where((i) => filters.contains(i.product.category.toLowerCase())).toList();
   }
 
   // Search
@@ -802,6 +800,9 @@ class _PosScreenState extends State<PosScreen> {
 
                 case 'reprint':
                   // Reprint ALL items in the current ticket to kitchen/bar printers
+                  if (_activeTicketId == null) {
+                    break;
+                  }
                   if (_cartItems.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -825,9 +826,7 @@ class _PosScreenState extends State<PosScreen> {
                   }
                   {
                     int reprintCount = 0;
-                    for (final p in printerService.profiles.where(
-                      (p) => p.printOrders,
-                    )) {
+                    for (final p in printerService.profiles.where((p) => p.printOrders)) {
                       final filtered = _filterItemsForPrinter(_cartItems, p);
                       if (filtered.isNotEmpty) {
                         final ok = await printerService.printOrderTicketDirect(
@@ -841,14 +840,10 @@ class _PosScreenState extends State<PosScreen> {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            reprintCount > 0
-                                ? '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
-                                : 'No kitchen printers with "Print orders" enabled.',
-                          ),
-                          backgroundColor: reprintCount > 0
-                              ? Colors.green
-                              : Colors.orange,
+                          content: Text(reprintCount > 0
+                              ? '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
+                              : 'No kitchen printers with "Print orders" enabled.'),
+                          backgroundColor: reprintCount > 0 ? Colors.green : Colors.orange,
                         ),
                       );
                     }
@@ -1039,11 +1034,8 @@ class _PosScreenState extends State<PosScreen> {
                 PopupMenuItem<String>(
                   value: 'reprint',
                   enabled: hasItems,
-                  child: disablableTile(
-                    Icons.print_outlined,
-                    'Reprint order (kitchen)',
-                    enabled: hasItems,
-                  ),
+                  child: disablableTile(Icons.print_outlined, 'Reprint order (kitchen)',
+                      enabled: hasItems),
                 ),
                 const PopupMenuDivider(),
 
@@ -1093,58 +1085,58 @@ class _PosScreenState extends State<PosScreen> {
       ),
       drawer: Drawer(
         backgroundColor: Colors.white,
-        child: Column(
-          children: [
-            // ── Header ──────────────────────────────────────────
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [_brandNavy, _brandNavy2],
+          child: Column(
+            children: [
+              // ── Header ──────────────────────────────────────────
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_brandNavy, _brandNavy2],
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Initial avatar
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.white.withOpacity(0.20),
-                    child: Text(
-                      widget.cashierName.isNotEmpty
-                          ? widget.cashierName[0].toLowerCase()
-                          : '?',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w600,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Initial avatar
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Colors.white.withOpacity(0.20),
+                      child: Text(
+                        widget.cashierName.isNotEmpty
+                            ? widget.cashierName[0].toLowerCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(fontSize: 16, color: Colors.white),
-                      children: [
-                        TextSpan(
-                          text: widget.cashierName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const TextSpan(text: ' (Cashier)'),
-                      ],
+                    const SizedBox(height: 14),
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontSize: 16, color: Colors.white),
+                        children: [
+                          TextSpan(
+                            text: widget.cashierName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const TextSpan(text: ' (Cashier)'),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'POS Terminal #1',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    const Text(
+                      'POS Terminal #1',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
               ),
-            ),
             // ── Menu Items ───────────────────────────────────────
             Expanded(
               child: ListView(
@@ -1260,11 +1252,14 @@ class _PosScreenState extends State<PosScreen> {
               ),
             ),
             const SizedBox(height: 16),
-          ],
+            ],
+          ),
         ),
       ),
-      body: Row(
-        children: [
+      body: SafeArea(
+        top: false,
+        child: Row(
+          children: [
           // Products Section
           Expanded(
             flex: 5,
@@ -1529,7 +1524,8 @@ class _PosScreenState extends State<PosScreen> {
                 onClearCustomer: () => setState(() => _selectedCustomer = null),
               ),
             ),
-        ],
+          ],
+        ),
       ),
       // Mobile Cart floating button or bottom sheet could go here if not desktop
       bottomNavigationBar: !isDesktop && _cartItems.isNotEmpty
@@ -2904,22 +2900,18 @@ class _PosScreenState extends State<PosScreen> {
 
         // Print only the unprinted new items to kitchen/bar printers
         if (unprintedNewItems.isNotEmpty && printerService.isConfigured) {
-          for (final p in printerService.profiles.where((p) => p.printOrders)) {
-            final filtered = _filterItemsForPrinter(unprintedNewItems, p);
-            if (filtered.isNotEmpty) {
-              await printerService.printOrderTicketDirect(
-                profile: p,
-                items: filtered,
-                cashierName: widget.cashierName,
-              );
-            }
+          final printedCount = await _printOrderItemsToKitchen(
+            unprintedNewItems,
+            respectCategoryFilters: true,
+          );
+          // Only mark as printed when at least one printer succeeded.
+          if (printedCount > 0) {
+            setState(() {
+              for (final item in unprintedNewItems) {
+                item.isPrinted = true;
+              }
+            });
           }
-          // Mark those items as printed so charge won't re-send them
-          setState(() {
-            for (final item in unprintedNewItems) {
-              item.isPrinted = true;
-            }
-          });
         }
 
         // Dismiss spinner using its own context
@@ -3184,27 +3176,22 @@ class _PosScreenState extends State<PosScreen> {
       }
 
       // Auto-open cash drawer on cash payments
-      final isCash =
-          _selectedPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
+      final isCash = _selectedPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
       if (isCash) {
         await printerService.openCashDrawer();
       }
 
       // Print to kitchen/bar printers and mark items as printed
       if (printerService.isConfigured) {
-        for (final p in printerService.profiles.where((p) => p.printOrders)) {
-          final filtered = _filterItemsForPrinter(_cartItems, p);
-          if (filtered.isNotEmpty) {
-            await printerService.printOrderTicketDirect(
-              profile: p,
-              items: filtered,
-              cashierName: widget.cashierName,
-            );
+        final printedCount = await _printOrderItemsToKitchen(
+          _cartItems,
+          respectCategoryFilters: true,
+        );
+        if (printedCount > 0) {
+          // Mark all items as printed so charge / subsequent saves don't re-print
+          for (final item in _cartItems) {
+            item.isPrinted = true;
           }
-        }
-        // Mark all items as printed so charge / subsequent saves don't re-print
-        for (final item in _cartItems) {
-          item.isPrinted = true;
         }
       }
 

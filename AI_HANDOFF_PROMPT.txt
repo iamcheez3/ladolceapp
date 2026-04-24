@@ -6,13 +6,13 @@ You are helping me continue development for my Flutter POS app integrated with O
 1) PROJECT CONTEXT
 ==================================================
 - Flutter project path (Windows):
-  c:\Users\iamcheez3\Desktop\Flutter\ladolce
+  /home/sith/Desktop/ladolceapp/ladolceapp
 
 - Odoo backend path (WSL Ubuntu):
-  \\wsl.localhost\Ubuntu\home\sith\odoo\pos
+  /home/sith/Desktop/ladolcepos/ladolcepos
 
 - Custom addons path:
-  \\wsl.localhost\Ubuntu\home\sith\odoo\pos\custom_addons
+  /home/sith/Desktop/ladolcepos/ladolcepos/custom_addons
 
 - Main backend module used by app:
   pos_backend
@@ -24,6 +24,11 @@ You are helping me continue development for my Flutter POS app integrated with O
 
 - Product create/update endpoint used by Flutter:
   POST /api/pos/products
+
+- VM environment note (important):
+  - This machine is used for AI prompting and code editing handoff only.
+  - Do not run Android Studio, Flutter emulator/device builds, or Odoo 18 runtime commands here.
+  - Make code changes, then user will review, push to git, pull on main device, and run tests there.
 
 ==================================================
 2) WHAT THIS APP DOES (FLOW)
@@ -1141,3 +1146,370 @@ Priority/decision rules:
 - Quick verification:
   - Open Loyalty Points Configuration, change a value, click the native Top-Left Cloud Save icon.
   - Navigate away and back to the configuration page. The updated value should remain.
+
+==================================================
+41) LATEST IMPLEMENTED UPDATE (VM PATH + HANDOFF MODE NOTE)
+==================================================
+- Request:
+  - Update AI handoff paths for this VirtualBox environment.
+  - Use local Linux paths for both Flutter app and Odoo project.
+  - Add note that this machine is for prompting/edit handoff only.
+- Implementation:
+  - Updated project paths in "PROJECT CONTEXT":
+    - Flutter project path -> `/home/sith/Desktop/ladolceapp/ladolceapp`
+    - Odoo backend path -> `/home/sith/Desktop/ladolcepos/ladolcepos`
+    - Custom addons path -> `/home/sith/Desktop/ladolcepos/ladolcepos/custom_addons`
+  - Added explicit environment rule:
+    - No Android Studio/Odoo runtime execution in this VM.
+    - AI should focus on code edits and handoff context.
+    - User handles git push here, then runs/tests on main device.
+- Files changed:
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - None.
+- Quick verification:
+  - Confirm top "PROJECT CONTEXT" section shows Linux VM paths.
+  - Confirm "VM environment note" appears under the endpoint lines.
+
+==================================================
+42) LATEST IMPLEMENTED UPDATE (LOGIN STANDARD SECURITY MODULE)
+==================================================
+- Request:
+  - Create a module to enforce standard login security.
+  - Login must not contain spaces or symbols.
+  - Login should be normalized to lowercase for registration and login checks.
+  - Prevent duplicate registration for same login with case differences.
+  - Keep password behavior as default.
+- Implementation:
+  - Added new Odoo addon module:
+    - `pos_login_security`
+  - `res.users` hardening in module:
+    - Normalize `login` to lowercase + trim during create/write.
+    - Validate login format using strict regex: lowercase letters + digits only.
+    - Block case-insensitive duplicate logins.
+  - Updated auth API input normalization in POS backend:
+    - `/api/pos/register`: lowercases login input, validates format, duplicate check uses case-insensitive search.
+    - `/api/pos/login`: lowercases login input before authentication.
+  - Password handling remains unchanged (default Odoo behavior).
+- Files changed:
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_login_security/__manifest__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_login_security/__init__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_login_security/models/__init__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_login_security/models/res_users.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/auth_api.py`
+- Commands / ops needed:
+  - Restart Odoo service.
+  - Upgrade/install module `pos_login_security`.
+  - Upgrade/restart `pos_backend` (for updated auth controller).
+- Quick verification:
+  - Register with `User Name` or `user@name` login -> should return 400 invalid login format.
+  - Register with `TestUser` then try `testuser` -> second registration should be blocked as duplicate.
+  - Login with uppercase input (e.g. `TESTUSER`) for a lowercase account -> should authenticate normally.
+
+==================================================
+43) LATEST IMPLEMENTED UPDATE (ENV + DEV MODE API/DB CONFIG)
+==================================================
+- Request:
+  - Do not use hardcoded URL in app code.
+  - Use `.env` and existing login-screen developer mode settings.
+  - Remove hardcoded direct DB payload and make DB config consistent with Odoo usage.
+- Implementation:
+  - `ApiService`:
+    - Added DB override key:
+      - `dev_db_name_override`
+    - Added `getDatabaseName()`:
+      - Priority: dev override -> `.env` `API_DB` -> null (backend auto-detect via Odoo monodb).
+    - Updated `loginUser()`:
+      - Removed hardcoded `'db': 'ladolce'`.
+      - Sends `db` only when configured.
+      - Normalizes login input to lowercase before request.
+  - `login_screen.dart` developer tools:
+    - Dev settings dialog now supports:
+      - Base URL override
+      - Database override (optional)
+    - Clear button now clears both URL + DB overrides.
+    - Saved dev state indicator supports DB-only override display.
+  - Added `.env.example` with:
+    - `API_BASE_URL`
+    - `API_DB`
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/login_screen.dart`
+  - `.env.example`
+- Commands / ops needed:
+  - Add/update real `.env` file in app root (if missing).
+  - Hot restart Flutter app.
+- Quick verification:
+  - Set `.env` with API URL + DB, leave dev overrides empty -> login works using `.env`.
+  - In login dev tools, set DB override different from `.env` -> login uses dev DB override.
+  - Clear dev overrides -> app returns to `.env` values.
+
+==================================================
+44) LATEST IMPLEMENTED UPDATE (SAVE TICKET PRINT + REPRINT RELIABILITY FIX)
+==================================================
+- Request:
+  - Saving ticket no longer printed kitchen order.
+  - Reprint order only printed some items, not all.
+- Root cause:
+  - Ticket lines were marked `isPrinted=true` even when kitchen print did not actually succeed.
+  - Reprint flow applied category routing filters, which can intentionally skip unmatched items.
+  - Category filter matching was not trimming whitespace, causing accidental mismatches.
+- Implementation:
+  - Added centralized order-print helper in POS screen:
+    - `_resolveOrderPrinters()` with fallback to selected/default printer when no `printOrders` profile exists.
+    - `_printOrderItemsToKitchen()` to reuse and consistently count successful print jobs.
+  - Updated Save Ticket and Open Ticket printing:
+    - now mark lines `isPrinted=true` only if at least one printer successfully printed.
+  - Updated Reprint Order behavior:
+    - now force-prints ALL current ticket lines (ignores category filters) to avoid partial reprints.
+  - Hardened category filter matching (`trim().toLowerCase()`) in both:
+    - `pos_screen.dart`
+    - `printer_service.dart`
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `lib/services/printer_service.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Add items -> Save Ticket: kitchen slip should print.
+  - If printer is disconnected during save, reconnect and save again: same lines should still print (not permanently marked as printed).
+  - Tap Reprint Order: all items in current ticket should print, not only filtered subset.
+
+==================================================
+45) LATEST IMPLEMENTED UPDATE (DRAWER OPEN RULE ON SAVE TICKET)
+==================================================
+- Request:
+  - Saving ticket should print kitchen order only.
+  - Cash drawer must NOT open on save ticket.
+  - Drawer should open only on charge with cash or manual "Open cash drawer".
+- Implementation:
+  - Removed cash-drawer auto-open logic from `_processOpenTicket()` in POS screen.
+  - Kept existing drawer behavior in checkout path (cash payment) and manual menu action unchanged.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Save a ticket with items -> kitchen ticket prints, drawer stays closed.
+  - Charge order with cash -> drawer opens.
+  - Tap manual "Open cash drawer" -> drawer opens.
+
+==================================================
+46) LATEST IMPLEMENTED UPDATE (REPRINT LIMITED TO OPEN TICKETS)
+==================================================
+- Request:
+  - Reprint order should be usable only when an open/saved ticket is selected.
+- Implementation:
+  - Updated popup menu enable rule:
+    - `Reprint order (kitchen)` is now enabled only when both:
+      - `_activeTicketId != null`
+      - current ticket has items
+  - Added runtime guard in reprint handler:
+    - if no active ticket, show warning snackbar and block action.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - No active/open ticket selected -> Reprint menu item is disabled.
+  - Open existing ticket -> Reprint becomes enabled and prints.
+
+==================================================
+47) LATEST IMPLEMENTED UPDATE (POS SAFEAREA FOR NAVIGATION BAR)
+==================================================
+- Request:
+  - Move bottom UI content up / make it responsive for different phone navigators.
+- Implementation:
+  - Wrapped POS `Scaffold` body with `SafeArea(top: false, ...)` so content respects bottom system insets (gesture bar / navigation bar) across devices.
+  - This prevents product area content from sitting too low behind the phone navigation area.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open POS on phones with gesture navigation and 3-button navigation.
+  - Confirm bottom product area no longer sits against/under system navigation region.
+
+==================================================
+48) LATEST IMPLEMENTED UPDATE (DRAWER BOTTOM SAFEAREA FIX)
+==================================================
+- Request:
+  - Fix drawer bottom area too close to Android navigation bar.
+  - Apply same responsive behavior for this screen too.
+- Implementation:
+  - Wrapped POS drawer content with `SafeArea(top: false, ...)` so the bottom "Lock / Switch User" area stays above system navigation insets.
+  - Kept existing header spacing logic unchanged.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open drawer on phone with 3-button navigation.
+  - Confirm "Lock / Switch User" is lifted above nav bar and fully tappable.
+
+==================================================
+49) LATEST IMPLEMENTED UPDATE (FIRST LOGIN PIN SETUP FOR CASHIER)
+==================================================
+- Request:
+  - If cashier registers without PIN, first login PIN screen should set their PIN.
+- Implementation:
+  - Backend:
+    - Added authenticated endpoint `POST /api/pos/set_pin`.
+    - Validates 4-digit numeric PIN and writes to current session user `pos_pin`.
+  - Flutter API:
+    - Added `ApiService.setPosPin(pin)` to call backend and update cached user data.
+  - PIN screen:
+    - Added first-time setup flow when `pos_pin` is empty:
+      - step 1: enter new 4-digit PIN
+      - step 2: confirm PIN
+      - saves PIN via API
+      - proceeds to POS only after successful save
+    - Existing users with PIN keep normal unlock behavior.
+- Files changed:
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/auth_api.py`
+  - `lib/services/api_service.dart`
+  - `lib/screens/pin_screen.dart`
+- Commands / ops needed:
+  - Restart/upgrade `pos_backend` so new endpoint is available.
+  - Hot restart Flutter app.
+- Quick verification:
+  - Register cashier without PIN.
+  - First login -> PIN screen asks to create + confirm PIN.
+  - After confirm, user enters POS.
+  - Logout/login again -> PIN screen now requires the saved PIN.
+
+==================================================
+50) LATEST IMPLEMENTED UPDATE (PIN MISMATCH FALSE-VALUE FIX)
+==================================================
+- Request:
+  - Recheck auth/pin flow because confirm step kept mismatching.
+- Root cause:
+  - Odoo may serialize empty `Char` field as boolean `false` in JSON.
+  - PIN screen treated `false` as non-empty string (`"false"`), so setup/verify logic could mis-detect mode and mismatch.
+- Implementation:
+  - Backend auth response hardening:
+    - login response now returns `pos_pin` as string with fallback `''` (never boolean false).
+    - set_pin response also returns `pos_pin` with fallback `''`.
+  - Flutter PIN normalization:
+    - Added `_normalizedCachedPin()` to treat `null/false` as empty.
+    - `_isSetupMode` and `_verifyPin()` now use normalized value.
+- Files changed:
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/auth_api.py`
+  - `lib/screens/pin_screen.dart`
+- Commands / ops needed:
+  - Restart/upgrade `pos_backend`.
+  - Hot restart Flutter app.
+- Quick verification:
+  - Cashier with no PIN should enter setup mode (not "incorrect PIN" mode).
+  - Confirm PIN should pass when same digits are entered.
+  - Existing cashier with saved PIN should unlock normally.
+
+==================================================
+52) LATEST IMPLEMENTED UPDATE (CUSTOMER BANNER + POPUP ADS + APP UPGRADER)
+==================================================
+- Request:
+  - Remove search bar in customer self-order screen and replace with banner.
+  - Add app upgrader prompt.
+  - Add popup ads in app.
+  - Make API support banner and ads and provide easy control via image upload form in POS backend.
+- Implementation:
+  - Flutter customer self-order:
+    - Removed product search bar and replaced top area with a banner card.
+    - Banner uses `banner_image_data_url` from self-order config API; falls back to branded gradient if no banner uploaded.
+    - Added popup ad dialog logic (shows image from API once per session when available and enabled).
+  - Flutter global upgrader:
+    - Added `upgrader` package and wrapped app with `UpgradeAlert` in `main.dart`.
+  - Odoo POS backend:
+    - Added new model `pos.backend.app.media.config` with upload fields:
+      - `banner_image`
+      - `ad_image`
+      - `ad_enabled`
+    - Added new admin UI menu under `Custom POS > Configuration > App Banner and Ads` with list/form to upload images.
+    - Extended `/api/pos/self_order_config` response to include:
+      - `banner_image_data_url`
+      - `ad_image_data_url`
+      - `ad_enabled`
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/main.dart`
+  - `pubspec.yaml`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/app_media_config.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/__init__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/views/app_media_config_views.xml`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/pos_order_api.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/security/ir.model.access.csv`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/__manifest__.py`
+- Commands / ops needed:
+  - Flutter app: `flutter pub get`, then hot restart.
+  - Odoo: restart service and upgrade `pos_backend` module.
+  - Hard refresh Odoo web client (`Ctrl+F5`).
+- Quick verification:
+  - In Odoo `Custom POS > Configuration > App Banner and Ads`, upload banner + ad images and enable popup ad.
+  - Open customer self-order home: top search bar should be replaced by uploaded banner.
+  - On first config load, popup ad dialog appears and can be dismissed.
+  - Confirm `/api/pos/self_order_config` returns new media keys.
+  - Open app normally and verify upgrader dialog appears when app store version is newer.
+
+==================================================
+53) LATEST IMPLEMENTED UPDATE (SPLIT BANNER/ADS + SWIPE + STICKY CATEGORY SCROLL)
+==================================================
+- Request:
+  - Separate backend control forms for app banners and popup ads.
+  - Support multiple active banners/ads and allow swipe behavior in app.
+  - In customer self-order home, banner should scroll up with content (not fixed), while category row stays pinned below AppBar.
+- Implementation:
+  - Backend split:
+    - Added model `pos.backend.app.banner` (separate form/menu for banners).
+    - Added model `pos.backend.popup.ad` (separate form/menu for popup ads).
+    - Added new admin menus under `Custom POS > Configuration`:
+      - `App Banners`
+      - `Popup Ads`
+    - Extended `/api/pos/self_order_config` to return arrays:
+      - `banners: [{id, name, image_data_url}]`
+      - `ads: [{id, name, image_data_url}]`
+    - Kept backward compatibility by still returning legacy single fields and falling back to old `pos.backend.app.media.config` if needed.
+  - Flutter customer home behavior:
+    - Banner now supports multiple images via `PageView` (swipe horizontally).
+    - Popup ad dialog now supports multiple ads via `PageView` (swipe horizontally).
+    - Home tab on mobile refactored to sliver layout:
+      - Banner in normal scroll content (moves up and disappears while scrolling).
+      - Category chips moved into pinned `SliverPersistentHeader` so they stay under AppBar.
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/app_banner.py` (New)
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/popup_ad.py` (New)
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/models/__init__.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/views/app_banner_views.xml` (New)
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/views/popup_ad_views.xml` (New)
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/controllers/pos_order_api.py`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/security/ir.model.access.csv`
+  - `/home/sith/Desktop/ladolcepos/ladolcepos/pos_backend/__manifest__.py`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade `pos_backend`.
+  - Odoo web client: hard refresh (`Ctrl+F5`).
+  - Flutter: hot restart app.
+- Quick verification:
+  - In Odoo, create 2+ active records in `App Banners`; app home banner can swipe between them.
+  - In Odoo, create 2+ active records in `Popup Ads`; popup can swipe between ads.
+  - Scroll product page on customer home:
+    - banner scrolls away upward.
+    - category chips remain pinned below app bar.
+
+==================================================
+51) LATEST IMPLEMENTED UPDATE (CUSTOMER CARD 1:1 SQUARE LAYOUT TUNING)
+==================================================
+- Request:
+  - Make customer self-order product cards look like the provided reference with a perfect 1:1 square image area and cleaner card proportions.
+- Implementation:
+  - Updated customer Home product grid tile sizing to better fit a square-image card layout across breakpoints.
+  - Reworked product card image section to use a strict square container via `AspectRatio(aspectRatio: 1)`.
+  - Adjusted card radius, image inset spacing, add-button size/position, and text spacing so the card matches the tighter, more balanced reference style.
+  - Kept existing behavior unchanged (tap/open flow, data source, cart logic, and toppings flow).
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open Customer Self-Order Home tab on phone width.
+  - Confirm each product image renders as 1:1 square with no stretching.
+  - Confirm card text + price remain visible without overflow and overall card appearance matches reference style more closely.
