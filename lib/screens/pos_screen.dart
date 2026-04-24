@@ -50,8 +50,51 @@ class _PosScreenState extends State<PosScreen> {
     PrinterProfile p,
   ) {
     if (p.categoryFilters.isEmpty) return items;
-    final filters = p.categoryFilters.map((e) => e.toLowerCase()).toSet();
-    return items.where((i) => filters.contains(i.product.category.toLowerCase())).toList();
+    final filters = p.categoryFilters
+        .map((e) => e.trim().toLowerCase())
+        .toSet();
+    return items
+        .where((i) => filters.contains(i.product.category.trim().toLowerCase()))
+        .toList();
+  }
+
+  List<PrinterProfile> _resolveOrderPrinters() {
+    final orderPrinters = printerService.profiles
+        .where((p) => p.printOrders)
+        .toList();
+    if (orderPrinters.isNotEmpty) return orderPrinters;
+
+    // Fallback: if no dedicated kitchen printer is enabled, use selected/default printer
+    // so Save Ticket still sends order slips.
+    if (printerService.profiles.isEmpty) return [];
+    final selected = printerService.selectedReceiptPrinterId;
+    if (selected != null) {
+      final match = printerService.profiles
+          .where((p) => p.id == selected)
+          .toList();
+      if (match.isNotEmpty) return [match.first];
+    }
+    return [printerService.profiles.first];
+  }
+
+  Future<int> _printOrderItemsToKitchen(
+    List<CartItem> items, {
+    required bool respectCategoryFilters,
+  }) async {
+    int printedCount = 0;
+    for (final p in _resolveOrderPrinters()) {
+      final toPrint = respectCategoryFilters
+          ? _filterItemsForPrinter(items, p)
+          : items;
+      if (toPrint.isEmpty) continue;
+      final ok = await printerService.printOrderTicketDirect(
+        profile: p,
+        items: toPrint,
+        cashierName: widget.cashierName,
+      );
+      if (ok) printedCount++;
+    }
+    return printedCount;
   }
 
   // Search
@@ -825,25 +868,22 @@ class _PosScreenState extends State<PosScreen> {
                     break;
                   }
                   {
-                    int reprintCount = 0;
-                    for (final p in printerService.profiles.where((p) => p.printOrders)) {
-                      final filtered = _filterItemsForPrinter(_cartItems, p);
-                      if (filtered.isNotEmpty) {
-                        final ok = await printerService.printOrderTicketDirect(
-                          profile: p,
-                          items: filtered,
-                          cashierName: widget.cashierName,
-                        );
-                        if (ok) reprintCount++;
-                      }
-                    }
+                    // Reprint must send ALL lines (ignore category routing filters).
+                    final reprintCount = await _printOrderItemsToKitchen(
+                      _cartItems,
+                      respectCategoryFilters: false,
+                    );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(reprintCount > 0
-                              ? '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
-                              : 'No kitchen printers with "Print orders" enabled.'),
-                          backgroundColor: reprintCount > 0 ? Colors.green : Colors.orange,
+                          content: Text(
+                            reprintCount > 0
+                                ? '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
+                                : 'No available printer could print this reprint request.',
+                          ),
+                          backgroundColor: reprintCount > 0
+                              ? Colors.green
+                              : Colors.orange,
                         ),
                       );
                     }
@@ -1033,9 +1073,12 @@ class _PosScreenState extends State<PosScreen> {
                 ),
                 PopupMenuItem<String>(
                   value: 'reprint',
-                  enabled: hasItems,
-                  child: disablableTile(Icons.print_outlined, 'Reprint order (kitchen)',
-                      enabled: hasItems),
+                  enabled: hasTicket,
+                  child: disablableTile(
+                    Icons.print_outlined,
+                    'Reprint order (kitchen)',
+                    enabled: hasTicket,
+                  ),
                 ),
                 const PopupMenuDivider(),
 
@@ -1085,6 +1128,8 @@ class _PosScreenState extends State<PosScreen> {
       ),
       drawer: Drawer(
         backgroundColor: Colors.white,
+        child: SafeArea(
+          top: false,
           child: Column(
             children: [
               // ── Header ──────────────────────────────────────────
@@ -1119,7 +1164,10 @@ class _PosScreenState extends State<PosScreen> {
                     const SizedBox(height: 14),
                     RichText(
                       text: TextSpan(
-                        style: const TextStyle(fontSize: 16, color: Colors.white),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
                         children: [
                           TextSpan(
                             text: widget.cashierName,
@@ -1137,121 +1185,121 @@ class _PosScreenState extends State<PosScreen> {
                   ],
                 ),
               ),
-            // ── Menu Items ───────────────────────────────────────
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                children: [
-                  _drawerItem(
-                    icon: Icons.storefront_outlined,
-                    label: 'Sales',
-                    isActive: true,
-                    onTap: () => Navigator.pop(context),
-                  ),
-                  _drawerItem(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'Receipts',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ReceiptHistoryScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _drawerItem(
-                    icon: Icons.fact_check_outlined,
-                    label: 'Self Orders Review',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SelfOrdersReviewScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _drawerItem(
-                    icon: Icons.inventory_2_outlined,
-                    label: 'Items',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ManageItemsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 4),
-                  _drawerItem(
-                    icon: Icons.settings_outlined,
-                    label: 'Settings',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showSettingsSheet(context);
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Lock / Switch User ───────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () async {
-                  await _apiService.logout();
-                  if (mounted) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  }
-                },
-                child: Container(
+              // ── Menu Items ───────────────────────────────────────
+              Expanded(
+                child: ListView(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                    horizontal: 12,
+                    vertical: 12,
                   ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F3F8),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.lock_outline_rounded,
-                        color: _brandNavy,
-                        size: 20,
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Lock / Switch User',
-                          style: TextStyle(
-                            color: _brandNavy,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
+                  children: [
+                    _drawerItem(
+                      icon: Icons.storefront_outlined,
+                      label: 'Sales',
+                      isActive: true,
+                      onTap: () => Navigator.pop(context),
+                    ),
+                    _drawerItem(
+                      icon: Icons.receipt_long_outlined,
+                      label: 'Receipts',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ReceiptHistoryScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.fact_check_outlined,
+                      label: 'Self Orders Review',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SelfOrdersReviewScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.inventory_2_outlined,
+                      label: 'Items',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ManageItemsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    _drawerItem(
+                      icon: Icons.settings_outlined,
+                      label: 'Settings',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showSettingsSheet(context);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Lock / Switch User ───────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () async {
+                    await _apiService.logout();
+                    if (mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F3F8),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          color: _brandNavy,
+                          size: 20,
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Lock / Switch User',
+                            style: TextStyle(
+                              color: _brandNavy,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
-                      ),
-                      Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-                    ],
+                        Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -1260,270 +1308,278 @@ class _PosScreenState extends State<PosScreen> {
         top: false,
         child: Row(
           children: [
-          // Products Section
-          Expanded(
-            flex: 5,
-            child: _categories.isEmpty && _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _categories.isEmpty && _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error: $_errorMessage',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _isLoading = true;
-                              _errorMessage = null;
-                            });
-                            _fetchOdooProducts();
-                          },
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : DefaultTabController(
-                    length: _categories.length,
-                    child: Column(
-                      children: [
-                        // Permanent Search Bar
-                        Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(24),
-                              topRight: Radius.circular(24),
-                            ),
-                          ),
-                          margin: const EdgeInsets.only(top: 8),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                            child: TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText: 'Search products…',
-                                hintStyle: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 15,
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.search,
-                                  color: Colors.grey,
-                                ),
-                                suffixIcon: _searchQuery.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          setState(() => _searchQuery = '');
-                                        },
-                                      )
-                                    : null,
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 0,
-                                  horizontal: 20,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide.none,
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  // borderSide: BorderSide(color: Colors.grey.shade200, width: 1),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  // borderSide: BorderSide(color: _brandNavy, width: 1.5),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              onChanged: (value) {
-                                setState(() => _searchQuery = value);
-                              },
-                            ),
-                          ),
-                        ),
-
-                        // Swipeable Categories TabBar
-                        Container(
-                          color: Colors.white,
-                          child: TabBar(
-                            isScrollable: true,
-                            indicatorColor: _brandNavy,
-                            labelColor: _brandNavy,
-                            unselectedLabelColor: Colors.grey[500],
-                            labelStyle: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                            unselectedLabelStyle: const TextStyle(
-                              fontWeight: FontWeight.w400,
-                            ),
-                            tabs: _categories
-                                .map((c) => Tab(text: c.name))
-                                .toList(),
-                          ),
-                        ),
-                        const Divider(height: 1),
-
-                        // Products TabBarView (Grid/List)
-                        Expanded(
-                          child: _isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : _errorMessage != null
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.error_outline,
-                                        color: Colors.red,
-                                        size: 48,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Error: $_errorMessage',
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      ElevatedButton(
-                                        onPressed: _fetchOdooProducts,
-                                        child: const Text('Retry'),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : TabBarView(
-                                  children: _categories.map((category) {
-                                    // Filter products dynamically for each tab
-                                    List<Product> tabProducts = _products;
-                                    if (category.name != 'All Items') {
-                                      tabProducts = tabProducts
-                                          .where(
-                                            (p) => p.category == category.name,
-                                          )
-                                          .toList();
-                                    }
-
-                                    // Apply search across the active tab's items
-                                    if (_searchQuery.isNotEmpty) {
-                                      final query = _searchQuery.toLowerCase();
-                                      tabProducts = tabProducts
-                                          .where(
-                                            (p) =>
-                                                p.name.toLowerCase().contains(
-                                                  query,
-                                                ) ||
-                                                p.category
-                                                    .toLowerCase()
-                                                    .contains(query) ||
-                                                (p.defaultCode != null &&
-                                                    p.defaultCode!
-                                                        .toLowerCase()
-                                                        .contains(query)),
-                                          )
-                                          .toList();
-                                    }
-
-                                    if (tabProducts.isEmpty) {
-                                      return Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.search_off,
-                                              size: 64,
-                                              color: Colors.grey[400],
-                                            ),
-                                            const SizedBox(height: 16),
-                                            Text(
-                                              _searchQuery.isNotEmpty
-                                                  ? 'No products matching "$_searchQuery"'
-                                                  : 'No products in this category',
-                                              style: TextStyle(
-                                                color: Colors.grey[600],
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-
-                                    return _isGridView
-                                        ? ProductGrid(
-                                            products: tabProducts,
-                                            onProductTap: _addToCart,
-                                          )
-                                        : ProductList(
-                                            products: tabProducts,
-                                            onProductTap: _addToCart,
-                                          );
-                                  }).toList(),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-          ),
-
-          // Cart Section (Sidebar)
-          if (isDesktop) const VerticalDivider(width: 1),
-          if (isDesktop)
+            // Products Section
             Expanded(
-              flex: 3,
-              child: CartSidebar(
-                cartItems: _cartItems,
-                onUpdateQuantity: _updateQuantity,
-                onClearCart: _clearCart,
-                onViewTickets: () async {
-                  final result = await Navigator.push<ResumedTicket>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TicketsScreen(cachedProducts: _products),
+              flex: 5,
+              child: _categories.isEmpty && _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _categories.isEmpty && _errorMessage != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                            size: 48,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error: $_errorMessage',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _isLoading = true;
+                                _errorMessage = null;
+                              });
+                              _fetchOdooProducts();
+                            },
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : DefaultTabController(
+                      length: _categories.length,
+                      child: Column(
+                        children: [
+                          // Permanent Search Bar
+                          Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(24),
+                                topRight: Radius.circular(24),
+                              ),
+                            ),
+                            margin: const EdgeInsets.only(top: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                              child: TextField(
+                                controller: _searchController,
+                                decoration: InputDecoration(
+                                  hintText: 'Search products…',
+                                  hintStyle: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: 15,
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.search,
+                                    color: Colors.grey,
+                                  ),
+                                  suffixIcon: _searchQuery.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear),
+                                          onPressed: () {
+                                            _searchController.clear();
+                                            setState(() => _searchQuery = '');
+                                          },
+                                        )
+                                      : null,
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 0,
+                                    horizontal: 20,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                    // borderSide: BorderSide(color: Colors.grey.shade200, width: 1),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                    // borderSide: BorderSide(color: _brandNavy, width: 1.5),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                onChanged: (value) {
+                                  setState(() => _searchQuery = value);
+                                },
+                              ),
+                            ),
+                          ),
+
+                          // Swipeable Categories TabBar
+                          Container(
+                            color: Colors.white,
+                            child: TabBar(
+                              isScrollable: true,
+                              indicatorColor: _brandNavy,
+                              labelColor: _brandNavy,
+                              unselectedLabelColor: Colors.grey[500],
+                              labelStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                              unselectedLabelStyle: const TextStyle(
+                                fontWeight: FontWeight.w400,
+                              ),
+                              tabs: _categories
+                                  .map((c) => Tab(text: c.name))
+                                  .toList(),
+                            ),
+                          ),
+                          const Divider(height: 1),
+
+                          // Products TabBarView (Grid/List)
+                          Expanded(
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : _errorMessage != null
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.error_outline,
+                                          color: Colors.red,
+                                          size: 48,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'Error: $_errorMessage',
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        ElevatedButton(
+                                          onPressed: _fetchOdooProducts,
+                                          child: const Text('Retry'),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : TabBarView(
+                                    children: _categories.map((category) {
+                                      // Filter products dynamically for each tab
+                                      List<Product> tabProducts = _products;
+                                      if (category.name != 'All Items') {
+                                        tabProducts = tabProducts
+                                            .where(
+                                              (p) =>
+                                                  p.category == category.name,
+                                            )
+                                            .toList();
+                                      }
+
+                                      // Apply search across the active tab's items
+                                      if (_searchQuery.isNotEmpty) {
+                                        final query = _searchQuery
+                                            .toLowerCase();
+                                        tabProducts = tabProducts
+                                            .where(
+                                              (p) =>
+                                                  p.name.toLowerCase().contains(
+                                                    query,
+                                                  ) ||
+                                                  p.category
+                                                      .toLowerCase()
+                                                      .contains(query) ||
+                                                  (p.defaultCode != null &&
+                                                      p.defaultCode!
+                                                          .toLowerCase()
+                                                          .contains(query)),
+                                            )
+                                            .toList();
+                                      }
+
+                                      if (tabProducts.isEmpty) {
+                                        return Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.search_off,
+                                                size: 64,
+                                                color: Colors.grey[400],
+                                              ),
+                                              const SizedBox(height: 16),
+                                              Text(
+                                                _searchQuery.isNotEmpty
+                                                    ? 'No products matching "$_searchQuery"'
+                                                    : 'No products in this category',
+                                                style: TextStyle(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+
+                                      return _isGridView
+                                          ? ProductGrid(
+                                              products: tabProducts,
+                                              onProductTap: _addToCart,
+                                            )
+                                          : ProductList(
+                                              products: tabProducts,
+                                              onProductTap: _addToCart,
+                                            );
+                                    }).toList(),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                  if (result != null) {
-                    setState(() {
-                      _cartItems = result.cartItems;
-                      _activeTicketId = result.orderId;
-                      _activeTicketName = result.orderName;
-                      _activeTicketTableId = result.tableId;
-                      _activeTicketPaymentType = result.paymentType;
-                      _activeTicketPaymentMethodId = result.paymentMethodId;
-                      _activeTicketPaymentMethodName = result.paymentMethodName;
-                    });
-                  }
-                },
-                onSaveTicket: () {
-                  _saveCurrentTicket(context);
-                },
-                onCharge: () {
-                  _showChargeDialog(context);
-                },
-                selectedCustomer: _selectedCustomer,
-                onAddCustomer: () => _showCustomerSelection(context),
-                onClearCustomer: () => setState(() => _selectedCustomer = null),
-              ),
             ),
+
+            // Cart Section (Sidebar)
+            if (isDesktop) const VerticalDivider(width: 1),
+            if (isDesktop)
+              Expanded(
+                flex: 3,
+                child: CartSidebar(
+                  cartItems: _cartItems,
+                  onUpdateQuantity: _updateQuantity,
+                  onClearCart: _clearCart,
+                  onViewTickets: () async {
+                    final result = await Navigator.push<ResumedTicket>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            TicketsScreen(cachedProducts: _products),
+                      ),
+                    );
+                    if (result != null) {
+                      setState(() {
+                        _cartItems = result.cartItems;
+                        _activeTicketId = result.orderId;
+                        _activeTicketName = result.orderName;
+                        _activeTicketTableId = result.tableId;
+                        _activeTicketPaymentType = result.paymentType;
+                        _activeTicketPaymentMethodId = result.paymentMethodId;
+                        _activeTicketPaymentMethodName =
+                            result.paymentMethodName;
+                      });
+                    }
+                  },
+                  onSaveTicket: () {
+                    _saveCurrentTicket(context);
+                  },
+                  onCharge: () {
+                    _showChargeDialog(context);
+                  },
+                  selectedCustomer: _selectedCustomer,
+                  onAddCustomer: () => _showCustomerSelection(context),
+                  onClearCustomer: () =>
+                      setState(() => _selectedCustomer = null),
+                ),
+              ),
           ],
         ),
       ),
@@ -3175,13 +3231,7 @@ class _PosScreenState extends State<PosScreen> {
         }
       }
 
-      // Auto-open cash drawer on cash payments
-      final isCash = _selectedPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
-      if (isCash) {
-        await printerService.openCashDrawer();
-      }
-
-      // Print to kitchen/bar printers and mark items as printed
+      // Print to kitchen/bar printers and mark items as printed only on success
       if (printerService.isConfigured) {
         final printedCount = await _printOrderItemsToKitchen(
           _cartItems,
