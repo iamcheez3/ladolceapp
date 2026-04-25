@@ -64,8 +64,13 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
 
   void _openProofDialog(Map<String, dynamic> order) {
     final proofUrl = (order['transfer_proof_url'] ?? '').toString();
-    final absUrl = proofUrl.isEmpty ? '' : _apiService.resolveMediaUrl(proofUrl);
     final title = 'Proof - ${order['name'] ?? ''}';
+    final proofFuture = proofUrl.isEmpty
+        ? Future.value(const <dynamic>['', <String, String>{}])
+        : Future.wait<dynamic>([
+            _apiService.resolveMediaUrlAsync(proofUrl),
+            _apiService.buildImageHeaders(),
+          ]);
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -81,56 +86,65 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
-              if (absUrl.isEmpty)
-                const Text('No proof image uploaded')
-              else
-                FutureBuilder<Map<String, String>>(
-                  future: _apiService.buildImageHeaders(),
-                  builder: (context, snapshot) {
-                    final headers = snapshot.data ?? const {};
-                    return InteractiveViewer(
-                      minScale: 1,
-                      maxScale: 8,
-                      child: GestureDetector(
-                        onDoubleTap: () => _openProofFullScreen(
-                          title: title,
-                          imageUrl: absUrl,
-                          headers: headers,
-                        ),
-                        child: Image.network(
-                          absUrl,
-                          headers: headers,
-                          fit: BoxFit.contain,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Padding(
-                              padding: EdgeInsets.all(24.0),
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          },
-                          errorBuilder: (_, __, ___) => const Text('Cannot load proof image'),
+              FutureBuilder<List<dynamic>>(
+                future: proofFuture,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final absUrl = (snapshot.data![0] as String?) ?? '';
+                  final headers =
+                      (snapshot.data![1] as Map<String, String>?) ?? const {};
+                  if (absUrl.isEmpty) return const Text('No proof image uploaded');
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      InteractiveViewer(
+                        minScale: 1,
+                        maxScale: 8,
+                        child: GestureDetector(
+                          onDoubleTap: () => _openProofFullScreen(
+                            title: title,
+                            imageUrl: absUrl,
+                            headers: headers,
+                          ),
+                          child: Image.network(
+                            absUrl,
+                            headers: headers,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Padding(
+                                padding: EdgeInsets.all(24.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            },
+                            errorBuilder: (_, __, ___) =>
+                                const Text('Cannot load proof image'),
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              if (absUrl.isNotEmpty)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      final headers = await _apiService.buildImageHeaders();
-                      if (!mounted) return;
-                      _openProofFullScreen(
-                        title: title,
-                        imageUrl: absUrl,
-                        headers: headers,
-                      );
-                    },
-                    icon: const Icon(Icons.zoom_out_map),
-                    label: const Text('Fullscreen Zoom'),
-                  ),
-                ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            _openProofFullScreen(
+                              title: title,
+                              imageUrl: absUrl,
+                              headers: headers,
+                            );
+                          },
+                          icon: const Icon(Icons.zoom_out_map),
+                          label: const Text('Fullscreen Zoom'),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerRight,

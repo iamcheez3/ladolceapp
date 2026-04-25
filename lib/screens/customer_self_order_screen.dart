@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show ImageFilter;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
@@ -59,6 +60,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   List<Product> _products = [];
   List<Category> _categories = [Category(id: 'All', name: 'All Items')];
   final List<CartItem> _cartItems = [];
+
+  List<Map<String, dynamic>> _transferBanks = [];
+  int _selectedBankIndex = 0;
+  
   bool get _isCartEmpty => _cartItems.isEmpty;
   int get _cartCount {
     if (_cartItems.isEmpty) return 0;
@@ -287,7 +292,19 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         final key = idKey.isNotEmpty && idKey != '0'
             ? 'id:$idKey'
             : 'name:$nameKey';
-        byKey[key] = Map<String, dynamic>.from(item);
+        final existing = byKey[key];
+        final merged = Map<String, dynamic>.from(item);
+        // Keep local proof path as fallback if server proof URL is still empty.
+        if (existing != null) {
+          final existingProofPath =
+              (existing['proof_image_path'] ?? '').toString().trim();
+          final mergedProofUrl =
+              (merged['transfer_proof_url'] ?? '').toString().trim();
+          if (existingProofPath.isNotEmpty && mergedProofUrl.isEmpty) {
+            merged['proof_image_path'] = existingProofPath;
+          }
+        }
+        byKey[key] = merged;
       }
 
       final all = byKey.values.toList();
@@ -318,10 +335,25 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       final config = await _apiService.fetchSelfOrderConfig();
       if (!mounted) return;
       setState(() {
-        _qrImageDataUrl = (config['qr_image_data_url'] ?? '').toString();
-        _bankName = (config['bank_name'] ?? '').toString();
-        _accountName = (config['account_name'] ?? '').toString();
-        _accountNumber = (config['account_number'] ?? '').toString();
+        final rawBanks = (config['banks'] as List?) ?? const [];
+        _transferBanks = rawBanks
+            .whereType<Map>()
+            .map((b) => Map<String, dynamic>.from(b))
+            .toList();
+
+        // ── select default bank ──
+        if (_transferBanks.isNotEmpty) {
+          final defaultIdx = _transferBanks.indexWhere((b) => b['is_default'] == true);
+          _selectedBankIndex = defaultIdx >= 0 ? defaultIdx : 0;
+          _syncSelectedBank();
+        } else {
+          // fallback to legacy single-bank fields
+          _qrImageDataUrl = (config['qr_image_data_url'] ?? '').toString();
+          _bankName = (config['bank_name'] ?? '').toString();
+          _accountName = (config['account_name'] ?? '').toString();
+          _accountNumber = (config['account_number'] ?? '').toString();
+          
+        }
         final rawBanners = (config['banners'] as List?) ?? const [];
         final rawAds = (config['ads'] as List?) ?? const [];
         _bannerImageDataUrls = rawBanners
@@ -360,6 +392,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       setState(() => _isLoadingSelfOrderConfig = false);
     }
   }
+
+  void _syncSelectedBank() {
+  if (_transferBanks.isEmpty) return;
+  final b = _transferBanks[_selectedBankIndex];
+  _qrImageDataUrl = (b['qr_image_data_url'] ?? '').toString();
+  _bankName = (b['bank_name'] ?? '').toString();
+  _accountName = (b['account_name'] ?? '').toString();
+  _accountNumber = (b['account_number'] ?? '').toString();
+}
 
   Uint8List? _bytesFromDataUrl(String dataUrl) {
     if (dataUrl.isEmpty || !dataUrl.startsWith('data:image')) return null;
@@ -498,80 +539,136 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   Future<void> _downloadQrCode() async {
     try {
       final Uint8List? bytes = _qrBytesFromDataUrl();
-      if (bytes == null) {
+      if (bytes == null || bytes.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No QR image configured yet'),
-            backgroundColor: Colors.orange,
-          ),
+          const SnackBar(content: Text('No QR image configured yet'), backgroundColor: Colors.orange),
         );
         return;
       }
 
+      // ── permissions ──────────────────────────────────────────
       if (Platform.isIOS) {
         final status = await Permission.photosAddOnly.request();
         if (!status.isGranted && !status.isLimited) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Photo permission is required to save QR'),
-            ),
+            const SnackBar(content: Text('Photo permission is required to save QR')),
           );
           return;
         }
       } else if (Platform.isAndroid) {
-        final status = await Permission.photos.request();
-        if (!status.isGranted && !status.isLimited) {
-          final storageStatus = await Permission.storage.request();
-          if (!storageStatus.isGranted) {
+        // Android 13+ doesn't need storage permission for saving images
+        final sdkInt = await _getAndroidSdkInt();
+        if (sdkInt < 33) {
+          final status = await Permission.storage.request();
+          if (!status.isGranted) {
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Storage permission is required to save QR'),
-              ),
+              const SnackBar(content: Text('Storage permission is required to save QR')),
             );
             return;
           }
         }
       }
 
-      final filename = 'la_dolce_qr_${DateTime.now().millisecondsSinceEpoch}';
-      final result = await ImageGallerySaverPlus.saveImage(
-        bytes,
-        quality: 100,
-        name: filename,
+      // ── save via temp file → GallerySaver ────────────────────
+      final tempDir = await getTemporaryDirectory();
+      final filename = 'la_dolce_qr_${DateTime.now().millisecondsSinceEpoch}.png';
+      final tempFile = File('${tempDir.path}/$filename');
+      await tempFile.writeAsBytes(bytes, flush: true);
+
+      // Verify file was written correctly
+      final written = await tempFile.readAsBytes();
+      debugPrint('Written file size: ${written.length}, header: ${written[0]} ${written[1]} ${written[2]} ${written[3]}');
+
+      final result = await ImageGallerySaverPlus.saveFile(
+        tempFile.path,
+        name: 'la_dolce_qr_${DateTime.now().millisecondsSinceEpoch}',
       );
-      final success =
-          (result['isSuccess'] == true) || (result['filePath'] != null);
+      
+      debugPrint('Gallery save result: $result');
+
+      // cleanup
+      try { await tempFile.delete(); } catch (_) {}
 
       if (!mounted) return;
-      if (success) {
+
+      // ── check result more robustly ────────────────────────────
+      final isSuccess = result is Map &&
+          ((result['isSuccess'] == true) ||
+          (result['filePath'] != null && (result['filePath'] as String).isNotEmpty));
+
+      if (isSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('QR saved to gallery'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('QR saved to gallery ✓'), backgroundColor: Colors.green),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to save QR: ${result['errorMessage'] ?? 'Unknown error'}',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Fallback: save to Downloads folder directly
+        await _saveQrToDownloads(bytes);
       }
     } catch (e) {
+      debugPrint('_downloadQrCode error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to download QR: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Failed to download QR: $e'), backgroundColor: Colors.red),
       );
     }
   }
+
+  // ── fallback: save directly to Downloads ─────────────────────
+  Future<void> _saveQrToDownloads(Uint8List bytes) async {
+    try {
+      Directory? dir;
+      if (Platform.isAndroid) {
+        dir = Directory('/storage/emulated/0/Download');
+        if (!await dir.exists()) {
+          dir = await getExternalStorageDirectory();
+        }
+      } else {
+        dir = await getApplicationDocumentsDirectory();
+      }
+
+      if (dir == null) throw Exception('Cannot find save directory');
+
+      final filename = 'la_dolce_qr_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${dir.path}/$filename');
+      await file.writeAsBytes(bytes, flush: true);
+
+      debugPrint('Saved to: ${file.path}');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Platform.isAndroid
+                ? 'QR saved to Downloads/$filename'
+                : 'QR saved to Documents/$filename',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      debugPrint('_saveQrToDownloads error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Save failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // ── helper: get Android SDK version ──────────────────────────
+  Future<int> _getAndroidSdkInt() async {
+    if (!Platform.isAndroid) return 0;
+    try {
+      // Read from system property
+      final result = await Process.run('getprop', ['ro.build.version.sdk']);
+      return int.tryParse(result.stdout.toString().trim()) ?? 30;
+    } catch (_) {
+      return 30; // assume Android 11 as safe default
+    }
+  }
+    // append new item
+
 
   Future<List<Map<String, dynamic>>> _getLocalSelfOrderHistory() async {
     final prefs = await SharedPreferences.getInstance();
@@ -669,6 +766,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final bool canConfirm =
+            paymentChoice != 'transfer' || proofImage != null;
             return FractionallySizedBox(
               heightFactor: 0.90,
               child: Padding(
@@ -704,6 +803,44 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     ),
                     if (paymentChoice == 'transfer') ...[
                       const SizedBox(height: 10),
+                      if (_transferBanks.length > 1) ...[
+                        const Text(
+                          'Select Bank',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<int>(
+                              value: _selectedBankIndex,
+                              isExpanded: true,
+                              items: List.generate(_transferBanks.length, (i) {
+                                final b = _transferBanks[i];
+                                return DropdownMenuItem(
+                                  value: i,
+                                  child: Text(
+                                    '${b['label'] ?? b['bank_name']} — ${b['account_name']}',
+                                  ),
+                                );
+                              }),
+                              onChanged: (idx) {
+                                if (idx == null) return;
+                                setSheetState(() {
+                                  _selectedBankIndex = idx;
+                                  _syncSelectedBank();
+                                  proofImage = null; // reset proof on bank change
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                       const Text(
                         'Scan QR Code',
                         style: TextStyle(
@@ -801,13 +938,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _isPlacingOrder
+                        onPressed: (_isPlacingOrder || !canConfirm)
                             ? null
                             : () async {
                                 Navigator.pop(ctx);
                                 await _placeOrder(
                                   paymentChoice: paymentChoice,
                                   proofImagePath: proofImage?.path,
+                                  transferBankId: _transferBanks.isNotEmpty
+                                    ? _transferBanks[_selectedBankIndex]['id'] as int?
+                                    : null,
                                 );
                               },
                         style: ElevatedButton.styleFrom(
@@ -833,6 +973,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   Future<void> _placeOrder({
     required String paymentChoice,
     String? proofImagePath,
+    int? transferBankId,
   }) async {
     if (_cartItems.isEmpty || _isPlacingOrder) return;
 
@@ -3001,17 +3142,33 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             errorBuilder: (_, __, ___) =>
                                 const SizedBox.shrink(),
                           )
-                        : FutureBuilder<Map<String, String>>(
-                            future: _apiService.buildImageHeaders(),
-                            builder: (context, snapshot) => Image.network(
-                              _apiService.resolveMediaUrl(proofUrl),
-                              headers: snapshot.data ?? const {},
-                              height: 220,
-                              width: double.infinity,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox.shrink(),
-                            ),
+                        : FutureBuilder<List<dynamic>>(
+                            future: Future.wait<dynamic>([
+                              _apiService.resolveMediaUrlAsync(proofUrl),
+                              _apiService.buildImageHeaders(),
+                            ]),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const SizedBox(
+                                  height: 220,
+                                  child: Center(
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                );
+                              }
+                              final resolvedUrl = (snapshot.data![0] as String?) ?? '';
+                              final headers =
+                                  (snapshot.data![1] as Map<String, String>?) ?? const {};
+                              if (resolvedUrl.isEmpty) return const SizedBox.shrink();
+                              return Image.network(
+                                resolvedUrl,
+                                headers: headers,
+                                height: 220,
+                                width: double.infinity,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              );
+                            },
                           ),
                   ),
                 ],
