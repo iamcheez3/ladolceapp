@@ -68,6 +68,24 @@ class ApiService {
     return '$origin$relative';
   }
 
+  /// Async variant that respects dev base URL override from SharedPreferences.
+  Future<String> resolveMediaUrlAsync(String rawUrl) async {
+    var normalized = rawUrl.trim();
+    if (normalized.isEmpty) return '';
+    final contentMatch =
+        RegExp(r'^/web/content/(\d+)(\?.*)?$').firstMatch(normalized);
+    if (contentMatch != null) {
+      normalized = '/web/image/ir.attachment/${contentMatch.group(1)}/datas';
+    }
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+      return normalized;
+    }
+    final base = await getBaseUrl();
+    final origin = Uri.parse(base).origin;
+    final relative = normalized.startsWith('/') ? normalized : '/$normalized';
+    return '$origin$relative';
+  }
+
   Future<Map<String, String>> buildImageHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final sessionId = prefs.getString('cached_user_session');

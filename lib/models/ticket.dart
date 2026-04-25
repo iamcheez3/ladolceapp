@@ -7,6 +7,8 @@ class OpenTicket {
   final String paymentType;
   final int? paymentMethodId;
   final String paymentMethodName;
+  final bool transferProofUploaded;
+  final String transferProofUrl;
   final List<TicketLine> lines;
   /// When the ticket was first opened (from Odoo date_order).
   final DateTime? openedAt;
@@ -20,6 +22,8 @@ class OpenTicket {
     this.paymentType = '',
     this.paymentMethodId,
     this.paymentMethodName = '',
+    this.transferProofUploaded = false,
+    this.transferProofUrl = '',
     required this.lines,
     this.openedAt,
   });
@@ -42,6 +46,8 @@ class OpenTicket {
       paymentType: (json['payment_type'] ?? '').toString(),
       paymentMethodId: json['payment_method_id'],
       paymentMethodName: (json['payment_method_name'] ?? '').toString(),
+      transferProofUploaded: json['transfer_proof_uploaded'] == true,
+      transferProofUrl: (json['transfer_proof_url'] ?? '').toString(),
       lines: (json['lines'] as List)
           .map((lineJson) => TicketLine.fromJson(lineJson))
           .toList(),

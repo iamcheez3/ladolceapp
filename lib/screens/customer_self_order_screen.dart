@@ -287,7 +287,19 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         final key = idKey.isNotEmpty && idKey != '0'
             ? 'id:$idKey'
             : 'name:$nameKey';
-        byKey[key] = Map<String, dynamic>.from(item);
+        final existing = byKey[key];
+        final merged = Map<String, dynamic>.from(item);
+        // Keep local proof path as fallback if server proof URL is still empty.
+        if (existing != null) {
+          final existingProofPath =
+              (existing['proof_image_path'] ?? '').toString().trim();
+          final mergedProofUrl =
+              (merged['transfer_proof_url'] ?? '').toString().trim();
+          if (existingProofPath.isNotEmpty && mergedProofUrl.isEmpty) {
+            merged['proof_image_path'] = existingProofPath;
+          }
+        }
+        byKey[key] = merged;
       }
 
       final all = byKey.values.toList();
@@ -3001,17 +3013,33 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             errorBuilder: (_, __, ___) =>
                                 const SizedBox.shrink(),
                           )
-                        : FutureBuilder<Map<String, String>>(
-                            future: _apiService.buildImageHeaders(),
-                            builder: (context, snapshot) => Image.network(
-                              _apiService.resolveMediaUrl(proofUrl),
-                              headers: snapshot.data ?? const {},
-                              height: 220,
-                              width: double.infinity,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox.shrink(),
-                            ),
+                        : FutureBuilder<List<dynamic>>(
+                            future: Future.wait<dynamic>([
+                              _apiService.resolveMediaUrlAsync(proofUrl),
+                              _apiService.buildImageHeaders(),
+                            ]),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const SizedBox(
+                                  height: 220,
+                                  child: Center(
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                );
+                              }
+                              final resolvedUrl = (snapshot.data![0] as String?) ?? '';
+                              final headers =
+                                  (snapshot.data![1] as Map<String, String>?) ?? const {};
+                              if (resolvedUrl.isEmpty) return const SizedBox.shrink();
+                              return Image.network(
+                                resolvedUrl,
+                                headers: headers,
+                                height: 220,
+                                width: double.infinity,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              );
+                            },
                           ),
                   ),
                 ],
