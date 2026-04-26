@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
 import 'loading_screen.dart';
 import '../services/api_service.dart';
+import '../services/push_notifications_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV TOOLS FLAG
@@ -239,6 +240,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response['role'] == 'cashier' || response['role'] == 'customer') {
         if (!mounted) return;
+        // Ensure FCM token is registered after login (now we have cached_user_data).
+        try {
+          await PushNotificationsService.refreshBackendRegistration();
+        } catch (_) {}
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => LoadingScreen(user: response)),
         );

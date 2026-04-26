@@ -83,8 +83,75 @@ You are helping me continue development for my Flutter POS app integrated with O
   - `ApiService.loginUser()` now sends `device_id` + `platform` in login payload.
   - `CustomerSelfOrderScreen` calls `validateCustomerSession()` on startup;
     if 401 → clears local session and routes back to Login.
+- Notes / fix:
+  - For ngrok/cookie-unreliable clients, `/api/pos/session/validate` now accepts `device_id`.
+    If `device_id` matches the stored active device, backend updates active session_id to the latest
+    instead of forcing logout.
 - Ops:
   - Upgrade `pos_backend` module after adding new fields + endpoint.
+
+==================================================
+78) FIREBASE FCM PUSH NOTIFICATIONS (NEW FEATURE)
+==================================================
+- Goal:
+  - Use FCM to push notifications between customer and cashier devices.
+- Flutter:
+  - Added packages:
+    - `firebase_core`, `firebase_messaging`, `flutter_local_notifications`
+  - Added service:
+    - `lib/services/push_notifications_service.dart`
+  - Startup:
+    - `main.dart` initializes FCM best-effort (won't block if not configured yet).
+  - Backend registration:
+- Notes / fix:
+  - Token registration must run AFTER login (when cached_user_data exists).
+    `LoginScreen` calls `PushNotificationsService.refreshBackendRegistration()` after login.
+    - Calls `POST /api/pos/fcm/register` with `{user_id, role, token, device{platform,device_id,...}}`.
+- Android setup required:
+  - Place `android/app/google-services.json`
+  - Gradle (KTS):
+    - `android/settings.gradle.kts`: add `com.google.gms.google-services` plugin version
+    - `android/app/build.gradle.kts`: apply `id("com.google.gms.google-services")`
+- iOS setup required:
+  - Place `ios/Runner/GoogleService-Info.plist`
+  - Enable Push Notifications + Background Modes (Remote notifications) in Xcode.
+- Backend (Odoo `pos_backend` in `/home/sith/odoo/pos/custom_addonsUAT`):
+  - Added fields on `res.users`:
+    - `pos_fcm_token`, `pos_fcm_platform`, `pos_fcm_device_id`
+  - Added endpoint:
+    - POST `/api/pos/fcm/register` (stores latest token)
+  - Ops:
+    - Upgrade `pos_backend` module after adding new fields.
+
+==================================================
+79) SELF-ORDER NOTIFICATIONS + BACKEND LOG (NEW FEATURE)
+==================================================
+- Request:
+  - Customer confirms self-order:
+    - Cashier must get notification with repeating sound (~10s) + vibration.
+  - After cashier confirms/reviews:
+    - Customer gets notification "order complete/confirmed".
+  - Backend must have list view to store customer self-order details.
+- Flutter:
+  - `PushNotificationsService`:
+    - On FCM `data.type == 'self_order_new'`:
+      - loop-play `assets/sounds/notification.mp3` for ~10s
+      - vibrate pattern for ~10s
+    - Foreground local notification uses Android custom sound `notification` (res/raw).
+  - Android:
+    - `android/app/src/main/res/raw/notification.mp3` added for notification channel sound.
+- Backend (Odoo pos_backend):
+  - Added config: `Settings > Custom POS > Push Notifications (FCM)`:
+    - `pos_backend.fcm_server_key`
+  - When `/api/pos/order` creates an order with `state='waiting_transfer_review'`:
+    - sends FCM to all cashier/admin users with `pos_fcm_token`
+    - payload: `data.type='self_order_new'` + order details
+  - Also sends the same alert for self-orders with `payment_type='pay_at_store'` (draft self-order),
+    so cashiers are notified for both transfer + pay-at-store flows.
+  - When `/api/pos/order/<id>/confirm_transfer` succeeds:
+    - sends FCM to the customer user (matched by `partner_id`) with `data.type='self_order_confirmed'`.
+  - Backend list view:
+    - Menu `Custom POS > Orders > Customer Self Orders` (transfer/self-orders).
 - Backend implementation (apply in `/home/sith/odoo/pos/custom_addonsUAT`):
   - IMPORTANT: implement inside THIS addon: `/home/sith/odoo/pos/custom_addonsUAT/pos_backend`
 

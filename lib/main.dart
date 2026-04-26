@@ -4,11 +4,18 @@ import 'package:upgrader/upgrader.dart';
 import 'screens/loading_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
+import 'services/push_notifications_service.dart';
 
 void main() async {
   // Ensure bindings are initialized before loading dotenv
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+
+  // FCM init (requires google-services.json / GoogleService-Info.plist in the app).
+  // Best-effort: do not block app startup if Firebase is not configured yet.
+  try {
+    await PushNotificationsService.initialize();
+  } catch (_) {}
   
   // Check cache for offline auth
   final cachedUser = await ApiService().getCachedUser();

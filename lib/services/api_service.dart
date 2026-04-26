@@ -599,8 +599,24 @@ class ApiService {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/session/validate');
     final headers = await _authHeaders(json: true);
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+    final device = await getDeviceInfoForAudit();
     final response = await http
-        .post(url, headers: headers, body: jsonEncode({}))
+        .post(
+          url,
+          headers: headers,
+          body: jsonEncode({
+            'user_id': userId,
+            'session_id': sid,
+            'device_id': device['device_id'],
+          }),
+        )
         .timeout(const Duration(seconds: 6));
     if (response.statusCode == 200) return true;
     return false;
@@ -2049,6 +2065,9 @@ class ApiService {
     };
   }
 
+  /// Exposed for FCM token registration (best-effort).
+  Future<Map<String, dynamic>> getDeviceInfoForAudit() => _collectDeviceInfo();
+
   /// Register POS + device details to backend for auditing.
   ///
   /// Backend endpoint (to implement in Odoo): POST `/api/pos/device/register`
@@ -2118,6 +2137,38 @@ class ApiService {
       }
     } catch (_) {
       // keep pending for next time
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FCM TOKEN REGISTRATION
+  // ---------------------------------------------------------------------------
+
+  Future<void> registerFcmToken({
+    required int userId,
+    required String role,
+    required String token,
+    required Map<String, dynamic> device,
+  }) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/fcm/register');
+    final payload = {
+      'user_id': userId,
+      'role': role,
+      'token': token,
+      'device': device,
+    };
+
+    try {
+      await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 6));
+    } catch (_) {
+      // ignore; token will re-register on next launch / refresh
     }
   }
 }
