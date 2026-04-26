@@ -5,6 +5,7 @@ import '../theme/coffee_luxury_background.dart';
 import 'customer_self_order_screen.dart';
 import 'pin_screen.dart';
 import 'login_screen.dart';
+import 'pos_identity_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -79,13 +80,37 @@ class _LoadingScreenState extends State<LoadingScreen> {
         partnerId: widget.user['partner_id'],
       );
     } else if (role == 'cashier') {
-      nextScreen = PinScreen(cachedUser: widget.user);
+      nextScreen = const SizedBox.shrink();
     } else {
       nextScreen = const LoginScreen();
     }
 
+    if (role == 'cashier') {
+      _goCashierFlow();
+      return;
+    }
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => nextScreen),
+    );
+  }
+
+  Future<void> _goCashierFlow() async {
+    final api = ApiService();
+    final mustPrompt = await api.shouldPromptPosIdentityForThisSession();
+    final posName = await api.getCachedPosName();
+
+    if (!mounted) return;
+    // Ask on every cashier login (but not on app resume).
+    if (mustPrompt || posName == null || posName.isEmpty) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => PosIdentityScreen(user: widget.user)),
+      );
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => PinScreen(cachedUser: widget.user)),
     );
   }
 

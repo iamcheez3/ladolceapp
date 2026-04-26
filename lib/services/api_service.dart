@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../models/product.dart';
 import '../models/table.dart';
 import '../models/payment_method.dart';
@@ -529,10 +530,13 @@ class ApiService {
     final dbName = await getDatabaseName();
     final url = Uri.parse('$base/pos/login');
     final normalizedLogin = login.trim().toLowerCase();
+    final device = await _collectDeviceInfo();
     final Map<String, dynamic> payload = {
       'db': ?dbName,
       'login': normalizedLogin,
       'password': password,
+      'device_id': device['device_id'],
+      'platform': device['platform'],
     };
 
     _d('==============================');
@@ -557,6 +561,15 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_user_session', sessionId ?? '');
       await prefs.setString('cached_user_data', jsonEncode(data));
+
+      // Cashier: force POS name prompt once per login session.
+      try {
+        final role = (data is Map) ? (data['role']?.toString()) : null;
+        final sid = (sessionId ?? '').toString().trim();
+        if (role == 'cashier' && sid.isNotEmpty) {
+          await prefs.setString(_posIdentityPromptSessionKey, sid);
+        }
+      } catch (_) {}
       
       return data;
     } else {
@@ -577,6 +590,20 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cached_user_session');
     await prefs.remove('cached_user_data');
+    await prefs.remove(_posIdentityPromptSessionKey);
+  }
+
+  /// Customer: validate that current session is still active.
+  /// Backend endpoint: POST `/api/pos/session/validate`
+  Future<bool> validateCustomerSession() async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/session/validate');
+    final headers = await _authHeaders(json: true);
+    final response = await http
+        .post(url, headers: headers, body: jsonEncode({}))
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode == 200) return true;
+    return false;
   }
   Future<void> setPosPin(String pin, int userId) async {
     final base = await getBaseUrl();
@@ -1805,6 +1832,11 @@ class ApiService {
   Future<void> syncAllData({
     void Function(String message, double progress)? onProgress,
   }) async {
+    // Best-effort: if a POS identity is already set locally, try to register it.
+    try {
+      await registerPosDeviceIfPossible();
+    } catch (_) {}
+
     if (onProgress == null) {
       try {
         await syncOfflineOrders();
@@ -1887,5 +1919,205 @@ class ApiService {
       await steps[i].$2();
     }
     onProgress('All data ready', 1.0);
+  }
+
+  // ---------------------------------------------------------------------------
+  // POS DEVICE / POS NAME REGISTRATION (AUDIT)
+  // ---------------------------------------------------------------------------
+
+  static const String _posNamePrefsKey = 'cached_pos_name';
+  static const String _pendingDeviceRegPrefsKey = 'pending_pos_device_registration';
+  static const String _posIdentityPromptSessionKey = 'pos_identity_prompt_session';
+
+  Future<String?> getCachedSessionId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final sid = prefs.getString('cached_user_session')?.trim();
+    if (sid == null || sid.isEmpty) return null;
+    return sid;
+  }
+
+  Future<void> clearPosIdentityRequiredFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_posIdentityPromptSessionKey);
+  }
+
+  /// Returns true only for the session created by the most recent cashier login,
+  /// so we can prompt POS name on login but not on app resume.
+  Future<bool> shouldPromptPosIdentityForThisSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final requiredSid = prefs.getString(_posIdentityPromptSessionKey)?.trim();
+    if (requiredSid == null || requiredSid.isEmpty) return false;
+    final currentSid = await getCachedSessionId();
+    return currentSid != null && currentSid.isNotEmpty && currentSid == requiredSid;
+  }
+
+  Future<String?> getCachedPosName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getString(_posNamePrefsKey)?.trim();
+    if (v == null || v.isEmpty) return null;
+    return v;
+  }
+
+  Future<void> setCachedPosName(String posName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_posNamePrefsKey, posName.trim());
+  }
+
+  Future<Map<String, dynamic>> _collectDeviceInfo() async {
+    final plugin = DeviceInfoPlugin();
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    if (kIsWeb) {
+      return {
+        'platform': 'web',
+        'timestamp_utc': now,
+      };
+    }
+
+    try {
+      if (Platform.isAndroid) {
+        final a = await plugin.androidInfo;
+        return {
+          'platform': 'android',
+          'timestamp_utc': now,
+          'manufacturer': a.manufacturer,
+          'brand': a.brand,
+          'model': a.model,
+          'device': a.device,
+          'product': a.product,
+          'sdk_int': a.version.sdkInt,
+          // Prefer a stable identifier if available; backend should treat as "best effort"
+          'device_id': a.id,
+        };
+      }
+      if (Platform.isIOS) {
+        final i = await plugin.iosInfo;
+        return {
+          'platform': 'ios',
+          'timestamp_utc': now,
+          'name': i.name,
+          'model': i.model,
+          'localized_model': i.localizedModel,
+          'system_name': i.systemName,
+          'system_version': i.systemVersion,
+          'machine': i.utsname.machine,
+          'device_id': i.identifierForVendor,
+        };
+      }
+      if (Platform.isMacOS) {
+        final m = await plugin.macOsInfo;
+        return {
+          'platform': 'macos',
+          'timestamp_utc': now,
+          'model': m.model,
+          'computer_name': m.computerName,
+          'os_release': m.osRelease,
+          'kernel_version': m.kernelVersion,
+          'device_id': m.systemGUID,
+        };
+      }
+      if (Platform.isWindows) {
+        final w = await plugin.windowsInfo;
+        return {
+          'platform': 'windows',
+          'timestamp_utc': now,
+          'computer_name': w.computerName,
+          'product_name': w.productName,
+          'build_number': w.buildNumber,
+          'device_id': w.deviceId,
+        };
+      }
+      if (Platform.isLinux) {
+        final l = await plugin.linuxInfo;
+        return {
+          'platform': 'linux',
+          'timestamp_utc': now,
+          'name': l.name,
+          'version': l.version,
+          'pretty_name': l.prettyName,
+          'machine_id': l.machineId,
+          'device_id': l.machineId,
+        };
+      }
+    } catch (_) {
+      // fallthrough to unknown
+    }
+
+    return {
+      'platform': 'unknown',
+      'timestamp_utc': now,
+    };
+  }
+
+  /// Register POS + device details to backend for auditing.
+  ///
+  /// Backend endpoint (to implement in Odoo): POST `/api/pos/device/register`
+  /// This call is best-effort and should never block the cashier flow.
+  Future<void> registerPosDevice({
+    required int userId,
+    required String cashierName,
+    required String posName,
+  }) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/device/register');
+    final device = await _collectDeviceInfo();
+    final payload = <String, dynamic>{
+      'user_id': userId,
+      'cashier_name': cashierName,
+      'pos_name': posName.trim(),
+      'device': device,
+    };
+
+    final headers = await _authHeaders(json: true);
+    try {
+      final resp = await http
+          .post(url, headers: headers, body: jsonEncode(payload))
+          .timeout(const Duration(seconds: 6));
+
+      final body = resp.body;
+      Map<String, dynamic>? jsonResp;
+      try {
+        jsonResp = Map<String, dynamic>.from(jsonDecode(body));
+      } catch (_) {}
+
+      if (resp.statusCode == 200 &&
+          (jsonResp?['status']?.toString() == 'success')) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_pendingDeviceRegPrefsKey);
+        return;
+      }
+
+      // save for retry
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_pendingDeviceRegPrefsKey, jsonEncode(payload));
+    } catch (_) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_pendingDeviceRegPrefsKey, jsonEncode(payload));
+    }
+  }
+
+  /// If the device registration previously failed, retry it.
+  Future<void> registerPosDeviceIfPossible() async {
+    final prefs = await SharedPreferences.getInstance();
+    final pending = prefs.getString(_pendingDeviceRegPrefsKey);
+    if (pending == null || pending.isEmpty) return;
+
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/device/register');
+    final headers = await _authHeaders(json: true);
+
+    try {
+      final resp = await http
+          .post(url, headers: headers, body: pending)
+          .timeout(const Duration(seconds: 6));
+      if (resp.statusCode == 200) {
+        final jsonResp = jsonDecode(resp.body);
+        if (jsonResp is Map && jsonResp['status'] == 'success') {
+          await prefs.remove(_pendingDeviceRegPrefsKey);
+        }
+      }
+    } catch (_) {
+      // keep pending for next time
+    }
   }
 }

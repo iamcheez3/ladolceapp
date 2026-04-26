@@ -11,10 +11,140 @@ You are helping me continue development for my Flutter POS app integrated with O
 - Odoo backend API path (WSL Ubuntu):
   /home/sith/odoo/pos/custom_addonsUAT
 
+- POS device audit (NEW):
+  - Goal: backend must track which POS name + which physical device is used per cashier login
+    (for incident/audit like "who used what device when accident happened").
+  - Flutter client endpoint to implement/expect on backend:
+    - POST /api/pos/device/register
+    - Auth: uses session headers (Cookie + X-Openerp-Session-Id) after /pos/login.
+    - Payload example:
+      {
+        "user_id": 12,
+        "cashier_name": "Alice",
+        "pos_name": "Counter-1",
+        "device": {
+          "platform": "android|ios|windows|...",
+          "device_id": "...",   // best-effort stable id when available
+          "manufacturer": "...",
+          "brand": "...",
+          "model": "...",
+          "system_version": "...",
+          "timestamp_utc": "2026-04-26T..."
+        }
+      }
+  - Flutter local cache keys:
+    - cached_pos_name
+    - pending_pos_device_registration (retry during boot sync)
+
 - Main backend module used by app:
   pos_backend
   - controllers/catalog_api.py
   - models/product_template.py
+
+==================================================
+76) BACKEND + DEVICE AUDIT LOG (NEW FEATURE)
+==================================================
+- Request:
+  - Backend must store POS name + device details as a log/list view (like loyalty log).
+  - On cashier login, app prompts to create/select a "POS Name" (saved locally) and sends device info to backend.
+- Flutter implementation (done in this repo):
+  - Cashier flow:
+    - On cashier LOGIN: always route to `PosIdentityScreen` once per login session
+      (even if `cached_pos_name` already exists) so user confirms/updates POS name.
+    - On app resume/reopen (cached session): does NOT re-prompt.
+  - Saves `cached_pos_name` locally and calls `POST /api/pos/device/register`.
+  - After POS name is submitted, it immediately posts to backend so `POS Device Log` updates.
+  - If backend offline/unavailable, payload is saved and retried on next `syncAllData()`.
+  - Files changed:
+    - `lib/screens/pos_identity_screen.dart` (new)
+    - `lib/screens/loading_screen.dart`
+    - `lib/services/api_service.dart`
+  - Notes / fixes:
+    - `device_info_plus` v12.4.0: Android does NOT have `AndroidDeviceInfo.androidId`.
+      Use `AndroidDeviceInfo.id` for best-effort `device_id`.
+
+==================================================
+77) CUSTOMER SINGLE-DEVICE SESSION (NEW FEATURE)
+==================================================
+- Request:
+  - Customer account can be logged in on ONLY one device.
+  - If customer logs in on a new device, the old device must be forced logout.
+- Backend (pos_backend):
+  - `/api/pos/login` now accepts:
+    - `device_id`, `platform`
+  - On customer login, backend saves active session info on `res.users`:
+    - `pos_customer_active_sid`
+    - `pos_customer_active_device_id`
+    - `pos_customer_active_platform`
+  - Added endpoint:
+    - POST `/api/pos/session/validate` (checks current session sid matches active sid)
+    - Returns 401 with message "Session revoked" when customer logged in elsewhere.
+- Flutter:
+  - `ApiService.loginUser()` now sends `device_id` + `platform` in login payload.
+  - `CustomerSelfOrderScreen` calls `validateCustomerSession()` on startup;
+    if 401 → clears local session and routes back to Login.
+- Ops:
+  - Upgrade `pos_backend` module after adding new fields + endpoint.
+- Backend implementation (apply in `/home/sith/odoo/pos/custom_addonsUAT`):
+  - IMPORTANT: implement inside THIS addon: `/home/sith/odoo/pos/custom_addonsUAT/pos_backend`
+
+  - 1) Model (new file):
+    - Create: `pos_backend/models/pos_device_log.py`
+    - Model name: `pos.backend.device.log`
+    - Fields:
+      - `user_id` (Many2one `res.users`, required)
+      - `pos_name` (Char, required)
+      - `platform` (Selection: android/ios/windows/linux/macos/web/unknown)
+      - `device_id` (Char)
+      - `manufacturer` (Char)
+      - `brand` (Char)
+      - `model` (Char)
+      - `system_version` (Char)
+      - `ip_address` (Char)
+      - `raw_json` (Text)
+
+  - 2) Models init (edit):
+    - Update: `pos_backend/models/__init__.py`
+      - add: `from . import pos_device_log`
+
+  - 3) Controller (new file):
+    - Create: `pos_backend/controllers/pos_device_api.py`
+    - Route:
+      - POST `/api/pos/device/register`
+      - `type='http'`, `auth='public'`, `csrf=False`, `cors='*'`
+      - IMPORTANT (Odoo):
+        - Avoid 303 redirect to `/web/login` by NOT using `auth='user'`.
+        - Session cookie may be missing on some clients; fall back to payload `user_id`
+          (most POS endpoints in this addon are `auth='public'` anyway).
+      - Validates payload `pos_name` non-empty
+      - Creates a log row (always create; easiest audit trail)
+      - Returns: `{status:'success', data:{id:<log_id>}}`
+
+  - 4) Controllers init (edit):
+    - Update: `pos_backend/controllers/__init__.py`
+      - add: `from . import pos_device_api`
+
+  - 5) Views + menu (new file):
+    - Create: `pos_backend/views/pos_device_log_views.xml`
+      - Odoo 18 list view tag must be `<list>` (NOT `<tree>`) or module upgrade will fail.
+      - List view like loyalty log (newest first)
+      - Search view (user_id, pos_name, platform, model, device_id)
+      - Action + Menu: `Custom POS > Logs > POS Device Log`
+
+  - 6) Security access (edit):
+    - Update: `pos_backend/security/ir.model.access.csv`
+      - Add access row for `pos.backend.device.log`
+      - Recommended:
+        - Allow create for internal users (so session user can write)
+        - Allow read for admin/manager group (optional)
+
+  - 7) Manifest (edit):
+    - Update: `pos_backend/__manifest__.py`
+      - add xml: `views/pos_device_log_views.xml`
+
+  - 8) Ops:
+    - Restart Odoo service and upgrade module `pos_backend`
+    - Hard refresh web (`Ctrl+F5`)
 
 - Product fetch endpoint currently used by Flutter:
   GET /api/products

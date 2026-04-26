@@ -100,11 +100,28 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     super.initState();
     _customerName = widget.customerName;
     _cartItems.clear();
+    _validateSingleDeviceSession();
     _loadCatalog();
     _loadProfile();
     _loadHistory();
     _loadSelfOrderConfig();
     _loadProfileImage();
+  }
+
+  Future<void> _validateSingleDeviceSession() async {
+    // If user logged in from another device, backend will invalidate this session.
+    try {
+      final ok = await _apiService.validateCustomerSession();
+      if (!ok) {
+        await _apiService.logout();
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
+    } catch (_) {
+      // ignore: don't block UI if offline; session will be validated on next online call
+    }
   }
 
   @override
