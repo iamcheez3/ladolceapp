@@ -110,6 +110,49 @@ class ApiService {
     return headers;
   }
 
+  Future<void> _updateCacheList(String key, Map<String, dynamic> item) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString(key);
+    // Always create list even if cache doesn't exist yet
+    final list = cached != null ? List<dynamic>.from(jsonDecode(cached)) : <dynamic>[];
+    final index = list.indexWhere((e) => e != null && e is Map && e['id'] == item['id']);
+    if (index >= 0) {
+      list[index] = item;
+    } else {
+      list.add(item);
+    }
+    await prefs.setString(key, jsonEncode(list));
+  }
+
+  Future<void> _removeFromCacheList(String key, int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString(key);
+    if (cached != null) {
+      final list = List<dynamic>.from(jsonDecode(cached));
+      list.removeWhere((e) => e != null && e is Map && e['id'] == id);
+      await prefs.setString(key, jsonEncode(list));
+    }
+  }
+
+  Future<void> _markTableHasOpenOrder(int tableId, {required bool hasOpenOrder}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cached_tables');
+    if (cached == null) return;
+
+    try {
+      final list = List<dynamic>.from(jsonDecode(cached));
+      final idx = list.indexWhere((e) => e != null && e is Map && e['id'] == tableId);
+      if (idx < 0) return;
+
+      final current = Map<String, dynamic>.from(list[idx] as Map);
+      current['has_open_order'] = hasOpenOrder;
+      list[idx] = current;
+      await prefs.setString('cached_tables', jsonEncode(list));
+    } catch (_) {
+      // ignore cache corruption; caller will rely on server refresh
+    }
+  }
+
 
   /// Returns cached products instantly (null if no cache)
   Future<List<Product>?> getCachedProducts() async {
@@ -120,8 +163,16 @@ class ApiService {
     return data.map((json) => Product.fromJson(json)).toList();
   }
 
-  Future<List<Product>> fetchProducts({int limit = 50, int offset = 0}) async {
+  Future<List<Product>> fetchProducts({int limit = 50, int offset = 0, bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_products');
+      if (cachedStr != null) {
+        final List<dynamic> data = jsonDecode(cachedStr);
+        return data.map((json) => Product.fromJson(json)).toList();
+      }
+    }
+    
     final base = await getBaseUrl();
 
     try {
@@ -168,8 +219,16 @@ class ApiService {
     return data.map((json) => PosTable.fromJson(json)).toList();
   }
 
-  Future<List<PosTable>> fetchTables() async {
+  Future<List<PosTable>> fetchTables({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_tables');
+      if (cachedStr != null) {
+        final List<dynamic> data = jsonDecode(cachedStr);
+        return data.map((json) => PosTable.fromJson(json)).toList();
+      }
+    }
+    
     final base = await getBaseUrl();
 
     try {
@@ -203,8 +262,16 @@ class ApiService {
     return data.map((json) => PaymentMethod.fromJson(json)).toList();
   }
 
-  Future<List<PaymentMethod>> fetchPaymentMethods() async {
+  Future<List<PaymentMethod>> fetchPaymentMethods({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_payment_methods');
+      if (cachedStr != null) {
+        final List<dynamic> data = jsonDecode(cachedStr);
+        return data.map((json) => PaymentMethod.fromJson(json)).toList();
+      }
+    }
+    
     final base = await getBaseUrl();
 
     try {
@@ -229,7 +296,16 @@ class ApiService {
     }
   }
 
-  Future<List<OpenTicket>> fetchOpenTickets() async {
+  Future<List<OpenTicket>> fetchOpenTickets({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_open_tickets');
+      if (cachedStr != null) {
+        final List<dynamic> data = jsonDecode(cachedStr);
+        return data.map((json) => OpenTicket.fromJson(json)).toList();
+      }
+    }
+    
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/open_tickets');
@@ -238,16 +314,30 @@ class ApiService {
         final jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
           final List<dynamic> data = jsonResponse['data'];
+          await prefs.setString('cached_open_tickets', jsonEncode(data));
           return data.map((json) => OpenTicket.fromJson(json)).toList();
         }
       }
       throw Exception('Failed to load tickets');
     } catch (e) {
-      throw Exception('Network error: Cannot fetch open tickets');
+      final cachedStr = prefs.getString('cached_open_tickets');
+      if (cachedStr != null) {
+        final List<dynamic> data = jsonDecode(cachedStr);
+        return data.map((json) => OpenTicket.fromJson(json)).toList();
+      }
+      return [];
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchReceiptHistory() async {
+  Future<List<Map<String, dynamic>>> fetchReceiptHistory({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_receipt_history');
+      if (cachedStr != null) {
+        return List<Map<String, dynamic>>.from(jsonDecode(cachedStr));
+      }
+    }
+    
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/history');
@@ -255,12 +345,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
-          return List<Map<String, dynamic>>.from(jsonResponse['data']);
+          final data = List<Map<String, dynamic>>.from(jsonResponse['data']);
+          await prefs.setString('cached_receipt_history', jsonEncode(data));
+          return data;
         }
       }
       throw Exception('Failed to load receipt history');
     } catch (e) {
-      throw Exception('Network error: Cannot fetch receipt history');
+      final cachedStr = prefs.getString('cached_receipt_history');
+      if (cachedStr != null) {
+        return List<Map<String, dynamic>>.from(jsonDecode(cachedStr));
+      }
+      return [];
     }
   }
 
@@ -446,20 +542,35 @@ class ApiService {
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-        return jsonResponse['data'];
+        final data = jsonResponse['data'];
+        await _updateCacheList('cached_receipt_history', data);
+        return data;
       } else {
         throw Exception(jsonResponse['message'] ?? 'Failed to submit order');
       }
     } catch (e) {
       print('[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e');
-      await _queueOfflineOrder(payload);
-      return {
+      final mockId = -DateTime.now().millisecondsSinceEpoch;
+      await _queueOfflineOrder({
+        'action': 'submit',
+        'payload': payload,
+        'mock_id': mockId
+      });
+      final now = DateTime.now();
+      final mockReceipt = {
         'offline': true,
-        'order_id': 0,
-        'order_reference': 'OFFLINE-${DateTime.now().millisecondsSinceEpoch}',
-        'amount_total': 0.0,
-        'state': 'draft'
+        'synced': false,
+        'id': mockId,
+        'name': 'OFFLINE-$mockId',
+        'order_reference': 'OFFLINE-$mockId',
+        'date_order': now.toIso8601String(),
+        if (isPaid) 'date_paid': now.toIso8601String(),
+        'payment_method': paymentMethodId != null ? 'Method #$paymentMethodId' : 'Offline',
+        'amount_total': lines.fold<double>(0.0, (sum, line) => sum + (line['price_unit'] * line['qty'])),
+        'state': isPaid ? 'paid' : 'draft'
       };
+      await _updateCacheList('cached_receipt_history', mockReceipt);
+      return mockReceipt;
     }
   }
 
@@ -489,17 +600,64 @@ class ApiService {
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-        return jsonResponse['data'];
+        final data = jsonResponse['data'];
+        final total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
+        final localTicket = {
+            'id': data['order_id'],
+            'name': data['order_reference'],
+            'table_id': tableId,
+            'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
+            'amount_total': total,
+            'state': 'draft',
+            // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
+            'opened_at': DateTime.now().toUtc().toIso8601String(),
+            'lines': lines.map((l) => {
+                 'product_id': l['product_id'],
+                 'product_name': 'Item',
+                 'qty': l['qty'],
+                 'price_unit': l['price_unit'],
+                 'topping_ids': l['topping_ids'] ?? []
+            }).toList()
+        };
+        await _updateCacheList('cached_open_tickets', localTicket);
+        if (tableId != null) {
+          await _markTableHasOpenOrder(tableId, hasOpenOrder: true);
+        }
+        return data;
       } else {
         throw Exception(jsonResponse['message'] ?? 'Failed to create order');
       }
     } catch (e) {
-      await _queueOfflineOrder(payload);
-      return {
-        'offline': true,
-        'order_id': 0,
-        'order_reference': 'OFFLINE-${DateTime.now().millisecondsSinceEpoch}',
+      final mockId = -DateTime.now().millisecondsSinceEpoch;
+      await _queueOfflineOrder({
+         'action': 'create',
+         'payload': payload,
+         'mock_id': mockId
+      });
+      final total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
+      final mockTicket = {
+         'id': mockId,
+         'name': 'OFFLINE-MOCK', // Using static or mock name
+         'table_id': tableId,
+         'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
+         'partner_id': customerId, // keeping for record
+         'amount_total': total,
+         'state': 'draft',
+         // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
+         'opened_at': DateTime.now().toUtc().toIso8601String(),
+         'lines': lines.map((l) => {
+             'product_id': l['product_id'],
+             'product_name': 'Item',
+             'qty': l['qty'],
+             'price_unit': l['price_unit'],
+             'topping_ids': l['topping_ids'] ?? []
+         }).toList()
       };
+      await _updateCacheList('cached_open_tickets', mockTicket);
+      if (tableId != null) {
+        await _markTableHasOpenOrder(tableId, hasOpenOrder: true);
+      }
+      return {'order_id': mockId, 'order_reference': 'OFFLINE-MOCK'};
     }
   }
 
@@ -536,12 +694,114 @@ class ApiService {
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-        return jsonResponse['data'];
+        final data = jsonResponse['data'];
+        final prefs = await SharedPreferences.getInstance();
+        final cached = prefs.getString('cached_open_tickets');
+        if (cached != null) {
+           final list = List<dynamic>.from(jsonDecode(cached));
+           final index = list.indexWhere((e) => e != null && e is Map && e['id'] == orderId);
+           if (index >= 0) {
+              // Ensure existing cached tickets always keep an opened_at timestamp
+              // so the Open Tickets screen can show the live duration badge.
+              if (list[index] is Map &&
+                  (list[index]['opened_at'] == null ||
+                      (list[index]['opened_at']?.toString().isEmpty ?? true))) {
+                list[index]['opened_at'] = DateTime.now().toUtc().toIso8601String();
+              }
+
+              // If we cleared a ticket completely, remove it from open tickets cache.
+              // This also ensures the associated table is selectable again.
+              if (replaceAll && lines.isEmpty) {
+                list.removeAt(index);
+                await prefs.setString('cached_open_tickets', jsonEncode(list));
+                if (tableId != null) {
+                  await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
+                }
+                return data;
+              }
+
+              double total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
+              list[index]['amount_total'] = total;
+              if (replaceAll) {
+                  list[index]['lines'] = lines.map((l) => {
+                       'product_id': l['product_id'],
+                       'product_name': 'Item',
+                       'qty': l['qty'],
+                       'price_unit': l['price_unit'],
+                       'topping_ids': l['topping_ids'] ?? []
+                  }).toList();
+              } else {
+                  List existing = list[index]['lines'] ?? [];
+                  existing.addAll(lines.map((l) => {
+                       'product_id': l['product_id'],
+                       'product_name': 'Item',
+                       'qty': l['qty'],
+                       'price_unit': l['price_unit'],
+                       'topping_ids': l['topping_ids'] ?? []
+                  }));
+                  list[index]['lines'] = existing;
+              }
+              await prefs.setString('cached_open_tickets', jsonEncode(list));
+           }
+        }
+        return data;
       } else {
         throw Exception(jsonResponse['message'] ?? 'Failed to update order');
       }
     } catch (e) {
-      throw Exception('Failed to update order: $e');
+      await _queueOfflineOrder({
+         'action': 'update',
+         'payload': payload,
+         'mock_id': orderId
+      });
+      // Also fetch and update local mock ticket
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_open_tickets');
+      if (cached != null) {
+         final list = List<dynamic>.from(jsonDecode(cached));
+         final index = list.indexWhere((e) => e != null && e is Map && e['id'] == orderId);
+         if (index >= 0) {
+            if (list[index] is Map &&
+                (list[index]['opened_at'] == null ||
+                    (list[index]['opened_at']?.toString().isEmpty ?? true))) {
+              list[index]['opened_at'] = DateTime.now().toUtc().toIso8601String();
+            }
+
+            if (replaceAll && lines.isEmpty) {
+              list.removeAt(index);
+              await prefs.setString('cached_open_tickets', jsonEncode(list));
+              if (tableId != null) {
+                await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
+              }
+              return {'id': orderId, 'cleared_offline': true};
+            }
+
+            double total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
+            list[index]['amount_total'] = total;
+            if (replaceAll) {
+                list[index]['lines'] = lines.map((l) => {
+                     'product_id': l['product_id'],
+                     'product_name': 'Item',
+                     'qty': l['qty'],
+                     'price_unit': l['price_unit'],
+                     'topping_ids': l['topping_ids'] ?? []
+                }).toList();
+            } else {
+                List existing = list[index]['lines'] ?? [];
+                existing.addAll(lines.map((l) => {
+                     'product_id': l['product_id'],
+                     'product_name': 'Item',
+                     'qty': l['qty'],
+                     'price_unit': l['price_unit'],
+                     'topping_ids': l['topping_ids'] ?? []
+                }));
+                list[index]['lines'] = existing;
+            }
+            await prefs.setString('cached_open_tickets', jsonEncode(list));
+            return list[index];
+         }
+      }
+      return {'id': orderId, 'offline_update': true};
     }
   }
 
@@ -559,21 +819,72 @@ class ApiService {
     print('[API CALL] POST $url (PAY)');
     print('[API LOAD] $payload');
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    ).timeout(const Duration(seconds: 5));
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 5));
 
-    print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    print('[API BODY] ${response.body}');
-    print('==============================');
+      final jsonResponse = jsonDecode(response.body);
+      if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
+        final data = jsonResponse['data'];
+        await _removeFromCacheList('cached_open_tickets', orderId);
+        await _updateCacheList('cached_receipt_history', data);
+        return data;
+      } else {
+        throw Exception(jsonResponse['message'] ?? 'Failed to pay order');
+      }
+    } catch (e) {
+      // Offline fallback: queue the pay and immediately move the ticket to Receipt History
+      // as "Unsynced", while freeing the table locally.
+      await _queueOfflineOrder({
+         'action': 'pay',
+         'payload': payload,
+         'mock_id': orderId
+      });
 
-    final jsonResponse = jsonDecode(response.body);
-    if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-      return jsonResponse['data'];
-    } else {
-      throw Exception(jsonResponse['message'] ?? 'Failed to pay order');
+      // Try to extract table + totals from cached_open_tickets so UI looks correct.
+      int? tableId;
+      String name = 'POS/$orderId';
+      double amountTotal = 0.0;
+      String dateOrder = DateTime.now().toIso8601String();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final cached = prefs.getString('cached_open_tickets');
+        if (cached != null) {
+          final list = List<dynamic>.from(jsonDecode(cached));
+          final idx = list.indexWhere((t) => t is Map && t['id'] == orderId);
+          if (idx >= 0) {
+            final t = Map<String, dynamic>.from(list[idx] as Map);
+            tableId = t['table_id'] is int ? t['table_id'] as int : null;
+            name = (t['name'] ?? name).toString();
+            amountTotal = (t['amount_total'] is num)
+                ? (t['amount_total'] as num).toDouble()
+                : double.tryParse(t['amount_total']?.toString() ?? '') ?? amountTotal;
+            dateOrder = (t['opened_at'] ?? t['date_order'] ?? dateOrder).toString();
+          }
+        }
+      } catch (_) {}
+
+      await _removeFromCacheList('cached_open_tickets', orderId);
+      if (tableId != null) {
+        await _markTableHasOpenOrder(tableId!, hasOpenOrder: false);
+      }
+      final mockReceipt = {
+         'offline': true,
+         'synced': false,
+         'id': orderId,
+         'name': name,
+         'order_reference': name,
+         'date_order': dateOrder,
+         'date_paid': DateTime.now().toIso8601String(),
+         'payment_method': paymentMethodId != null ? 'Method #$paymentMethodId' : 'Offline',
+         'state': 'paid',
+         'amount_total': amountTotal,
+      };
+      await _updateCacheList('cached_receipt_history', mockReceipt);
+      return mockReceipt;
     }
   }
 
@@ -631,11 +942,48 @@ class ApiService {
     }
   }
 
-  Future<void> _queueOfflineOrder(Map<String, dynamic> payload) async {
+  Future<void> _queueOfflineOrder(Map<String, dynamic> task) async {
     final prefs = await SharedPreferences.getInstance();
     List<String> offlineQueue = prefs.getStringList('offline_orders') ?? [];
-    offlineQueue.add(jsonEncode(payload));
+    offlineQueue.add(jsonEncode(task));
     await prefs.setStringList('offline_orders', offlineQueue);
+  }
+
+  /// Removes queued offline tasks for a specific order id (usually a negative mock id).
+  /// This is useful when we want to replace "create + pay" sequences with a single
+  /// "submit paid" action for reliability.
+  Future<void> purgeOfflineTasksForOrder(int orderId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final offlineQueue = prefs.getStringList('offline_orders') ?? [];
+    if (offlineQueue.isEmpty) return;
+
+    final remaining = <String>[];
+    for (final raw in offlineQueue) {
+      try {
+        final task = jsonDecode(raw);
+        if (task is Map) {
+          final rawMockId = task['mock_id'];
+          final mockId = rawMockId is int
+              ? rawMockId
+              : int.tryParse(rawMockId?.toString() ?? '');
+          if (mockId == orderId) {
+            continue; // drop
+          }
+        }
+      } catch (_) {}
+      remaining.add(raw);
+    }
+    await prefs.setStringList('offline_orders', remaining);
+  }
+
+  /// Clears a local open ticket from cache and updates table state so the table
+  /// is selectable again. Used when an offline ticket is charged and moved into
+  /// receipt history "waiting to sync".
+  Future<void> clearLocalOpenTicket(int orderId, {int? tableId}) async {
+    await _removeFromCacheList('cached_open_tickets', orderId);
+    if (tableId != null) {
+      await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
+    }
   }
 
   Future<int> syncOfflineOrders() async {
@@ -645,33 +993,172 @@ class ApiService {
     if (offlineQueue.isEmpty) return 0;
     
     int syncedCount = 0;
-    List<String> remainingQueue = [];
     final base = await getBaseUrl();
-    final url = Uri.parse('$base/pos/order');
+    Map<int, int> mockToRealId = {};
+    final headers = await _authHeaders(json: true);
 
-    for (String orderJson in offlineQueue) {
-      try {
-        final payload = jsonDecode(orderJson);
-        final response = await http.post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 4));
-        
-        if (response.statusCode == 200) {
-          final jsonResp = jsonDecode(response.body);
-          if (jsonResp['status'] == 'success') {
-            syncedCount++;
+    // Multi-pass replay so that create actions can establish mock→real mappings
+    // before update/pay are attempted.
+    List<String> pending = List<String>.from(offlineQueue);
+    for (int pass = 0; pass < 3; pass++) {
+      if (pending.isEmpty) break;
+      final List<String> nextPending = [];
+
+      // Process create/submit first, then others in each pass.
+      final decoded = pending.map((t) {
+        try { return jsonDecode(t); } catch (_) { return null; }
+      }).toList();
+      final ordered = <Map<String, dynamic>>[];
+      for (final d in decoded) {
+        if (d is Map<String, dynamic>) ordered.add(d);
+      }
+      ordered.sort((a, b) {
+        int rank(dynamic action) {
+          final s = action?.toString();
+          if (s == 'create' || s == 'submit') return 0;
+          if (s == 'update') return 1;
+          if (s == 'pay') return 2;
+          return 3;
+        }
+        return rank(a['action']).compareTo(rank(b['action']));
+      });
+
+      print('[OFFLINE SYNC] pass=${pass + 1} pending=${pending.length}');
+
+      for (final task in ordered) {
+        // Keep original raw json for pending list if needed
+        final taskJson = jsonEncode(task);
+        try {
+          // Fallback for old format
+          if (task['action'] == null) {
+            final response = await http.post(
+              Uri.parse('$base/pos/order'),
+              headers: headers,
+              body: jsonEncode(task),
+            ).timeout(const Duration(seconds: 8));
+            if (response.statusCode == 200) {
+              syncedCount++;
+              continue;
+            }
+            nextPending.add(taskJson);
             continue;
           }
+
+          final action = task['action']?.toString();
+          final Map<String, dynamic> payload =
+              Map<String, dynamic>.from(task['payload'] ?? const {});
+
+          final rawMockId = task['mock_id'];
+          final int mockId = rawMockId is int
+              ? rawMockId
+              : (int.tryParse(rawMockId?.toString() ?? '') ?? 0);
+
+          final int targetId =
+              (mockId < 0 && mockToRealId.containsKey(mockId))
+                  ? mockToRealId[mockId]!
+                  : mockId;
+
+          // If we can't map a mock id yet, defer this task to the next pass.
+          if ((action == 'update' || action == 'pay') &&
+              targetId < 0 &&
+              mockId < 0 &&
+              !mockToRealId.containsKey(mockId)) {
+            nextPending.add(taskJson);
+            continue;
+          }
+
+          if (action == 'create' || action == 'submit') {
+            final response = await http.post(
+              Uri.parse('$base/pos/order'),
+              headers: headers,
+              body: jsonEncode(payload),
+            ).timeout(const Duration(seconds: 8));
+            if (response.statusCode == 200) {
+              final jsonResp = jsonDecode(response.body);
+              if (jsonResp['status'] == 'success') {
+                int? realId;
+                try {
+                  final data = jsonResp['data'];
+                  if (data is Map) {
+                    final cand = data['order_id'] ?? data['id'];
+                    if (cand is int) realId = cand;
+                    if (cand is String) realId = int.tryParse(cand);
+                  }
+                  realId ??=
+                      (jsonResp['order_id'] is int) ? jsonResp['order_id'] : null;
+                  realId ??= (jsonResp['id'] is int) ? jsonResp['id'] : null;
+                } catch (_) {}
+
+                if (action == 'create' && mockId < 0 && realId != null) {
+                  mockToRealId[mockId] = realId;
+                  print('[OFFLINE SYNC] mapped mockId=$mockId -> realId=$realId');
+                }
+
+                // If this was an offline paid submit, replace the local "Unsynced" mock receipt
+                // with the real backend receipt data so the UI becomes consistent.
+                if (action == 'submit' && mockId < 0) {
+                  try {
+                    final data = jsonResp['data'];
+                    await _removeFromCacheList('cached_receipt_history', mockId);
+                    if (data is Map<String, dynamic>) {
+                      await _updateCacheList('cached_receipt_history', data);
+                    } else if (data is Map) {
+                      await _updateCacheList(
+                        'cached_receipt_history',
+                        Map<String, dynamic>.from(data),
+                      );
+                    }
+                  } catch (_) {}
+                }
+
+                syncedCount++;
+                continue;
+              }
+            }
+            nextPending.add(taskJson);
+            continue;
+          }
+
+          if (action == 'update') {
+            final response = await http.post(
+              Uri.parse('$base/pos/order/$targetId/update'),
+              headers: headers,
+              body: jsonEncode(payload),
+            ).timeout(const Duration(seconds: 8));
+            if (response.statusCode == 200) {
+              syncedCount++;
+              continue;
+            }
+            nextPending.add(taskJson);
+            continue;
+          }
+
+          if (action == 'pay') {
+            final response = await http.post(
+              Uri.parse('$base/pos/order/$targetId/pay'),
+              headers: headers,
+              body: jsonEncode(payload),
+            ).timeout(const Duration(seconds: 8));
+            if (response.statusCode == 200) {
+              syncedCount++;
+              continue;
+            }
+            nextPending.add(taskJson);
+            continue;
+          }
+
+          // Unknown action — keep it
+          nextPending.add(taskJson);
+        } catch (_) {
+          nextPending.add(taskJson);
         }
-        remainingQueue.add(orderJson);
-      } catch (e) {
-        remainingQueue.add(orderJson);
       }
+
+      // De-dupe pending tasks for next pass
+      pending = nextPending.toSet().toList();
     }
-    
-    await prefs.setStringList('offline_orders', remainingQueue);
+
+    await prefs.setStringList('offline_orders', pending);
     return syncedCount;
   }
 
@@ -679,7 +1166,14 @@ class ApiService {
   // CATALOG MANAGEMENT
   // ---------------------------------------------------------------------------
 
-  Future<List<dynamic>> fetchToppings() async {
+  Future<List<dynamic>> fetchToppings({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_toppings');
+      if (cachedStr != null) {
+        return jsonDecode(cachedStr);
+      }
+    }
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/toppings');
@@ -687,12 +1181,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
         if (jsonResp['status'] == 'success') {
-          return jsonResp['data'];
+          final data = jsonResp['data'];
+          await prefs.setString('cached_toppings', jsonEncode(data));
+          return data;
         }
       }
       throw Exception('Failed to load toppings');
     } catch (e) {
-      throw Exception('Network error: Cannot fetch toppings');
+      final cachedStr = prefs.getString('cached_toppings');
+      if (cachedStr != null) {
+        return jsonDecode(cachedStr);
+      }
+      return [];
     }
   }
 
@@ -708,7 +1208,9 @@ class ApiService {
       
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
-        return jsonResp['data'];
+        final data = jsonResp['data'];
+        await _updateCacheList('cached_toppings', data);
+        return data;
       }
       throw Exception(jsonResp['message'] ?? 'Failed to add topping');
     } catch (e) {
@@ -725,12 +1227,20 @@ class ApiService {
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
         throw Exception(jsonResp['message'] ?? 'Failed to delete topping');
       }
+      await _removeFromCacheList('cached_toppings', id);
     } catch (e) {
       throw Exception('Network error: Cannot delete topping');
     }
   }
 
-  Future<List<dynamic>> fetchCategories() async {
+  Future<List<dynamic>> fetchCategories({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_categories');
+      if (cachedStr != null) {
+        return jsonDecode(cachedStr);
+      }
+    }
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/categories');
@@ -738,12 +1248,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
         if (jsonResp['status'] == 'success') {
-          return jsonResp['data'];
+          final data = jsonResp['data'];
+          await prefs.setString('cached_categories', jsonEncode(data));
+          return data;
         }
       }
       throw Exception('Failed to load categories');
     } catch (e) {
-      throw Exception('Network error: Cannot fetch categories');
+      final cachedStr = prefs.getString('cached_categories');
+      if (cachedStr != null) {
+        return jsonDecode(cachedStr);
+      }
+      return [];
     }
   }
 
@@ -767,7 +1283,9 @@ class ApiService {
       
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
-        return jsonResp['data'];
+        final data = jsonResp['data'];
+        await _updateCacheList('cached_categories', data);
+        return data;
       }
       throw Exception(jsonResp['message'] ?? 'Failed to save category');
     } catch (e) {
@@ -784,13 +1302,21 @@ class ApiService {
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
         throw Exception(jsonResp['message'] ?? 'Failed to delete category');
       }
+      await _removeFromCacheList('cached_categories', id);
     } catch (e) {
       throw Exception('Network error: Cannot delete category');
     }
   }
 
   // Customers
-  Future<List<dynamic>> fetchCustomers() async {
+  Future<List<dynamic>> fetchCustomers({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_customers');
+      if (cachedStr != null) {
+        return jsonDecode(cachedStr);
+      }
+    }
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/customers');
@@ -798,12 +1324,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
         if (jsonResp['status'] == 'success') {
-          return jsonResp['data'];
+          final data = jsonResp['data'];
+          await prefs.setString('cached_customers', jsonEncode(data));
+          return data;
         }
       }
       throw Exception('Failed to load customers');
     } catch (e) {
-      throw Exception('Network error: Cannot fetch customers');
+      final cachedStr = prefs.getString('cached_customers');
+      if (cachedStr != null) {
+        return jsonDecode(cachedStr);
+      }
+      return [];
     }
   }
 
@@ -819,7 +1351,9 @@ class ApiService {
       
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
-        return jsonResp['data'];
+        final data = jsonResp['data'];
+        await _updateCacheList('cached_customers', data);
+        return data;
       }
       throw Exception(jsonResp['message'] ?? 'Failed to save customer');
     } catch (e) {
@@ -864,7 +1398,9 @@ class ApiService {
 
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
-        return jsonResp['data'];
+        final data = jsonResp['data'];
+        await _updateCacheList('cached_products', data);
+        return data;
       }
       throw Exception(jsonResp['message'] ?? 'Failed to save product');
     } on SocketException catch (e) {
@@ -889,12 +1425,20 @@ class ApiService {
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
         throw Exception(jsonResp['message'] ?? 'Failed to delete product');
       }
+      await _removeFromCacheList('cached_products', id);
     } catch (e) {
       throw Exception('Network error: Cannot delete product');
     }
   }
 
-  Future<List<dynamic>> fetchCombos() async {
+  Future<List<dynamic>> fetchCombos({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_combos');
+      if (cachedStr != null) {
+        return jsonDecode(cachedStr);
+      }
+    }
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/combos');
@@ -902,12 +1446,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
         if (jsonResp['status'] == 'success') {
-          return jsonResp['data'];
+          final data = jsonResp['data'];
+          await prefs.setString('cached_combos', jsonEncode(data));
+          return data;
         }
       }
       throw Exception('Failed to load combos');
     } catch (e) {
-      throw Exception('Network error: Cannot fetch combos');
+      final cachedStr = prefs.getString('cached_combos');
+      if (cachedStr != null) {
+        return jsonDecode(cachedStr);
+      }
+      return [];
     }
   }
 
@@ -933,7 +1483,9 @@ class ApiService {
 
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
-        return jsonResp['data'];
+        final data = jsonResp['data'];
+        await _updateCacheList('cached_combos', data);
+        return data;
       }
       throw Exception(jsonResp['message'] ?? 'Failed to save combo');
     } catch (e) {
@@ -950,6 +1502,7 @@ class ApiService {
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
         throw Exception(jsonResp['message'] ?? 'Failed to delete combo');
       }
+      await _removeFromCacheList('cached_combos', id);
     } catch (e) {
       throw Exception('Network error: Cannot delete combo');
     }
@@ -1034,7 +1587,14 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> fetchSelfOrderConfig() async {
+  Future<Map<String, dynamic>> fetchSelfOrderConfig({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_self_order_config');
+      if (cachedStr != null) {
+        return Map<String, dynamic>.from(jsonDecode(cachedStr));
+      }
+    }
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/self_order_config');
@@ -1042,12 +1602,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
         if (jsonResp['status'] == 'success') {
-          return Map<String, dynamic>.from(jsonResp['data']);
+          final data = Map<String, dynamic>.from(jsonResp['data']);
+          await prefs.setString('cached_self_order_config', jsonEncode(data));
+          return data;
         }
       }
       throw Exception('Failed to load self-order config');
     } catch (e) {
-      throw Exception('Network error: Cannot fetch self-order config');
+      final cachedStr = prefs.getString('cached_self_order_config');
+      if (cachedStr != null) {
+        return Map<String, dynamic>.from(jsonDecode(cachedStr));
+      }
+      return {};
     }
   }
 
@@ -1056,7 +1622,19 @@ class ApiService {
   ///   - `points_ratio`      (double)  — spend amount per 1 point
   ///   - `min_points_redeem` (int)     — minimum points required to redeem
   ///   - `points_label`      (String)  — display name for points (e.g. "Points")
-  Future<Map<String, dynamic>> fetchLoyaltyConfig() async {
+  Future<Map<String, dynamic>> fetchLoyaltyConfig({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final defaultData = {
+      'points_ratio': 100.0,
+      'min_points_redeem': 0,
+      'points_label': 'Points',
+    };
+    if (!forceRefresh) {
+      final cachedStr = prefs.getString('cached_loyalty_config');
+      if (cachedStr != null) {
+        return Map<String, dynamic>.from(jsonDecode(cachedStr));
+      }
+    }
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/loyalty_config');
@@ -1064,17 +1642,44 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
         if (jsonResp['status'] == 'success') {
-          return Map<String, dynamic>.from(jsonResp['data']);
+          final data = Map<String, dynamic>.from(jsonResp['data']);
+          await prefs.setString('cached_loyalty_config', jsonEncode(data));
+          return data;
         }
       }
       throw Exception('Failed to load loyalty config');
     } catch (e) {
-      // Return safe defaults so the app never crashes when offline
-      return {
-        'points_ratio': 100.0,
-        'min_points_redeem': 0,
-        'points_label': 'Points',
-      };
+      final cachedStr = prefs.getString('cached_loyalty_config');
+      if (cachedStr != null) {
+        return Map<String, dynamic>.from(jsonDecode(cachedStr));
+      }
+      return defaultData;
     }
+  }
+
+  Future<bool> hasBasicCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey('cached_products');
+  }
+
+  Future<void> syncAllData() async {
+    try {
+      await syncOfflineOrders();
+    } catch (_) {}
+
+    final futures = <Future>[
+      fetchProducts(limit: 500, forceRefresh: true),
+      fetchTables(forceRefresh: true),
+      fetchPaymentMethods(forceRefresh: true),
+      fetchToppings(forceRefresh: true),
+      fetchCategories(forceRefresh: true),
+      fetchCombos(forceRefresh: true),
+      fetchOpenTickets(forceRefresh: true),
+      fetchReceiptHistory(forceRefresh: true),
+      fetchCustomers(forceRefresh: true),
+      fetchSelfOrderConfig(forceRefresh: true),
+      fetchLoyaltyConfig(forceRefresh: true)
+    ];
+    await Future.wait(futures);
   }
 }

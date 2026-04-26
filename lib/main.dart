@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:upgrader/upgrader.dart';
-import 'screens/customer_self_order_screen.dart';
+import 'screens/loading_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/pin_screen.dart';
-import 'screens/pos_screen.dart';
 import 'services/api_service.dart';
 
 void main() async {
@@ -28,20 +26,7 @@ class PosApp extends StatelessWidget {
       return const LoginScreen();
     }
 
-    final role = initialUser!['role']?.toString();
-    if (role == 'customer') {
-      return CustomerSelfOrderScreen(
-        customerName: initialUser!['name'] ?? 'Customer',
-        userId: initialUser!['user_id'] ?? 1,
-        partnerId: initialUser!['partner_id'],
-      );
-    }
-
-    if (role == 'cashier') {
-      return PinScreen(cachedUser: initialUser!);
-    }
-
-    return const LoginScreen();
+    return LoadingScreen(user: initialUser!);
   }
 
   @override

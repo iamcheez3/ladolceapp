@@ -4,6 +4,7 @@ import 'customer_self_order_screen.dart';
 import 'pin_screen.dart';
 import 'pos_screen.dart';
 import 'register_screen.dart';
+import 'loading_screen.dart';
 import '../services/api_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -235,21 +236,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      if (response['role'] == 'cashier') {
+      if (response['role'] == 'cashier' || response['role'] == 'customer') {
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => PinScreen(cachedUser: response)),
-        );
-      } else if (response['role'] == 'customer') {
-        if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => CustomerSelfOrderScreen(
-              customerName: response['name'] ?? 'Customer',
-              userId: response['user_id'] ?? 1,
-              partnerId: response['partner_id'],
-            ),
-          ),
+          MaterialPageRoute(builder: (_) => LoadingScreen(user: response)),
         );
       } else {
         if (!mounted) return;

@@ -79,11 +79,15 @@ class _TicketsScreenState extends State<TicketsScreen> {
   String? _errorMessage;
   List<_DisplayTicket> _tickets = [];
   Timer? _tickTimer;
+  late final Map<int, Product> _productById;
 
   @override
   void initState() {
     super.initState();
-    _fetchTickets();
+    _productById = {
+      for (final p in widget.cachedProducts) p.id: p,
+    };
+    _fetchTickets(backgroundRefresh: false);
     // Rebuild every minute so duration badges stay current
     _tickTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
@@ -96,11 +100,16 @@ class _TicketsScreenState extends State<TicketsScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchTickets() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _fetchTickets({required bool backgroundRefresh}) async {
+    if (!backgroundRefresh) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    } else {
+      // Keep UI responsive while refreshing in background.
+      setState(() => _errorMessage = null);
+    }
 
     final List<_DisplayTicket> combined = [];
 
@@ -110,34 +119,45 @@ class _TicketsScreenState extends State<TicketsScreen> {
       final offlineList = prefs.getStringList('offline_orders') ?? [];
       for (int i = 0; i < offlineList.length; i++) {
         final raw = offlineList[i];
-        final Map<String, dynamic> data = jsonDecode(raw);
-        final rawLines = data['lines'] as List? ?? [];
+        try {
+          final Map<String, dynamic> task = jsonDecode(raw);
+          // Only show offline DRAFT/OPEN tickets here.
+          // Paid orders are represented in Receipt History as "Unsynced" and must NOT be resumable.
+          //
+          // We treat only 'create' as an open ticket. 'submit' is used for paid offline receipts.
+          if (task['action'] != 'create' && task['action'] != null) {
+            continue;
+          }
+          final MapPayload = task['payload'] ?? task; // Fallback to task if old format
+          if (MapPayload is Map && MapPayload['is_paid'] == true) {
+            continue;
+          }
+          final rawLines = MapPayload['lines'] as List? ?? [];
 
-        final List<TicketLine> lines = rawLines.map((l) {
-          final product = widget.cachedProducts
-              .where((p) => p.id == l['product_id'])
-              .firstOrNull;
-          return TicketLine(
-            productId: l['product_id'],
-            productName: product?.name ?? 'Product #${l['product_id']}',
-            qty: (l['qty'] ?? 1).toInt(),
-            priceUnit: (l['price_unit'] ?? 0).toDouble(),
-          );
-        }).toList();
+          final List<TicketLine> lines = rawLines.map((l) {
+            final product = _productById[l['product_id']];
+            return TicketLine(
+              productId: l['product_id'],
+              productName: product?.name ?? 'Product #${l['product_id']}',
+              qty: (l['qty'] ?? 1).toInt(),
+              priceUnit: ((l['price_unit'] ?? 0) as num).toDouble(),
+            );
+          }).toList();
 
-        final total = lines.fold<double>(
-            0.0, (sum, l) => sum + l.qty * l.priceUnit);
+          final total = lines.fold<double>(
+              0.0, (sum, l) => sum + l.qty * l.priceUnit);
 
-        combined.add(_DisplayTicket(
-          id: null,
-          name: 'OFFLINE #${i + 1}',
-          tableId: data['table_id'],
-          tableName: null,
-          amountTotal: total,
-          lines: lines,
-          isOffline: true,
-          offlineIndex: i, // Save actual index in list
-        ));
+          combined.add(_DisplayTicket(
+            id: task['mock_id'], // So it can be identified
+            name: 'OFFLINE #${i + 1}',
+            tableId: MapPayload['table_id'],
+            tableName: null,
+            amountTotal: total,
+            lines: lines,
+            isOffline: true,
+            offlineIndex: i, // Save actual index in list
+          ));
+        } catch (_) {}
       }
     } catch (_) {
       // ignore offline parse errors
@@ -145,8 +165,14 @@ class _TicketsScreenState extends State<TicketsScreen> {
 
     // ── 2. Load online tickets from Odoo ──────────────────────────────────
     try {
-      final onlineTickets = await _apiService.fetchOpenTickets();
+      // Load cached tickets instantly for fast UI, then refresh server in background.
+      final onlineTickets = await _apiService.fetchOpenTickets(forceRefresh: false);
       for (final t in onlineTickets) {
+        // Prevent showing duplicate mock tickets that exist in BOTH offline_queue and cached_open_tickets
+        if (t.id != null && combined.any((existing) => existing.id == t.id)) {
+            continue; 
+        }
+
         combined.add(_DisplayTicket(
           id: t.id,
           name: t.name,
@@ -176,6 +202,48 @@ class _TicketsScreenState extends State<TicketsScreen> {
       _tickets = combined;
       _isLoading = false;
     });
+
+    // Background refresh: update with freshest server state without blocking UI.
+    if (!backgroundRefresh) {
+      // ignore: unawaited_futures
+      _refreshFromServer();
+    }
+  }
+
+  Future<void> _refreshFromServer() async {
+    try {
+      final onlineTickets = await _apiService.fetchOpenTickets(forceRefresh: true);
+      if (!mounted) return;
+      final List<_DisplayTicket> refreshed = [];
+
+      // Keep offline tickets on top as before
+      final offline = _tickets.where((t) => t.isOffline).toList();
+      refreshed.addAll(offline);
+
+      for (final t in onlineTickets) {
+        if (refreshed.any((existing) => existing.id == t.id)) continue;
+        refreshed.add(_DisplayTicket(
+          id: t.id,
+          name: t.name,
+          tableId: t.tableId,
+          tableName: t.tableName,
+          amountTotal: t.amountTotal,
+          paymentType: t.paymentType,
+          paymentMethodId: t.paymentMethodId,
+          paymentMethodName: t.paymentMethodName,
+          lines: t.lines,
+          isOffline: false,
+          openedAt: t.openedAt,
+        ));
+      }
+
+      setState(() {
+        _tickets = refreshed;
+        _isLoading = false;
+      });
+    } catch (_) {
+      // Silent background refresh failure; cached UI remains usable.
+    }
   }
 
   Future<void> _resumeTicket(_DisplayTicket ticket) async {
@@ -237,7 +305,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
-            onPressed: _fetchTickets,
+            onPressed: () => _fetchTickets(backgroundRefresh: true),
           ),
         ],
       ),
