@@ -8,7 +8,7 @@ import 'login_screen.dart';
 class PinScreen extends StatefulWidget {
   final Map<String, dynamic> cachedUser;
 
-  const PinScreen({Key? key, required this.cachedUser}) : super(key: key);
+  const PinScreen({super.key, required this.cachedUser});
 
   @override
   State<PinScreen> createState() => _PinScreenState();
@@ -184,7 +184,7 @@ class _PinScreenState extends State<PinScreen> {
                         'assets/images/ladolce_bear_logo.png',
                         width: 380,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                   ),

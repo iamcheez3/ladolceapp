@@ -1,5 +1,3 @@
-import 'product.dart';
-
 class ComboLine {
   final int id;
   final int productId;

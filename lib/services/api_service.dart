@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product.dart';
@@ -66,6 +68,11 @@ class ApiService {
     final origin = Uri.parse(baseUrl).origin;
     final relative = normalized.startsWith('/') ? normalized : '/$normalized';
     return '$origin$relative';
+  }
+
+  void _d(String message) {
+    if (!kDebugMode) return;
+    developer.log(message, name: 'ApiService');
   }
 
   /// Async variant that respects dev base URL override from SharedPreferences.
@@ -177,14 +184,14 @@ class ApiService {
 
     try {
       final url = Uri.parse('$base/products?limit=$limit&offset=$offset');
-      print('==============================');
-      print('[API CALL] GET $url');
+      _d('==============================');
+      _d('[API CALL] GET $url');
       
       final response = await http.get(url).timeout(const Duration(seconds: 5));
       
-      print('[API RESP] GET $url | STATUS: ${response.statusCode}');
-      print('[API BODY] ${response.body}');
-      print('==============================');
+      _d('[API RESP] GET $url | STATUS: ${response.statusCode}');
+      _d('[API BODY] ${response.body}');
+      _d('==============================');
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
@@ -200,7 +207,7 @@ class ApiService {
         throw Exception('Failed to connect to Odoo Server (Code: ${response.statusCode})');
       }
     } catch (e) {
-      print('[API OFFLINE] Fetch products failed. Falling back to cache. Error: $e');
+      _d('[API OFFLINE] Fetch products failed. Falling back to cache. Error: $e');
       final cachedProducts = prefs.getString('cached_products');
       if (cachedProducts != null) {
         final List<dynamic> data = jsonDecode(cachedProducts);
@@ -391,12 +398,11 @@ class ApiService {
       'login': login,
       'password': password,
       'role': role,
-      if (phone != null) 'phone': phone,
+      'phone': ?phone,
     };
-    
-    print('==============================');
-    print('[API CALL] POST $url');
-    print('[API LOAD] $payload');
+    _d('==============================');
+    _d('[API CALL] POST $url');
+    _d('[API LOAD] $payload');
 
     final response = await http.post(
       url,
@@ -404,9 +410,9 @@ class ApiService {
       body: jsonEncode(payload),
     );
 
-    print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    print('[API BODY] ${response.body}');
-    print('==============================');
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
 
     final jsonResponse = jsonDecode(response.body);
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -422,14 +428,14 @@ class ApiService {
     final url = Uri.parse('$base/pos/login');
     final normalizedLogin = login.trim().toLowerCase();
     final Map<String, dynamic> payload = {
-      if (dbName != null) 'db': dbName,
+      'db': ?dbName,
       'login': normalizedLogin,
       'password': password,
     };
 
-    print('==============================');
-    print('[API CALL] POST $url');
-    print('[API LOAD] $payload');
+    _d('==============================');
+    _d('[API CALL] POST $url');
+    _d('[API LOAD] $payload');
 
     final response = await http.post(
       url,
@@ -437,9 +443,9 @@ class ApiService {
       body: jsonEncode(payload),
     );
 
-    print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    print('[API BODY] ${response.body}');
-    print('==============================');
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
 
     final jsonResponse = jsonDecode(response.body);
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -471,37 +477,37 @@ class ApiService {
     await prefs.remove('cached_user_data');
   }
   Future<void> setPosPin(String pin, int userId) async {
-  final base = await getBaseUrl();
-  final url = Uri.parse('$base/pos/set_pin');
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/set_pin');
 
-  print('==============================');
-  print('[SET PIN] POST $url');
-  print('[SET PIN] user_id: $userId | pin: $pin');
+    _d('==============================');
+    _d('[SET PIN] POST $url');
+    _d('[SET PIN] user_id: $userId | pin: $pin');
 
-  final response = await http.post(
-    url,
-    headers: {'Content-Type': 'application/json'}, // ← no session needed now
-    body: jsonEncode({'pin': pin, 'user_id': userId}),
-  ).timeout(const Duration(seconds: 6));
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'}, // ← no session needed now
+      body: jsonEncode({'pin': pin, 'user_id': userId}),
+    ).timeout(const Duration(seconds: 6));
 
-  print('[SET PIN] STATUS: ${response.statusCode}');
-  print('[SET PIN] BODY: ${response.body}');
-  print('==============================');
+    _d('[SET PIN] STATUS: ${response.statusCode}');
+    _d('[SET PIN] BODY: ${response.body}');
+    _d('==============================');
 
-  final jsonResponse = jsonDecode(response.body);
-  if (response.statusCode != 200 || jsonResponse['status'] != 'success') {
-    throw Exception(jsonResponse['message'] ?? 'Failed to save PIN');
+    final jsonResponse = jsonDecode(response.body);
+    if (response.statusCode != 200 || jsonResponse['status'] != 'success') {
+      throw Exception(jsonResponse['message'] ?? 'Failed to save PIN');
+    }
+
+    // Update local cache
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cached_user_data');
+    if (cached != null && cached.isNotEmpty) {
+      final data = Map<String, dynamic>.from(jsonDecode(cached));
+      data['pos_pin'] = pin;
+      await prefs.setString('cached_user_data', jsonEncode(data));
+    }
   }
-
-  // Update local cache
-  final prefs = await SharedPreferences.getInstance();
-  final cached = prefs.getString('cached_user_data');
-  if (cached != null && cached.isNotEmpty) {
-    final data = Map<String, dynamic>.from(jsonDecode(cached));
-    data['pos_pin'] = pin;
-    await prefs.setString('cached_user_data', jsonEncode(data));
-  }
-}
 
   
   Future<Map<String, dynamic>> submitOrder({
@@ -526,9 +532,9 @@ class ApiService {
     
     try {
       final url = Uri.parse('$base/pos/order');
-      print('==============================');
-      print('[API CALL] POST $url');
-      print('[API LOAD] $payload');
+      _d('==============================');
+      _d('[API CALL] POST $url');
+      _d('[API LOAD] $payload');
 
       final response = await http.post(
         url,
@@ -536,9 +542,9 @@ class ApiService {
         body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 5));
 
-      print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-      print('[API BODY] ${response.body}');
-      print('==============================');
+      _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+      _d('[API BODY] ${response.body}');
+      _d('==============================');
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -549,7 +555,7 @@ class ApiService {
         throw Exception(jsonResponse['message'] ?? 'Failed to submit order');
       }
     } catch (e) {
-      print('[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e');
+      _d('[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e');
       final mockId = -DateTime.now().millisecondsSinceEpoch;
       await _queueOfflineOrder({
         'action': 'submit',
@@ -586,7 +592,7 @@ class ApiService {
       'user_id': userId,
       'table_id': tableId,
       'partner_id': customerId,
-      if (name != null) 'name': name,
+      'name': ?name,
       'lines': lines,
     };
 
@@ -678,9 +684,9 @@ class ApiService {
 
     try {
       final url = Uri.parse('$base/pos/order/$orderId/update');
-      print('==============================');
-      print('[API CALL] POST $url');
-      print('[API LOAD] $payload');
+      _d('==============================');
+      _d('[API CALL] POST $url');
+      _d('[API LOAD] $payload');
 
       final response = await http.post(
         url,
@@ -688,9 +694,9 @@ class ApiService {
         body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 5));
 
-      print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-      print('[API BODY] ${response.body}');
-      print('==============================');
+      _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+      _d('[API BODY] ${response.body}');
+      _d('==============================');
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -815,9 +821,9 @@ class ApiService {
       'payment_method_id': paymentMethodId,
     };
 
-    print('==============================');
-    print('[API CALL] POST $url (PAY)');
-    print('[API LOAD] $payload');
+    _d('==============================');
+    _d('[API CALL] POST $url (PAY)');
+    _d('[API LOAD] $payload');
 
     try {
       final response = await http.post(
@@ -869,7 +875,7 @@ class ApiService {
 
       await _removeFromCacheList('cached_open_tickets', orderId);
       if (tableId != null) {
-        await _markTableHasOpenOrder(tableId!, hasOpenOrder: false);
+        await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
       }
       final mockReceipt = {
          'offline': true,
@@ -898,9 +904,9 @@ class ApiService {
       'admin_pin': adminPin,
     };
 
-    print('==============================');
-    print('[API CALL] POST $url (DELETE ORDER)');
-    print('[API LOAD] $payload');
+    _d('==============================');
+    _d('[API CALL] POST $url (DELETE ORDER)');
+    _d('[API LOAD] $payload');
 
     final response = await http.post(
       url,
@@ -908,9 +914,9 @@ class ApiService {
       body: jsonEncode(payload),
     ).timeout(const Duration(seconds: 5));
 
-    print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    print('[API BODY] ${response.body}');
-    print('==============================');
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
 
     final jsonResponse = jsonDecode(response.body);
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -1023,7 +1029,7 @@ class ApiService {
         return rank(a['action']).compareTo(rank(b['action']));
       });
 
-      print('[OFFLINE SYNC] pass=${pass + 1} pending=${pending.length}');
+      _d('[OFFLINE SYNC] pass=${pass + 1} pending=${pending.length}');
 
       for (final task in ordered) {
         // Keep original raw json for pending list if needed
@@ -1091,7 +1097,7 @@ class ApiService {
 
                 if (action == 'create' && mockId < 0 && realId != null) {
                   mockToRealId[mockId] = realId;
-                  print('[OFFLINE SYNC] mapped mockId=$mockId -> realId=$realId');
+                  _d('[OFFLINE SYNC] mapped mockId=$mockId -> realId=$realId');
                 }
 
                 // If this was an offline paid submit, replace the local "Unsynced" mock receipt
@@ -1382,9 +1388,9 @@ class ApiService {
     }
 
     try {
-      print('==============================');
-      print('[API CALL] POST $url');
-      print('[API LOAD] $bodyData');
+      _d('==============================');
+      _d('[API CALL] POST $url');
+      _d('[API LOAD] $bodyData');
 
       final response = await http.post(
         url,
@@ -1392,9 +1398,9 @@ class ApiService {
         body: jsonEncode(bodyData),
       ).timeout(const Duration(seconds: 5));
 
-      print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-      print('[API BODY] ${response.body}');
-      print('==============================');
+      _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+      _d('[API BODY] ${response.body}');
+      _d('==============================');
 
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {

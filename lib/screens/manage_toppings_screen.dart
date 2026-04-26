@@ -214,8 +214,8 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
-        child: const Icon(Icons.add_rounded),
         onPressed: _showAddDialog,
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }

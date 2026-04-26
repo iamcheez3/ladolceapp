@@ -39,7 +39,7 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
       
       if (mounted) {
         setState(() {
-          _combos = futures[0] as List<dynamic>;
+          _combos = futures[0];
           _allProducts = futures[1] as List<Product>;
           _isLoading = false;
         });

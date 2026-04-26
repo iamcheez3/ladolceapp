@@ -309,7 +309,7 @@ class _TicketColumn extends StatelessWidget {
               : ListView.separated(
                   padding: const EdgeInsets.only(top: 4),
                   itemCount: lines.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       Divider(height: 1, color: Colors.grey[200]),
                   itemBuilder: (context, i) {
                     final line = lines[i];

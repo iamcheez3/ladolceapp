@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 import '../services/api_service.dart';
 import 'customer_self_order_screen.dart';
 import 'pin_screen.dart';
@@ -7,7 +8,7 @@ import 'login_screen.dart';
 class LoadingScreen extends StatefulWidget {
   final Map<String, dynamic> user;
 
-  const LoadingScreen({Key? key, required this.user}) : super(key: key);
+  const LoadingScreen({super.key, required this.user});
 
   @override
   State<LoadingScreen> createState() => _LoadingScreenState();
@@ -37,7 +38,10 @@ class _LoadingScreenState extends State<LoadingScreen> {
       // If we are offline or syncing failed, check if we have the minimum cache to run
       final hasCache = await ApiService().hasBasicCache();
       if (hasCache) {
-        print('[LoadingScreen] Sync failed, but we have offline cache. Proceeding.');
+        developer.log(
+          '[LoadingScreen] Sync failed, but we have offline cache. Proceeding.',
+          name: 'LoadingScreen',
+        );
         _proceedToApp();
       } else {
         setState(() {

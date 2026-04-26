@@ -19,7 +19,7 @@ void main() async {
 class PosApp extends StatelessWidget {
   final Map<String, dynamic>? initialUser;
   
-  const PosApp({Key? key, this.initialUser}) : super(key: key);
+  const PosApp({super.key, this.initialUser});
 
   Widget _initialScreen() {
     if (initialUser == null) {

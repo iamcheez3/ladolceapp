@@ -26,10 +26,10 @@ class PosScreen extends StatefulWidget {
   final int cashierId;
 
   const PosScreen({
-    Key? key,
+    super.key,
     this.cashierName = 'Demo Cashier',
     this.cashierId = 1,
-  }) : super(key: key);
+  });
 
   @override
   State<PosScreen> createState() => _PosScreenState();
@@ -100,44 +100,17 @@ class _PosScreenState extends State<PosScreen> {
   // Search
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  bool _isSearching = false;
 
   // View toggle
   bool _isGridView = true;
 
   List<Category> _categories = [Category(id: 'All', name: 'All Items')];
 
-  String _selectedCategoryName = 'All Items';
-
   List<Product> _products = [];
   List<CartItem> _cartItems = [];
   List<PosTable> _tables = [];
   List<PaymentMethod> _paymentMethods = [];
   PaymentMethod? _selectedPaymentMethod;
-
-  PopupMenuItem<String> _menuItem(String value, IconData icon, String label) {
-    return PopupMenuItem<String>(
-      value: value,
-      padding: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: const Color(0xFF1A2A5E)),
-            const SizedBox(width: 14),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _drawerItem({
     required IconData icon,
@@ -214,10 +187,8 @@ class _PosScreenState extends State<PosScreen> {
           if (_paymentMethods.isNotEmpty && _selectedPaymentMethod == null) {
             _selectedPaymentMethod = _paymentMethods.first;
           }
-          _categories = [Category(id: 'All', name: 'All Items')]
-            ..addAll(
-              uniqueCategories.map((name) => Category(id: name, name: name)),
-            );
+          _categories = [Category(id: 'All', name: 'All Items'), ...uniqueCategories.map((name) => Category(id: name, name: name))]
+            ;
           _isLoading = false; // Show products right away!
         });
 
@@ -276,10 +247,8 @@ class _PosScreenState extends State<PosScreen> {
           if (_paymentMethods.isNotEmpty && _selectedPaymentMethod == null) {
             _selectedPaymentMethod = _paymentMethods.first;
           }
-          _categories = [Category(id: 'All', name: 'All Items')]
-            ..addAll(
-              uniqueCategories.map((name) => Category(id: name, name: name)),
-            );
+          _categories = [Category(id: 'All', name: 'All Items'), ...uniqueCategories.map((name) => Category(id: name, name: name))]
+            ;
           _isLoading = false;
         });
       }
@@ -336,8 +305,9 @@ class _PosScreenState extends State<PosScreen> {
         if (item.product.id != product.id || item.isSaved) return false;
 
         // Compare toppings exactly
-        if (item.selectedToppings.length != selectedToppings.length)
+        if (item.selectedToppings.length != selectedToppings.length) {
           return false;
+        }
         final selectedIds = selectedToppings.map((t) => t.id).toSet();
         final itemToppingIds = item.selectedToppings.map((t) => t.id).toSet();
         if (selectedIds.containsAll(itemToppingIds) &&
@@ -480,10 +450,11 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _handleClearTicket(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     if (_activeTicketId == null) {
       _clearCart();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Ticket cleared.'),
             backgroundColor: Colors.orange,
@@ -502,23 +473,21 @@ class _PosScreenState extends State<PosScreen> {
         adminPin: adminPin,
       );
       _clearCart();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ticket removed by Admin PIN.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Ticket removed by Admin PIN.'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cannot clear ticket: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Cannot clear ticket: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -689,37 +658,9 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
-  List<Product> get _filteredProducts {
-    List<Product> result = _products;
-
-    // Filter by category
-    if (_selectedCategoryName != 'All Items') {
-      result = result
-          .where((p) => p.category == _selectedCategoryName)
-          .toList();
-    }
-
-    // Filter by search query
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      result = result
-          .where(
-            (p) =>
-                p.name.toLowerCase().contains(query) ||
-                p.category.toLowerCase().contains(query) ||
-                (p.defaultCode != null &&
-                    p.defaultCode!.toLowerCase().contains(query)),
-          )
-          .toList();
-    }
-
-    return result;
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
-    final displayProducts = _filteredProducts;
 
     return Scaffold(
       backgroundColor: _brandSurface,
@@ -919,9 +860,11 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                     ),
                   );
-                  if (splitResult != null && mounted) {
+                  if (!context.mounted || splitResult == null) break;
+                  {
                     setState(() => _isLoading = true);
                     try {
+                      final messenger = ScaffoldMessenger.of(context);
                       // Build line format matching _saveCurrentTicket
                       List<Map<String, dynamic>> toLines(
                         List<CartItem> items,
@@ -967,26 +910,24 @@ class _PosScreenState extends State<PosScreen> {
                         _isLoading = false;
                       });
 
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Ticket split! "${splitResult.newTicketName}" created.',
-                            ),
-                            backgroundColor: Colors.green,
+                      if (!context.mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Ticket split! "${splitResult.newTicketName}" created.',
                           ),
-                        );
-                      }
+                          backgroundColor: Colors.green,
+                        ),
+                      );
                     } catch (e) {
                       setState(() => _isLoading = false);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Split error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Split error: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   }
                   break;
@@ -1256,14 +1197,13 @@ class _PosScreenState extends State<PosScreen> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
                   onTap: () async {
+                    final navigator = Navigator.of(context);
                     await _apiService.logout();
-                    if (mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    }
+                    if (!mounted) return;
+                    navigator.pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -1877,7 +1817,7 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        value: sourceTicketId,
+                        initialValue: sourceTicketId,
                         isExpanded: true,
                         items: tickets.map((t) {
                           return DropdownMenuItem<int>(
@@ -1927,17 +1867,19 @@ class _PosScreenState extends State<PosScreen> {
                             : (selection) {
                                 final next = selection.first;
                                 if (next == 'ticket' &&
-                                    destinationOptions.isEmpty)
+                                    destinationOptions.isEmpty) {
                                   return;
-                                if (next == 'table' && emptyTables.isEmpty)
+                                }
+                                if (next == 'table' && emptyTables.isEmpty) {
                                   return;
+                                }
                                 setDialogState(() => destinationMode = next);
                               },
                       ),
                       const SizedBox(height: 10),
                       if (destinationMode == 'ticket')
                         DropdownButtonFormField<int>(
-                          value: destinationTicketId,
+                          initialValue: destinationTicketId,
                           isExpanded: true,
                           items: destinationOptions.map((t) {
                             return DropdownMenuItem<int>(
@@ -1956,7 +1898,7 @@ class _PosScreenState extends State<PosScreen> {
                         )
                       else
                         DropdownButtonFormField<int>(
-                          value: destinationTableId,
+                          initialValue: destinationTableId,
                           isExpanded: true,
                           items: emptyTables.map((t) {
                             return DropdownMenuItem<int>(
@@ -2250,7 +2192,7 @@ class _PosScreenState extends State<PosScreen> {
                           ? const Center(child: Text('No customers found.'))
                           : ListView.separated(
                               itemCount: filteredCustomers.length,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (_, _) =>
                                   const Divider(height: 1),
                               itemBuilder: (ctx, index) {
                                 final c = filteredCustomers[index];
@@ -2342,17 +2284,19 @@ class _PosScreenState extends State<PosScreen> {
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) return;
+              final navigator = Navigator.of(ctx);
+              final messenger = ScaffoldMessenger.of(ctx);
               try {
                 await _apiService.saveCustomer(
                   name: nameCtrl.text.trim(),
                   phone: phoneCtrl.text.trim(),
                 );
-                Navigator.pop(ctx); // Close dialog
+                navigator.pop(); // Close dialog
                 onCustomerCreated(); // Trigger the callback
               } catch (e) {
-                ScaffoldMessenger.of(
-                  ctx,
-                ).showSnackBar(SnackBar(content: Text(e.toString())));
+                messenger.showSnackBar(
+                  SnackBar(content: Text(e.toString())),
+                );
               }
             },
             child: const Text('Save'),

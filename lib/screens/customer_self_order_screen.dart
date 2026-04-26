@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' show ImageFilter;
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
@@ -21,11 +21,11 @@ class CustomerSelfOrderScreen extends StatefulWidget {
   final int? partnerId;
 
   const CustomerSelfOrderScreen({
-    Key? key,
+    super.key,
     required this.customerName,
     required this.userId,
     this.partnerId,
-  }) : super(key: key);
+  });
 
   @override
   State<CustomerSelfOrderScreen> createState() =>
@@ -42,7 +42,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   static const _brandSurface = Colors.white;
   static const _brandCard = Colors.white;
   static const _brandDivider = Color(0xFFE6E8F2);
-  static const _brandAccent = Color(0xFF3B82F6);
   static const _brandGold = Color(0xFFC6A15B);
 
   bool _isLoadingCatalog = true;
@@ -174,8 +173,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       products.addAll(combos);
 
       final categorySet = products.map((p) => p.category).toSet();
-      final categories = [Category(id: 'All', name: 'All Items')]
-        ..addAll(categorySet.map((name) => Category(id: name, name: name)));
+      final categories = [Category(id: 'All', name: 'All Items'), ...categorySet.map((name) => Category(id: name, name: name))]
+        ;
 
       if (!mounted) return;
       setState(() {
@@ -416,6 +415,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   Future<void> _showAdPopupIfAvailable() async {
     if (!mounted || _hasShownAdPopup || _adImageDataUrls.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final suppressedDate = prefs.getString(_adSuppressDatePrefsKey) ?? '';
     final now = DateTime.now();
     final todayKey =
@@ -524,8 +524,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   Uint8List? _qrBytesFromDataUrl() {
-    if (_qrImageDataUrl.isEmpty || !_qrImageDataUrl.startsWith('data:image'))
+    if (_qrImageDataUrl.isEmpty || !_qrImageDataUrl.startsWith('data:image')) {
       return null;
+    }
     final comma = _qrImageDataUrl.indexOf(',');
     if (comma < 0) return null;
     final b64 = _qrImageDataUrl.substring(comma + 1);
@@ -660,15 +661,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   Future<int> _getAndroidSdkInt() async {
     if (!Platform.isAndroid) return 0;
     try {
-      // Read from system property
-      final result = await Process.run('getprop', ['ro.build.version.sdk']);
-      return int.tryParse(result.stdout.toString().trim()) ?? 30;
+      final info = await DeviceInfoPlugin().androidInfo;
+      return info.version.sdkInt;
     } catch (_) {
       return 30; // assume Android 11 as safe default
     }
   }
-    // append new item
-
 
   Future<List<Map<String, dynamic>>> _getLocalSelfOrderHistory() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1057,6 +1055,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       });
       await _loadHistory();
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1107,6 +1106,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       });
 
       await _loadHistory();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profile updated'),
@@ -1134,126 +1134,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
-    );
-  }
-
-  void _openPaymentInfoSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return FractionallySizedBox(
-          heightFactor: 0.72,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Payment / QR',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: _brandNavy,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Bank transfer details',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: _brandNavy,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _brandDivider),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Account name: ${_accountName.isEmpty ? '-' : _accountName}',
-                      ),
-                      Text('Bank: ${_bankName.isEmpty ? '-' : _bankName}'),
-                      Text(
-                        'Account no: ${_accountNumber.isEmpty ? '-' : _accountNumber}',
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'QR code',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: _brandNavy,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: Center(
-                    child: Container(
-                      width: 240,
-                      height: 240,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _brandDivider),
-                      ),
-                      child: _isLoadingSelfOrderConfig
-                          ? const Center(child: CircularProgressIndicator())
-                          : (_qrBytesFromDataUrl() != null
-                                ? Image.memory(
-                                    _qrBytesFromDataUrl()!,
-                                    fit: BoxFit.contain,
-                                  )
-                                : const Center(
-                                    child: Text('QR not configured'),
-                                  )),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _downloadQrCode,
-                    icon: const Icon(Icons.download),
-                    label: const Text('Download QR'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _brandNavy,
-                      side: const BorderSide(color: _brandDivider),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -1462,89 +1342,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _profileField({
-    required String label,
-    required String initialValue,
-    TextInputType? keyboardType,
-    required ValueChanged<String> onChanged,
-  }) {
-    return TextFormField(
-      initialValue: initialValue,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: const Color(0xFFF2F4FA),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD6DAE6)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _brandAccent, width: 1.4),
-        ),
-      ),
-      onChanged: onChanged,
-    );
-  }
-
-  Widget _profileRow({
-    required IconData icon,
-    required String title,
-    String? badgeText,
-    IconData trailing = Icons.chevron_right,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F5FF),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFDCE5FF)),
-              ),
-              child: Icon(icon, color: _brandNavy),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: _brandNavy,
-                ),
-              ),
-            ),
-            if (badgeText != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  badgeText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-            ],
-            Icon(trailing, color: const Color(0xFF94A3B8)),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1859,9 +1656,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
+  @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height;
     final isWide = width >= 900;
     final isSmall = width < 360;
 
@@ -2172,7 +1969,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
         scrollDirection: Axis.horizontal,
         itemCount: _categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final category = _categories[index];
           final selected = category.name == _selectedCategory;
@@ -2325,7 +2122,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           base64Decode(product.imageBase64!),
           fit: BoxFit.cover,
           width: double.infinity,
-          errorBuilder: (_, __, ___) => _fallbackImage(),
+          errorBuilder: (_, _, _) => _fallbackImage(),
         );
       } catch (_) {
         // fall through to network/fallback
@@ -2336,7 +2133,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         product.imageUrl!,
         fit: BoxFit.cover,
         width: double.infinity,
-        errorBuilder: (_, __, ___) => _fallbackImage(),
+        errorBuilder: (_, _, _) => _fallbackImage(),
       );
     }
     return _fallbackImage();
@@ -2690,7 +2487,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     Expanded(
                       child: ListView.separated(
                         itemCount: product.toppings.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const Divider(height: 1, color: _brandDivider),
                         itemBuilder: (context, index) {
                           final topping = product.toppings[index];
@@ -2812,7 +2609,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: _cartItems.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = _cartItems[index];
               return Container(
@@ -3013,7 +2810,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       child: ListView.separated(
         padding: const EdgeInsets.all(12),
         itemCount: _historyItems.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final item = _historyItems[index];
           final date = DateTime.tryParse((item['date_order'] ?? '').toString());
@@ -3076,8 +2873,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   String _friendlyStatus(String rawState, String paymentMethod) {
-    if (rawState == 'waiting_transfer_review')
+    if (rawState == 'waiting_transfer_review') {
       return 'Waiting transfer verification';
+    }
     if (rawState == 'draft' &&
         paymentMethod.toLowerCase().contains('transfer')) {
       return 'Transfer verified, preparing order';
@@ -3139,7 +2937,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             height: 220,
                             width: double.infinity,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
+                            errorBuilder: (_, _, _) =>
                                 const SizedBox.shrink(),
                           )
                         : FutureBuilder<List<dynamic>>(
@@ -3166,7 +2964,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 height: 220,
                                 width: double.infinity,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                errorBuilder: (_, _, _) => const SizedBox.shrink(),
                               );
                             },
                           ),
@@ -3183,7 +2981,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ? const Center(child: Text('No item details available'))
                       : ListView.separated(
                           itemCount: lines.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final line = lines[index] as Map<dynamic, dynamic>;
                             final qty =

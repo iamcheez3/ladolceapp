@@ -17,7 +17,7 @@ class CartSidebar extends StatelessWidget {
   final Map<String, dynamic>? selectedCustomer; // Selected customer data
 
   const CartSidebar({
-    Key? key,
+    super.key,
     required this.cartItems,
     required this.onUpdateQuantity,
     required this.onClearCart,
@@ -27,7 +27,7 @@ class CartSidebar extends StatelessWidget {
     required this.onAddCustomer,
     required this.onClearCustomer,
     this.selectedCustomer,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -365,7 +365,11 @@ class _CartItemRow extends StatelessWidget {
                 child: Text(
                   '${item.quantity}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: textColor,
+                  ),
                 ),
               ),
               IconButton(
@@ -386,7 +390,7 @@ class _CartItemRow extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
-                      color: isSaved ? Colors.grey[700]! : Colors.black87,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 2),

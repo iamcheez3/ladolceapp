@@ -67,7 +67,7 @@ class _DisplayTicket {
 class TicketsScreen extends StatefulWidget {
   final List<Product> cachedProducts;
 
-  const TicketsScreen({Key? key, required this.cachedProducts}) : super(key: key);
+  const TicketsScreen({super.key, required this.cachedProducts});
 
   @override
   State<TicketsScreen> createState() => _TicketsScreenState();
@@ -128,11 +128,11 @@ class _TicketsScreenState extends State<TicketsScreen> {
           if (task['action'] != 'create' && task['action'] != null) {
             continue;
           }
-          final MapPayload = task['payload'] ?? task; // Fallback to task if old format
-          if (MapPayload is Map && MapPayload['is_paid'] == true) {
+          final mapPayload = task['payload'] ?? task; // Fallback to task if old format
+          if (mapPayload is Map && mapPayload['is_paid'] == true) {
             continue;
           }
-          final rawLines = MapPayload['lines'] as List? ?? [];
+          final rawLines = mapPayload['lines'] as List? ?? [];
 
           final List<TicketLine> lines = rawLines.map((l) {
             final product = _productById[l['product_id']];
@@ -150,7 +150,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
           combined.add(_DisplayTicket(
             id: task['mock_id'], // So it can be identified
             name: 'OFFLINE #${i + 1}',
-            tableId: MapPayload['table_id'],
+            tableId: mapPayload['table_id'],
             tableName: null,
             amountTotal: total,
             lines: lines,
@@ -169,7 +169,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
       final onlineTickets = await _apiService.fetchOpenTickets(forceRefresh: false);
       for (final t in onlineTickets) {
         // Prevent showing duplicate mock tickets that exist in BOTH offline_queue and cached_open_tickets
-        if (t.id != null && combined.any((existing) => existing.id == t.id)) {
+        if (combined.any((existing) => existing.id == t.id)) {
             continue; 
         }
 
@@ -328,7 +328,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
             Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _fetchTickets,
+              onPressed: () => _fetchTickets(backgroundRefresh: false),
               child: const Text('Retry'),
             ),
           ],

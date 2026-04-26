@@ -122,7 +122,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                                 child: Center(child: CircularProgressIndicator()),
                               );
                             },
-                            errorBuilder: (_, __, ___) =>
+                            errorBuilder: (_, _, _) =>
                                 const Text('Cannot load proof image'),
                           ),
                         ),
@@ -183,7 +183,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
               imageUrl,
               headers: headers,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text(
+              errorBuilder: (_, _, _) => const Text(
                 'Cannot load proof image',
                 style: TextStyle(color: Colors.white),
               ),
@@ -212,7 +212,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                   : ListView.separated(
                       padding: const EdgeInsets.all(12),
                       itemCount: _orders.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final order = _orders[index];
                         final lines = (order['lines'] as List?) ?? [];

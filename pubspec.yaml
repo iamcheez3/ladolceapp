@@ -44,6 +44,7 @@ dependencies:
   path_provider: ^2.1.5
   image_gallery_saver_plus: ^4.0.1
   permission_handler: ^11.4.0
+  device_info_plus: ^12.4.0
   upgrader: ^11.5.0
 
 dev_dependencies:
