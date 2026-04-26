@@ -294,7 +294,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${receipt['name'] ?? ''} · $timeStr',
+                                      '${(receipt['name'] ?? receipt['order_reference'] ?? '').toString()} · $timeStr',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: _textSub,
@@ -305,30 +305,59 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                                 ),
                               ),
 
-                              // Visit duration chip
-                              Builder(builder: (_) {
-                                final dur = _formatVisitDuration(receipt);
-                                if (dur == null) return const SizedBox.shrink();
-                                return Container(
-                                  margin: const EdgeInsets.only(right: 6),
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0D9488).withOpacity(0.10),
-                                    borderRadius: BorderRadius.circular(8),
+                              // Right side: duration / unsynced / chevron
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Visit duration chip
+                                  Builder(builder: (_) {
+                                    final dur = _formatVisitDuration(receipt);
+                                    if (dur == null) return const SizedBox(height: 0);
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0D9488)
+                                            .withOpacity(0.10),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '⏱ $dur',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF0D9488),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                  Builder(builder: (_) {
+                                    final offline = receipt['offline'] == true ||
+                                        receipt['synced'] == false ||
+                                        (receipt['id'] is int &&
+                                            (receipt['id'] as int) < 0);
+                                    if (!offline) return const SizedBox(height: 0);
+                                    return const Text(
+                                      'Unsynced',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.orange,
+                                      ),
+                                    );
+                                  }),
+                                  const SizedBox(height: 6),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: _dateLabel,
+                                    size: 20,
                                   ),
-                                  child: Text(
-                                    '⏱ $dur',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF0D9488),
-                                    ),
-                                  ),
-                                );
-                              }),
-
-                              // Chevron
-                              const Icon(Icons.chevron_right_rounded, color: _dateLabel, size: 20),
+                                ],
+                              ),
                             ],
                           ),
                         ),

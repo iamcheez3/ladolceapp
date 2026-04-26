@@ -294,18 +294,17 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
-  Future<void> _syncOfflineAndRefreshCatalog() async {
+  Future<void> _syncAllDataAndRefresh() async {
     setState(() => _isLoading = true);
     try {
-      final synced = await _apiService.syncOfflineOrders();
+      await _apiService.syncAllData();
+      // Rebuild POS UI from the freshly-updated caches
       await _fetchOdooProducts(backgroundRefresh: true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            synced > 0
-                ? 'Synced $synced offline orders and refreshed catalog!'
-                : 'Catalog refreshed.',
+            '✅ Synced all data.',
           ),
           backgroundColor: Colors.green,
         ),
@@ -992,7 +991,7 @@ class _PosScreenState extends State<PosScreen> {
                   }
                   break;
                 case 'sync':
-                  await _syncOfflineAndRefreshCatalog();
+                  await _syncAllDataAndRefresh();
                   break;
                 case 'move':
                   await _showMoveTicketDialog(context);
@@ -2108,9 +2107,16 @@ class _PosScreenState extends State<PosScreen> {
       // 2) Clear source ticket lines after successful append
       await _apiService.updateOrder(
         orderId: sourceTicketId,
+        tableId: source.tableId,
         lines: const [],
         replaceAll: true,
       );
+
+      // Refresh tables so the cleared source table becomes selectable immediately.
+      try {
+        final freshTables = await _apiService.fetchTables(forceRefresh: true);
+        if (mounted) setState(() => _tables = freshTables);
+      } catch (_) {}
 
       // If user currently has source ticket loaded in cart, reset local state
       if (_activeTicketId == sourceTicketId) {
@@ -2395,17 +2401,21 @@ class _PosScreenState extends State<PosScreen> {
               0.0;
           final changeAmount = amtReceived >= total ? amtReceived - total : 0.0;
 
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Container(
-              height: MediaQuery.of(context).size.height * 0.90,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F7FA),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
-              child: Column(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.92,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF5F7FA),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // ── Header ────────────────────────────────────────────────
@@ -2528,73 +2538,92 @@ class _PosScreenState extends State<PosScreen> {
                             style: TextStyle(color: Colors.grey),
                           )
                         else
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: _paymentMethods.map((m) {
-                              final isSelected =
-                                  _selectedPaymentMethod?.id == m.id;
-                              final locked =
-                                  isTransferTicket &&
+                          LayoutBuilder(
+                            builder: (ctx, constraints) {
+                              final locked = isTransferTicket &&
                                   _activeTicketPaymentMethodId != null;
-                              final isCashMethod = m.name
-                                  .toLowerCase()
-                                  .contains('cash');
+                              return GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 240,
+                                  mainAxisExtent: 88,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                ),
+                                itemCount: _paymentMethods.length,
+                                itemBuilder: (context, i) {
+                                  final m = _paymentMethods[i];
+                                  final isSelected =
+                                      _selectedPaymentMethod?.id == m.id;
+                                  final isCashMethod = m.name
+                                      .toLowerCase()
+                                      .contains('cash');
 
-                              return InkWell(
-                                onTap: locked
-                                    ? null
-                                    : () => setSheetState(
-                                        () => _selectedPaymentMethod = m,
-                                      ),
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  width:
-                                      (MediaQuery.of(context).size.width / 2) -
-                                      26,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 18,
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
+                                  return InkWell(
+                                    onTap: locked
+                                        ? null
+                                        : () => setSheetState(
+                                              () => _selectedPaymentMethod = m,
+                                            ),
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? _brandNavy
-                                          : Colors.grey.shade300,
-                                      width: isSelected ? 2 : 1,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        isCashMethod
-                                            ? Icons.point_of_sale_rounded
-                                            : Icons.credit_card_rounded,
-                                        color: isSelected
-                                            ? _brandNavy
-                                            : Colors.black38,
-                                        size: 26,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                        horizontal: 12,
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        m.name,
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: isSelected
-                                              ? FontWeight.w700
-                                              : FontWeight.w500,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
                                           color: isSelected
                                               ? _brandNavy
-                                              : Colors.black54,
+                                              : Colors.grey.shade300,
+                                          width: isSelected ? 2 : 1,
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isCashMethod
+                                                ? Icons.point_of_sale_rounded
+                                                : Icons.credit_card_rounded,
+                                            color: isSelected
+                                                ? _brandNavy
+                                                : Colors.black38,
+                                            size: 24,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              m.name,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w700
+                                                    : FontWeight.w600,
+                                                color: isSelected
+                                                    ? _brandNavy
+                                                    : Colors.black54,
+                                              ),
+                                            ),
+                                          ),
+                                          if (locked)
+                                            const Icon(
+                                              Icons.lock_outline_rounded,
+                                              size: 16,
+                                              color: Colors.black26,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               );
-                            }).toList(),
+                            },
                           ),
 
                         const SizedBox(height: 24),
@@ -2705,38 +2734,47 @@ class _PosScreenState extends State<PosScreen> {
 
                   // ── Charge Button ─────────────────────────────────────────
                   if (!_isCharging)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                      child: ElevatedButton(
-                        onPressed: () => _processCheckout(
-                          context,
-                          setSheetState,
-                          true,
-                          subtotal,
-                          tax,
-                          total,
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          8,
+                          16,
+                          16 + MediaQuery.of(context).padding.bottom,
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF22C55E),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                        child: ElevatedButton(
+                          onPressed: () => _processCheckout(
+                            context,
+                            setSheetState,
+                            true,
+                            subtotal,
+                            tax,
+                            total,
                           ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'CHARGE K${fmt.format(total)}',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF22C55E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            'CHARGE K${fmt.format(total)}',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                       ),
                     ),
                 ],
               ),
+            ),
             ),
           );
         },
@@ -2795,6 +2833,45 @@ class _PosScreenState extends State<PosScreen> {
       Map<String, dynamic> result;
 
       if (_activeTicketId != null) {
+        // If this is an OFFLINE mock ticket (negative id), do NOT attempt /pay with the mock id.
+        // Instead, move it into Receipt History as "waiting to sync" by queuing a paid submit.
+        if (_activeTicketId! < 0) {
+          // Remove old queued tasks for this mock ticket (create/update/pay), then queue a single paid submit.
+          await _apiService.purgeOfflineTasksForOrder(_activeTicketId!);
+
+          result = await _apiService.submitOrder(
+            userId: cashierId,
+            partnerId: _selectedCustomer?['id'],
+            tableId: _activeTicketTableId,
+            paymentMethodId: _selectedPaymentMethod?.id,
+            paymentType: _activeTicketPaymentType.isNotEmpty
+                ? _activeTicketPaymentType
+                : 'pay_at_store',
+            isPaid: true,
+            lines: allLines,
+          );
+
+          // Ticket is now considered "charged" locally; clear the OPEN state immediately.
+          await _apiService.clearLocalOpenTicket(
+            _activeTicketId!,
+            tableId: _activeTicketTableId,
+          );
+
+          // Also update in-memory tables list so the selector immediately shows the table as available.
+          if (_activeTicketTableId != null) {
+            final idx = _tables.indexWhere((t) => t.id == _activeTicketTableId);
+            if (idx >= 0) {
+              final current = _tables[idx];
+              _tables[idx] = PosTable(
+                id: current.id,
+                name: current.name,
+                capacity: current.capacity,
+                status: current.status,
+                hasOpenOrder: false,
+              );
+            }
+          }
+        } else {
         // Only update if there are new lines to add
         if (newLines.isNotEmpty) {
           await _apiService.updateOrder(
@@ -2809,6 +2886,7 @@ class _PosScreenState extends State<PosScreen> {
           orderId: _activeTicketId!,
           paymentMethodId: _selectedPaymentMethod?.id,
         );
+        }
       } else {
         // No active ticket — create a new order and pay immediately
         result = await _apiService.submitOrder(
@@ -3007,7 +3085,7 @@ class _PosScreenState extends State<PosScreen> {
       // No active ticket — show table selection immediately
       // Force refresh table status BEFORE opening selector so OPEN badges are accurate.
       try {
-        final freshTables = await _apiService.fetchTables();
+        final freshTables = await _apiService.fetchTables(forceRefresh: true);
         if (mounted) setState(() => _tables = freshTables);
       } catch (_) {
         // Fall back to existing cached _tables if network refresh fails.
@@ -3084,13 +3162,15 @@ class _PosScreenState extends State<PosScreen> {
                       }
 
                       return InkWell(
-                        onTap: (!isAvailable || _isOpeningTicket)
+                        // IMPORTANT: Tables with an OPEN ticket are intentionally NOT selectable
+                        // from this dialog. Combining tickets is handled only via "Move ticket".
+                        onTap: (!isAvailable || hasOpenOrder || _isOpeningTicket)
                             ? null
                             : () => _processOpenTicket(
-                                context,
-                                setDialogState,
-                                table,
-                              ),
+                                  context,
+                                  setDialogState,
+                                  table,
+                                ),
                         borderRadius: BorderRadius.circular(12),
                         child: Card(
                           color: cardColor,
@@ -3195,6 +3275,8 @@ class _PosScreenState extends State<PosScreen> {
             'product_id': item.product.id,
             'qty': item.quantity,
             'price_unit': item.product.price,
+            if (item.selectedToppings.isNotEmpty)
+              'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
           },
         )
         .toList();
@@ -3202,14 +3284,19 @@ class _PosScreenState extends State<PosScreen> {
     try {
       final cashierId = (widget as dynamic).cashierId ?? 1;
 
-      final result = await _apiService.submitOrder(
+      // IMPORTANT: This flow only creates a NEW draft ticket for an EMPTY table.
+      // For combining / moving into other OPEN tickets, use "Move ticket".
+      final result = await _apiService.createOrder(
         userId: cashierId,
         tableId: table.id,
-        isPaid: false,
+        customerId: _selectedCustomer?['id'],
         lines: lines,
       );
 
-      final bool isOffline = result['offline'] == true;
+      final int? orderId =
+          (result['order_id'] is int) ? result['order_id'] as int : null;
+      final bool isOffline = (orderId != null && orderId < 0) ||
+          (result['order_reference']?.toString().startsWith('OFFLINE') == true);
 
       if (context.mounted) {
         if (isOffline) {
@@ -3224,11 +3311,31 @@ class _PosScreenState extends State<PosScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Ticket opened at ${table.name}!'),
+              content: Text(
+                'Ticket opened at ${table.name}!',
+              ),
               backgroundColor: Colors.green,
             ),
           );
         }
+      }
+
+      // Update local table state immediately so the selector shows OPEN next time
+      // even before the next network refresh.
+      try {
+        final idx = _tables.indexWhere((t) => t.id == table.id);
+        if (idx >= 0) {
+          final current = _tables[idx];
+          _tables[idx] = PosTable(
+            id: current.id,
+            name: current.name,
+            capacity: current.capacity,
+            status: current.status,
+            hasOpenOrder: true,
+          );
+        }
+      } catch (_) {
+        // no-op
       }
 
       // Print to kitchen/bar printers and mark items as printed only on success
@@ -3305,11 +3412,11 @@ class _PosScreenState extends State<PosScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.sync, color: _brandNavy),
-              title: const Text('Sync Offline Data & Catalog'),
+              title: const Text('Sync All Data'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () async {
                 Navigator.pop(ctx);
-                await _syncOfflineAndRefreshCatalog();
+                await _syncAllDataAndRefresh();
               },
             ),
             const SizedBox(height: 16),

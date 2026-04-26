@@ -6,13 +6,10 @@ You are helping me continue development for my Flutter POS app integrated with O
 1) PROJECT CONTEXT
 ==================================================
 - Flutter project path (Windows):
-  /home/sith/Desktop/ladolceapp/ladolceapp
+  C:\Users\iamcheez3\Desktop\Flutter\ladolceUAT
 
-- Odoo backend path (WSL Ubuntu):
-  /home/sith/Desktop/ladolcepos/ladolcepos
-
-- Custom addons path:
-  /home/sith/Desktop/ladolcepos/ladolcepos/custom_addons
+- Odoo backend API path (WSL Ubuntu):
+  /home/sith/odoo/pos/custom_addonsUAT
 
 - Main backend module used by app:
   pos_backend
@@ -30,6 +27,443 @@ You are helping me continue development for my Flutter POS app integrated with O
   - Do not run Android Studio, Flutter emulator/device builds, or Odoo 18 runtime commands here.
   - Make code changes, then user will review, push to git, pull on main device, and run tests there.
 
+==================================================
+57) LATEST IMPLEMENTED UPDATE (UAT PATHS UPDATED)
+==================================================
+- Request:
+  - Update AI handoff prompt to match UAT project layout:
+    - Flutter repo is `ladolceUAT` on Windows.
+    - Backend API/custom addons are in WSL at `/home/sith/odoo/pos/custom_addonsUAT`.
+- Implementation:
+  - Updated "PROJECT CONTEXT" paths to the UAT locations above (replacing older VM/Linux paths).
+- Files changed:
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - None.
+- Quick verification:
+  - Confirm section (1) shows Flutter path `C:\Users\iamcheez3\Desktop\Flutter\ladolceUAT`.
+  - Confirm backend path shows `/home/sith/odoo/pos/custom_addonsUAT`.
+
+==================================================
+58) LATEST IMPLEMENTED UPDATE (TABLE OPEN BADGE ON SAVE)
+==================================================
+- Request:
+  - Table selection dialog should show `OPEN` as soon as a ticket is saved/selected,
+    not only after charging the ticket.
+- Root cause:
+  - `_processOpenTicket()` used `submitOrder()` which is receipt/history oriented and
+    does not update `cached_open_tickets`, causing table/ticket-open UI to lag until pay/charge.
+- Implementation:
+  - Changed `_processOpenTicket()` to use `ApiService.createOrder()` so saving a ticket
+    creates a draft order and updates `cached_open_tickets` immediately.
+  - Included `topping_ids` in the order lines when toppings are selected.
+  - Optimistically marks the selected table as `hasOpenOrder=true` in local `_tables`
+    so the `OPEN` badge appears instantly even before the next table refresh.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Add items → tap Save/Open Ticket → select table.
+  - Re-open the table selector: that table now shows `OPEN` immediately.
+  - Open `Open Tickets` screen: the newly saved ticket is listed without needing to charge.
+
+==================================================
+59) LATEST IMPLEMENTED UPDATE (TABLE OPEN BADGE PERSISTS ON NEXT SAVE)
+==================================================
+- Request:
+  - After saving a ticket to a table (draft/open), the next time the user opens the
+    table selector to save another ticket, the previously used table must show `OPEN`.
+- Root cause:
+  - Table selector refresh path fetched tables without `forceRefresh`, so it often
+    reused stale `cached_tables` that didn't reflect the just-created draft ticket.
+  - `createOrder()` updated `cached_open_tickets` but did not update `cached_tables`
+    `has_open_order`, so offline/cache-first flows could miss the OPEN badge.
+- Implementation:
+  - `pos_screen.dart`: force refresh tables before showing the selector:
+    - `_apiService.fetchTables(forceRefresh: true)`
+  - `api_service.dart`: when `createOrder()` succeeds (online or offline),
+    it now also updates the cached table entry:
+    - sets `has_open_order=true` for the selected `tableId`.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Save ticket to table `T1`.
+  - Create a new order and open table selector again.
+  - `T1` should show `OPEN` immediately (even if temporarily offline).
+
+==================================================
+60) LATEST IMPLEMENTED UPDATE (TAP OPEN TABLE APPENDS TO TICKET)
+==================================================
+- Request:
+  - When selecting a table that already shows `OPEN`, saving should add items into
+    that existing ticket (not require Move Ticket).
+- Root cause:
+  - Table dialog showed `OPEN`, but `_processOpenTicket()` always created a new order.
+- Implementation:
+  - In `_processOpenTicket()`:
+    - If `table.hasOpenOrder==true`, fetch open tickets and find the ticket with the same `tableId`.
+    - If found, call `updateOrder()` to append lines to that ticket.
+    - Otherwise, fall back to `createOrder()` (new draft ticket).
+  - Updated success snackbar message to clarify whether we created a new ticket or appended.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Save ticket to `T1` (so it becomes OPEN).
+  - Start a new order → Save Ticket → select `T1` again.
+  - Confirm items are appended to the existing `T1` open ticket (ticket total/items increase).
+
+==================================================
+61) LATEST IMPLEMENTED UPDATE (DISABLE OPEN TABLES IN SAVE DIALOG)
+==================================================
+- Request:
+  - If a table already has an OPEN ticket, the Save Ticket table selector must NOT
+    allow selecting that table. Combining tickets must be done ONLY via Move Ticket.
+- Implementation:
+  - Disabled tapping tables with `hasOpenOrder=true` in the "Open Ticket / Select Table" dialog.
+  - Reverted `_processOpenTicket()` to always create a NEW draft ticket (empty table only).
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Save a ticket to `T1` so it shows `OPEN`.
+  - Create a new order → Save Ticket → table selector: `T1` is not tappable.
+  - Use Move Ticket to move items between tickets (open→open append, open→empty create new + clear source).
+
+==================================================
+62) LATEST IMPLEMENTED UPDATE (MOVE TICKET CLEARS SOURCE TABLE OPEN)
+==================================================
+- Request:
+  - After moving a ticket (source cleared), the source table should no longer be `OPEN`
+    and should be selectable again for new tickets.
+- Root cause:
+  - Move Ticket cleared the source order lines, but local caches (`cached_open_tickets`
+    and `cached_tables`) could still keep the source table as `has_open_order=true`
+    until a later refresh.
+- Implementation:
+  - `ApiService.updateOrder()`:
+    - When `replaceAll=true` and `lines=[]`, remove that ticket from `cached_open_tickets`.
+    - If `tableId` is provided, set `cached_tables[].has_open_order=false`.
+  - `pos_screen.dart` Move Ticket:
+    - Passes `tableId: source.tableId` when clearing the source ticket.
+    - Force-refreshes tables after clearing so UI updates immediately.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Move Ticket from `T1` → `T2`.
+  - Open table selector: `T1` should no longer show `OPEN` and should be selectable.
+
+==================================================
+63) LATEST IMPLEMENTED UPDATE (SYNC BUTTON DOES FULL BOOT SYNC)
+==================================================
+- Request:
+  - Sync button should sync everything like app startup loading does.
+- Implementation:
+  - POS Sync action now calls `ApiService.syncAllData()` (same as `LoadingScreen`),
+    then rebuilds POS UI from the refreshed caches.
+  - Settings label updated to "Sync All Data".
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Tap POS menu `Sync` and confirm it refreshes tables/products/payment methods/tickets/history (no partial sync).
+
+==================================================
+64) LATEST IMPLEMENTED UPDATE (OPEN TICKET DURATION BADGE RESTORED)
+==================================================
+- Request:
+  - Ticket open-time counter badge is missing.
+- Root cause:
+  - `OpenTicket` duration badge relies on `opened_at`, but locally cached open tickets
+    created/updated by `ApiService` did not include `opened_at`, so `openedAt` parsed as null.
+- Implementation:
+  - `ApiService.createOrder()` now injects `opened_at` (UTC ISO string) into the cached
+    open ticket objects for both online and offline-created tickets.
+  - `ApiService.updateOrder()` ensures cached tickets have `opened_at` if missing so
+    older cache entries also start showing the duration badge.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open `Open Tickets` screen and confirm each ticket shows a "🕐 X min" badge again.
+
+==================================================
+65) LATEST IMPLEMENTED UPDATE (CHARGE SHEET RESPONSIVE LAYOUT)
+==================================================
+- Request:
+  - Make payment method selection work on all device screen sizes.
+  - Make the bottom Charge button work with all navigation types (gesture / 3-button) and keyboard.
+- Implementation:
+  - Refactored Charge bottom sheet layout:
+    - Replaced fixed-width payment method pills with a responsive `GridView` using `MaxCrossAxisExtent`.
+    - Added `SafeArea(top:false)` and bottom padding using `MediaQuery.padding.bottom` so the Charge button
+      never sits under system navigation bars.
+    - Kept `viewInsets.bottom` padding so the sheet adjusts when the keyboard is open.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open Charge screen on phone + tablet sizes and confirm payment methods wrap nicely.
+  - With 3-button navigation and gesture navigation, confirm the Charge button is fully visible/tappable.
+  - Tap Amount Received field (cash) and confirm the sheet shifts above the keyboard and remains usable.
+
+==================================================
+66) LATEST IMPLEMENTED UPDATE (OFFLINE ORDER SYNC: MOCK-ID MAPPING FIX)
+==================================================
+- Request:
+  - Offline: create + save + charge works, but when back online the order does not upload to backend.
+- Root cause:
+  - Offline queue sync did not reliably map the negative mock order ID to the real backend order ID.
+  - Backend create response uses `data.order_id` (not always `data.id`), so pay/update steps could hit
+    `/pay` with a negative ID and fail, leaving tasks stuck in the offline queue.
+- Implementation:
+  - Hardened `syncOfflineOrders()`:
+    - Correctly extracts the created order ID from common response shapes (`data.order_id`, `data.id`, etc).
+    - Uses the mock→real mapping for subsequent update/pay requests.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Go offline → create order → charge (offline).
+  - Go online → press Sync All Data.
+  - Verify the order appears in Odoo receipt history and offline queue clears.
+
+==================================================
+67) LATEST IMPLEMENTED UPDATE (OFFLINE SYNC RELIABILITY: HEADERS + ID PARSING)
+==================================================
+- Request:
+  - Offline paid orders still not uploading when back online.
+- Root cause:
+  - `syncOfflineOrders()` assumed `mock_id` is always an `int`; if stored as a string or missing,
+    sync could throw and keep tasks stuck in the queue.
+  - Sync requests also used only `Content-Type` header; environments requiring session headers could reject them.
+- Implementation:
+  - `syncOfflineOrders()` now:
+    - parses `mock_id` robustly to an int
+    - uses `_authHeaders(json:true)` for all replayed POSTs
+    - increases replay timeouts (8s) to reduce flaky failures on slow networks
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Go offline → create+charge order.
+  - Go online → press Sync All Data.
+  - Order should upload and offline queue should shrink/clear.
+
+==================================================
+68) LATEST IMPLEMENTED UPDATE (OFFLINE SYNC MULTI-PASS: CREATE→PAY ORDERING)
+==================================================
+- Request:
+  - Offline paid tickets still not uploading when back online.
+- Root cause:
+  - Offline queue can contain `pay` tasks that reference a negative mock order ID.
+  - If sync tries to run `pay` before the matching `create` establishes a mock→real ID mapping,
+    the pay hits `/pay` with a negative ID and fails; then the `create` may succeed later, but the
+    next sync run loses the mapping and the pay remains stuck.
+- Implementation:
+  - Rewrote `syncOfflineOrders()` to replay tasks in multiple passes:
+    - always prioritizes `create/submit` before `update` before `pay`
+    - defers `update/pay` tasks until a mock→real mapping exists
+    - retries pending tasks up to 3 passes in the same sync call
+  - Added sync debug logs (`[OFFLINE SYNC] ...`) to make failures visible.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Offline: save+charge a ticket (creates negative mock id).
+  - Online: press Sync All Data and watch logs:
+    - should show mapping `mockId -> realId` then successful pay.
+  - Verify order appears in Odoo history.
+
+==================================================
+69) LATEST IMPLEMENTED UPDATE (OFFLINE CHARGE → RECEIPT WAITING TO SYNC)
+==================================================
+- Request:
+  - Offline: new order save+charge works, but when online it still doesn't upload.
+  - Desired behavior: charging offline should move the order into Receipt History as "waiting to sync",
+    then Sync uploads it to backend.
+- Root cause:
+  - Charging an offline OPEN ticket attempted `/pay` using the negative mock ticket id, which can never
+    succeed on the backend (log shows `/pos/order/-1777.../pay`).
+- Implementation:
+  - POS charge flow:
+    - If `_activeTicketId < 0` (offline mock ticket), do NOT call `payOrder()`.
+    - Instead queue a single paid `submitOrder(isPaid:true)` using full lines (creates a paid receipt),
+      then clear the local open ticket and table OPEN state immediately.
+  - Added helpers in `ApiService`:
+    - `purgeOfflineTasksForOrder(orderId)` to remove stale queued create/update/pay tasks for the mock ticket.
+    - `clearLocalOpenTicket(orderId, tableId)` to remove from `cached_open_tickets` and mark table selectable.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Go offline → open/save ticket → Charge.
+  - Receipt History should contain the paid receipt (offline) waiting to sync.
+  - Go online → Sync All Data → verify receipt appears in Odoo backend history.
+
+==================================================
+70) LATEST IMPLEMENTED UPDATE (RECEIPT HISTORY: UNSYNCED BADGE)
+==================================================
+- Request:
+  - When charging offline, keep the order in Receipt History and clearly show `Unsynced` like the reference screenshot.
+- Implementation:
+  - Offline paid receipts created by `submitOrder()` now include:
+    - `offline: true`, `synced: false`, `date_order`, `date_paid` (when paid), `name`, `payment_method`.
+  - Receipt History UI now shows an orange `Unsynced` badge for any offline/unsynced receipt.
+  - When offline `submit` sync succeeds, the mock receipt is removed from cache and replaced with the real backend receipt data.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/receipt_history_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Go offline → charge an order → Receipt History shows `Unsynced`.
+  - Go online → Sync All Data → `Unsynced` badge disappears and receipt matches backend.
+
+==================================================
+71) LATEST IMPLEMENTED UPDATE (OFFLINE CHARGE FREES TABLE + CLEARER UNSYNCED LABEL)
+==================================================
+- Request:
+  - Receipt History `Unsynced` label was not obvious.
+  - After charging ticket on table `T1`, user needs to clearly know it is paid and the table should be usable again.
+- Implementation:
+  - POS offline-charge flow now also updates in-memory tables list to set `hasOpenOrder=false`
+    right after moving the ticket to Receipt History, so table selector reflects that immediately.
+  - Receipt History row right side was refactored to show `Unsynced` as a clear text label
+    (closer to the reference flow), alongside the duration chip and chevron.
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `lib/screens/receipt_history_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Offline: charge a ticket on `T1`.
+  - Open table selector: `T1` is selectable again.
+  - Receipt History: charged receipt shows `Unsynced` until Sync.
+
+==================================================
+72) LATEST IMPLEMENTED UPDATE (ONLINE TICKET CHARGED OFFLINE: MOVE TO UNSYNCED RECEIPTS)
+==================================================
+- Request:
+  - Charging an ONLINE ticket while offline should behave like online:
+    - Clear table and remove ticket from Open Tickets immediately
+    - Add a receipt to Receipt History marked `Unsynced` until Sync
+- Root cause:
+  - `payOrder()` offline catch removed the open ticket but did NOT:
+    - mark the table `has_open_order=false`
+    - add `offline/synced=false` flags for the Receipt History UI
+    - preserve name/total/date so the receipt looked "missing"
+- Implementation:
+  - `ApiService.payOrder()` offline fallback now:
+    - queues the `pay` task
+    - extracts `table_id`, `name`, `amount_total`, `opened_at` from `cached_open_tickets` if available
+    - removes the ticket from `cached_open_tickets`
+    - sets `cached_tables.has_open_order=false` for that table
+    - writes a Receipt History entry with `offline:true`, `synced:false`, `date_paid`, and correct totals
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Take an online open ticket on `T1` → go offline → Charge.
+  - `T1` becomes selectable again immediately.
+  - Receipt History shows `Unsynced` for that receipt until Sync.
+
+==================================================
+73) LATEST IMPLEMENTED UPDATE (HIDE PAID OFFLINE ITEMS FROM OPEN TICKETS)
+==================================================
+- Request:
+  - After charging, ticket should show as paid and must not be openable again.
+  - Paid offline receipts should live only in Receipt History as `Unsynced`, not in Open Tickets.
+- Root cause:
+  - Open Tickets offline list was treating offline `submit` tasks as open tickets, so paid/unsynced
+    orders could still appear and be resumable.
+- Implementation:
+  - `tickets_screen.dart` now shows only offline queue tasks with `action == 'create'` (draft/open).
+  - It explicitly skips any payload with `is_paid == true`.
+- Files changed:
+  - `lib/screens/tickets_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Offline: open ticket → charge.
+  - Open Tickets screen: the charged ticket should NOT appear anymore.
+  - Receipt History: charged receipt appears with `Unsynced` until sync.
+
+==================================================
+74) LATEST IMPLEMENTED UPDATE (PRODUCT TILE TAP BLINK REDUCED)
+==================================================
+- Request:
+  - Product tile blinks/flashes when selecting a product; since catalog is cached it should feel stable.
+- Root cause:
+  - Grid/list rebuild on tap can cause `Image.memory` / `Image.network` to briefly repaint/reload frames.
+- Implementation:
+  - Enabled `gaplessPlayback: true` on product images in both:
+    - `ProductGrid`
+    - `ProductList`
+  - This keeps the previous image frame during rebuilds, reducing flicker.
+- Files changed:
+  - `lib/widgets/product_grid.dart`
+  - `lib/widgets/product_list.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Tap products repeatedly in grid and list view; images should no longer flash on each tap.
+
+==================================================
+75) LATEST IMPLEMENTED UPDATE (OPEN TICKETS FAST LOAD FROM CACHE)
+==================================================
+- Request:
+  - Open Tickets screen loads too long.
+- Root cause:
+  - Screen always forced a server refresh (`forceRefresh:true`) before rendering.
+  - Offline ticket rendering did O(n^2) product lookups (`where(...).firstOrNull`) which is slower on larger catalogs.
+- Implementation:
+  - `tickets_screen.dart` now:
+    - Loads cached open tickets first (`fetchOpenTickets(forceRefresh:false)`) for instant UI.
+    - Refreshes from server in the background to update the list.
+    - Uses a `productId -> Product` map for fast offline line name resolution.
+- Files changed:
+  - `lib/screens/tickets_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Tap Open Tickets: list should appear immediately (from cache) then silently refresh.
 ==================================================
 2) WHAT THIS APP DOES (FLOW)
 ==================================================
@@ -1513,3 +1947,69 @@ Priority/decision rules:
   - Open Customer Self-Order Home tab on phone width.
   - Confirm each product image renders as 1:1 square with no stretching.
   - Confirm card text + price remain visible without overflow and overall card appearance matches reference style more closely.
+
+==================================================
+54) LATEST IMPLEMENTED UPDATE (OFFLINE FULL CACHE & LOADING SCREEN)
+==================================================
+- Request:
+  - Add full offline support so the POS screen works offline like Loyverse.
+  - Create a "Loading Data" screen for the initial boot to cache all necessary data (products, categories, tickets, receipts, etc).
+- Implementation:
+  - Updated `api_service.dart` to cache all major endpoints using SharedPreferences (`fetchOpenTickets`, `fetchReceiptHistory`, `fetchToppings`, `fetchCategories`, `fetchCombos`, `fetchCustomers`, `fetchSelfOrderConfig`, `fetchLoyaltyConfig`).
+  - Added `hasBasicCache()` and `syncAllData()` to `ApiService`.
+  - Created `LoadingScreen` which checks network/cache and enforces data download before proceeding.
+  - Updated `main.dart` to route authenticated users to `LoadingScreen` instead of directly to `PinScreen` or `CustomerSelfOrderScreen`.
+  - Updated `login_screen.dart` to route to `LoadingScreen` on successful login.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/loading_screen.dart` (New)
+  - `lib/main.dart`
+  - `lib/screens/login_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Start app, log in, or re-open after login. You should see the "LaDolce" loading screen before entering the UI.
+  - Turn off Wi-Fi. Restart app. It should load gracefully using cache, and POS catalog data will continue to function seamlessly.
+==================================================
+55) LATEST IMPLEMENTED UPDATE (ADVANCED OFFLINE ENGINE & FAST CACHE)
+==================================================
+- Request:
+  - App should use cached data instead of waiting for server to make UI instantly responsive.
+  - Adding/modifying items (products, combos, categories, customers) should update UI instantly.
+  - Orders (create, update, pay) must work perfectly while offline using the same logic as online.
+- Implementation:
+  - All etch* methods in pi_service.dart were updated to return SharedPreferences cache instantly unless orceRefresh = true is passed.
+  - Added cache mutation helpers (_updateCacheList, _removeFromCacheList).
+  - Added optimistic UI updates for saveProduct, deleteProduct, saveCombo, ddTopping, saveCategory, deleteCategory, saveCustomer, etc.
+  - Rewrote the offline queue engine in ApiService:
+    - Offline actions (create, update, pay, submit) are now queued with {action, payload, mock_id}.
+    - syncOfflineOrders sequentially processes actions and accurately swaps mock offline IDs for real server IDs on the fly.
+    - Cashiers can now literally create a ticket, modify its lines, and pay for it entirely without internet.
+- Files changed:
+  - lib/services/api_service.dart
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Load the POS screen, turn off internet.
+  - Try opening a new ticket, adding an item, paying the ticket. It should succeed instantly and queue the actions seamlessly.
+  - In Odoo Admin, restore internet, click POS -> Sync. Verify Odoo receives the created and paid ticket sequentially.
+==================================================
+56) LATEST IMPLEMENTED UPDATE (JSON CACHE CRASH FIX)
+==================================================
+- Request:
+  - Fix offline ticket showing 0 items.
+  - Fix online ticket not showing up in Open Tickets despite saving to DB successfully.
+  - Fix tables showing available when taken.
+- Root Cause:
+  - The API endpoint /api/pos/order returned {order_id: X, order_reference: Y, amount_total: Z}. We injected this directly into cached_open_tickets on submit. However, the Flutter model OpenTicket.fromJson requires {id: X, name: Y, lines: []}. 
+  - Injecting mismatched schema into the SharedPreferences cache caused the ENTIRE etchOpenTickets to silently throw a TypeError when reading it! This destroyed the Open Tickets list and cascaded into making Tables ignore occupancy rules.
+  - The offline queue mapping inside 	ickets_screen.dart failed to map lines because the queue 	ask wrapper wasn't unwrapped to ['payload']['lines'].
+- Implementation:
+  - pi_service.dart: Re-wrote createOrder and updateOrder to manually assemble a flawlessly formatted dummy JSON ticket (mapping lines to product_name, qty, price_unit) and injecting THAT into cached_open_tickets instead of raw server responses.
+  - 	ickets_screen.dart: Rewrote the offline queue fallback parsing to safely look inside 	ask['payload'] before extracting lines, returning accurate quantity counts.
+  - 	ickets_screen.dart: Implemented a strict if (combined.any(id == t.id)) check to deduplicate mock offline tickets that now accurately exist in both queues simultaneously.
+- Files changed:
+  - lib/services/api_service.dart
+  - lib/screens/tickets_screen.dart
+- Commands / ops needed:
+  - Hot restart Flutter app. Clear cache or create 1 new ticket to overwrite the broken cache array.

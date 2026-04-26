@@ -53,9 +53,17 @@ class ProductList extends StatelessWidget {
                       height: 48,
                       color: LaDolcePosUi.navy.withOpacity(0.06),
                       child: imageBytes != null
-                          ? Image.memory(imageBytes, fit: BoxFit.cover)
+                          ? Image.memory(
+                              imageBytes,
+                              fit: BoxFit.cover,
+                              gaplessPlayback: true,
+                            )
                           : (product.imageUrl != null && product.imageUrl!.isNotEmpty)
-                              ? Image.network(product.imageUrl!, fit: BoxFit.cover)
+                              ? Image.network(
+                                  product.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  gaplessPlayback: true,
+                                )
                           : Center(
                               child: Text(
                                 initial,
