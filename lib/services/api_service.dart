@@ -75,6 +75,56 @@ class ApiService {
     developer.log(message, name: 'ApiService');
   }
 
+  /// Sum `price_unit * qty` for a cached `lines` array (open ticket JSON).
+  double _sumCachedOpenTicketLinesAmount(dynamic lineList) {
+    if (lineList is! List) return 0.0;
+    var sum = 0.0;
+    for (final raw in lineList) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      final pu = (m['price_unit'] is num)
+          ? (m['price_unit'] as num).toDouble()
+          : double.tryParse(m['price_unit']?.toString() ?? '') ?? 0.0;
+      final q = (m['qty'] is int)
+          ? (m['qty'] as int)
+          : (m['qty'] is num)
+              ? (m['qty'] as num).toInt()
+              : int.tryParse(m['qty']?.toString() ?? '1') ?? 1;
+      sum += pu * q;
+    }
+    return sum;
+  }
+
+  /// After offline `create` syncs, replace mock id in cache with real Odoo id
+  /// so Open Tickets does not list both OFFLINE-MOCK and POS/… for one order.
+  Future<void> _remapCachedOpenTicketMockId({
+    required int mockId,
+    required int realId,
+    required Map<String, dynamic> jsonResp,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cached_open_tickets');
+    if (cached == null) return;
+    final list = List<dynamic>.from(jsonDecode(cached));
+    final idx = list.indexWhere(
+      (e) => e is Map && (e)['id'] == mockId,
+    );
+    if (idx < 0) return;
+    final m = Map<String, dynamic>.from(list[idx] as Map);
+    m['id'] = realId;
+    final data = jsonResp['data'];
+    if (data is Map) {
+      if (data['order_reference'] != null) {
+        m['name'] = data['order_reference'].toString();
+      } else if (data['name'] != null) {
+        m['name'] = data['name'].toString();
+      }
+    }
+    list[idx] = m;
+    await prefs.setString('cached_open_tickets', jsonEncode(list));
+    _d('[OFFLINE SYNC] remapped open ticket in cache: mockId=$mockId -> $realId');
+  }
+
   /// Async variant that respects dev base URL override from SharedPreferences.
   Future<String> resolveMediaUrlAsync(String rawUrl) async {
     var normalized = rawUrl.trim();
@@ -303,34 +353,86 @@ class ApiService {
     }
   }
 
+  /// When the device comes back online, `GET /pos/open_tickets` replaces
+  /// `cached_open_tickets` and would drop not-yet-synced offline mock tickets
+  /// (negative ids). Re-merge those local draft rows on top of the server list.
+  List<dynamic> _mergeLocalDraftOpenTickets(
+    List<dynamic> serverList,
+    String? previousCacheJson,
+  ) {
+    if (previousCacheJson == null || previousCacheJson.isEmpty) {
+      return List<dynamic>.from(serverList);
+    }
+    List<dynamic> previous;
+    try {
+      previous = jsonDecode(previousCacheJson) as List<dynamic>;
+    } catch (_) {
+      return List<dynamic>.from(serverList);
+    }
+    final serverIds = <int>{};
+    for (final e in serverList) {
+      if (e is Map && e['id'] is int) {
+        serverIds.add(e['id'] as int);
+      } else if (e is Map && e['id'] != null) {
+        final p = int.tryParse(e['id'].toString());
+        if (p != null) serverIds.add(p);
+      }
+    }
+    final out = List<dynamic>.from(serverList);
+    for (final e in previous) {
+      if (e is! Map) continue;
+      final id = e['id'];
+      final int? pid = id is int ? id : int.tryParse(id?.toString() ?? '');
+      if (pid == null) continue;
+      if (pid >= 0) continue; // only preserve offline / mock rows
+      if (serverIds.contains(pid)) continue;
+      final st = (e['state'] ?? '').toString().toLowerCase();
+      if (st == 'paid' || st == 'done' || e['is_paid'] == true) {
+        continue;
+      }
+      out.add(e);
+    }
+    return out;
+  }
+
   Future<List<OpenTicket>> fetchOpenTickets({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
       final cachedStr = prefs.getString('cached_open_tickets');
       if (cachedStr != null) {
         final List<dynamic> data = jsonDecode(cachedStr);
-        return data.map((json) => OpenTicket.fromJson(json)).toList();
+        return data
+            .map((e) => OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
       }
     }
     
     final base = await getBaseUrl();
+    final prevOpenTickets = prefs.getString('cached_open_tickets');
     try {
       final url = Uri.parse('$base/pos/open_tickets');
       final response = await http.get(url).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
-          final List<dynamic> data = jsonResponse['data'];
-          await prefs.setString('cached_open_tickets', jsonEncode(data));
-          return data.map((json) => OpenTicket.fromJson(json)).toList();
+          final List<dynamic> data = jsonResponse['data'] as List<dynamic>;
+          final merged = _mergeLocalDraftOpenTickets(data, prevOpenTickets);
+          await prefs.setString('cached_open_tickets', jsonEncode(merged));
+          return merged
+              .map((e) =>
+                  OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList();
         }
       }
       throw Exception('Failed to load tickets');
     } catch (e) {
       final cachedStr = prefs.getString('cached_open_tickets');
       if (cachedStr != null) {
-        final List<dynamic> data = jsonDecode(cachedStr);
-        return data.map((json) => OpenTicket.fromJson(json)).toList();
+        final List<dynamic> data = jsonDecode(cachedStr) as List<dynamic>;
+        return data
+            .map((e) =>
+                OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
       }
       return [];
     }
@@ -726,27 +828,39 @@ class ApiService {
                 return data;
               }
 
-              double total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
-              list[index]['amount_total'] = total;
               if (replaceAll) {
-                  list[index]['lines'] = lines.map((l) => {
-                       'product_id': l['product_id'],
-                       'product_name': 'Item',
-                       'qty': l['qty'],
-                       'price_unit': l['price_unit'],
-                       'topping_ids': l['topping_ids'] ?? []
-                  }).toList();
+                list[index]['lines'] = lines
+                    .map(
+                      (l) => {
+                        'product_id': l['product_id'],
+                        'product_name': 'Item',
+                        'qty': l['qty'],
+                        'price_unit': l['price_unit'],
+                        'topping_ids': l['topping_ids'] ?? []
+                      },
+                    )
+                    .toList();
               } else {
-                  List existing = list[index]['lines'] ?? [];
-                  existing.addAll(lines.map((l) => {
-                       'product_id': l['product_id'],
-                       'product_name': 'Item',
-                       'qty': l['qty'],
-                       'price_unit': l['price_unit'],
-                       'topping_ids': l['topping_ids'] ?? []
-                  }));
-                  list[index]['lines'] = existing;
+                final existing = List<dynamic>.from(
+                  list[index]['lines'] ?? const [],
+                );
+                existing.addAll(
+                  lines.map(
+                    (l) => {
+                      'product_id': l['product_id'],
+                      'product_name': 'Item',
+                      'qty': l['qty'],
+                      'price_unit': l['price_unit'],
+                      'topping_ids': l['topping_ids'] ?? []
+                    },
+                  ),
+                );
+                list[index]['lines'] = existing;
               }
+              // Always total the full ticket, not just this request's new lines
+              // (append mode used to set amount_total to "latest lines only").
+              list[index]['amount_total'] =
+                  _sumCachedOpenTicketLinesAmount(list[index]['lines']);
               await prefs.setString('cached_open_tickets', jsonEncode(list));
            }
         }
@@ -782,27 +896,37 @@ class ApiService {
               return {'id': orderId, 'cleared_offline': true};
             }
 
-            double total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
-            list[index]['amount_total'] = total;
             if (replaceAll) {
-                list[index]['lines'] = lines.map((l) => {
-                     'product_id': l['product_id'],
-                     'product_name': 'Item',
-                     'qty': l['qty'],
-                     'price_unit': l['price_unit'],
-                     'topping_ids': l['topping_ids'] ?? []
-                }).toList();
+              list[index]['lines'] = lines
+                  .map(
+                    (l) => {
+                      'product_id': l['product_id'],
+                      'product_name': 'Item',
+                      'qty': l['qty'],
+                      'price_unit': l['price_unit'],
+                      'topping_ids': l['topping_ids'] ?? []
+                    },
+                  )
+                  .toList();
             } else {
-                List existing = list[index]['lines'] ?? [];
-                existing.addAll(lines.map((l) => {
-                     'product_id': l['product_id'],
-                     'product_name': 'Item',
-                     'qty': l['qty'],
-                     'price_unit': l['price_unit'],
-                     'topping_ids': l['topping_ids'] ?? []
-                }));
-                list[index]['lines'] = existing;
+              final existing = List<dynamic>.from(
+                list[index]['lines'] ?? const [],
+              );
+              existing.addAll(
+                lines.map(
+                  (l) => {
+                    'product_id': l['product_id'],
+                    'product_name': 'Item',
+                    'qty': l['qty'],
+                    'price_unit': l['price_unit'],
+                    'topping_ids': l['topping_ids'] ?? []
+                  },
+                ),
+              );
+              list[index]['lines'] = existing;
             }
+            list[index]['amount_total'] =
+                _sumCachedOpenTicketLinesAmount(list[index]['lines']);
             await prefs.setString('cached_open_tickets', jsonEncode(list));
             return list[index];
          }
@@ -1098,6 +1222,11 @@ class ApiService {
                 if (action == 'create' && mockId < 0 && realId != null) {
                   mockToRealId[mockId] = realId;
                   _d('[OFFLINE SYNC] mapped mockId=$mockId -> realId=$realId');
+                  await _remapCachedOpenTicketMockId(
+                    mockId: mockId,
+                    realId: realId,
+                    jsonResp: Map<String, dynamic>.from(jsonResp as Map),
+                  );
                 }
 
                 // If this was an offline paid submit, replace the local "Unsynced" mock receipt
@@ -1668,24 +1797,95 @@ class ApiService {
     return prefs.containsKey('cached_products');
   }
 
-  Future<void> syncAllData() async {
-    try {
-      await syncOfflineOrders();
-    } catch (_) {}
+  /// Syncs all remote data into local cache.
+  ///
+  /// When [onProgress] is null, fetches run in **parallel** (faster) for
+  /// manual sync (e.g. POS menu). When [onProgress] is set, steps run
+  /// **sequentially** so the UI can show a determinate progress bar and labels.
+  Future<void> syncAllData({
+    void Function(String message, double progress)? onProgress,
+  }) async {
+    if (onProgress == null) {
+      try {
+        await syncOfflineOrders();
+      } catch (_) {}
 
-    final futures = <Future>[
-      fetchProducts(limit: 500, forceRefresh: true),
-      fetchTables(forceRefresh: true),
-      fetchPaymentMethods(forceRefresh: true),
-      fetchToppings(forceRefresh: true),
-      fetchCategories(forceRefresh: true),
-      fetchCombos(forceRefresh: true),
-      fetchOpenTickets(forceRefresh: true),
-      fetchReceiptHistory(forceRefresh: true),
-      fetchCustomers(forceRefresh: true),
-      fetchSelfOrderConfig(forceRefresh: true),
-      fetchLoyaltyConfig(forceRefresh: true)
+      final futures = <Future>[
+        fetchProducts(limit: 500, forceRefresh: true),
+        fetchTables(forceRefresh: true),
+        fetchPaymentMethods(forceRefresh: true),
+        fetchToppings(forceRefresh: true),
+        fetchCategories(forceRefresh: true),
+        fetchCombos(forceRefresh: true),
+        fetchOpenTickets(forceRefresh: true),
+        fetchReceiptHistory(forceRefresh: true),
+        fetchCustomers(forceRefresh: true),
+        fetchSelfOrderConfig(forceRefresh: true),
+        fetchLoyaltyConfig(forceRefresh: true)
+      ];
+      await Future.wait(futures);
+      return;
+    }
+
+    final steps = <(String, Future<void> Function())>[
+      (
+        'Syncing offline orders…',
+        () async {
+          try {
+            await syncOfflineOrders();
+          } catch (_) {}
+        },
+      ),
+      (
+        'Loading products and prices…',
+        () => fetchProducts(limit: 500, forceRefresh: true),
+      ),
+      (
+        'Loading tables…',
+        () => fetchTables(forceRefresh: true),
+      ),
+      (
+        'Loading payment methods…',
+        () => fetchPaymentMethods(forceRefresh: true),
+      ),
+      (
+        'Loading toppings…',
+        () => fetchToppings(forceRefresh: true),
+      ),
+      (
+        'Loading categories…',
+        () => fetchCategories(forceRefresh: true),
+      ),
+      (
+        'Loading combos…',
+        () => fetchCombos(forceRefresh: true),
+      ),
+      (
+        'Loading open tickets…',
+        () => fetchOpenTickets(forceRefresh: true),
+      ),
+      (
+        'Loading receipt history…',
+        () => fetchReceiptHistory(forceRefresh: true),
+      ),
+      (
+        'Loading customers…',
+        () => fetchCustomers(forceRefresh: true),
+      ),
+      (
+        'Loading self-order settings…',
+        () => fetchSelfOrderConfig(forceRefresh: true),
+      ),
+      (
+        'Loading loyalty settings…',
+        () => fetchLoyaltyConfig(forceRefresh: true),
+      ),
     ];
-    await Future.wait(futures);
+
+    for (var i = 0; i < steps.length; i++) {
+      onProgress(steps[i].$1, i / steps.length);
+      await steps[i].$2();
+    }
+    onProgress('All data ready', 1.0);
   }
 }

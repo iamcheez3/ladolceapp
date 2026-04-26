@@ -2013,3 +2013,31 @@ Priority/decision rules:
   - lib/screens/tickets_screen.dart
 - Commands / ops needed:
   - Hot restart Flutter app. Clear cache or create 1 new ticket to overwrite the broken cache array.
+==================================================
+57) LATEST IMPLEMENTED UPDATE (OFFLINE DRAFT DEDUPE, CACHE TOTALS, RESUME PRICING)
+==================================================
+- Request:
+  - When adding new items to an already-selected/saved ticket, totals must include existing lines, not "only the latest" batch.
+  - After creating an offline ticket (not charged) and going online, Open Tickets must not show two rows (POS/… and OFFLINE-MOCK) for the same order.
+- Root cause:
+  - `updateOrder` success path in `api_service.dart` set `amount_total` on `cached_open_tickets` by summing only the **payload** `lines` (the new lines in that request), not the merged full ticket, so list totals and cache were wrong after incremental saves.
+  - `_saveCurrentTicket` in `pos_screen.dart` called `_clearCart()` after a successful update, wiping the cart and making behavior confusing.
+  - Resumed `CartItem`s used only `product.price` for `totalPrice`, ignoring server `price_unit` (toppings-included) from `TicketLine`.
+  - After offline `create` sync, `syncOfflineOrders` mapped mock→real for the queue but left the **negative mock id** in `cached_open_tickets`, while Odoo also had the new order = duplicate open tickets until merge logic overlapped.
+- Implementation:
+  - `api_service.dart`: Added `_sumCachedOpenTicketLinesAmount` and, after `replaceAll` or append merge in `updateOrder`, set `amount_total` from the **full** merged `lines` array.
+  - `api_service.dart`: Added `_remapCachedOpenTicketMockId`; on successful offline queue `action == 'create'`, when `realId` is known, rewrite cached open ticket `id` from mock to real and set `name` from response `data.order_reference` (or `name` when present).
+  - `pos_screen.dart`: After successful `updateOrder` in `_saveCurrentTicket`, **do not** `_clearCart()`; `setState` and mark all `_cartItems` as `isSaved: true` so the full ticket stays visible.
+  - `models/cart_item.dart`: Optional `priceUnitFromOrder` (from server line); `totalPrice` prefers it over `product` + `selectedToppings`.
+  - `tickets_screen.dart`: Pass `priceUnitFromOrder: line.priceUnit` when building `CartItem` from a resumed ticket.
+  - `pos_screen.dart`: `_lineUnitPrice` uses `priceUnitFromOrder` when set, so full-line API payloads (e.g. submit/pay) match server line prices.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/pos_screen.dart`
+  - `lib/models/cart_item.dart`
+  - `lib/screens/tickets_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Resume a ticket, add one or more new items, save: CHARGE and Open Tickets **amount_total** should reflect **all** lines (old + new).
+  - Create ticket offline, reconnect and sync: Open Tickets should show **one** row per order (no parallel OFFLINE-MOCK with same table/total as a POS/… id).

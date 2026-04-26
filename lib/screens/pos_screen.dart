@@ -449,6 +449,19 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
+  /// Per-unit line price for API payloads (base + topping extras).
+  /// Matches [CartItem.totalPrice] / qty so offline cached totals are consistent.
+  double _lineUnitPrice(CartItem item) {
+    if (item.priceUnitFromOrder != null) {
+      return item.priceUnitFromOrder!;
+    }
+    double unit = item.product.price;
+    for (final t in item.selectedToppings) {
+      unit += t.extraPrice;
+    }
+    return unit;
+  }
+
   Future<void> _handleClearTicket(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     if (_activeTicketId == null) {
@@ -873,7 +886,7 @@ class _PosScreenState extends State<PosScreen> {
                             (item) => {
                               'product_id': item.product.id,
                               'qty': item.quantity,
-                              'price_unit': item.product.price,
+                              'price_unit': _lineUnitPrice(item),
                               'topping_ids': item.selectedToppings
                                   .map((t) => t.id)
                                   .toList(),
@@ -2743,7 +2756,7 @@ class _PosScreenState extends State<PosScreen> {
           (item) => {
             'product_id': item.product.id,
             'qty': item.quantity,
-            'price_unit': item.product.price,
+            'price_unit': _lineUnitPrice(item),
             'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
           },
         )
@@ -2755,7 +2768,7 @@ class _PosScreenState extends State<PosScreen> {
           (item) => {
             'product_id': item.product.id,
             'qty': item.quantity,
-            'price_unit': item.product.price,
+            'price_unit': _lineUnitPrice(item),
             'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
           },
         )
@@ -2930,7 +2943,7 @@ class _PosScreenState extends State<PosScreen> {
             (item) => {
               'product_id': item.product.id,
               'qty': item.quantity,
-              'price_unit': item.product.price,
+              'price_unit': _lineUnitPrice(item),
               'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
             },
           )
@@ -3010,7 +3023,13 @@ class _PosScreenState extends State<PosScreen> {
           );
         }
 
-        _clearCart();
+        // Keep full cart visible: mark new lines as saved instead of clearing.
+        // Clearing made totals look like "only the latest" and forced re-selecting the ticket.
+        setState(() {
+          for (final item in _cartItems) {
+            item.isSaved = true;
+          }
+        });
       } catch (e) {
         if (dialogContext != null && dialogContext!.mounted) {
           Navigator.pop(dialogContext!);
@@ -3218,7 +3237,7 @@ class _PosScreenState extends State<PosScreen> {
           (item) => {
             'product_id': item.product.id,
             'qty': item.quantity,
-            'price_unit': item.product.price,
+            'price_unit': _lineUnitPrice(item),
             if (item.selectedToppings.isNotEmpty)
               'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
           },

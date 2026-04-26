@@ -258,6 +258,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
           quantity: line.qty,
           isSaved: true,
           isPrinted: true, // already sent to kitchen when originally saved
+          priceUnitFromOrder: line.priceUnit,
         ));
       } else {
         debugPrint('Product ${line.productId} not found in catalog');
