@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../models/product.dart';
@@ -151,7 +152,9 @@ class ApiService {
       return const {};
     }
     return {
-      'Cookie': 'session_id=$sessionId',
+      // Some environments are strict about Cookie formatting; keep a trailing ';'
+      // to reduce "cookie ignored" edge cases.
+      'Cookie': 'session_id=$sessionId;',
       'X-Openerp-Session-Id': sessionId,
     };
   }
@@ -162,7 +165,7 @@ class ApiService {
     final headers = <String, String>{};
     if (json) headers['Content-Type'] = 'application/json';
     if (sessionId != null && sessionId.isNotEmpty) {
-      headers['Cookie'] = 'session_id=$sessionId';
+      headers['Cookie'] = 'session_id=$sessionId;';
       headers['X-Openerp-Session-Id'] = sessionId;
     }
     return headers;
@@ -507,6 +510,52 @@ class ApiService {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // ADMIN REPORTS
+  // ---------------------------------------------------------------------------
+
+  Future<Map<String, dynamic>> fetchAdminReportSummary({
+    required DateTime from,
+    required DateTime to,
+    int? branchId,
+  }) async {
+    final base = await getBaseUrl();
+
+    // Belt-and-suspenders: also pass user_id + session_id as query params so the
+    // backend can authenticate even when the session cookie is dropped by
+    // tunnels/proxies (ngrok, etc). Backend prefers the cookie path and falls
+    // back to user_id+session_id if matching `pos_admin_active_sid`.
+    final prefs = await SharedPreferences.getInstance();
+    final sid = prefs.getString('cached_user_session') ?? '';
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+
+    final url = Uri.parse('$base/pos/reports/summary').replace(
+      queryParameters: {
+        'from': DateFormat('yyyy-MM-dd').format(from),
+        'to': DateFormat('yyyy-MM-dd').format(to),
+        if (branchId != null && branchId > 0) 'branch_id': '$branchId',
+        if (userId > 0) 'user_id': '$userId',
+        if (sid.isNotEmpty) 'session_id': sid,
+      },
+    );
+    final resp = await http
+        .get(url, headers: await _authHeaders(json: true))
+        .timeout(const Duration(seconds: 10));
+    if (resp.statusCode != 200) {
+      throw Exception('Failed to load reports (${resp.statusCode})');
+    }
+    final decoded = jsonDecode(resp.body);
+    if (decoded is! Map || decoded['status']?.toString() != 'success') {
+      throw Exception(decoded is Map ? (decoded['message'] ?? 'Failed') : 'Failed');
+    }
+    return Map<String, dynamic>.from(decoded as Map);
+  }
+
   Future<Map<String, dynamic>> registerUser({
     required String name,
     required String login,
@@ -522,7 +571,7 @@ class ApiService {
       'login': login,
       'password': password,
       'role': role,
-      'phone': ?phone,
+      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
       if (role == 'cashier' && branchId != null && branchId > 0) 'branch_id': branchId,
     };
     _d('==============================');
@@ -554,7 +603,7 @@ class ApiService {
     final normalizedLogin = login.trim().toLowerCase();
     final device = await _collectDeviceInfo();
     final Map<String, dynamic> payload = {
-      'db': ?dbName,
+      if (dbName != null && dbName.trim().isNotEmpty) 'db': dbName.trim(),
       'login': normalizedLogin,
       'password': password,
       'device_id': device['device_id'],
@@ -800,9 +849,9 @@ class ApiService {
     final base = await getBaseUrl();
     final payload = {
       'user_id': userId,
-      'table_id': tableId,
-      'partner_id': customerId,
-      'name': ?name,
+      if (tableId != null && tableId > 0) 'table_id': tableId,
+      if (customerId != null && customerId > 0) 'partner_id': customerId,
+      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
       'lines': lines,
     };
 

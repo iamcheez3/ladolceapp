@@ -2621,3 +2621,368 @@ Priority/decision rules:
   - Flutter: hot restart app.
 - Quick verification:
   - Login as cashier `cash1` (Branch "Nam phou") → open Receipts History → list contains only Nam phou receipts.
+
+==================================================
+64) LATEST IMPLEMENTED UPDATE (MOVE TICKET UI: SHOW TABLE NAME)
+==================================================
+- Request:
+  - In Move Ticket dialog, show the table (not the order/ticket name) to make selection easier.
+- Implementation:
+  - Updated the Move Ticket source and destination dropdown items to display:
+    - Primary label: table name (or `Table <id>` fallback)
+    - Secondary label: ticket reference + item count
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart app.
+- Quick verification:
+  - Open POS → Move Ticket.
+  - Source/Destination dropdowns show table names (ex: `T1`, `T2`) instead of only `POS/2026/...`.
+
+==================================================
+65) LATEST IMPLEMENTED UPDATE (ADMIN REPORTS ACCESS: ADMIN-ONLY)
+==================================================
+- Request:
+  - Admin reports screen must be accessible only for `role == admin`.
+  - Admin users are created only in Odoo backend; app must not allow registering as admin.
+- Implementation:
+  - Backend:
+    - Reports endpoint `/api/pos/reports/summary` already enforces admin session (`pos_role == 'admin'`).
+  - Flutter:
+    - `LoadingScreen` now allows `role == 'admin'` to proceed into PIN flow (previously fell back to Login).
+    - `PinScreen` passes role into `PosScreen` so UI can render admin-specific items.
+    - `PosScreen` shows new drawer item `Admin Reports` only when role is admin.
+    - `AdminReportsScreen` also checks cached user role and shows "Forbidden (admin only)" if opened by non-admin.
+    - Register screen still only supports Customer/Cashier (no Admin option).
+- Files changed:
+  - `lib/screens/loading_screen.dart`
+  - `lib/screens/pin_screen.dart`
+  - `lib/screens/pos_screen.dart`
+  - `lib/screens/admin_reports_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: `flutter pub get`, then hot restart.
+- Quick verification:
+  - Login as admin (created in Odoo): drawer shows `Admin Reports` and screen loads.
+  - Login as cashier/customer: `Admin Reports` is not visible and cannot be opened.
+
+==================================================
+66) LATEST IMPLEMENTED UPDATE (BUILD FIX: ADD intl DateFormat IMPORT)
+==================================================
+- Request:
+  - Fix Flutter build error: `DateFormat` not defined in `ApiService`.
+- Root cause:
+  - `fetchAdminReportSummary()` uses `DateFormat(...)` but `api_service.dart` did not import `package:intl/intl.dart`.
+- Implementation:
+  - Added missing import `package:intl/intl.dart` in `lib/services/api_service.dart`.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart / rebuild.
+- Quick verification:
+  - `flutter run` builds successfully (no `DateFormat` compile error).
+
+==================================================
+67) LATEST IMPLEMENTED UPDATE (ADMIN LOGIN: ACCEPT ROLE=admin IN APP)
+==================================================
+- Request:
+  - Cannot login as admin; app says "Unknown role from server".
+- Root cause:
+  - `LoginScreen` only accepted roles `cashier` and `customer`; it rejected valid `admin` returned by backend.
+- Implementation:
+  - Updated `lib/screens/login_screen.dart` to accept `role == 'admin'` and route into `LoadingScreen` like other roles.
+- Files changed:
+  - `lib/screens/login_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart app.
+- Quick verification:
+  - Login with admin user (created in Odoo) succeeds and opens the POS flow; drawer shows `Admin Reports`.
+
+==================================================
+68) LATEST IMPLEMENTED UPDATE (ADMIN REPORTS FIX: BRANCH LIST USES PUBLIC ENDPOINT)
+==================================================
+- Request:
+  - Admin Reports screen fails with `GET /api/pos/branches` 401.
+- Root cause:
+  - `/api/pos/branches` requires a valid Odoo session; some clients can be cookie/session flaky.
+  - Admin Reports only needs a branch list for filtering and can use a public list safely.
+- Implementation:
+  - `AdminReportsScreen` now loads branches using `GET /api/pos/branches/public` (no auth).
+  - Reports data endpoint remains admin-only (`/api/pos/reports/summary`).
+- Files changed:
+  - `lib/screens/admin_reports_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart.
+- Quick verification:
+  - Login as admin → open Admin Reports → branch dropdown loads and report data loads.
+
+==================================================
+69) HANDOFF TODO (ADMIN REPORTS: /reports/summary STILL 401)
+==================================================
+- Current behavior:
+  - Admin can login successfully and open `Admin Reports` screen.
+  - Branch dropdown loads via `GET /api/pos/branches/public` (200 OK).
+  - BUT report endpoint returns 401:
+    - `GET /api/pos/reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` → 401
+    - Odoo log shows the request arrives without a detected session uid.
+- Most likely root cause:
+  - Session headers (`Cookie: session_id=...` + `X-Openerp-Session-Id`) are not being received by Odoo for this GET,
+    so `request.session.uid` is empty and backend rejects.
+- Where code is:
+  - Backend endpoint: `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/report_api.py`
+    - `PosReportsApi._require_admin()` checks `request.session.uid` and `pos_role == 'admin'`.
+  - Flutter call: `lib/services/api_service.dart` → `fetchAdminReportSummary()` uses `_authHeaders(json:true)`.
+  - UI: `lib/screens/admin_reports_screen.dart` calls `fetchAdminReportSummary()`.
+- Next steps to fix (recommended):
+  - Step A (debug): add temporary log in `report_api.py`:
+    - log `request.session.uid`, `request.session.sid`, and incoming headers `Cookie` and `X-Openerp-Session-Id`.
+    - This will confirm whether Flutter is actually sending them or Odoo is dropping them.
+  - Step B (Flutter): if headers are missing, force them:
+    - ensure `cached_user_session` is present after admin login
+    - ensure `fetchAdminReportSummary()` uses `await _authHeaders(json:true)` (already does)
+    - if still missing on device, try sending BOTH:
+      - `Cookie: session_id=<sid>;` (include trailing semicolon)
+      - `X-Openerp-Session-Id: <sid>`
+  - Step C (backend hardening, optional):
+    - If some environments remain cookie-flaky, add a secure fallback:
+      - accept `user_id` only when `X-Openerp-Session-Id` is present AND matches an active session for that user,
+        or require an admin API token in config.
+    - Do NOT accept `user_id` alone for admin reports (security risk).
+- Commands / ops:
+  - Restart Odoo and upgrade `pos_backend` after backend changes.
+
+==================================================
+70) LATEST IMPLEMENTED UPDATE (ADMIN REPORTS 401: COOKIE HEADER HARDENING + DART PAYLOAD FIX)
+==================================================
+- Issue(s) fixed:
+  - `lib/services/api_service.dart` contained invalid Dart map entries (`'db': ?dbName`, `'phone': ?phone`, `'name': ?name`)
+    which can break compilation and/or cause payloads to be wrong.
+  - Admin report calls can be session/cookie flaky in some environments; some servers are strict about cookie formatting.
+- Implementation:
+  - `ApiService._authHeaders()` and `buildImageHeaders()` now send cookie as:
+    - `Cookie: session_id=<sid>;` (with trailing semicolon)
+    - plus `X-Openerp-Session-Id: <sid>`
+  - `registerUser()`, `loginUser()`, and `createOrder()` now use proper conditional map entries:
+    - `if (dbName != null && not empty) 'db': dbName`
+    - `if (phone != null && not empty) 'phone': phone`
+    - `if (name != null && not empty) 'name': name`
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart / rebuild.
+- Quick verification:
+  - App builds (no syntax errors in `api_service.dart`).
+  - Login as admin → Admin Reports → request to `/api/pos/reports/summary` now includes `Cookie` and `X-Openerp-Session-Id`.
+
+==================================================
+71) LATEST IMPLEMENTED UPDATE (ADMIN ROLE SPLIT INTO ITS OWN HOME SCREEN)
+==================================================
+- Request:
+  - The app should have 3 main role-based landing screens:
+    1) cashier  → POS screen
+    2) customer → Customer Self-Order screen
+    3) admin    → dedicated Admin home screen (NOT the cashier POS)
+- Root cause / before:
+  - `PinScreen._goNext()` routed BOTH cashier and admin into `PosScreen` (with `role: 'admin'`),
+    showing the same cashier UI for admins with just an extra "Admin Reports" drawer item.
+- Implementation:
+  - Added new screen: `lib/screens/admin_home_screen.dart` (`AdminHomeScreen`).
+    - Navy gradient header with admin name + cached POS / branch label.
+    - Tile sections:
+      - Overview: Reports & Analytics, Self Orders Review, Receipt History
+      - Catalog & Users: Manage Catalog, Register New User
+      - Operations: Open POS Terminal (admin can still operate POS), Printer Settings,
+        Sync All Data
+    - Bottom "Lock / Switch User" button → `ApiService.logout()` + back to `LoginScreen`.
+  - Updated `lib/screens/pin_screen.dart`:
+    - `_goNext()` now routes:
+      - `customer` → `CustomerSelfOrderScreen`
+      - `admin`    → `AdminHomeScreen(adminName, adminId)`
+      - default (cashier) → `PosScreen(role: 'cashier')`
+  - `lib/screens/loading_screen.dart` was already correct:
+    - cashier → POS-identity prompt → `PinScreen` → `PosScreen`
+    - admin   → straight to `PinScreen` (no POS-identity prompt) → `AdminHomeScreen`
+    - customer → `CustomerSelfOrderScreen`
+  - `lib/screens/pos_screen.dart`:
+    - Kept the in-drawer "Admin Reports" link guarded by `widget.role == 'admin'` so that
+      if an admin chooses "Open POS Terminal" from `AdminHomeScreen`, they can still reach reports.
+- Files changed:
+  - `lib/screens/admin_home_screen.dart` (new)
+  - `lib/screens/pin_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart / rebuild.
+- Quick verification:
+  - Login as `cashier`  → POS-identity prompt → PIN → POS screen (unchanged).
+  - Login as `customer` → loading → Customer Self-Order screen (unchanged).
+  - Login as `admin`    → loading → PIN → AdminHomeScreen (NEW).
+    - Tiles open: Reports, Self Orders Review, Receipt History, Manage Catalog,
+      Register, POS Terminal (with role='admin'), Printer Settings, Sync.
+    - "Lock / Switch User" returns to LoginScreen.
+
+==================================================
+72) LATEST IMPLEMENTED UPDATE (ADMIN: REPORTS-ONLY LANDING + 401 ROOT-CAUSE FIX)
+==================================================
+- Request:
+  - Admin role's main function is REPORTS ONLY:
+    - sales graph by date
+    - sales by payment type
+    - sales by product
+    - branch ranking
+    - all reports filterable by branch (no branch = "All branches")
+  - Remove other tiles ("Open POS Terminal", "Printer Settings", "Sync All Data",
+    "Manage Catalog", "Register New User", "Self Orders Review", "Receipt History")
+    from the admin landing screen.
+  - Fix persistent `GET /api/pos/reports/summary 401 UNAUTHORIZED`.
+
+- Root cause of the 401:
+  - `pos_backend/controllers/report_api.py::_require_admin()` only checked
+    `request.session.uid` (cookie path). Some clients drop the session cookie
+    on cross-origin / tunnel setups (ngrok, split tunnels, strict CORS), so
+    `uid` was `None` and every admin call returned 401.
+  - This is the same problem already solved for customers via
+    `validate_customer_session` (which accepts `user_id + session_id` body).
+
+- Backend implementation (in `/home/sith/odoo/pos/custom_addonsUAT/pos_backend`):
+  1) `models/res_users.py`:
+     - Added field `pos_admin_active_sid` (Char, indexed) — analogous to
+       `pos_customer_active_sid`.
+  2) `controllers/auth_api.py::login_user`:
+     - When `user.pos_role == 'admin'`, store `request.session.sid` into
+       `pos_admin_active_sid` so it can be used as a fallback authenticator.
+  3) `controllers/report_api.py::_require_admin`:
+     - 1st: try cookie/session path (`request.session.uid`).
+     - 2nd: if missing, accept `user_id` + `session_id` from query string OR
+       JSON body. Authenticate the call ONLY if:
+         - user exists, AND
+         - `user.pos_role == 'admin'`, AND
+         - `user.pos_admin_active_sid == session_id` provided by Flutter.
+     - On total failure return 401 `Missing or invalid admin session`.
+
+- Flutter implementation (`lib/services/api_service.dart`):
+  - `fetchAdminReportSummary(...)` now also appends to the URL:
+      `?...&user_id=<uid>&session_id=<cached_user_session>`
+    in addition to the `Cookie` / `X-Openerp-Session-Id` headers.
+  - The branch list endpoint is already public (`/api/pos/branches/public`).
+
+- Flutter UI changes:
+  - REVERTED earlier "AdminHomeScreen with tiles". Admin now lands DIRECTLY on
+    `AdminReportsScreen` per request — admin role is purely analytical.
+  - `lib/screens/admin_reports_screen.dart`:
+    - New constructor flag `asAdminHome` (default false).
+      - When true: hides back button, adds AppBar action "Lock / Switch User"
+        which calls `ApiService.logout()` and pushes back to `LoginScreen`.
+  - `lib/screens/pin_screen.dart`:
+    - `admin` role now routes to `AdminReportsScreen(asAdminHome: true)`.
+  - `lib/screens/pos_screen.dart`:
+    - Removed the admin-only "Admin Reports" drawer item AND the import
+      (admin no longer enters POS).
+  - Deleted: `lib/screens/admin_home_screen.dart` (no longer used).
+
+- Files changed:
+  - Backend:
+    - `pos_backend/models/res_users.py`
+    - `pos_backend/controllers/auth_api.py`
+    - `pos_backend/controllers/report_api.py`
+  - Flutter:
+    - `lib/services/api_service.dart`
+    - `lib/screens/admin_reports_screen.dart`
+    - `lib/screens/pin_screen.dart`
+    - `lib/screens/pos_screen.dart`
+    - `lib/screens/admin_home_screen.dart` (DELETED)
+  - `AI_HANDOFF_PROMPT.txt`
+
+- Commands / ops needed:
+  1) Restart Odoo and upgrade `pos_backend` module so the new
+     `pos_admin_active_sid` field is created.
+  2) Re-login as admin once after upgrade (login writes the field).
+  3) Flutter: hot restart / rebuild.
+
+- Quick verification:
+  - Login as admin → loading → PIN → `AdminReportsScreen` opens directly.
+  - Tap refresh: `GET /api/pos/reports/summary?from=…&to=…&user_id=…&session_id=…`
+    returns 200 with `data.sales_by_day / sales_by_payment_method /
+    sales_by_product / sales_by_branch / grand_total`.
+  - Branch dropdown filters all charts; "All branches" = no branch_id.
+  - "Lock / Switch User" AppBar action signs out and returns to `LoginScreen`.
+  - Cashier and customer flows are unchanged.
+
+==================================================
+73) TEMP DEBUG (ADMIN REPORTS SHOWS 0): SERVER-SIDE DOMAIN + COUNT LOGS
+==================================================
+- Symptom:
+  - Admin Reports UI loads but charts show 0 / empty.
+- Added TEMP debug logs (backend):
+  - File: `pos_backend/controllers/report_api.py`
+  - When `/api/pos/reports/summary` runs, it logs:
+    - received `from`, `to`, `branch_id`
+    - computed domain (state/date/branch)
+    - `pos_backend.order.search_count(domain)`
+  - When auth cookie is missing (`request.session.uid` empty), it logs received:
+    - query params `user_id`, `session_id` (truncated)
+    - `Cookie` header (truncated)
+    - `X-Openerp-Session-Id` header (truncated)
+- Ops:
+  - Restart Odoo service.
+  - Re-run admin report refresh and check Odoo logs for:
+    - `[REPORTS DEBUG] ... domain=... count=...`
+    - `[REPORTS AUTH DEBUG] ...` (only if cookie path missing)
+- How to interpret:
+  - If `count=0`:
+    - either no `pos_backend.order` records in that date range/state,
+    - or the domain fields don't match your data (wrong `state`, wrong `branch_id`, wrong dates).
+  - If `count>0` but charts still empty:
+    - investigate `read_group` results vs expected aggregates (possible timezone/date grouping issue).
+
+==================================================
+74) FIX (ADMIN REPORTS TOTALS 0): USE ORDER LINES SUBTOTAL FOR AGGREGATES
+==================================================
+- Symptom:
+  - `/api/pos/reports/summary` returns many paid orders in date range, but all totals are `0.0`.
+  - Root cause: some environments have stale/zero stored `amount_total` on `pos_backend.order`,
+    so `Order.read_group(... amount_total:sum ...)` returns `0` even when orders exist.
+- Backend fix:
+  - File: `pos_backend/controllers/report_api.py`
+  - All report aggregates now sum `pos_backend.order_line.subtotal` instead of `pos_backend.order.amount_total`:
+    - sales_by_day: group by `order_id.date_order:day`, sum `subtotal`
+    - sales_by_payment_method: group by `order_id.payment_method_id`, sum `subtotal`
+    - sales_by_branch: group by `order_id.branch_id`, sum `subtotal`
+    - grand_total: sum of by_payment totals
+  - Enhanced debug now logs:
+    - `lines=` and `lineSubtotalSum=` for the same window, to confirm line totals are non-zero.
+- Ops:
+  - Restart Odoo service (required for controller code changes).
+  - Refresh Admin Reports.
+
+==================================================
+75) FIX (ADMIN REPORTS: PAYMENT TRANSACTIONS + PRODUCT TOTALS)
+==================================================
+- Symptom:
+  - UI "Transactions" column showed `0` / `—`.
+  - "Sales by product (top)" chart showed all zeros.
+- Root cause:
+  - Backend `sales_by_payment_method` did not include a transaction count.
+  - Product totals relied on ORM `read_group` and/or stored subtotals; in some environments
+    these aggregates can return zeros.
+- Backend fix (report_api.py):
+  - Aggregates are computed with SQL using `SUM(qty * price_unit)` as a stable source of truth.
+  - `sales_by_payment_method` now returns:
+    - `transactions`: `COUNT(DISTINCT order_id)` for the filter window
+    - `total`: sum of line totals for that payment method
+  - `sales_by_product` now computed with SQL:
+    - groups by `full_product_name` (fallback: product template name / combo name)
+    - returns non-zero totals.
+- Ops:
+  - Restart Odoo service.
+  - Refresh Admin Reports screen.
+
+- Security notes:
+  - The `user_id + session_id` fallback is gated on the SID matching
+    `pos_admin_active_sid`, which is rotated each time the admin logs in.
+    A leaked old SID becomes invalid the moment the admin logs in again.
+  - Cookie-based auth is still preferred when available.

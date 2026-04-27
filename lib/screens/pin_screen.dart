@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../theme/coffee_luxury_background.dart';
 import '../services/api_service.dart';
+import 'admin_reports_screen.dart';
 import 'customer_self_order_screen.dart';
 import 'pos_screen.dart';
 import 'login_screen.dart';
@@ -125,20 +126,33 @@ class _PinScreenState extends State<PinScreen> {
 
   void _goNext() {
     final role = widget.cachedUser['role']?.toString();
+    final name = widget.cachedUser['name']?.toString() ?? 'User';
+    final userId = widget.cachedUser['user_id'] is int
+        ? widget.cachedUser['user_id'] as int
+        : int.tryParse('${widget.cachedUser['user_id']}') ?? 1;
+
+    Widget destination;
+    if (role == 'customer') {
+      destination = CustomerSelfOrderScreen(
+        customerName: name,
+        userId: userId,
+        partnerId: widget.cachedUser['partner_id'],
+      );
+    } else if (role == 'admin') {
+      // Admin lands directly on the reports dashboard — admin role is purely
+      // analytical (sales by date / payment / product / branch ranking).
+      destination = const AdminReportsScreen(asAdminHome: true);
+    } else {
+      destination = PosScreen(
+        cashierName: name,
+        cashierId: userId,
+        role: 'cashier',
+      );
+    }
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (context) => role == 'customer'
-            ? CustomerSelfOrderScreen(
-                customerName: widget.cachedUser['name'] ?? 'Customer',
-                userId: widget.cachedUser['user_id'] ?? 1,
-                partnerId: widget.cachedUser['partner_id'],
-              )
-            : PosScreen(
-                cashierName: widget.cachedUser['name'] ?? 'Cashier',
-                cashierId: widget.cachedUser['user_id'] ?? 1,
-              ),
-      ),
+      MaterialPageRoute(builder: (_) => destination),
     );
   }
 

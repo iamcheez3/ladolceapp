@@ -24,11 +24,13 @@ import 'package:intl/intl.dart';
 class PosScreen extends StatefulWidget {
   final String cashierName;
   final int cashierId;
+  final String role;
 
   const PosScreen({
     super.key,
     this.cashierName = 'Demo Cashier',
     this.cashierId = 1,
+    this.role = 'cashier',
   });
 
   @override
@@ -1146,7 +1148,9 @@ class _PosScreenState extends State<PosScreen> {
                             text: widget.cashierName,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          const TextSpan(text: ' (Cashier)'),
+                          TextSpan(
+                            text: widget.role == 'admin' ? ' (Admin)' : ' (Cashier)',
+                          ),
                         ],
                       ),
                     ),
@@ -1867,9 +1871,28 @@ class _PosScreenState extends State<PosScreen> {
                         initialValue: sourceTicketId,
                         isExpanded: true,
                         items: tickets.map((t) {
+                          final tableLabel = (t.tableName ?? '').trim().isNotEmpty
+                              ? (t.tableName ?? '').trim()
+                              : (t.tableId != null ? 'Table ${t.tableId}' : 'No table');
                           return DropdownMenuItem<int>(
                             value: t.id,
-                            child: Text('${t.name} (${t.lines.length} items)'),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tableLabel,
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                Text(
+                                  '${t.name} • ${t.lines.length} items',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         }).toList(),
                         onChanged: isSubmitting
@@ -1929,10 +1952,27 @@ class _PosScreenState extends State<PosScreen> {
                           initialValue: destinationTicketId,
                           isExpanded: true,
                           items: destinationOptions.map((t) {
+                            final tableLabel = (t.tableName ?? '').trim().isNotEmpty
+                                ? (t.tableName ?? '').trim()
+                                : (t.tableId != null ? 'Table ${t.tableId}' : 'No table');
                             return DropdownMenuItem<int>(
                               value: t.id,
-                              child: Text(
-                                '${t.name} (${t.lines.length} items)',
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tableLabel,
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                  Text(
+                                    '${t.name} • ${t.lines.length} items',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
                               ),
                             );
                           }).toList(),
