@@ -2435,3 +2435,189 @@ Priority/decision rules:
 - Quick verification:
   - Resume a ticket, add one or more new items, save: CHARGE and Open Tickets **amount_total** should reflect **all** lines (old + new).
   - Create ticket offline, reconnect and sync: Open Tickets should show **one** row per order (no parallel OFFLINE-MOCK with same table/total as a POS/… id).
+
+==================================================
+58) LATEST IMPLEMENTED UPDATE (BRANCH MASTER DATA + COMPANY LINK)
+==================================================
+- Request:
+  - App should be ready to scale with Odoo 18 multi-company.
+  - Add a "Branch" form in Odoo and connect it to standard Odoo company (`res.company`) inside `pos_backend`.
+- Implementation:
+  - Added new model `pos_backend.branch` with:
+    - `name`, `code`, `active`
+    - `company_id` (Many2one `res.company`, required; default current company)
+    - SQL constraint: unique `(code, company_id)` for safety.
+  - Added UI:
+    - list/form/search views
+    - menu `Custom POS > Configuration > Branches` (admin only).
+  - Added security:
+    - access rights for admin (full CRUD) and cashier (read-only)
+    - multi-company record rule so users only see branches in their allowed companies.
+- Files changed:
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/pos_branch.py` (New)
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/__init__.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/views/pos_branch_views.xml` (New)
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/security/security.xml`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/security/ir.model.access.csv`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/__manifest__.py`
+- Commands / ops needed:
+  - Restart Odoo service and upgrade module `pos_backend`.
+  - Hard refresh Odoo web client (`Ctrl+F5`) after upgrade.
+- Quick verification:
+  - In Odoo, open `Custom POS > Configuration > Branches`.
+  - Create a branch for company "Ladolce" (ex: name "Ladolce - Main", code "LD-MAIN").
+  - Switch company (if multi-company enabled) and confirm branches list is filtered to allowed companies.
+
+==================================================
+59) LATEST IMPLEMENTED UPDATE (BRANCH FORM FIX: REMOVE INVALID check_company)
+==================================================
+- Request:
+  - Fix Odoo error when upgrading/loading `pos_backend` after adding Branches.
+- Root cause:
+  - `pos_backend.branch.company_id` pointed to `res.company` with `check_company=True`.
+  - Odoo's generated `check_company` domain assumes the comodel has a `company_id` field, but `res.company` does not, so view validation failed.
+- Implementation:
+  - Removed `check_company=True` from `pos_backend.branch.company_id`.
+- Files changed:
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/pos_branch.py`
+- Commands / ops needed:
+  - Restart Odoo service and upgrade module `pos_backend`.
+  - Hard refresh Odoo web client (`Ctrl+F5`) after upgrade.
+- Quick verification:
+  - Upgrade `pos_backend` succeeds.
+  - Open `Custom POS > Configuration > Branches` and create/edit a branch without errors.
+
+==================================================
+60) LATEST IMPLEMENTED UPDATE (POS PROFILE: POS NAME + BRANCH REQUIRED)
+==================================================
+- Request:
+  - Cashier register/login must select Branch too.
+  - Fix POS profile display so drawer header uses the real POS name (not hardcoded "POS Terminal #1") and shows branch.
+- Implementation:
+  - Flutter:
+    - Added Branch caching keys:
+      - `cached_branch_id`, `cached_branch_name`
+    - Added `ApiService.fetchBranches()` (GET `/api/pos/branches`) to load available branches from backend using session headers.
+    - Updated `PosIdentityScreen`:
+      - now prompts for Branch + POS name ("POS Profile")
+      - branch dropdown when backend is reachable
+      - offline fallback: if branches cannot load, cashier can type a branch name (still required) and continue; it will be included in device audit payload and retried later.
+    - Updated `PosScreen` drawer header:
+      - replaces hardcoded "POS Terminal #1" with cached POS name and branch (`POS_NAME • BRANCH`).
+  - Backend (Odoo `pos_backend` in `/home/sith/odoo/pos/custom_addonsUAT`):
+    - Added endpoint GET `/api/pos/branches` to return active branches (filtered by user allowed companies).
+    - Extended `/api/pos/device/register` + POS Device Log to record branch (`branch_id` when known, otherwise `branch_name`).
+    - Updated POS Device Log list/search to include `branch_name`.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/pos_identity_screen.dart`
+  - `lib/screens/pos_screen.dart`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_branch_api.py` (New)
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/__init__.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_device_api.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/pos_device_log.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/views/pos_device_log_views.xml`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade module `pos_backend`.
+  - Flutter: hot restart app.
+- Quick verification:
+  - Odoo: create 2+ branches under `Custom POS > Configuration > Branches`.
+  - Flutter: cashier login → POS Profile screen shows Branch dropdown + POS name; select both → Continue.
+  - After continue: POS drawer header displays `<POS NAME> • <BRANCH>`.
+  - Odoo: `Custom POS > Configuration > Logs > POS Device Log` shows new row with `pos_name` and `branch_name`.
+
+==================================================
+61) LATEST IMPLEMENTED UPDATE (CASHIER BRANCH ON REGISTER + ORDERS TAGGED)
+==================================================
+- Request:
+  - Branch must be selected when cashier registers (not during POS name prompt).
+  - Store branch on cashier `res.users`, and automatically save branch onto orders so Odoo can filter POS Orders by branch.
+- Implementation:
+  - Backend (Odoo `pos_backend` in `/home/sith/odoo/pos/custom_addonsUAT`):
+    - Added `res.users.pos_branch_id` (Many2one `pos_backend.branch`) and showed it in Users form when role=cashier.
+    - Updated `/api/pos/register`:
+      - when `role == 'cashier'`, it now requires `branch_id` and saves it to `pos_branch_id`.
+    - Updated `/api/pos/login` response to include `branch_id` + `branch_name` for caching on Flutter.
+    - Added public branch list endpoint for registration (no session yet):
+      - GET `/api/pos/branches/public`
+    - Added `pos_backend.order.branch_id` and auto-populates from cashier profile on create.
+    - Updated POS Order UI to show `branch_id` in list + form.
+  - Flutter:
+    - `RegisterScreen`: when Role=Cashier, shows Branch dropdown (loaded from `/api/pos/branches/public`) and requires it.
+    - `ApiService.registerUser()` now sends `branch_id` for cashier registration.
+    - `ApiService.loginUser()` caches branch from login response (`cached_branch_id`, `cached_branch_name`).
+    - `PosIdentityScreen` restored to POS-name-only prompt (branch no longer required there).
+- Files changed:
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/res_users.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/views/res_users_views.xml`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/auth_api.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_branch_api.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/pos_order.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_order_api.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/views/pos_order_views.xml`
+  - `lib/services/api_service.dart`
+  - `lib/screens/register_screen.dart`
+  - `lib/screens/pos_identity_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade module `pos_backend`.
+  - Flutter: hot restart.
+- Quick verification:
+  - Flutter: Register → Role=Cashier → must select Branch → register succeeds.
+  - Odoo: open that cashier in Users → `Custom POS App Settings` shows Branch.
+  - Flutter: Cashier login → POS name prompt shows (no branch prompt).
+  - Odoo: create an order from cashier → POS Orders list shows Branch column populated; filter/group by Branch works.
+
+==================================================
+62) LATEST IMPLEMENTED UPDATE (BRANCH-SCOPED RECEIPTS + CUSTOMER BRANCH SELECT)
+==================================================
+- Request:
+  - POS receipt history must show only receipts for the cashier's branch.
+  - Customer self-order must select a branch; cashier notifications must alert only that branch.
+  - Same app is used but separated by branch.
+- Implementation:
+  - Backend (Odoo `pos_backend`):
+    - `/api/pos/history` now filters paid receipts by the logged-in cashier/admin branch (`res.users.pos_branch_id`).
+    - `/api/pos/order/<id>/receipt` blocks cross-branch access for cashier/admin (403) and includes `branch` name in receipt payload.
+    - `/api/pos/order` (self-order) now requires `branch_id` when `partner_id` is present and saves it to `pos_backend.order.branch_id`.
+    - Self-order FCM notification now targets only cashiers/admins with matching `pos_branch_id`.
+  - Flutter (Customer self-order):
+    - Loads branches via `GET /api/pos/branches/public`.
+    - Requires branch selection inside the checkout bottom sheet before confirming order.
+    - Sends `branch_id` in `submitOrder()` payload.
+    - Caches customer branch separately (`cached_customer_branch_id`, `cached_customer_branch_name`).
+- Files changed:
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_order_api.py`
+  - `lib/services/api_service.dart`
+  - `lib/screens/customer_self_order_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade module `pos_backend`.
+  - Flutter: hot restart app.
+- Quick verification:
+  - Cashier (Branch A) opens Receipts History: only Branch A receipts appear.
+  - Customer checkout requires Branch selection; confirm order succeeds.
+  - Only Branch-selected cashiers receive the "New customer order" notification.
+
+==================================================
+63) LATEST IMPLEMENTED UPDATE (RECEIPT HISTORY BRANCH FILTER FIX: AUTH HEADERS)
+==================================================
+- Request:
+  - Cashier receipts history still shows all receipts even though backend filters by branch.
+- Root cause:
+  - Flutter `GET /api/pos/history` and receipt detail requests were not sending session headers, so backend couldn't detect `request.session.uid` and returned unfiltered data.
+- Implementation:
+  - Flutter:
+    - `fetchReceiptHistory()` now uses session auth headers and also passes `user_id` as a query param fallback.
+    - `fetchOrderReceipt()` now uses session auth headers and also passes `user_id` as a query param fallback.
+  - Backend:
+    - `/api/pos/history` and `/api/pos/order/<id>/receipt` now fall back to `?user_id=` when session uid is missing (ngrok/cookie-flaky clients).
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_order_api.py`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade module `pos_backend`.
+  - Flutter: hot restart app.
+- Quick verification:
+  - Login as cashier `cash1` (Branch "Nam phou") → open Receipts History → list contains only Nam phou receipts.

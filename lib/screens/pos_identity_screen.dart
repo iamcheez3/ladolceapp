@@ -24,10 +24,10 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
   }
 
   Future<void> _prefillPosName() async {
-    final cached = await ApiService().getCachedPosName();
+    final cachedPos = await ApiService().getCachedPosName();
     if (!mounted) return;
-    if (cached != null && cached.isNotEmpty) {
-      _posNameController.text = cached;
+    if (cachedPos != null && cachedPos.isNotEmpty) {
+      _posNameController.text = cachedPos;
       _posNameController.selection = TextSelection.fromPosition(
         TextPosition(offset: _posNameController.text.length),
       );
@@ -47,6 +47,8 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
     setState(() => _isSaving = true);
     final api = ApiService();
     final posName = _posNameController.text.trim();
+    final branchId = await api.getCachedBranchId();
+    final branchName = await api.getCachedBranchName();
     bool okToNavigate = true;
 
     try {
@@ -65,6 +67,8 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
         userId: userId,
         cashierName: cashierName,
         posName: posName,
+        branchId: branchId,
+        branchName: branchName,
       );
     } catch (_) {
       // ignore; registration retries during syncAllData()

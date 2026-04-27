@@ -43,6 +43,8 @@ class _PosScreenState extends State<PosScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
   String? _errorMessage;
+  String? _cachedPosName;
+  String? _cachedBranchName;
 
   // ── Printer helper ────────────────────────────────────────────────────────
   List<CartItem> _filterItemsForPrinter(
@@ -159,7 +161,20 @@ class _PosScreenState extends State<PosScreen> {
   void initState() {
     super.initState();
     printerService.initialize();
+    _loadPosProfileLabels();
     _fetchOdooProducts();
+  }
+
+  Future<void> _loadPosProfileLabels() async {
+    try {
+      final posName = await _apiService.getCachedPosName();
+      final branchName = await _apiService.getCachedBranchName();
+      if (!mounted) return;
+      setState(() {
+        _cachedPosName = posName;
+        _cachedBranchName = branchName;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -1136,9 +1151,16 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'POS Terminal #1',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    Text(
+                      [
+                        if ((_cachedPosName ?? '').trim().isNotEmpty)
+                          (_cachedPosName ?? '').trim()
+                        else
+                          'POS Terminal',
+                        if ((_cachedBranchName ?? '').trim().isNotEmpty)
+                          ' • ${(_cachedBranchName ?? '').trim()}',
+                      ].join(''),
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
                 ),

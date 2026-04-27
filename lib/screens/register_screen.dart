@@ -25,6 +25,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  bool _isLoadingBranches = false;
+  List<Map<String, dynamic>> _branches = const [];
+  int? _selectedBranchId;
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeLoadBranches();
+  }
+
+  Future<void> _maybeLoadBranches() async {
+    if (_selectedRole != 'cashier') return;
+    setState(() => _isLoadingBranches = true);
+    try {
+      final branches = await _apiService.fetchBranchesPublic();
+      if (!mounted) return;
+      setState(() {
+        _branches = branches;
+        if (_selectedBranchId == null && branches.isNotEmpty) {
+          final id = (branches.first['id'] is int)
+              ? branches.first['id'] as int
+              : int.tryParse('${branches.first['id']}');
+          _selectedBranchId = id;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _branches = const []);
+    } finally {
+      if (mounted) setState(() => _isLoadingBranches = false);
+    }
+  }
+
   void _register() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -37,6 +70,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
         role: _selectedRole,
         phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
+        branchId: _selectedRole == 'cashier' ? _selectedBranchId : null,
       );
 
       if (!mounted) return;
@@ -224,7 +258,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   fontWeight: FontWeight.w700,
                                 ),
                                 side: const BorderSide(color: Color(0xFFDCE5FF)),
-                                onSelected: (_) => setState(() => _selectedRole = 'customer'),
+                                onSelected: (_) => setState(() {
+                                  _selectedRole = 'customer';
+                                  _branches = const [];
+                                  _selectedBranchId = null;
+                                }),
                               ),
                               ChoiceChip(
                                 label: const Text('Cashier'),
@@ -235,10 +273,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   fontWeight: FontWeight.w700,
                                 ),
                                 side: const BorderSide(color: Color(0xFFDCE5FF)),
-                                onSelected: (_) => setState(() => _selectedRole = 'cashier'),
+                                onSelected: (_) async {
+                                  setState(() => _selectedRole = 'cashier');
+                                  await _maybeLoadBranches();
+                                },
                               ),
                             ],
                           ),
+                          if (_selectedRole == 'cashier') ...[
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Branch',
+                              style: TextStyle(
+                                color: _brandNavy,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_isLoadingBranches)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                                  ),
+                                ),
+                              )
+                            else
+                              DropdownButtonFormField<int>(
+                                value: _selectedBranchId,
+                                items: _branches.map((b) {
+                                  final id = (b['id'] is int) ? b['id'] as int : int.tryParse('${b['id']}') ?? 0;
+                                  final name = (b['name'] ?? '').toString();
+                                  final code = (b['code'] ?? '').toString().trim();
+                                  final label = code.isNotEmpty ? '$name ($code)' : name;
+                                  return DropdownMenuItem<int>(
+                                    value: id,
+                                    child: Text(label),
+                                  );
+                                }).toList(),
+                                onChanged: _isLoading
+                                    ? null
+                                    : (v) => setState(() => _selectedBranchId = v),
+                                decoration: _inputDecoration('Select branch', Icons.account_tree_outlined),
+                                validator: (v) {
+                                  if (_selectedRole != 'cashier') return null;
+                                  if (v == null || v <= 0) return 'Please select a branch';
+                                  return null;
+                                },
+                              ),
+                          ],
                           const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
