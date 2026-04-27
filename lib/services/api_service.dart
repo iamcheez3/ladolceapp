@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../models/product.dart';
 import '../models/table.dart';
 import '../models/payment_method.dart';
@@ -66,6 +69,61 @@ class ApiService {
     final origin = Uri.parse(baseUrl).origin;
     final relative = normalized.startsWith('/') ? normalized : '/$normalized';
     return '$origin$relative';
+  }
+
+  void _d(String message) {
+    if (!kDebugMode) return;
+    developer.log(message, name: 'ApiService');
+  }
+
+  /// Sum `price_unit * qty` for a cached `lines` array (open ticket JSON).
+  double _sumCachedOpenTicketLinesAmount(dynamic lineList) {
+    if (lineList is! List) return 0.0;
+    var sum = 0.0;
+    for (final raw in lineList) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      final pu = (m['price_unit'] is num)
+          ? (m['price_unit'] as num).toDouble()
+          : double.tryParse(m['price_unit']?.toString() ?? '') ?? 0.0;
+      final q = (m['qty'] is int)
+          ? (m['qty'] as int)
+          : (m['qty'] is num)
+              ? (m['qty'] as num).toInt()
+              : int.tryParse(m['qty']?.toString() ?? '1') ?? 1;
+      sum += pu * q;
+    }
+    return sum;
+  }
+
+  /// After offline `create` syncs, replace mock id in cache with real Odoo id
+  /// so Open Tickets does not list both OFFLINE-MOCK and POS/… for one order.
+  Future<void> _remapCachedOpenTicketMockId({
+    required int mockId,
+    required int realId,
+    required Map<String, dynamic> jsonResp,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cached_open_tickets');
+    if (cached == null) return;
+    final list = List<dynamic>.from(jsonDecode(cached));
+    final idx = list.indexWhere(
+      (e) => e is Map && (e)['id'] == mockId,
+    );
+    if (idx < 0) return;
+    final m = Map<String, dynamic>.from(list[idx] as Map);
+    m['id'] = realId;
+    final data = jsonResp['data'];
+    if (data is Map) {
+      if (data['order_reference'] != null) {
+        m['name'] = data['order_reference'].toString();
+      } else if (data['name'] != null) {
+        m['name'] = data['name'].toString();
+      }
+    }
+    list[idx] = m;
+    await prefs.setString('cached_open_tickets', jsonEncode(list));
+    _d('[OFFLINE SYNC] remapped open ticket in cache: mockId=$mockId -> $realId');
   }
 
   /// Async variant that respects dev base URL override from SharedPreferences.
@@ -177,14 +235,14 @@ class ApiService {
 
     try {
       final url = Uri.parse('$base/products?limit=$limit&offset=$offset');
-      print('==============================');
-      print('[API CALL] GET $url');
+      _d('==============================');
+      _d('[API CALL] GET $url');
       
       final response = await http.get(url).timeout(const Duration(seconds: 5));
       
-      print('[API RESP] GET $url | STATUS: ${response.statusCode}');
-      print('[API BODY] ${response.body}');
-      print('==============================');
+      _d('[API RESP] GET $url | STATUS: ${response.statusCode}');
+      _d('[API BODY] ${response.body}');
+      _d('==============================');
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
@@ -200,7 +258,7 @@ class ApiService {
         throw Exception('Failed to connect to Odoo Server (Code: ${response.statusCode})');
       }
     } catch (e) {
-      print('[API OFFLINE] Fetch products failed. Falling back to cache. Error: $e');
+      _d('[API OFFLINE] Fetch products failed. Falling back to cache. Error: $e');
       final cachedProducts = prefs.getString('cached_products');
       if (cachedProducts != null) {
         final List<dynamic> data = jsonDecode(cachedProducts);
@@ -296,34 +354,86 @@ class ApiService {
     }
   }
 
+  /// When the device comes back online, `GET /pos/open_tickets` replaces
+  /// `cached_open_tickets` and would drop not-yet-synced offline mock tickets
+  /// (negative ids). Re-merge those local draft rows on top of the server list.
+  List<dynamic> _mergeLocalDraftOpenTickets(
+    List<dynamic> serverList,
+    String? previousCacheJson,
+  ) {
+    if (previousCacheJson == null || previousCacheJson.isEmpty) {
+      return List<dynamic>.from(serverList);
+    }
+    List<dynamic> previous;
+    try {
+      previous = jsonDecode(previousCacheJson) as List<dynamic>;
+    } catch (_) {
+      return List<dynamic>.from(serverList);
+    }
+    final serverIds = <int>{};
+    for (final e in serverList) {
+      if (e is Map && e['id'] is int) {
+        serverIds.add(e['id'] as int);
+      } else if (e is Map && e['id'] != null) {
+        final p = int.tryParse(e['id'].toString());
+        if (p != null) serverIds.add(p);
+      }
+    }
+    final out = List<dynamic>.from(serverList);
+    for (final e in previous) {
+      if (e is! Map) continue;
+      final id = e['id'];
+      final int? pid = id is int ? id : int.tryParse(id?.toString() ?? '');
+      if (pid == null) continue;
+      if (pid >= 0) continue; // only preserve offline / mock rows
+      if (serverIds.contains(pid)) continue;
+      final st = (e['state'] ?? '').toString().toLowerCase();
+      if (st == 'paid' || st == 'done' || e['is_paid'] == true) {
+        continue;
+      }
+      out.add(e);
+    }
+    return out;
+  }
+
   Future<List<OpenTicket>> fetchOpenTickets({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
       final cachedStr = prefs.getString('cached_open_tickets');
       if (cachedStr != null) {
         final List<dynamic> data = jsonDecode(cachedStr);
-        return data.map((json) => OpenTicket.fromJson(json)).toList();
+        return data
+            .map((e) => OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
       }
     }
     
     final base = await getBaseUrl();
+    final prevOpenTickets = prefs.getString('cached_open_tickets');
     try {
       final url = Uri.parse('$base/pos/open_tickets');
       final response = await http.get(url).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
-          final List<dynamic> data = jsonResponse['data'];
-          await prefs.setString('cached_open_tickets', jsonEncode(data));
-          return data.map((json) => OpenTicket.fromJson(json)).toList();
+          final List<dynamic> data = jsonResponse['data'] as List<dynamic>;
+          final merged = _mergeLocalDraftOpenTickets(data, prevOpenTickets);
+          await prefs.setString('cached_open_tickets', jsonEncode(merged));
+          return merged
+              .map((e) =>
+                  OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList();
         }
       }
       throw Exception('Failed to load tickets');
     } catch (e) {
       final cachedStr = prefs.getString('cached_open_tickets');
       if (cachedStr != null) {
-        final List<dynamic> data = jsonDecode(cachedStr);
-        return data.map((json) => OpenTicket.fromJson(json)).toList();
+        final List<dynamic> data = jsonDecode(cachedStr) as List<dynamic>;
+        return data
+            .map((e) =>
+                OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
       }
       return [];
     }
@@ -391,12 +501,11 @@ class ApiService {
       'login': login,
       'password': password,
       'role': role,
-      if (phone != null) 'phone': phone,
+      'phone': ?phone,
     };
-    
-    print('==============================');
-    print('[API CALL] POST $url');
-    print('[API LOAD] $payload');
+    _d('==============================');
+    _d('[API CALL] POST $url');
+    _d('[API LOAD] $payload');
 
     final response = await http.post(
       url,
@@ -404,9 +513,9 @@ class ApiService {
       body: jsonEncode(payload),
     );
 
-    print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    print('[API BODY] ${response.body}');
-    print('==============================');
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
 
     final jsonResponse = jsonDecode(response.body);
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -421,15 +530,18 @@ class ApiService {
     final dbName = await getDatabaseName();
     final url = Uri.parse('$base/pos/login');
     final normalizedLogin = login.trim().toLowerCase();
+    final device = await _collectDeviceInfo();
     final Map<String, dynamic> payload = {
-      if (dbName != null) 'db': dbName,
+      'db': ?dbName,
       'login': normalizedLogin,
       'password': password,
+      'device_id': device['device_id'],
+      'platform': device['platform'],
     };
 
-    print('==============================');
-    print('[API CALL] POST $url');
-    print('[API LOAD] $payload');
+    _d('==============================');
+    _d('[API CALL] POST $url');
+    _d('[API LOAD] $payload');
 
     final response = await http.post(
       url,
@@ -437,9 +549,9 @@ class ApiService {
       body: jsonEncode(payload),
     );
 
-    print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    print('[API BODY] ${response.body}');
-    print('==============================');
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
 
     final jsonResponse = jsonDecode(response.body);
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -449,6 +561,39 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_user_session', sessionId ?? '');
       await prefs.setString('cached_user_data', jsonEncode(data));
+
+      // Cashier: force POS name prompt once per login session.
+      try {
+        final role = (data is Map) ? (data['role']?.toString()) : null;
+        final sid = (sessionId ?? '').toString().trim();
+        if (role == 'cashier' && sid.isNotEmpty) {
+          await prefs.setString(_posIdentityPromptSessionKey, sid);
+        }
+      } catch (_) {}
+
+      // Customer: silently log device on login for audit trail.
+      // Backend requires non-empty `pos_name`, but customers don't pick a POS name,
+      // so use a stable label for self-order devices.
+      try {
+        final role = (data is Map) ? (data['role']?.toString()) : null;
+        if (role == 'customer' && data is Map) {
+          final userId = (data['user_id'] is int)
+              ? data['user_id'] as int
+              : int.tryParse(data['user_id']?.toString() ?? '') ?? 0;
+          final name = (data['name'] ?? 'Customer').toString();
+          if (userId > 0) {
+            Future(() async {
+              try {
+                await registerPosDevice(
+                  userId: userId,
+                  cashierName: name,
+                  posName: 'SelfOrder',
+                );
+              } catch (_) {}
+            });
+          }
+        }
+      } catch (_) {}
       
       return data;
     } else {
@@ -469,39 +614,69 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cached_user_session');
     await prefs.remove('cached_user_data');
+    await prefs.remove(_posIdentityPromptSessionKey);
+  }
+
+  /// Customer: validate that current session is still active.
+  /// Backend endpoint: POST `/api/pos/session/validate`
+  Future<bool> validateCustomerSession() async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/session/validate');
+    final headers = await _authHeaders(json: true);
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+    final device = await getDeviceInfoForAudit();
+    final response = await http
+        .post(
+          url,
+          headers: headers,
+          body: jsonEncode({
+            'user_id': userId,
+            'session_id': sid,
+            'device_id': device['device_id'],
+          }),
+        )
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode == 200) return true;
+    return false;
   }
   Future<void> setPosPin(String pin, int userId) async {
-  final base = await getBaseUrl();
-  final url = Uri.parse('$base/pos/set_pin');
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/set_pin');
 
-  print('==============================');
-  print('[SET PIN] POST $url');
-  print('[SET PIN] user_id: $userId | pin: $pin');
+    _d('==============================');
+    _d('[SET PIN] POST $url');
+    _d('[SET PIN] user_id: $userId | pin: $pin');
 
-  final response = await http.post(
-    url,
-    headers: {'Content-Type': 'application/json'}, // ← no session needed now
-    body: jsonEncode({'pin': pin, 'user_id': userId}),
-  ).timeout(const Duration(seconds: 6));
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'}, // ← no session needed now
+      body: jsonEncode({'pin': pin, 'user_id': userId}),
+    ).timeout(const Duration(seconds: 6));
 
-  print('[SET PIN] STATUS: ${response.statusCode}');
-  print('[SET PIN] BODY: ${response.body}');
-  print('==============================');
+    _d('[SET PIN] STATUS: ${response.statusCode}');
+    _d('[SET PIN] BODY: ${response.body}');
+    _d('==============================');
 
-  final jsonResponse = jsonDecode(response.body);
-  if (response.statusCode != 200 || jsonResponse['status'] != 'success') {
-    throw Exception(jsonResponse['message'] ?? 'Failed to save PIN');
+    final jsonResponse = jsonDecode(response.body);
+    if (response.statusCode != 200 || jsonResponse['status'] != 'success') {
+      throw Exception(jsonResponse['message'] ?? 'Failed to save PIN');
+    }
+
+    // Update local cache
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cached_user_data');
+    if (cached != null && cached.isNotEmpty) {
+      final data = Map<String, dynamic>.from(jsonDecode(cached));
+      data['pos_pin'] = pin;
+      await prefs.setString('cached_user_data', jsonEncode(data));
+    }
   }
-
-  // Update local cache
-  final prefs = await SharedPreferences.getInstance();
-  final cached = prefs.getString('cached_user_data');
-  if (cached != null && cached.isNotEmpty) {
-    final data = Map<String, dynamic>.from(jsonDecode(cached));
-    data['pos_pin'] = pin;
-    await prefs.setString('cached_user_data', jsonEncode(data));
-  }
-}
 
   
   Future<Map<String, dynamic>> submitOrder({
@@ -526,9 +701,9 @@ class ApiService {
     
     try {
       final url = Uri.parse('$base/pos/order');
-      print('==============================');
-      print('[API CALL] POST $url');
-      print('[API LOAD] $payload');
+      _d('==============================');
+      _d('[API CALL] POST $url');
+      _d('[API LOAD] $payload');
 
       final response = await http.post(
         url,
@@ -536,9 +711,9 @@ class ApiService {
         body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 5));
 
-      print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-      print('[API BODY] ${response.body}');
-      print('==============================');
+      _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+      _d('[API BODY] ${response.body}');
+      _d('==============================');
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -549,7 +724,7 @@ class ApiService {
         throw Exception(jsonResponse['message'] ?? 'Failed to submit order');
       }
     } catch (e) {
-      print('[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e');
+      _d('[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e');
       final mockId = -DateTime.now().millisecondsSinceEpoch;
       await _queueOfflineOrder({
         'action': 'submit',
@@ -586,7 +761,7 @@ class ApiService {
       'user_id': userId,
       'table_id': tableId,
       'partner_id': customerId,
-      if (name != null) 'name': name,
+      'name': ?name,
       'lines': lines,
     };
 
@@ -678,9 +853,9 @@ class ApiService {
 
     try {
       final url = Uri.parse('$base/pos/order/$orderId/update');
-      print('==============================');
-      print('[API CALL] POST $url');
-      print('[API LOAD] $payload');
+      _d('==============================');
+      _d('[API CALL] POST $url');
+      _d('[API LOAD] $payload');
 
       final response = await http.post(
         url,
@@ -688,9 +863,9 @@ class ApiService {
         body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 5));
 
-      print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-      print('[API BODY] ${response.body}');
-      print('==============================');
+      _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+      _d('[API BODY] ${response.body}');
+      _d('==============================');
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -720,27 +895,39 @@ class ApiService {
                 return data;
               }
 
-              double total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
-              list[index]['amount_total'] = total;
               if (replaceAll) {
-                  list[index]['lines'] = lines.map((l) => {
-                       'product_id': l['product_id'],
-                       'product_name': 'Item',
-                       'qty': l['qty'],
-                       'price_unit': l['price_unit'],
-                       'topping_ids': l['topping_ids'] ?? []
-                  }).toList();
+                list[index]['lines'] = lines
+                    .map(
+                      (l) => {
+                        'product_id': l['product_id'],
+                        'product_name': 'Item',
+                        'qty': l['qty'],
+                        'price_unit': l['price_unit'],
+                        'topping_ids': l['topping_ids'] ?? []
+                      },
+                    )
+                    .toList();
               } else {
-                  List existing = list[index]['lines'] ?? [];
-                  existing.addAll(lines.map((l) => {
-                       'product_id': l['product_id'],
-                       'product_name': 'Item',
-                       'qty': l['qty'],
-                       'price_unit': l['price_unit'],
-                       'topping_ids': l['topping_ids'] ?? []
-                  }));
-                  list[index]['lines'] = existing;
+                final existing = List<dynamic>.from(
+                  list[index]['lines'] ?? const [],
+                );
+                existing.addAll(
+                  lines.map(
+                    (l) => {
+                      'product_id': l['product_id'],
+                      'product_name': 'Item',
+                      'qty': l['qty'],
+                      'price_unit': l['price_unit'],
+                      'topping_ids': l['topping_ids'] ?? []
+                    },
+                  ),
+                );
+                list[index]['lines'] = existing;
               }
+              // Always total the full ticket, not just this request's new lines
+              // (append mode used to set amount_total to "latest lines only").
+              list[index]['amount_total'] =
+                  _sumCachedOpenTicketLinesAmount(list[index]['lines']);
               await prefs.setString('cached_open_tickets', jsonEncode(list));
            }
         }
@@ -776,27 +963,37 @@ class ApiService {
               return {'id': orderId, 'cleared_offline': true};
             }
 
-            double total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
-            list[index]['amount_total'] = total;
             if (replaceAll) {
-                list[index]['lines'] = lines.map((l) => {
-                     'product_id': l['product_id'],
-                     'product_name': 'Item',
-                     'qty': l['qty'],
-                     'price_unit': l['price_unit'],
-                     'topping_ids': l['topping_ids'] ?? []
-                }).toList();
+              list[index]['lines'] = lines
+                  .map(
+                    (l) => {
+                      'product_id': l['product_id'],
+                      'product_name': 'Item',
+                      'qty': l['qty'],
+                      'price_unit': l['price_unit'],
+                      'topping_ids': l['topping_ids'] ?? []
+                    },
+                  )
+                  .toList();
             } else {
-                List existing = list[index]['lines'] ?? [];
-                existing.addAll(lines.map((l) => {
-                     'product_id': l['product_id'],
-                     'product_name': 'Item',
-                     'qty': l['qty'],
-                     'price_unit': l['price_unit'],
-                     'topping_ids': l['topping_ids'] ?? []
-                }));
-                list[index]['lines'] = existing;
+              final existing = List<dynamic>.from(
+                list[index]['lines'] ?? const [],
+              );
+              existing.addAll(
+                lines.map(
+                  (l) => {
+                    'product_id': l['product_id'],
+                    'product_name': 'Item',
+                    'qty': l['qty'],
+                    'price_unit': l['price_unit'],
+                    'topping_ids': l['topping_ids'] ?? []
+                  },
+                ),
+              );
+              list[index]['lines'] = existing;
             }
+            list[index]['amount_total'] =
+                _sumCachedOpenTicketLinesAmount(list[index]['lines']);
             await prefs.setString('cached_open_tickets', jsonEncode(list));
             return list[index];
          }
@@ -815,9 +1012,9 @@ class ApiService {
       'payment_method_id': paymentMethodId,
     };
 
-    print('==============================');
-    print('[API CALL] POST $url (PAY)');
-    print('[API LOAD] $payload');
+    _d('==============================');
+    _d('[API CALL] POST $url (PAY)');
+    _d('[API LOAD] $payload');
 
     try {
       final response = await http.post(
@@ -869,7 +1066,7 @@ class ApiService {
 
       await _removeFromCacheList('cached_open_tickets', orderId);
       if (tableId != null) {
-        await _markTableHasOpenOrder(tableId!, hasOpenOrder: false);
+        await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
       }
       final mockReceipt = {
          'offline': true,
@@ -898,9 +1095,9 @@ class ApiService {
       'admin_pin': adminPin,
     };
 
-    print('==============================');
-    print('[API CALL] POST $url (DELETE ORDER)');
-    print('[API LOAD] $payload');
+    _d('==============================');
+    _d('[API CALL] POST $url (DELETE ORDER)');
+    _d('[API LOAD] $payload');
 
     final response = await http.post(
       url,
@@ -908,9 +1105,9 @@ class ApiService {
       body: jsonEncode(payload),
     ).timeout(const Duration(seconds: 5));
 
-    print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    print('[API BODY] ${response.body}');
-    print('==============================');
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
 
     final jsonResponse = jsonDecode(response.body);
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -1023,7 +1220,7 @@ class ApiService {
         return rank(a['action']).compareTo(rank(b['action']));
       });
 
-      print('[OFFLINE SYNC] pass=${pass + 1} pending=${pending.length}');
+      _d('[OFFLINE SYNC] pass=${pass + 1} pending=${pending.length}');
 
       for (final task in ordered) {
         // Keep original raw json for pending list if needed
@@ -1091,7 +1288,12 @@ class ApiService {
 
                 if (action == 'create' && mockId < 0 && realId != null) {
                   mockToRealId[mockId] = realId;
-                  print('[OFFLINE SYNC] mapped mockId=$mockId -> realId=$realId');
+                  _d('[OFFLINE SYNC] mapped mockId=$mockId -> realId=$realId');
+                  await _remapCachedOpenTicketMockId(
+                    mockId: mockId,
+                    realId: realId,
+                    jsonResp: Map<String, dynamic>.from(jsonResp as Map),
+                  );
                 }
 
                 // If this was an offline paid submit, replace the local "Unsynced" mock receipt
@@ -1339,14 +1541,33 @@ class ApiService {
     }
   }
 
-  Future<dynamic> saveCustomer({int? id, required String name, String? phone, String? email}) async {
+  Future<dynamic> saveCustomer({
+    int? id,
+    required String name,
+    String? phone,
+    String? email,
+    String? dateOfBirth,
+    String? imageBase64,
+  }) async {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/customers');
+      final dob = dateOfBirth?.trim();
+      final img = imageBase64?.trim();
       final response = await http.post(
         url,
         headers: await _authHeaders(json: true),
-        body: jsonEncode({'id': id, 'name': name, 'phone': phone, 'email': email}),
+        body: jsonEncode({
+          'id': id,
+          'name': name,
+          'phone': phone,
+          'email': email,
+          // DOB field name can differ between Odoo implementations.
+          // Send both keys for compatibility; backend can choose which to persist.
+          if (dob != null && dob.isNotEmpty) 'date_of_birth': dob,
+          if (dob != null && dob.isNotEmpty) 'birthdate': dob,
+          if (img != null && img.isNotEmpty) 'image_base64': img,
+        }),
       ).timeout(const Duration(seconds: 5));
       
       final jsonResp = jsonDecode(response.body);
@@ -1382,9 +1603,9 @@ class ApiService {
     }
 
     try {
-      print('==============================');
-      print('[API CALL] POST $url');
-      print('[API LOAD] $bodyData');
+      _d('==============================');
+      _d('[API CALL] POST $url');
+      _d('[API LOAD] $bodyData');
 
       final response = await http.post(
         url,
@@ -1392,9 +1613,9 @@ class ApiService {
         body: jsonEncode(bodyData),
       ).timeout(const Duration(seconds: 5));
 
-      print('[API RESP] POST $url | STATUS: ${response.statusCode}');
-      print('[API BODY] ${response.body}');
-      print('==============================');
+      _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+      _d('[API BODY] ${response.body}');
+      _d('==============================');
 
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
@@ -1505,6 +1726,27 @@ class ApiService {
       await _removeFromCacheList('cached_combos', id);
     } catch (e) {
       throw Exception('Network error: Cannot delete combo');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchRankingTop50() async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/ranking/top50');
+    try {
+      final resp = await http.get(url).timeout(const Duration(seconds: 7));
+      if (resp.statusCode != 200) {
+        throw Exception('HTTP ${resp.statusCode}');
+      }
+      final jsonResp = jsonDecode(resp.body);
+      if (jsonResp is Map && jsonResp['status'] == 'success') {
+        final raw = jsonResp['data'];
+        if (raw is List) {
+          return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+      }
+      throw Exception((jsonResp is Map ? jsonResp['message'] : null) ?? 'Bad response');
+    } catch (e) {
+      throw Exception('Network error: Cannot load ranking ($e)');
     }
   }
 
@@ -1662,24 +1904,335 @@ class ApiService {
     return prefs.containsKey('cached_products');
   }
 
-  Future<void> syncAllData() async {
+  /// Syncs all remote data into local cache.
+  ///
+  /// When [onProgress] is null, fetches run in **parallel** (faster) for
+  /// manual sync (e.g. POS menu). When [onProgress] is set, steps run
+  /// **sequentially** so the UI can show a determinate progress bar and labels.
+  Future<void> syncAllData({
+    void Function(String message, double progress)? onProgress,
+  }) async {
+    // Best-effort: if a POS identity is already set locally, try to register it.
     try {
-      await syncOfflineOrders();
+      await registerPosDeviceIfPossible();
     } catch (_) {}
 
-    final futures = <Future>[
-      fetchProducts(limit: 500, forceRefresh: true),
-      fetchTables(forceRefresh: true),
-      fetchPaymentMethods(forceRefresh: true),
-      fetchToppings(forceRefresh: true),
-      fetchCategories(forceRefresh: true),
-      fetchCombos(forceRefresh: true),
-      fetchOpenTickets(forceRefresh: true),
-      fetchReceiptHistory(forceRefresh: true),
-      fetchCustomers(forceRefresh: true),
-      fetchSelfOrderConfig(forceRefresh: true),
-      fetchLoyaltyConfig(forceRefresh: true)
+    if (onProgress == null) {
+      try {
+        await syncOfflineOrders();
+      } catch (_) {}
+
+      final futures = <Future>[
+        fetchProducts(limit: 500, forceRefresh: true),
+        fetchTables(forceRefresh: true),
+        fetchPaymentMethods(forceRefresh: true),
+        fetchToppings(forceRefresh: true),
+        fetchCategories(forceRefresh: true),
+        fetchCombos(forceRefresh: true),
+        fetchOpenTickets(forceRefresh: true),
+        fetchReceiptHistory(forceRefresh: true),
+        fetchCustomers(forceRefresh: true),
+        fetchSelfOrderConfig(forceRefresh: true),
+        fetchLoyaltyConfig(forceRefresh: true)
+      ];
+      await Future.wait(futures);
+      return;
+    }
+
+    final steps = <(String, Future<void> Function())>[
+      (
+        'Syncing offline orders…',
+        () async {
+          try {
+            await syncOfflineOrders();
+          } catch (_) {}
+        },
+      ),
+      (
+        'Loading products and prices…',
+        () => fetchProducts(limit: 500, forceRefresh: true),
+      ),
+      (
+        'Loading tables…',
+        () => fetchTables(forceRefresh: true),
+      ),
+      (
+        'Loading payment methods…',
+        () => fetchPaymentMethods(forceRefresh: true),
+      ),
+      (
+        'Loading toppings…',
+        () => fetchToppings(forceRefresh: true),
+      ),
+      (
+        'Loading categories…',
+        () => fetchCategories(forceRefresh: true),
+      ),
+      (
+        'Loading combos…',
+        () => fetchCombos(forceRefresh: true),
+      ),
+      (
+        'Loading open tickets…',
+        () => fetchOpenTickets(forceRefresh: true),
+      ),
+      (
+        'Loading receipt history…',
+        () => fetchReceiptHistory(forceRefresh: true),
+      ),
+      (
+        'Loading customers…',
+        () => fetchCustomers(forceRefresh: true),
+      ),
+      (
+        'Loading self-order settings…',
+        () => fetchSelfOrderConfig(forceRefresh: true),
+      ),
+      (
+        'Loading loyalty settings…',
+        () => fetchLoyaltyConfig(forceRefresh: true),
+      ),
     ];
-    await Future.wait(futures);
+
+    for (var i = 0; i < steps.length; i++) {
+      onProgress(steps[i].$1, i / steps.length);
+      await steps[i].$2();
+    }
+    onProgress('All data ready', 1.0);
+  }
+
+  // ---------------------------------------------------------------------------
+  // POS DEVICE / POS NAME REGISTRATION (AUDIT)
+  // ---------------------------------------------------------------------------
+
+  static const String _posNamePrefsKey = 'cached_pos_name';
+  static const String _pendingDeviceRegPrefsKey = 'pending_pos_device_registration';
+  static const String _posIdentityPromptSessionKey = 'pos_identity_prompt_session';
+
+  Future<String?> getCachedSessionId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final sid = prefs.getString('cached_user_session')?.trim();
+    if (sid == null || sid.isEmpty) return null;
+    return sid;
+  }
+
+  Future<void> clearPosIdentityRequiredFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_posIdentityPromptSessionKey);
+  }
+
+  /// Returns true only for the session created by the most recent cashier login,
+  /// so we can prompt POS name on login but not on app resume.
+  Future<bool> shouldPromptPosIdentityForThisSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final requiredSid = prefs.getString(_posIdentityPromptSessionKey)?.trim();
+    if (requiredSid == null || requiredSid.isEmpty) return false;
+    final currentSid = await getCachedSessionId();
+    return currentSid != null && currentSid.isNotEmpty && currentSid == requiredSid;
+  }
+
+  Future<String?> getCachedPosName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getString(_posNamePrefsKey)?.trim();
+    if (v == null || v.isEmpty) return null;
+    return v;
+  }
+
+  Future<void> setCachedPosName(String posName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_posNamePrefsKey, posName.trim());
+  }
+
+  Future<Map<String, dynamic>> _collectDeviceInfo() async {
+    final plugin = DeviceInfoPlugin();
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    if (kIsWeb) {
+      return {
+        'platform': 'web',
+        'timestamp_utc': now,
+      };
+    }
+
+    try {
+      if (Platform.isAndroid) {
+        final a = await plugin.androidInfo;
+        return {
+          'platform': 'android',
+          'timestamp_utc': now,
+          'manufacturer': a.manufacturer,
+          'brand': a.brand,
+          'model': a.model,
+          'device': a.device,
+          'product': a.product,
+          'sdk_int': a.version.sdkInt,
+          // Prefer a stable identifier if available; backend should treat as "best effort"
+          'device_id': a.id,
+        };
+      }
+      if (Platform.isIOS) {
+        final i = await plugin.iosInfo;
+        return {
+          'platform': 'ios',
+          'timestamp_utc': now,
+          'name': i.name,
+          'model': i.model,
+          'localized_model': i.localizedModel,
+          'system_name': i.systemName,
+          'system_version': i.systemVersion,
+          'machine': i.utsname.machine,
+          'device_id': i.identifierForVendor,
+        };
+      }
+      if (Platform.isMacOS) {
+        final m = await plugin.macOsInfo;
+        return {
+          'platform': 'macos',
+          'timestamp_utc': now,
+          'model': m.model,
+          'computer_name': m.computerName,
+          'os_release': m.osRelease,
+          'kernel_version': m.kernelVersion,
+          'device_id': m.systemGUID,
+        };
+      }
+      if (Platform.isWindows) {
+        final w = await plugin.windowsInfo;
+        return {
+          'platform': 'windows',
+          'timestamp_utc': now,
+          'computer_name': w.computerName,
+          'product_name': w.productName,
+          'build_number': w.buildNumber,
+          'device_id': w.deviceId,
+        };
+      }
+      if (Platform.isLinux) {
+        final l = await plugin.linuxInfo;
+        return {
+          'platform': 'linux',
+          'timestamp_utc': now,
+          'name': l.name,
+          'version': l.version,
+          'pretty_name': l.prettyName,
+          'machine_id': l.machineId,
+          'device_id': l.machineId,
+        };
+      }
+    } catch (_) {
+      // fallthrough to unknown
+    }
+
+    return {
+      'platform': 'unknown',
+      'timestamp_utc': now,
+    };
+  }
+
+  /// Exposed for FCM token registration (best-effort).
+  Future<Map<String, dynamic>> getDeviceInfoForAudit() => _collectDeviceInfo();
+
+  /// Register POS + device details to backend for auditing.
+  ///
+  /// Backend endpoint (to implement in Odoo): POST `/api/pos/device/register`
+  /// This call is best-effort and should never block the cashier flow.
+  Future<void> registerPosDevice({
+    required int userId,
+    required String cashierName,
+    required String posName,
+  }) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/device/register');
+    final device = await _collectDeviceInfo();
+    final payload = <String, dynamic>{
+      'user_id': userId,
+      'cashier_name': cashierName,
+      'pos_name': posName.trim(),
+      'device': device,
+    };
+
+    final headers = await _authHeaders(json: true);
+    try {
+      final resp = await http
+          .post(url, headers: headers, body: jsonEncode(payload))
+          .timeout(const Duration(seconds: 6));
+
+      final body = resp.body;
+      Map<String, dynamic>? jsonResp;
+      try {
+        jsonResp = Map<String, dynamic>.from(jsonDecode(body));
+      } catch (_) {}
+
+      if (resp.statusCode == 200 &&
+          (jsonResp?['status']?.toString() == 'success')) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_pendingDeviceRegPrefsKey);
+        return;
+      }
+
+      // save for retry
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_pendingDeviceRegPrefsKey, jsonEncode(payload));
+    } catch (_) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_pendingDeviceRegPrefsKey, jsonEncode(payload));
+    }
+  }
+
+  /// If the device registration previously failed, retry it.
+  Future<void> registerPosDeviceIfPossible() async {
+    final prefs = await SharedPreferences.getInstance();
+    final pending = prefs.getString(_pendingDeviceRegPrefsKey);
+    if (pending == null || pending.isEmpty) return;
+
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/device/register');
+    final headers = await _authHeaders(json: true);
+
+    try {
+      final resp = await http
+          .post(url, headers: headers, body: pending)
+          .timeout(const Duration(seconds: 6));
+      if (resp.statusCode == 200) {
+        final jsonResp = jsonDecode(resp.body);
+        if (jsonResp is Map && jsonResp['status'] == 'success') {
+          await prefs.remove(_pendingDeviceRegPrefsKey);
+        }
+      }
+    } catch (_) {
+      // keep pending for next time
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FCM TOKEN REGISTRATION
+  // ---------------------------------------------------------------------------
+
+  Future<void> registerFcmToken({
+    required int userId,
+    required String role,
+    required String token,
+    required Map<String, dynamic> device,
+  }) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/fcm/register');
+    final payload = {
+      'user_id': userId,
+      'role': role,
+      'token': token,
+      'device': device,
+    };
+
+    try {
+      await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 6));
+    } catch (_) {
+      // ignore; token will re-register on next launch / refresh
+    }
   }
 }

@@ -69,7 +69,7 @@ class Product {
       category: leafCategoryName(json['category'] ?? 'Uncategorized'),
       imageUrl: rawUrl,
       imageBase64: json['image_base64'] is String ? json['image_base64'] : null,
-      qtyAvailable: json['qty_available'] != null ? json['qty_available'].toDouble() : null,
+      qtyAvailable: json['qty_available']?.toDouble(),
       defaultCode: json['default_code'] is String ? json['default_code'] : null,
       toppings: parsedToppings,
       isCombo: false,

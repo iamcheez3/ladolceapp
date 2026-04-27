@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "883890977471",
+    "project_id": "ladolceapp-f4dcf",
+    "storage_bucket": "ladolceapp-f4dcf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:883890977471:android:ff4cf6c06d410bc90f640a",
+        "android_client_info": {
+          "package_name": "com.example.ladolce"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKcsusWL0AZUdOaTJ7_Te1z0DO8CsIMxM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

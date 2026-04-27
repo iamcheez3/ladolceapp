@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import '../services/api_service.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -17,7 +18,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _phoneController = TextEditingController();
+  String _phoneE164 = '';
   
   String _selectedRole = 'customer'; // Default role
   final ApiService _apiService = ApiService();
@@ -35,7 +36,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         login: _loginController.text,
         password: _passwordController.text,
         role: _selectedRole,
-        phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+        phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
       );
 
       if (!mounted) return;
@@ -123,7 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   width: 80,
                                   height: 80,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) {
+                                  errorBuilder: (_, _, _) {
                                     return const Icon(
                                       Icons.pets_rounded,
                                       size: 48,
@@ -160,18 +161,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             validator: (value) => value!.isEmpty ? 'Please enter name' : null,
                           ),
                           const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _phoneController,
+                          IntlPhoneField(
+                            initialCountryCode: 'LA', // Laos (+856)
+                            disableLengthCheck: true,
                             decoration: _inputDecoration(
                               _selectedRole == 'customer'
                                   ? 'Phone Number (Required for Customers)'
                                   : 'Phone Number (Optional)',
                               Icons.phone_outlined,
                             ),
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (_selectedRole == 'customer' && value!.isEmpty) {
-                                return 'Phone number is required for customers';
+                            onChanged: (phone) {
+                              _phoneE164 = phone.completeNumber;
+                            },
+                            validator: (phone) {
+                              if (_selectedRole == 'customer') {
+                                final v = phone?.completeNumber.trim() ?? '';
+                                if (v.isEmpty) return 'Phone number is required for customers';
+                                if (!v.startsWith('+')) return 'Phone number must start with +';
                               }
                               return null;
                             },

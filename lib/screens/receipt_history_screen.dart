@@ -19,9 +19,6 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
   // ─── Theme Colors ──────────────────────────────────────────────────────────
   static const Color _brandNavy = LaDolcePosUi.navy;
-  static const Color _brandNavy2 = LaDolcePosUi.navy2;
-  static const Color _brandSurface = LaDolcePosUi.surface;
-  static const Color _bgDark       = Color(0xFF0F1117);
   static const Color _cardBg       = Color(0xFFFFFFFF);
   static const Color _textDark     = Color(0xFF1A1A2E);
   static const Color _textSub      = Color(0xFF6B7280);

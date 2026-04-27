@@ -88,6 +88,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                       ),
                       TextButton(
                         onPressed: () async {
+                          final navigator = Navigator.of(ctx);
                           final name = nameCtrl.text.trim();
                           final ip = ipCtrl.text.trim();
                           final port = int.tryParse(portCtrl.text.trim()) ?? 9100;
@@ -111,7 +112,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                           }
                           if (!mounted) return;
                           setState(() {});
-                          Navigator.pop(ctx);
+                          navigator.pop();
                         },
                         child: const Text('SAVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
                       ),
@@ -139,7 +140,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<int>(
-                        value: paperWidth,
+                        initialValue: paperWidth,
                         items: const [
                           DropdownMenuItem(value: 80, child: Text('80 mm')),
                           DropdownMenuItem(value: 58, child: Text('58 mm')),
@@ -237,10 +238,11 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
                           onPressed: () async {
+                            final navigator = Navigator.of(ctx);
                             await printerService.deletePrinter(profile.id);
                             if (!mounted) return;
                             setState(() {});
-                            Navigator.pop(ctx);
+                            navigator.pop();
                           },
                           icon: const Icon(Icons.delete_outline),
                           label: const Text('DELETE PRINTER'),
@@ -305,7 +307,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
                     itemCount: profiles.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, i) {
                       final p = profiles[i];
                       final isDefault = p.id == printerService.selectedReceiptPrinterId;

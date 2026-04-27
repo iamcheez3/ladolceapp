@@ -36,17 +36,21 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     });
 
     try {
-      final futures = await Future.wait([
-        _apiService.fetchProducts(),
-        _apiService.fetchCategories(),
-        _apiService.fetchToppings(),
-      ]);
+      final productsFuture = _apiService.fetchProducts();
+      final categoriesFuture = _apiService.fetchCategories();
+      final toppingsFuture = _apiService.fetchToppings();
+
+      final products = await productsFuture;
+      final categories = await categoriesFuture;
+      final toppingsRaw = await toppingsFuture;
       
       if (mounted) {
         setState(() {
-          _products = futures[0] as List<Product>;
-          _categories = futures[1] as List<dynamic>;
-          _toppings = (futures[2] as List<dynamic>).map((t) => Topping.fromJson(t)).toList();
+          _products = products;
+          _categories = categories;
+          _toppings = toppingsRaw
+              .map((t) => Topping.fromJson(Map<String, dynamic>.from(t as Map)))
+              .toList();
           _isLoading = false;
         });
       }
@@ -85,7 +89,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: LaDolcePosUi.modalBottomPadding(context),
                 left: 24, right: 24, top: 24,
               ),
               child: SingleChildScrollView(
@@ -112,7 +116,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
                       decoration: const InputDecoration(labelText: 'Category'),
-                      value: selectedCategoryId,
+                      initialValue: selectedCategoryId,
                       items: _categories.map((c) {
                         return DropdownMenuItem<int>(
                           value: c['id'],

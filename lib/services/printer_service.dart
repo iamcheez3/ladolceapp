@@ -1,8 +1,13 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:esc_pos_utils/esc_pos_utils.dart';
 import 'package:esc_pos_printer/esc_pos_printer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cart_item.dart';
+
+void _printerLog(String message) {
+  developer.log(message, name: 'PrinterService');
+}
 
 class PrinterProfile {
   final String id;
@@ -239,7 +244,7 @@ class PrinterService {
       }
       return false;
     } catch (e) {
-      print('[PRINTER] Test connection failed: $e');
+      _printerLog('[PRINTER] Test connection failed: $e');
       return false;
     }
   }
@@ -304,7 +309,7 @@ class PrinterService {
         cashierName: cashierName,
       );
     } catch (e) {
-      print('[PRINTER] Print receipt failed: $e');
+      _printerLog('[PRINTER] Print receipt failed: $e');
       return false;
     }
   }
@@ -425,7 +430,7 @@ class PrinterService {
     printer.disconnect();
     return true;
   } catch (e) {
-    print('[PRINTER] Print bill failed: $e');
+    _printerLog('[PRINTER] Print bill failed: $e');
     return false;
   }
 }
@@ -577,7 +582,7 @@ class PrinterService {
     printer.disconnect();
     return true;
   } catch (e) {
-    print('[PRINTER] Open cash drawer failed: $e');
+    _printerLog('[PRINTER] Open cash drawer failed: $e');
     return false;
   }
 
@@ -655,7 +660,7 @@ class PrinterService {
         printer.disconnect();
         anyOk = true;
       } catch (e) {
-        print('[PRINTER] printReceiptFromRawData failed on ${profile.name}: $e');
+        _printerLog('[PRINTER] printReceiptFromRawData failed on ${profile.name}: $e');
       }
     }
     return anyOk;
