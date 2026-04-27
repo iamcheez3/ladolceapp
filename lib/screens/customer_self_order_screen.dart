@@ -1,5 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'customer_support_screen.dart';
+import 'ranking_screen.dart';
+import '../services/push_notifications_service.dart';
 import 'dart:typed_data';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +11,9 @@ import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+
+import 'customer_order_detail_screen.dart';
 import '../models/cart_item.dart';
 import '../models/combo.dart';
 import '../models/product.dart';
@@ -43,6 +49,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   static const _brandCard = Colors.white;
   static const _brandDivider = Color(0xFFE6E8F2);
   static const _brandGold = Color(0xFFC6A15B);
+  static const _navInactive = Color(0xFF94A3B8);
+  static const _historyCardBg = Color(0xFFF8F9FC);
+  static const _textPrimaryDark = Color(0xFF0B1B3D);
+  static const _labelGray = Color(0xFF64748B);
 
   bool _isLoadingCatalog = true;
   bool _isLoadingProfile = true;
@@ -84,6 +94,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String _customerEmail = '';
   String _customerDob = '';
   int _rewardPoints = 0;
+  int _rewardRank = 0;
   String? _customerImageBase64;
   String _qrImageDataUrl = '';
   String _bankName = '';
@@ -91,6 +102,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String _accountNumber = '';
   List<String> _bannerImageDataUrls = [];
   List<String> _adImageDataUrls = [];
+  String _supportFacebookUrl = '';
+  String _supportWhatsappNumber = '';
+  String _supportWhatsappLink = '';
+  bool _pushNotificationsEnabled = true;
   bool _hasShownAdPopup = false;
   String? _profileImagePath;
   bool _isUploadingProfileImage = false;
@@ -108,6 +123,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     _loadHistory();
     _loadSelfOrderConfig();
     _loadProfileImage();
+    _loadNotificationPref();
+  }
+
+  Future<void> _loadNotificationPref() async {
+    final v = await PushNotificationsService.isCustomerPushEnabled();
+    if (!mounted) return;
+    setState(() => _pushNotificationsEnabled = v);
   }
 
   Future<void> _validateSingleDeviceSession() async {
@@ -280,6 +302,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             (matched?['date_of_birth'] ?? matched?['birthdate'] ?? '').toString();
         _rewardPoints =
             int.tryParse((matched?['reward_points'] ?? 0).toString()) ?? 0;
+        _rewardRank = int.tryParse((matched?['reward_rank'] ?? 0).toString()) ?? 0;
         _customerImageBase64 = matched?['image_base64']?.toString();
         _isLoadingProfile = false;
       });
@@ -437,6 +460,17 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           if (legacyAd.startsWith('data:image')) {
             _adImageDataUrls = [legacyAd];
           }
+        }
+        final cs = config['customer_support'];
+        if (cs is Map) {
+          final m = Map<String, dynamic>.from(cs);
+          _supportFacebookUrl = (m['facebook_url'] ?? '').toString();
+          _supportWhatsappNumber = (m['whatsapp_number'] ?? '').toString();
+          _supportWhatsappLink = (m['whatsapp_link'] ?? '').toString();
+        } else {
+          _supportFacebookUrl = '';
+          _supportWhatsappNumber = '';
+          _supportWhatsappLink = '';
         }
         _isLoadingSelfOrderConfig = false;
       });
@@ -796,6 +830,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     });
   }
 
+  /// System gesture insets (home bar / 3-button nav) — prefer over [MediaQuery.padding]
+  /// for bottom CTAs; `padding` is often 0 on Android with gesture navigation.
+  static double _gestureNavBottomPad(BuildContext context) {
+    return 8 + MediaQuery.viewPaddingOf(context).bottom;
+  }
+
   void _updateQuantity(CartItem item, int quantity) {
     setState(() {
       if (quantity <= 0) {
@@ -815,6 +855,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -826,7 +867,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             return FractionallySizedBox(
               heightFactor: 0.90,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  16 + _gestureNavBottomPad(ctx),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1165,6 +1211,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               (saved['reward_points'] ?? _rewardPoints).toString(),
             ) ??
             _rewardPoints;
+        _rewardRank = int.tryParse((saved['reward_rank'] ?? _rewardRank).toString()) ?? _rewardRank;
       });
 
       await _loadHistory();
@@ -1217,7 +1264,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               top: 24,
               left: 20,
               right: 20,
-              bottom: 20 + MediaQuery.of(context).padding.bottom,
+              bottom: 20 + _gestureNavBottomPad(context) - 8,
             ),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -1480,33 +1527,157 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+  Widget _rankPill(int rank) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 112,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: _brandNavy,
-                fontWeight: FontWeight.w800,
-              ),
+          const Icon(Icons.emoji_events_rounded, size: 16, color: Color(0xFFF59E0B)),
+          const SizedBox(width: 6),
+          Text(
+            '#$rank',
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF7C2D12),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _profileNotificationTile() {
+    return Material(
+      color: const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFDCE5FF)),
+              ),
+              child: const Icon(
+                Icons.notifications_outlined,
+                color: _brandNavy,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Notifications',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: _brandNavy,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _pushNotificationsEnabled
+                        ? 'Order updates on this device'
+                        : 'Push alerts are turned off',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: _pushNotificationsEnabled,
+              activeThumbColor: _brandNavy,
+              onChanged: (v) async {
+                await PushNotificationsService.setCustomerPushEnabled(v);
+                if (mounted) setState(() => _pushNotificationsEnabled = v);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _profileMenuTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFDCE5FF)),
+                ),
+                child: Icon(icon, color: _brandNavy),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: _brandNavy,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: 10),
+                trailing,
+              ] else ...[
+                const SizedBox(width: 10),
+                const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1518,7 +1689,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
+      useSafeArea: false,
       backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1729,7 +1900,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     padding: EdgeInsets.only(
                       left: 16,
                       right: 16,
-                      bottom: MediaQuery.of(context).padding.bottom + 16,
+                      bottom: 16 + _gestureNavBottomPad(context),
                       top: 16,
                     ),
                     decoration: BoxDecoration(
@@ -1791,6 +1962,19 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
+  bool get _isAppBarRefreshBusy {
+    switch (_selectedTabIndex) {
+      case 0:
+        return _isLoadingCatalog;
+      case 2:
+        return _isLoadingHistory;
+      case 3:
+        return _isLoadingProfile;
+      default:
+        return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -1798,124 +1982,161 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     final isSmall = width < 360;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _brandNavy,
       appBar: AppBar(
         backgroundColor: _brandNavy,
         elevation: 0,
-        scrolledUnderElevation: 1,
+        scrolledUnderElevation: 0,
         centerTitle: true,
         title: const Text(
           'LaDolce',
           style: TextStyle(
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.2,
             color: Colors.white,
+            fontSize: 20,
           ),
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: IconButton(
+              tooltip: 'Refresh',
+              onPressed: _isAppBarRefreshBusy ? null : _onAppBarRefresh,
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.16),
+                foregroundColor: Colors.white,
+                shape: const CircleBorder(),
+              ),
+              icon: const Icon(Icons.refresh, size: 22),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.card_giftcard, color: Colors.white, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  'Points: $_rewardPoints',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: isSmall ? 12 : 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: (_isLoadingCatalog || _isLoadingProfile)
-                ? null
-                : () async {
-                    await Future.wait([_loadCatalog(), _loadProfile()]);
-                  },
-            icon: const Icon(Icons.refresh, color: Colors.white),
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(child: Container(color: Colors.white)),
-          Positioned.fill(
-            child: SafeArea(
-              child: IndexedStack(
-                index: _selectedTabIndex,
-                children: [
-                  _buildHomeTab(isWide: isWide, isSmall: isSmall),
-                  _buildCartTab(isSmall: isSmall),
-                  _buildHistoryTab(isSmall: isSmall),
-                  _buildProfileTab(isWide: isWide, isSmall: isSmall),
-                ],
+      body: ColoredBox(
+        color: _brandNavy,
+        child: Column(
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: SafeArea(
+                  top: false,
+                  child: ColoredBox(
+                    color: Colors.white,
+                    child: IndexedStack(
+                      index: _selectedTabIndex,
+                      children: [
+                        _buildHomeTab(isWide: isWide, isSmall: isSmall),
+                        _buildCartTab(isSmall: isSmall),
+                        _buildHistoryTab(isSmall: isSmall),
+                        _buildProfileTab(isWide: isWide, isSmall: isSmall),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomSheet: _selectedTabIndex == 0 && _cartCount > 0
           ? _buildStickyCartBar()
           : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedTabIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _selectedTabIndex = index),
-        backgroundColor: Colors.white,
-        indicatorColor: _brandNavy.withOpacity(0.12),
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          navigationBarTheme: const NavigationBarThemeData(
+            indicatorColor: Colors.transparent,
+            elevation: 0,
+            height: 64,
+            labelTextStyle: WidgetStatePropertyAll(
+              TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
           ),
-          NavigationDestination(
-            icon: _cartCount > 0
-                ? Badge(
-                    label: Text('$_cartCount'),
-                    backgroundColor: Colors.red,
-                    child: Icon(
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedTabIndex,
+          onDestinationSelected: (index) =>
+              setState(() => _selectedTabIndex = index),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined, color: _navInactive),
+              selectedIcon: _navSelectedIcon(Icons.home),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: _cartCount > 0
+                  ? Badge(
+                      label: Text('$_cartCount'),
+                      backgroundColor: Colors.red,
+                      child: Icon(
+                        Icons.shopping_bag_outlined,
+                        color: _navInactive,
+                      ),
+                    )
+                  : Icon(
                       Icons.shopping_bag_outlined,
-                      color: _selectedTabIndex == 1 ? _brandNavy : Colors.grey,
+                      color: _navInactive,
                     ),
-                  )
-                : Icon(
-                    Icons.shopping_bag_outlined,
-                    color: _selectedTabIndex == 1 ? _brandNavy : Colors.grey,
-                  ),
-            selectedIcon: _cartCount > 0
-                ? Badge(
-                    label: Text('$_cartCount'),
-                    backgroundColor: Colors.red,
-                    child: const Icon(Icons.shopping_bag, color: _brandNavy),
-                  )
-                : const Icon(Icons.shopping_bag, color: _brandNavy),
-            label: 'Cart',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.history),
-            selectedIcon: Icon(Icons.history),
-            label: 'History',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+              selectedIcon: _cartCount > 0
+                  ? Badge(
+                      label: Text('$_cartCount'),
+                      backgroundColor: Colors.red,
+                      child: _navSelectedIcon(Icons.shopping_bag),
+                    )
+                  : _navSelectedIcon(Icons.shopping_bag),
+              label: 'Cart',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.access_time, color: _navInactive),
+              selectedIcon: _navSelectedIcon(Icons.access_time),
+              label: 'History',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline, color: _navInactive),
+              selectedIcon: _navSelectedIcon(Icons.person),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _onAppBarRefresh() async {
+    switch (_selectedTabIndex) {
+      case 0:
+        await Future.wait([
+          _loadCatalog(),
+          _loadProfile(),
+          _loadSelfOrderConfig(),
+        ]);
+        break;
+      case 1:
+        await _loadProfile();
+        break;
+      case 2:
+        await _loadHistory();
+        break;
+      case 3:
+        await _loadProfile();
+        break;
+      default:
+        await _loadProfile();
+    }
   }
 
   Widget _buildHomeTab({required bool isWide, required bool isSmall}) {
@@ -2287,11 +2508,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     final isEmpty = _cartItems.isEmpty;
     final itemCount = _cartCount;
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: InkWell(
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        12 + _gestureNavBottomPad(context),
+      ),
+      child: InkWell(
           onTap: isEmpty ? null : () => setState(() => _selectedTabIndex = 1),
           borderRadius: BorderRadius.circular(16),
           child: AnimatedOpacity(
@@ -2367,7 +2591,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -2577,6 +2800,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -2586,7 +2810,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             return FractionallySizedBox(
               heightFactor: 0.72,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  16 + _gestureNavBottomPad(ctx),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -2849,7 +3078,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           ),
         ),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + _gestureNavBottomPad(context),
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
@@ -2860,59 +3094,268 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               ),
             ],
           ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Total',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  Text(
+                    '₭${_cartTotal.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: _brandNavy,
                     ),
-                    Text(
-                      '₭${_cartTotal.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: _brandNavy,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isPlacingOrder ? null : _showCheckoutOptions,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _brandNavy,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isPlacingOrder
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Checkout',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatHistoryDateLabel(String? raw) {
+    final d = DateTime.tryParse((raw ?? '').toString());
+    if (d == null) return '-';
+    return DateFormat('yyyy-MM-dd HH:mm').format(d.toLocal());
+  }
+
+  String _formatHistoryTotalK(dynamic v) {
+    final n = double.tryParse((v ?? 0).toString()) ?? 0.0;
+    return 'K${n.toStringAsFixed(2)}';
+  }
+
+  Widget _navSelectedIcon(IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: const BoxDecoration(
+        color: Color(0xFFDBE7FF),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: _brandNavy, size: 24),
+    );
+  }
+
+  Widget _buildHistoryTab({bool isSmall = false}) {
+    if (_isLoadingHistory) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_historyItems.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.receipt_long_outlined,
+                size: 64,
+                color: _brandNavy.withValues(alpha: 0.25),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No order history yet',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _textPrimaryDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your completed orders will show up here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _labelGray,
+                  fontWeight: FontWeight.w600,
+                  fontSize: isSmall ? 13 : 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadHistory,
+      color: _brandNavy,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        itemCount: _historyItems.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final item = _historyItems[index];
+          final statusText = _friendlyStatus(
+            (item['state'] ?? '').toString(),
+            (item['payment_method'] ?? '').toString(),
+          );
+          final dateLabel =
+              _formatHistoryDateLabel(item['date_order']?.toString());
+          final pay = (item['payment_method'] ?? 'Unknown').toString();
+
+          return Material(
+            color: _historyCardBg,
+            elevation: 0,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => _openHistoryDetail(item),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item['name']?.toString() ?? 'Order',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              color: _textPrimaryDark,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _formatHistoryTotalK(item['amount_total']),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            color: _textPrimaryDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _historyMetaRow('Payment method', pay),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Status',
+                          style: TextStyle(
+                            color: _labelGray,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        _historyStatusPill(statusText, item['state']?.toString() ?? ''),
+                      ],
+                    ),
+                    if (dateLabel != '-') ...[
+                      const SizedBox(height: 6),
+                      _historyMetaRow('Date', dateLabel),
+                    ],
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            'View order details',
+                            style: TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward,
+                            size: 18,
+                            color: Color(0xFF2563EB),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _isPlacingOrder ? null : _showCheckoutOptions,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _brandNavy,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isPlacingOrder
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Checkout',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _historyMetaRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _labelGray,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: _textPrimaryDark,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
             ),
           ),
         ),
@@ -2920,89 +3363,21 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-  Widget _buildHistoryTab({bool isSmall = false}) {
-    if (_isLoadingHistory) {
-      return Center(
-        child: SizedBox(
-          width: isSmall ? 20 : 24, // ← Example usage
-          height: isSmall ? 20 : 24,
-          child: const CircularProgressIndicator(),
+  Widget _historyStatusPill(String friendly, String rawState) {
+    final paid = rawState == 'paid';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: paid ? const Color(0xFFDCF4E0) : const Color(0xFFFFE7CC),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        paid ? 'Paid' : friendly,
+        style: TextStyle(
+          color: paid ? const Color(0xFF166534) : const Color(0xFFC2410C),
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
         ),
-      );
-    }
-
-    if (_historyItems.isEmpty) {
-      return const Center(
-        child: Text(
-          'No order history yet.',
-          style: TextStyle(color: Colors.grey),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadHistory,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(12),
-        itemCount: _historyItems.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final item = _historyItems[index];
-          final date = DateTime.tryParse((item['date_order'] ?? '').toString());
-          final proofPath = item['proof_image_path']?.toString();
-          final proofUrl = item['transfer_proof_url']?.toString();
-          final hasProof = proofPath != null && proofPath.isNotEmpty;
-          final hasProofUrl = proofUrl != null && proofUrl.isNotEmpty;
-          final statusText = _friendlyStatus(
-            (item['state'] ?? '').toString(),
-            (item['payment_method'] ?? '').toString(),
-          );
-
-          return Card(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => _openHistoryDetail(item),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item['name']?.toString() ?? 'Order',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '₭${double.tryParse((item['amount_total'] ?? 0).toString())?.toStringAsFixed(2) ?? '0.00'}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text('Payment: ${item['payment_method'] ?? 'Unknown'}'),
-                    Text('Status: $statusText'),
-                    if (date != null) Text('Date: ${date.toLocal()}'),
-                    if (hasProof || hasProofUrl)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
-                        child: Text(
-                          'Tap to view order details and proof image',
-                          style: TextStyle(color: Colors.blueGrey),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -3022,144 +3397,42 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _openHistoryDetail(Map<String, dynamic> item) {
-    final proofPath = item['proof_image_path']?.toString() ?? '';
-    final proofUrl = item['transfer_proof_url']?.toString() ?? '';
-    final hasLocalProof = proofPath.isNotEmpty;
-    final hasServerProof = proofUrl.isNotEmpty;
-    final lines = ((item['lines'] as List?) ?? const []).cast<dynamic>();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (ctx) => CustomerOrderDetailScreen(
+          item: item,
+          api: _apiService,
+          onRefresh: _loadHistory,
+        ),
       ),
-      builder: (ctx) {
-        return FractionallySizedBox(
-          heightFactor: 0.88,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item['name']?.toString() ?? 'Order',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Amount: ₭${double.tryParse((item['amount_total'] ?? 0).toString())?.toStringAsFixed(2) ?? '0.00'}',
-                ),
-                Text('Payment: ${item['payment_method'] ?? 'Unknown'}'),
-                Text(
-                  'Status: ${_friendlyStatus((item['state'] ?? '').toString(), (item['payment_method'] ?? '').toString())}',
-                ),
-                const SizedBox(height: 12),
-                if (hasLocalProof || hasServerProof) ...[
-                  const Text(
-                    'Transfer Proof',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: hasLocalProof
-                        ? Image.file(
-                            File(proofPath),
-                            height: 220,
-                            width: double.infinity,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) =>
-                                const SizedBox.shrink(),
-                          )
-                        : FutureBuilder<List<dynamic>>(
-                            future: Future.wait<dynamic>([
-                              _apiService.resolveMediaUrlAsync(proofUrl),
-                              _apiService.buildImageHeaders(),
-                            ]),
-                            builder: (context, snapshot) {
-                              if (!snapshot.hasData) {
-                                return const SizedBox(
-                                  height: 220,
-                                  child: Center(
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  ),
-                                );
-                              }
-                              final resolvedUrl = (snapshot.data![0] as String?) ?? '';
-                              final headers =
-                                  (snapshot.data![1] as Map<String, String>?) ?? const {};
-                              if (resolvedUrl.isEmpty) return const SizedBox.shrink();
-                              return Image.network(
-                                resolvedUrl,
-                                headers: headers,
-                                height: 220,
-                                width: double.infinity,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                const Text(
-                  'Order Items',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Expanded(
-                  child: lines.isEmpty
-                      ? const Center(child: Text('No item details available'))
-                      : ListView.separated(
-                          itemCount: lines.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final line = lines[index] as Map<dynamic, dynamic>;
-                            final qty =
-                                double.tryParse(
-                                  (line['qty'] ?? 0).toString(),
-                                ) ??
-                                0;
-                            final subtotal =
-                                double.tryParse(
-                                  (line['subtotal'] ?? 0).toString(),
-                                ) ??
-                                0;
-                            return ListTile(
-                              title: Text(
-                                (line['product_name'] ?? 'Item').toString(),
-                              ),
-                              subtitle: Text(
-                                'Qty: ${qty.toStringAsFixed(qty == qty.roundToDouble() ? 0 : 2)}',
-                              ),
-                              trailing: Text('₭${subtotal.toStringAsFixed(2)}'),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
   Widget _buildProfileTab({bool isWide = false, bool isSmall = false}) {
     if (_isLoadingProfile) {
-      return const Center(child: CircularProgressIndicator());
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_brandNavy, _brandNavy2],
+          ),
+        ),
+        child: const CustomPaint(
+          painter: _LuxuryPatternPainter(),
+          child: Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          ),
+        ),
+      );
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompactHeight = constraints.maxHeight < 760;
         final customerMemoryImage = _customerMemoryImage();
-        final headerHeight = isCompactHeight ? 172.0 : 188.0;
-        final profileShiftY = isCompactHeight ? -52.0 : -62.0;
         final avatarOuterRadius = isSmall
             ? 60.0
             : (isCompactHeight ? 78.0 : 93.0);
@@ -3175,57 +3448,32 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             : (isCompactHeight ? 40.0 : 46.0);
         final cameraIconSize = isSmall ? 16.0 : (isCompactHeight ? 20.0 : 22.0);
         final detailsTopGap = isCompactHeight ? 4.0 : 8.0;
-        final logoutBottomPadding = isCompactHeight ? 12.0 : 18.0;
 
         return SizedBox(
           height: constraints.maxHeight,
-          child: Column(
-            children: [
-              SizedBox(
-                height: headerHeight,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: ClipPath(
-                        clipper: _BottomCurveClipper(),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [_brandNavy, _brandNavy2],
-                            ),
-                          ),
-                          child: const CustomPaint(
-                            painter: _LuxuryPatternPainter(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+          child: Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_brandNavy, _brandNavy2],
               ),
-              Expanded(
-                child: Transform.translate(
-                  offset: Offset(0, profileShiftY),
-                  child: LayoutBuilder(
-                    builder: (context, childConstraints) {
-                      return FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minWidth: childConstraints.maxWidth,
-                            maxWidth: childConstraints.maxWidth,
-                            minHeight: childConstraints.maxHeight < 518
-                                ? 518
-                                : childConstraints.maxHeight,
-                            maxHeight: childConstraints.maxHeight < 518
-                                ? 518
-                                : childConstraints.maxHeight,
-                          ),
-                          child: Column(
-                            children: [
+            ),
+            child: CustomPaint(
+              painter: const _LuxuryPatternPainter(),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        isSmall ? 12 : 16,
+                        12,
+                        isSmall ? 12 : 16,
+                        8,
+                      ),
+                      child: Column(
+                        children: [
                               Stack(
                                 alignment: Alignment.center,
                                 children: [
@@ -3331,7 +3579,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 style: TextStyle(
                                   fontSize: isSmall ? 16 : 18,
                                   fontWeight: FontWeight.w900,
-                                  color: _brandNavy,
+                                  color: Colors.white,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -3340,7 +3588,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  color: Color(0xFF64748B),
+                                  color: Color(0xFFE2E8F0),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -3396,90 +3644,93 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        _detailRow(
-                                          'Full name',
-                                          _customerName.isEmpty
-                                              ? '-'
-                                              : _customerName,
-                                        ),
-                                        _detailRow(
-                                          'Phone',
-                                          _customerPhone.isEmpty
-                                              ? '-'
-                                              : _customerPhone,
-                                        ),
-                                        _detailRow(
-                                          'Date of birth',
-                                          _customerDob.isEmpty ? '-' : _customerDob,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: ElevatedButton(
-                                            onPressed: _isSavingProfile
-                                                ? null
-                                                : _openEditProfileSheet,
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: _brandNavy,
-                                              foregroundColor: Colors.white,
-                                              padding: EdgeInsets.symmetric(
-                                                vertical: isSmall ? 10 : 12,
-                                              ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(14),
-                                              ),
-                                            ),
-                                            child: const Text(
-                                              'Edit profile',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                              ),
-                                            ),
+                                          _profileMenuTile(
+                                            title: 'Profile',
+                                            subtitle:
+                                                '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
+                                            icon: Icons.person_outline,
+                                            onTap: _openEditProfileSheet,
                                           ),
-                                        ),
+                                          const SizedBox(height: 10),
+                                          _profileNotificationTile(),
+                                          const SizedBox(height: 10),
+                                          _profileMenuTile(
+                                            title: 'Ranking',
+                                            subtitle: 'See Top 50 rewards leaderboard',
+                                            icon: Icons.emoji_events_outlined,
+                                            trailing: _rewardRank > 0
+                                                ? _rankPill(_rewardRank)
+                                                : null,
+                                            onTap: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => RankingScreen(
+                                                    myRank: _rewardRank <= 0 ? null : _rewardRank,
+                                                    myPoints: _rewardPoints,
+                                                    myName: _customerName,
+                                                    myImageBase64: _customerImageBase64,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 10),
+                                          _profileMenuTile(
+                                            title: 'Customer support',
+                                            subtitle: 'Facebook & WhatsApp (from store settings)',
+                                            icon: Icons.support_agent_outlined,
+                                            onTap: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => CustomerSupportScreen(
+                                                    facebookUrl: _supportFacebookUrl,
+                                                    whatsappNumber: _supportWhatsappNumber,
+                                                    whatsappLink: _supportWhatsappLink,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
                                       ],
                                     ),
                                   ),
                                 ),
                               ),
-                              const Spacer(),
-                              Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                  isSmall ? 12 : 16,
-                                  12,
-                                  isSmall ? 12 : 16,
-                                  logoutBottomPadding,
-                                ),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: _isLoggingOut ? null : _logout,
-                                    icon: const Icon(Icons.logout),
-                                    label: _isLoggingOut
-                                        ? const Text('Logging out...')
-                                        : const Text('Logout'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red,
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: isSmall ? 10 : 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      isSmall ? 12 : 16,
+                      4,
+                      isSmall ? 12 : 16,
+                      _gestureNavBottomPad(context),
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoggingOut ? null : _logout,
+                        icon: const Icon(Icons.logout),
+                        label: _isLoggingOut
+                            ? const Text('Logging out...')
+                            : const Text('Logout'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Color(0x55FFFFFF)),
+                          padding: EdgeInsets.symmetric(
+                            vertical: isSmall ? 10 : 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -3601,32 +3852,6 @@ class _LuxuryPatternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _BottomCurveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final p = Path();
-    p.lineTo(0, size.height - 64);
-    p.quadraticBezierTo(
-      size.width * 0.25,
-      size.height,
-      size.width * 0.55,
-      size.height - 44,
-    );
-    p.quadraticBezierTo(
-      size.width * 0.85,
-      size.height - 92,
-      size.width,
-      size.height - 54,
-    );
-    p.lineTo(size.width, 0);
-    p.close();
-    return p;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {

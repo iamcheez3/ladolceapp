@@ -89,7 +89,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: LaDolcePosUi.modalBottomPadding(context),
                 left: 24, right: 24, top: 24,
               ),
               child: SingleChildScrollView(

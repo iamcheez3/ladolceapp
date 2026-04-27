@@ -1729,6 +1729,27 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchRankingTop50() async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/ranking/top50');
+    try {
+      final resp = await http.get(url).timeout(const Duration(seconds: 7));
+      if (resp.statusCode != 200) {
+        throw Exception('HTTP ${resp.statusCode}');
+      }
+      final jsonResp = jsonDecode(resp.body);
+      if (jsonResp is Map && jsonResp['status'] == 'success') {
+        final raw = jsonResp['data'];
+        if (raw is List) {
+          return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+      }
+      throw Exception((jsonResp is Map ? jsonResp['message'] : null) ?? 'Bad response');
+    } catch (e) {
+      throw Exception('Network error: Cannot load ranking ($e)');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchCustomerOrders(int partnerId) async {
     final base = await getBaseUrl();
     try {

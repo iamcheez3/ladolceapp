@@ -344,7 +344,12 @@ class _PosScreenState extends State<PosScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             return Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                24 + LaDolcePosUi.modalBottomPadding(context),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1546,10 +1551,14 @@ class _PosScreenState extends State<PosScreen> {
     final tItems = _cartItems.fold(0, (sum, item) => sum + item.quantity);
     final total = _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: InkWell(
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        12 + LaDolcePosUi.gestureBarBottomPad(context),
+      ),
+      child: InkWell(
           onTap: () {
             showModalBottomSheet(
               context: context,
@@ -1691,7 +1700,6 @@ class _PosScreenState extends State<PosScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -1798,10 +1806,14 @@ class _PosScreenState extends State<PosScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                  child: Column(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  20 + (LaDolcePosUi.gestureBarBottomPad(context) - 8),
+                ),
+                child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
@@ -2001,7 +2013,6 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                 ),
               ),
-            ),
           );
         },
       ),
@@ -2153,12 +2164,12 @@ class _PosScreenState extends State<PosScreen> {
             return FractionallySizedBox(
               heightFactor: 0.85,
               child: Padding(
-                padding: const EdgeInsets.only(
+                padding: EdgeInsets.only(
                   left: 16,
                   right: 16,
                   top: 16,
-                  bottom: 0,
-                ), // Keyboard pushes it up naturally
+                  bottom: LaDolcePosUi.modalBottomPadding(context),
+                ),
                 child: Column(
                   children: [
                     Row(
@@ -2358,13 +2369,11 @@ class _PosScreenState extends State<PosScreen> {
               0.0;
           final changeAmount = amtReceived >= total ? amtReceived - total : 0.0;
 
-          return SafeArea(
-            top: false,
-            child: Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Container(
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: LaDolcePosUi.modalBottomPadding(context),
+            ),
+            child: Container(
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(context).size.height * 0.92,
                 ),
@@ -2691,47 +2700,38 @@ class _PosScreenState extends State<PosScreen> {
 
                   // ── Charge Button ─────────────────────────────────────────
                   if (!_isCharging)
-                    SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          16,
-                          8,
-                          16,
-                          16 + MediaQuery.of(context).padding.bottom,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: ElevatedButton(
+                        onPressed: () => _processCheckout(
+                          context,
+                          setSheetState,
+                          true,
+                          subtotal,
+                          tax,
+                          total,
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _processCheckout(
-                            context,
-                            setSheetState,
-                            true,
-                            subtotal,
-                            tax,
-                            total,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF22C55E),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF22C55E),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            'CHARGE K${fmt.format(total)}',
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
-                            ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'CHARGE K${fmt.format(total)}',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                     ),
                 ],
               ),
-            ),
             ),
           );
         },
@@ -3382,7 +3382,9 @@ class _PosScreenState extends State<PosScreen> {
                 await _syncAllDataAndRefresh();
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(
+              height: 8 + LaDolcePosUi.gestureBarBottomPad(context),
+            ),
           ],
         ),
       ),

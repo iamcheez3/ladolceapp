@@ -8,8 +8,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart';
+
+const String _kCustomerPushEnabledKey = 'customer_push_notifications_enabled';
 
 /// Background handler must be a top-level function.
 @pragma('vm:entry-point')
@@ -75,6 +78,9 @@ class PushNotificationsService {
     // Show a local notification when a push arrives in foreground
     FirebaseMessaging.onMessage.listen((message) async {
       try {
+        if (await _isCustomerNotificationsMuted()) {
+          return;
+        }
         final type = (message.data['type'] ?? '').toString();
         if (type == 'self_order_new') {
           await _startRepeatingAlarm(duration: const Duration(seconds: 10));
@@ -127,19 +133,67 @@ class PushNotificationsService {
 
     // Token refresh → re-register
     FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+      if (!await _shouldRegisterFcmTokenForCurrentUser()) {
+        return;
+      }
       await _registerTokenToBackend(token);
     });
 
-    final token = await messaging.getToken();
-    if (token != null && token.isNotEmpty) {
-      await _registerTokenToBackend(token);
+    if (await _shouldRegisterFcmTokenForCurrentUser()) {
+      final token = await messaging.getToken();
+      if (token != null && token.isNotEmpty) {
+        await _registerTokenToBackend(token);
+      }
+    } else {
+      try {
+        await messaging.deleteToken();
+      } catch (_) {}
     }
+  }
+
+  /// Customer self-order: in-app preference (default on). When off, FCM token is removed
+  /// and foreground notifications are skipped.
+  static Future<bool> isCustomerPushEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kCustomerPushEnabledKey) ?? true;
+  }
+
+  static Future<void> setCustomerPushEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kCustomerPushEnabledKey, enabled);
+    if (!enabled) {
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (_) {}
+    } else {
+      await refreshBackendRegistration();
+    }
+  }
+
+  static Future<bool> _isCustomerNotificationsMuted() async {
+    final user = await ApiService().getCachedUser();
+    if (user == null) return false;
+    if ((user['role'] ?? '').toString() != 'customer') return false;
+    return !(await isCustomerPushEnabled());
+  }
+
+  static Future<bool> _shouldRegisterFcmTokenForCurrentUser() async {
+    final user = await ApiService().getCachedUser();
+    if (user == null) return true;
+    if ((user['role'] ?? '').toString() != 'customer') return true;
+    return await isCustomerPushEnabled();
   }
 
   /// Call this after login so token definitely registers
   /// (initialize() may have run before cached_user_data existed).
   static Future<void> refreshBackendRegistration() async {
     try {
+      if (!await _shouldRegisterFcmTokenForCurrentUser()) {
+        try {
+          await FirebaseMessaging.instance.deleteToken();
+        } catch (_) {}
+        return;
+      }
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null && token.isNotEmpty) {
         await _registerTokenToBackend(token);

@@ -799,6 +799,65 @@ You are helping me continue development for my Flutter POS app integrated with O
 - Quick verification:
   - Open `http://<odoo-host>:8069/pos/ranking` and confirm it lists 50 rows sorted by points.
   - Check a Contact in Odoo: `reward_rank` is set for top users and updates after cron.
+
+==================================================
+81) LATEST IMPLEMENTED UPDATE (CUSTOMER PROFILE MENU + RANKING SCREEN UI)
+==================================================
+- Request:
+  - In customer Profile tab:
+    - keep profile image + reward points
+    - show a menu list with Profile + Ranking
+  - Ranking screen should look like the provided reference (top 3 podium + list below).
+- Implementation:
+  - Backend:
+    - `/api/pos/customers` now returns `reward_rank` so app can show "your rank" even outside Top 50.
+  - Flutter:
+    - Profile tab details card replaced with menu-style tiles:
+      - `Profile` → opens Edit profile dialog (DOB/phone/name)
+      - `Ranking` → opens new `RankingScreen` and shows current `reward_rank` pill
+    - Added `RankingScreen` (`lib/screens/ranking_screen.dart`):
+      - top 3 podium layout
+      - list for ranks 4–50
+      - "Your rank" + your points chip at top
+    - Added API call `ApiService.fetchRankingTop50()` (uses `GET /api/pos/ranking/top50`).
+- Files changed:
+  - `pos_backend/controllers/pos_order_api.py`
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/screens/ranking_screen.dart` (New)
+  - `lib/services/api_service.dart`
+- Ops:
+  - Backend: restart Odoo and upgrade `pos_backend` so `reward_rank` is returned.
+  - Flutter: hot restart app.
+
+==================================================
+82) CUSTOMER NOTIFICATIONS TOGGLE + CUSTOMER SUPPORT (FACEBOOK / WHATSAPP)
+==================================================
+- Request:
+  - Customer can turn push order notifications on/off in the self-order app.
+  - Customer support screen: open Facebook and WhatsApp to reach admin; links come from backend config.
+  - WhatsApp: show the chat link and a QR code for the same `wa.me` URL.
+- Backend (Odoo `pos_backend`):
+  - New model: `pos.backend.customer.support.config` (menu: Custom POS > Customer support (app))
+    - `facebook_url`, `whatsapp_number` (admin enters digits; API builds `https://wa.me/<digits>`).
+  - `GET /api/pos/self_order_config` response `data` includes:
+    - `customer_support`: `{ facebook_url, whatsapp_number, whatsapp_link }`
+  - Data: `data/customer_support_config.xml` seeds one empty record; upgrade module after pull.
+- Flutter:
+  - `SharedPreferences` key `customer_push_notifications_enabled` (default true) via
+    `PushNotificationsService.isCustomerPushEnabled` / `setCustomerPushEnabled`.
+  - When disabled for a logged-in `customer` user: FCM token is deleted, foreground local notifications are skipped, backend registration is not refreshed until re-enabled.
+  - `CustomerSelfOrderScreen` Profile tab: Notifications switch + `Customer support` menu row.
+  - New `CustomerSupportScreen` (`url_launcher` + `qr_flutter`).
+  - `pubspec.yaml`: `url_launcher`, `qr_flutter`
+  - Android: manifest `<queries>` for `https` / `http` so `url_launcher` can resolve handlers.
+- Files changed:
+  - `pos_backend/models/customer_support_config.py`, `views/customer_support_views.xml`, `data/customer_support_config.xml`
+  - `pos_backend/controllers/pos_order_api.py` (self_order_config)
+  - `lib/services/push_notifications_service.dart`, `lib/screens/customer_self_order_screen.dart`, `lib/screens/customer_support_screen.dart` (new)
+  - `android/app/src/main/AndroidManifest.xml`, `pubspec.yaml`
+- Ops:
+  - Odoo: upgrade `pos_backend`, open Customer support (app) and set Facebook URL + WhatsApp number.
+  - Flutter: `flutter pub get` then rebuild the app.
 ==================================================
 2) WHAT THIS APP DOES (FLOW)
 ==================================================

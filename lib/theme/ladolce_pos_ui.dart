@@ -75,5 +75,16 @@ class LaDolcePosUi {
       textStyle: const TextStyle(fontWeight: FontWeight.w700),
     );
   }
+
+  /// Extra bottom inset for system gesture bar / 3-button nav (not keyboard).
+  /// [MediaQuery.padding] is often 0 on Android gesture navigation; prefer [viewPadding].
+  static double gestureBarBottomPad(BuildContext context) {
+    return 8.0 + MediaQuery.viewPaddingOf(context).bottom;
+  }
+
+  /// Bottom padding for modal sheets: IME (keyboard) + gesture / home indicator.
+  static double modalBottomPadding(BuildContext context) {
+    return MediaQuery.viewInsetsOf(context).bottom + gestureBarBottomPad(context);
+  }
 }
 
