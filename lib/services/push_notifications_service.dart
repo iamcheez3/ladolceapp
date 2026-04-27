@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -84,18 +83,35 @@ class PushNotificationsService {
         final n = message.notification;
         if (n == null) return;
 
-        final androidDetails = AndroidNotificationDetails(
-          'ladolce_pos_default',
-          'LaDolce Notifications',
-          channelDescription: 'General notifications',
-          importance: Importance.max,
-          priority: Priority.high,
-          sound: RawResourceAndroidNotificationSound('notification'),
-          playSound: true,
-          enableVibration: true,
-          vibrationPattern: Int64List.fromList([0, 500, 500, 500, 500]),
-        );
-        const iosDetails = DarwinNotificationDetails();
+        // Android notification channel sound is "sticky" once created.
+        // Use separate channel IDs so customer "confirmed" uses system default sound
+        // while cashier "new order" can keep the custom alert sound.
+        final AndroidNotificationDetails androidDetails;
+        if (type == 'self_order_confirmed') {
+          androidDetails = const AndroidNotificationDetails(
+            'ladolce_pos_general_default_sound',
+            'LaDolce Notifications',
+            channelDescription: 'General notifications (system sound)',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true, // default system sound (no custom sound)
+            enableVibration: true,
+          );
+        } else {
+          androidDetails = AndroidNotificationDetails(
+            'ladolce_pos_alarm_custom_sound',
+            'LaDolce Alerts',
+            channelDescription: 'High priority alerts (custom sound)',
+            importance: Importance.max,
+            priority: Priority.high,
+            sound: const RawResourceAndroidNotificationSound('notification'),
+            playSound: true,
+            enableVibration: true,
+            vibrationPattern: Int64List.fromList([0, 500, 500, 500, 500]),
+          );
+        }
+
+        const iosDetails = DarwinNotificationDetails(presentSound: true);
         final details =
             NotificationDetails(android: androidDetails, iOS: iosDetails);
 
@@ -167,7 +183,7 @@ class PushNotificationsService {
     } catch (_) {}
 
     try {
-      final hasVibrator = await Vibration.hasVibrator() ?? false;
+      final hasVibrator = await Vibration.hasVibrator();
       if (hasVibrator) {
         // Vibrate pattern repeatedly until canceled
         await Vibration.vibrate(pattern: [0, 500, 500], repeat: 0);

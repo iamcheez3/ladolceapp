@@ -73,8 +73,9 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
         await api.clearPosIdentityRequiredFlag();
       } catch (_) {}
     } finally {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
 
     if (!mounted || !okToNavigate) return;

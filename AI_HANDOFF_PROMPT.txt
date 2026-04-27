@@ -661,6 +661,144 @@ You are helping me continue development for my Flutter POS app integrated with O
   - Hot restart Flutter app.
 - Quick verification:
   - Tap Open Tickets: list should appear immediately (from cache) then silently refresh.
+
+==================================================
+76) LATEST IMPLEMENTED UPDATE (SESSION EXPIRED MESSAGE + CUSTOMER CONFIRMED DEFAULT SOUND + ENV RESILIENCE)
+==================================================
+- Request:
+  - When backend forces a customer logout (session revoked/expired), show a clear message instead of silently returning to login.
+  - When cashier confirms an order, customer notification should use the phone's default notification sound (not `notification.mp3`).
+  - Ensure fresh clones don't crash if `.env` is missing; keep `.env` out of git.
+- Implementation:
+  - Customer forced-logout:
+    - `CustomerSelfOrderScreen` now routes to `LoginScreen(infoMessage: 'Session expired. Please login again.')` when session validate fails.
+    - `LoginScreen` accepts optional `infoMessage` and displays it via Snackbar on first frame.
+  - Push notifications:
+    - Foreground local notifications now use separate Android channel IDs:
+      - `self_order_confirmed` → general channel with **system default sound**.
+      - other alerts (ex: `self_order_new`) can keep the custom alert sound behavior.
+    - Note: Android channel sound is sticky; new channel ID ensures the default sound actually takes effect.
+  - Env / startup:
+    - `.gitignore` updated to ignore `/.env` (previous `*.env` did not match `.env`).
+    - `main.dart` now loads `.env` best-effort (won't crash if missing).
+    - Theme background uses `scaffoldBackgroundColor` (avoids deprecated `ColorScheme.background`).
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/screens/login_screen.dart`
+  - `lib/services/push_notifications_service.dart`
+  - `lib/main.dart`
+  - `.gitignore`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Customer: log in on device A, then log in on device B → device A returns to login and shows "Session expired. Please login again."
+  - Customer: receive `self_order_confirmed` while app is foreground → plays default system notification sound.
+
+==================================================
+77) LATEST IMPLEMENTED UPDATE (CUSTOMER LOGIN SILENT DEVICE AUDIT LOG)
+==================================================
+- Request:
+  - Customer devices should also be logged to backend device audit on login (silent, no prompt).
+  - Backend requires `pos_name` non-empty, but customers do not pick a POS name.
+- Implementation:
+  - `ApiService.loginUser()` now best-effort calls `registerPosDevice(...)` after successful login when role == `customer`.
+  - Uses `pos_name: 'SelfOrder'` to satisfy backend validation while keeping audit logs meaningful.
+  - Runs in a detached `Future(...)` so it won't block login UX.
+- Files changed:
+  - `lib/services/api_service.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Login as customer and check backend POS Device Log: a new row is created with `pos_name = SelfOrder` and correct device details.
+
+==================================================
+78) LATEST IMPLEMENTED UPDATE (REGISTER: PHONE COUNTRY CODE PICKER DEFAULT +856)
+==================================================
+- Request:
+  - Registration phone field should show a country code picker (default Laos `+856`),
+    but allow selecting other countries (ex: Thailand `+66`).
+- Implementation:
+  - Replaced the plain phone `TextFormField` with `IntlPhoneField`.
+  - Default `initialCountryCode: 'LA'`.
+  - App now stores/sends the full number including dial code (ex: `+85620xxxxxxx`).
+- Files changed:
+  - `pubspec.yaml` (added `intl_phone_field`)
+  - `lib/screens/register_screen.dart`
+- Commands / ops needed:
+  - `flutter pub get`
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open Register screen: phone input shows `+856` by default.
+  - Change country to Thailand: dial code becomes `+66`.
+  - Register: backend receives phone including dial code.
+
+==================================================
+79) LATEST IMPLEMENTED UPDATE (CUSTOMER PROFILE: DOB FIELD + BACKEND SAVE)
+==================================================
+- Request:
+  - In self-order Profile tab:
+    - Replace showing Email with Date of Birth.
+    - Edit profile should update Date of Birth and save to backend.
+  - When changing profile image in app, it should auto-save to backend (no separate Save button).
+- Implementation:
+  - UI:
+    - Profile header now shows `DOB: YYYY-MM-DD` (instead of email).
+    - Profile details replaces `Email` row with `Date of birth`.
+    - Edit profile dialog replaces email input with a DOB date picker (stores ISO `YYYY-MM-DD`).
+  - Backend call:
+    - Extended `ApiService.saveCustomer()` to accept `dateOfBirth`.
+    - Sends both keys for compatibility: `date_of_birth` and `birthdate`.
+    - Saved response is used to refresh local profile state.
+  - Profile image:
+    - When customer picks a new profile image, app uploads base64 via `/api/pos/customers` (`image_base64`) best-effort.
+    - Updates local `_customerImageBase64` from the backend response so UI refreshes immediately.
+- Backend notes (required for persistence):
+  - Backend `/api/pos/customers` now supports:
+    - returning DOB as `date_of_birth`
+    - persisting incoming `date_of_birth` / `birthdate` into the first available Odoo field:
+      - `birthdate_date`, else `birthdate`, else `date_of_birth`, else `birthday`
+    - accepting `image_base64` (or data URL) and persisting into `image_1920` (fallback `image_512` / `image_128`)
+    - returning `image_url` + `image_base64` in the save response
+  - Ops: upgrade `pos_backend` module and restart Odoo service if needed.
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/services/api_service.dart`
+  - `pos_backend/controllers/pos_order_api.py`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open Profile tab: DOB is displayed (or blank if not set).
+  - Tap Edit profile → set DOB → Save Changes → shows "Profile updated" and DOB persists after reopen.
+
+==================================================
+80) LATEST IMPLEMENTED UPDATE (TOP 50 REWARD RANKING WEBSITE + STORED RANK FIELD)
+==================================================
+- Request:
+  - Create a ranking website to show Top 50 customers with most reward points.
+  - Store rank as a field (1st, 2nd, 3rd...) so it can be referenced elsewhere.
+- Implementation (Odoo `pos_backend`):
+  - Added stored field on `res.partner`:
+    - `reward_rank` (Integer, stored rank for all active partners; 1 = top)
+  - Added cron job (every 15 minutes):
+    - recomputes rank for ALL active partners by `reward_points desc, id asc` and writes `reward_rank` (1..N).
+  - Added public website page:
+    - `GET /pos/ranking` → HTML table Top 50 with ordinal labels (1st/2nd/3rd...)
+  - Added JSON API endpoint:
+    - `GET /api/pos/ranking/top50`
+  - Added Contact form field:
+    - `reward_rank` shown read-only.
+- Files changed:
+  - `pos_backend/models/res_partner.py`
+  - `pos_backend/views/res_partner_views.xml`
+  - `pos_backend/data/reward_ranking_cron.xml` (New)
+  - `pos_backend/controllers/ranking_web.py` (New)
+  - `pos_backend/controllers/__init__.py`
+  - `pos_backend/__manifest__.py`
+- Ops:
+  - Restart Odoo service and upgrade `pos_backend` module.
+- Quick verification:
+  - Open `http://<odoo-host>:8069/pos/ranking` and confirm it lists 50 rows sorted by points.
+  - Check a Contact in Odoo: `reward_rank` is set for top users and updates after cron.
 ==================================================
 2) WHAT THIS APP DOES (FLOW)
 ==================================================

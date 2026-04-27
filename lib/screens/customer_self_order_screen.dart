@@ -82,6 +82,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String _customerName = '';
   String _customerPhone = '';
   String _customerEmail = '';
+  String _customerDob = '';
   int _rewardPoints = 0;
   String? _customerImageBase64;
   String _qrImageDataUrl = '';
@@ -92,6 +93,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   List<String> _adImageDataUrls = [];
   bool _hasShownAdPopup = false;
   String? _profileImagePath;
+  bool _isUploadingProfileImage = false;
 
   List<Map<String, dynamic>> _historyItems = [];
 
@@ -116,7 +118,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         await _apiService.logout();
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          MaterialPageRoute(
+            builder: (_) => const LoginScreen(
+              infoMessage: 'Session expired. Please login again.',
+            ),
+          ),
         );
       }
     } catch (_) {
@@ -154,6 +160,36 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       await prefs.setString(_profileImagePrefsKey, picked.path);
       if (!mounted) return;
       setState(() => _profileImagePath = picked.path);
+
+      // Auto-save avatar to backend (best-effort).
+      try {
+        if (_isUploadingProfileImage) return;
+        setState(() => _isUploadingProfileImage = true);
+        final bytes = await File(picked.path).readAsBytes();
+        final b64 = base64Encode(bytes);
+        final saved = await _apiService.saveCustomer(
+          id: _customerId,
+          name: _customerName.trim().isEmpty ? 'Customer' : _customerName.trim(),
+          phone: _customerPhone.trim(),
+          email: _customerEmail.trim().isEmpty ? null : _customerEmail.trim(),
+          dateOfBirth: _customerDob.trim().isEmpty ? null : _customerDob.trim(),
+          imageBase64: b64,
+        );
+        if (!mounted) return;
+        setState(() {
+          _customerImageBase64 = saved['image_base64']?.toString();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile image updated'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (_) {
+        // Keep local image; backend upload is best-effort.
+      } finally {
+        if (mounted) setState(() => _isUploadingProfileImage = false);
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -229,6 +265,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         'name': widget.customerName,
         'phone': '',
         'email': '',
+        'date_of_birth': '',
+        'birthdate': '',
         'reward_points': 0,
       };
 
@@ -238,6 +276,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _customerName = (matched?['name'] ?? widget.customerName).toString();
         _customerPhone = (matched?['phone'] ?? '').toString();
         _customerEmail = (matched?['email'] ?? '').toString();
+        _customerDob =
+            (matched?['date_of_birth'] ?? matched?['birthdate'] ?? '').toString();
         _rewardPoints =
             int.tryParse((matched?['reward_points'] ?? 0).toString()) ?? 0;
         _customerImageBase64 = matched?['image_base64']?.toString();
@@ -1106,7 +1146,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         id: _customerId,
         name: _customerName.trim(),
         phone: _customerPhone.trim(),
+        // Email no longer shown in UI; keep sending if already populated.
         email: _customerEmail.trim().isEmpty ? null : _customerEmail.trim(),
+        dateOfBirth: _customerDob.trim().isEmpty ? null : _customerDob.trim(),
       );
 
       if (!mounted) return;
@@ -1115,6 +1157,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _customerName = (saved['name'] ?? _customerName).toString();
         _customerPhone = (saved['phone'] ?? _customerPhone).toString();
         _customerEmail = (saved['email'] ?? _customerEmail).toString();
+        _customerDob =
+            (saved['date_of_birth'] ?? saved['birthdate'] ?? _customerDob)
+                .toString();
         _rewardPoints =
             int.tryParse(
               (saved['reward_points'] ?? _rewardPoints).toString(),
@@ -1157,7 +1202,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   void _openEditProfileSheet() {
     String name = _customerName;
     String phone = _customerPhone;
-    String email = _customerEmail;
+    String dob = _customerDob;
 
     showDialog(
       context: context,
@@ -1236,12 +1281,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         onChanged: (val) => setSheetState(() => phone = val),
                       ),
                       const SizedBox(height: 16),
-                      _buildProfileInputField(
-                        label: 'EMAIL',
-                        value: email,
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                        onChanged: (val) => setSheetState(() => email = val),
+                      _buildProfileDateField(
+                        label: 'DATE OF BIRTH',
+                        value: dob,
+                        onChanged: (val) => setSheetState(() => dob = val),
                       ),
                       const SizedBox(height: 28),
 
@@ -1255,7 +1298,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               : () async {
                                   _customerName = name;
                                   _customerPhone = phone;
-                                  _customerEmail = email;
+                                  _customerDob = dob;
                                   Navigator.pop(context);
                                   await _saveProfile();
                                 },
@@ -1355,6 +1398,81 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileDateField({
+    required String label,
+    required String value,
+    required ValueChanged<String> onChanged,
+  }) {
+    final controller = TextEditingController(text: value);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF64748B),
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          readOnly: true,
+          decoration: InputDecoration(
+            hintText: 'YYYY-MM-DD',
+            prefixIcon: const Icon(Icons.cake_outlined, color: _brandNavy),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.calendar_month_outlined),
+              onPressed: () async {
+                final now = DateTime.now();
+                DateTime initial = DateTime(now.year - 20, 1, 1);
+                try {
+                  final parts = value.split('-');
+                  if (parts.length == 3) {
+                    final y = int.parse(parts[0]);
+                    final m = int.parse(parts[1]);
+                    final d = int.parse(parts[2]);
+                    initial = DateTime(y, m, d);
+                  }
+                } catch (_) {}
+
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: initial,
+                  firstDate: DateTime(1900, 1, 1),
+                  lastDate: DateTime(now.year, now.month, now.day),
+                );
+                if (picked == null) return;
+                final yyyy = picked.year.toString().padLeft(4, '0');
+                final mm = picked.month.toString().padLeft(2, '0');
+                final dd = picked.day.toString().padLeft(2, '0');
+                final iso = '$yyyy-$mm-$dd';
+                controller.text = iso;
+                onChanged(iso);
+              },
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: _brandNavy, width: 1.6),
             ),
           ),
         ),
@@ -3218,7 +3336,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                _customerEmail.isEmpty ? ' ' : _customerEmail,
+                                _customerDob.isEmpty ? ' ' : 'DOB: $_customerDob',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -3291,10 +3409,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                               : _customerPhone,
                                         ),
                                         _detailRow(
-                                          'Email',
-                                          _customerEmail.isEmpty
-                                              ? '-'
-                                              : _customerEmail,
+                                          'Date of birth',
+                                          _customerDob.isEmpty ? '-' : _customerDob,
                                         ),
                                         const SizedBox(height: 8),
                                         SizedBox(

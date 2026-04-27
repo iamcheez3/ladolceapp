@@ -570,6 +570,30 @@ class ApiService {
           await prefs.setString(_posIdentityPromptSessionKey, sid);
         }
       } catch (_) {}
+
+      // Customer: silently log device on login for audit trail.
+      // Backend requires non-empty `pos_name`, but customers don't pick a POS name,
+      // so use a stable label for self-order devices.
+      try {
+        final role = (data is Map) ? (data['role']?.toString()) : null;
+        if (role == 'customer' && data is Map) {
+          final userId = (data['user_id'] is int)
+              ? data['user_id'] as int
+              : int.tryParse(data['user_id']?.toString() ?? '') ?? 0;
+          final name = (data['name'] ?? 'Customer').toString();
+          if (userId > 0) {
+            Future(() async {
+              try {
+                await registerPosDevice(
+                  userId: userId,
+                  cashierName: name,
+                  posName: 'SelfOrder',
+                );
+              } catch (_) {}
+            });
+          }
+        }
+      } catch (_) {}
       
       return data;
     } else {
@@ -1517,14 +1541,33 @@ class ApiService {
     }
   }
 
-  Future<dynamic> saveCustomer({int? id, required String name, String? phone, String? email}) async {
+  Future<dynamic> saveCustomer({
+    int? id,
+    required String name,
+    String? phone,
+    String? email,
+    String? dateOfBirth,
+    String? imageBase64,
+  }) async {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/customers');
+      final dob = dateOfBirth?.trim();
+      final img = imageBase64?.trim();
       final response = await http.post(
         url,
         headers: await _authHeaders(json: true),
-        body: jsonEncode({'id': id, 'name': name, 'phone': phone, 'email': email}),
+        body: jsonEncode({
+          'id': id,
+          'name': name,
+          'phone': phone,
+          'email': email,
+          // DOB field name can differ between Odoo implementations.
+          // Send both keys for compatibility; backend can choose which to persist.
+          if (dob != null && dob.isNotEmpty) 'date_of_birth': dob,
+          if (dob != null && dob.isNotEmpty) 'birthdate': dob,
+          if (img != null && img.isNotEmpty) 'image_base64': img,
+        }),
       ).timeout(const Duration(seconds: 5));
       
       final jsonResp = jsonDecode(response.body);

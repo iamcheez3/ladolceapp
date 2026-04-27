@@ -13,7 +13,9 @@ import '../services/push_notifications_service.dart';
 const bool kShowDevTools = true;
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? infoMessage;
+
+  const LoginScreen({super.key, this.infoMessage});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -39,6 +41,18 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     if (kShowDevTools) _loadCurrentUrl();
+    final msg = widget.infoMessage?.trim();
+    if (msg != null && msg.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: const Color(0xFF0D1565),
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _loadCurrentUrl() async {
@@ -240,11 +254,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response['role'] == 'cashier' || response['role'] == 'customer') {
         if (!mounted) return;
+        final navigator = Navigator.of(context);
         // Ensure FCM token is registered after login (now we have cached_user_data).
         try {
           await PushNotificationsService.refreshBackendRegistration();
         } catch (_) {}
-        Navigator.of(context).pushReplacement(
+        if (!mounted) return;
+        navigator.pushReplacement(
           MaterialPageRoute(builder: (_) => LoadingScreen(user: response)),
         );
       } else {
