@@ -112,18 +112,77 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   List<Map<String, dynamic>> _historyItems = [];
 
+  // Branch selection (customer self-order)
+  bool _isLoadingBranches = true;
+  List<Map<String, dynamic>> _branches = const [];
+  int? _selectedBranchId;
+  String _selectedBranchName = '';
+
   @override
   void initState() {
     super.initState();
     _customerName = widget.customerName;
     _cartItems.clear();
     _validateSingleDeviceSession();
+    _loadBranches();
     _loadCatalog();
     _loadProfile();
     _loadHistory();
     _loadSelfOrderConfig();
     _loadProfileImage();
     _loadNotificationPref();
+  }
+
+  Future<void> _loadBranches() async {
+    setState(() => _isLoadingBranches = true);
+    try {
+      final cachedId = await _apiService.getCachedCustomerBranchId();
+      final cachedName = await _apiService.getCachedCustomerBranchName();
+      final branches = await _apiService.fetchBranchesPublic();
+      if (!mounted) return;
+
+      int? selectedId = cachedId;
+      String selectedName = (cachedName ?? '').trim();
+
+      if (selectedId != null) {
+        final match = branches.where((b) {
+          final id = (b['id'] is int) ? b['id'] as int : int.tryParse('${b['id']}') ?? 0;
+          return id == selectedId;
+        }).toList();
+        if (match.isNotEmpty) {
+          selectedName = (match.first['name'] ?? '').toString();
+        } else {
+          selectedId = null;
+        }
+      }
+      if (selectedId == null && branches.isNotEmpty) {
+        selectedId = (branches.first['id'] is int)
+            ? branches.first['id'] as int
+            : int.tryParse('${branches.first['id']}');
+        selectedName = (branches.first['name'] ?? '').toString();
+      }
+
+      setState(() {
+        _branches = branches;
+        _selectedBranchId = selectedId;
+        _selectedBranchName = selectedName;
+        _isLoadingBranches = false;
+      });
+      if (selectedId != null && selectedId > 0) {
+        await _apiService.setCachedCustomerBranch(
+          branchId: selectedId,
+          branchName: selectedName,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _branches = const [];
+        _selectedBranchId = null;
+        _selectedBranchName = '';
+        _isLoadingBranches = false;
+      });
+    }
   }
 
   Future<void> _loadNotificationPref() async {
@@ -862,8 +921,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final bool hasBranch = _selectedBranchId != null && (_selectedBranchId ?? 0) > 0;
             final bool canConfirm =
-            paymentChoice != 'transfer' || proofImage != null;
+                hasBranch && (paymentChoice != 'transfer' || proofImage != null);
             return FractionallySizedBox(
               heightFactor: 0.90,
               child: Padding(
@@ -884,6 +944,69 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
+                    const Text(
+                      'Select Branch',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_isLoadingBranches)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_branches.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'No branches found. Please ask staff to configure branches in Odoo.',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _selectedBranchId,
+                            isExpanded: true,
+                            items: _branches.map((b) {
+                              final id = (b['id'] is int)
+                                  ? b['id'] as int
+                                  : int.tryParse('${b['id']}') ?? 0;
+                              final name = (b['name'] ?? '').toString();
+                              final code = (b['code'] ?? '').toString().trim();
+                              final label = code.isNotEmpty ? '$name ($code)' : name;
+                              return DropdownMenuItem<int>(
+                                value: id,
+                                child: Text(label),
+                              );
+                            }).toList(),
+                            onChanged: (v) async {
+                              if (v == null) return;
+                              final match = _branches.where((b) {
+                                final id = (b['id'] is int)
+                                    ? b['id'] as int
+                                    : int.tryParse('${b['id']}') ?? 0;
+                                return id == v;
+                              }).toList();
+                              final name = match.isNotEmpty ? (match.first['name'] ?? '').toString() : '';
+                              setSheetState(() {
+                                _selectedBranchId = v;
+                                _selectedBranchName = name;
+                              });
+                              await _apiService.setCachedCustomerBranch(
+                                branchId: v,
+                                branchName: name,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
                     RadioListTile<String>(
                       value: 'pay_at_store',
                       groupValue: paymentChoice,
@@ -1049,6 +1172,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   transferBankId: _transferBanks.isNotEmpty
                                     ? _transferBanks[_selectedBankIndex]['id'] as int?
                                     : null,
+                                  branchId: _selectedBranchId,
                                 );
                               },
                         style: ElevatedButton.styleFrom(
@@ -1075,6 +1199,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     required String paymentChoice,
     String? proofImagePath,
     int? transferBankId,
+    int? branchId,
   }) async {
     if (_cartItems.isEmpty || _isPlacingOrder) return;
 
@@ -1097,6 +1222,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         paymentType: paymentChoice,
         isPaid: false,
         lines: lines,
+        branchId: branchId,
       );
 
       String? uploadedProofUrl;

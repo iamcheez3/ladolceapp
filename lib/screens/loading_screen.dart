@@ -79,7 +79,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
         userId: widget.user['user_id'] ?? 1,
         partnerId: widget.user['partner_id'],
       );
-    } else if (role == 'cashier') {
+    } else if (role == 'cashier' || role == 'admin') {
       nextScreen = const SizedBox.shrink();
     } else {
       nextScreen = const LoginScreen();
@@ -87,6 +87,12 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
     if (role == 'cashier') {
       _goCashierFlow();
+      return;
+    }
+    if (role == 'admin') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => PinScreen(cachedUser: widget.user)),
+      );
       return;
     }
 
