@@ -12,15 +12,23 @@ class CartItem {
   bool isPrinted;
   final List<Topping> selectedToppings;
 
+  /// From server [TicketLine] (includes topping $ in one unit). When set, used
+  /// for [totalPrice] instead of [product] + [selectedToppings].
+  final double? priceUnitFromOrder;
+
   CartItem({
     required this.product,
     this.quantity = 1,
     this.isSaved = false,
     this.isPrinted = false,
     this.selectedToppings = const [],
+    this.priceUnitFromOrder,
   });
 
   double get totalPrice {
+    if (priceUnitFromOrder != null) {
+      return priceUnitFromOrder! * quantity;
+    }
     double basePrice = product.price;
     for (var topping in selectedToppings) {
       basePrice += topping.extraPrice;

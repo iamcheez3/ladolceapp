@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'customer_self_order_screen.dart';
-import 'pin_screen.dart';
-import 'pos_screen.dart';
 import 'register_screen.dart';
 import 'loading_screen.dart';
 import '../services/api_service.dart';
+import '../services/push_notifications_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV TOOLS FLAG
@@ -15,7 +13,9 @@ import '../services/api_service.dart';
 const bool kShowDevTools = true;
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  final String? infoMessage;
+
+  const LoginScreen({super.key, this.infoMessage});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -41,6 +41,18 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     if (kShowDevTools) _loadCurrentUrl();
+    final msg = widget.infoMessage?.trim();
+    if (msg != null && msg.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: const Color(0xFF0D1565),
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _loadCurrentUrl() async {
@@ -161,15 +173,17 @@ class _LoginScreenState extends State<LoginScreen> {
             // Clear override
             TextButton(
               onPressed: () async {
+                final navigator = Navigator.of(ctx);
                 await prefs.remove(ApiService.devBaseUrlKey);
                 await prefs.remove(ApiService.devDbNameKey);
+                if (!mounted) return;
                 if (mounted) {
                   setState(() {
                     _currentBaseUrl = '';
                     _currentDbName = '';
                   });
                 }
-                Navigator.of(ctx).pop();
+                navigator.pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Dev overrides cleared — using .env/default'),
@@ -189,6 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               onPressed: () async {
+                final navigator = Navigator.of(ctx);
                 final value = controller.text.trim();
                 final dbValue = dbController.text.trim();
                 if (value.isNotEmpty) {
@@ -201,13 +216,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 } else {
                   await prefs.remove(ApiService.devDbNameKey);
                 }
+                if (!mounted) return;
                 if (mounted) {
                   setState(() {
                     _currentBaseUrl = value;
                     _currentDbName = dbValue;
                   });
                 }
-                Navigator.of(ctx).pop();
+                navigator.pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -238,7 +254,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response['role'] == 'cashier' || response['role'] == 'customer') {
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(
+        final navigator = Navigator.of(context);
+        // Ensure FCM token is registered after login (now we have cached_user_data).
+        try {
+          await PushNotificationsService.refreshBackendRegistration();
+        } catch (_) {}
+        if (!mounted) return;
+        navigator.pushReplacement(
           MaterialPageRoute(builder: (_) => LoadingScreen(user: response)),
         );
       } else {
@@ -345,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 88,
                                 height: 88,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) {
+                                errorBuilder: (_, _, _) {
                                   return const Icon(
                                     Icons.pets_rounded,
                                     size: 52,

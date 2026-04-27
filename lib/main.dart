@@ -4,11 +4,21 @@ import 'package:upgrader/upgrader.dart';
 import 'screens/loading_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
+import 'services/push_notifications_service.dart';
 
 void main() async {
   // Ensure bindings are initialized before loading dotenv
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  // Keep app boot resilient if `.env` wasn't created yet in a fresh clone.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {}
+
+  // FCM init (requires google-services.json / GoogleService-Info.plist in the app).
+  // Best-effort: do not block app startup if Firebase is not configured yet.
+  try {
+    await PushNotificationsService.initialize();
+  } catch (_) {}
   
   // Check cache for offline auth
   final cachedUser = await ApiService().getCachedUser();
@@ -19,7 +29,7 @@ void main() async {
 class PosApp extends StatelessWidget {
   final Map<String, dynamic>? initialUser;
   
-  const PosApp({Key? key, this.initialUser}) : super(key: key);
+  const PosApp({super.key, this.initialUser});
 
   Widget _initialScreen() {
     if (initialUser == null) {
@@ -41,9 +51,9 @@ class PosApp extends StatelessWidget {
           seedColor: const Color(0xFF0D1565), // Brand navy
           primary: const Color(0xFF0D1565),
           secondary: const Color(0xFF3B82F6),
-          background: const Color(0xFFF8FAFC),
           surface: Colors.white,
         ),
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF0D1565),
           foregroundColor: Colors.white,

@@ -11,10 +11,207 @@ You are helping me continue development for my Flutter POS app integrated with O
 - Odoo backend API path (WSL Ubuntu):
   /home/sith/odoo/pos/custom_addonsUAT
 
+- POS device audit (NEW):
+  - Goal: backend must track which POS name + which physical device is used per cashier login
+    (for incident/audit like "who used what device when accident happened").
+  - Flutter client endpoint to implement/expect on backend:
+    - POST /api/pos/device/register
+    - Auth: uses session headers (Cookie + X-Openerp-Session-Id) after /pos/login.
+    - Payload example:
+      {
+        "user_id": 12,
+        "cashier_name": "Alice",
+        "pos_name": "Counter-1",
+        "device": {
+          "platform": "android|ios|windows|...",
+          "device_id": "...",   // best-effort stable id when available
+          "manufacturer": "...",
+          "brand": "...",
+          "model": "...",
+          "system_version": "...",
+          "timestamp_utc": "2026-04-26T..."
+        }
+      }
+  - Flutter local cache keys:
+    - cached_pos_name
+    - pending_pos_device_registration (retry during boot sync)
+
 - Main backend module used by app:
   pos_backend
   - controllers/catalog_api.py
   - models/product_template.py
+
+==================================================
+76) BACKEND + DEVICE AUDIT LOG (NEW FEATURE)
+==================================================
+- Request:
+  - Backend must store POS name + device details as a log/list view (like loyalty log).
+  - On cashier login, app prompts to create/select a "POS Name" (saved locally) and sends device info to backend.
+- Flutter implementation (done in this repo):
+  - Cashier flow:
+    - On cashier LOGIN: always route to `PosIdentityScreen` once per login session
+      (even if `cached_pos_name` already exists) so user confirms/updates POS name.
+    - On app resume/reopen (cached session): does NOT re-prompt.
+  - Saves `cached_pos_name` locally and calls `POST /api/pos/device/register`.
+  - After POS name is submitted, it immediately posts to backend so `POS Device Log` updates.
+  - If backend offline/unavailable, payload is saved and retried on next `syncAllData()`.
+  - Files changed:
+    - `lib/screens/pos_identity_screen.dart` (new)
+    - `lib/screens/loading_screen.dart`
+    - `lib/services/api_service.dart`
+  - Notes / fixes:
+    - `device_info_plus` v12.4.0: Android does NOT have `AndroidDeviceInfo.androidId`.
+      Use `AndroidDeviceInfo.id` for best-effort `device_id`.
+
+==================================================
+77) CUSTOMER SINGLE-DEVICE SESSION (NEW FEATURE)
+==================================================
+- Request:
+  - Customer account can be logged in on ONLY one device.
+  - If customer logs in on a new device, the old device must be forced logout.
+- Backend (pos_backend):
+  - `/api/pos/login` now accepts:
+    - `device_id`, `platform`
+  - On customer login, backend saves active session info on `res.users`:
+    - `pos_customer_active_sid`
+    - `pos_customer_active_device_id`
+    - `pos_customer_active_platform`
+  - Added endpoint:
+    - POST `/api/pos/session/validate` (checks current session sid matches active sid)
+    - Returns 401 with message "Session revoked" when customer logged in elsewhere.
+- Flutter:
+  - `ApiService.loginUser()` now sends `device_id` + `platform` in login payload.
+  - `CustomerSelfOrderScreen` calls `validateCustomerSession()` on startup;
+    if 401 → clears local session and routes back to Login.
+- Notes / fix:
+  - For ngrok/cookie-unreliable clients, `/api/pos/session/validate` now accepts `device_id`.
+    If `device_id` matches the stored active device, backend updates active session_id to the latest
+    instead of forcing logout.
+- Ops:
+  - Upgrade `pos_backend` module after adding new fields + endpoint.
+
+==================================================
+78) FIREBASE FCM PUSH NOTIFICATIONS (NEW FEATURE)
+==================================================
+- Goal:
+  - Use FCM to push notifications between customer and cashier devices.
+- Flutter:
+  - Added packages:
+    - `firebase_core`, `firebase_messaging`, `flutter_local_notifications`
+  - Added service:
+    - `lib/services/push_notifications_service.dart`
+  - Startup:
+    - `main.dart` initializes FCM best-effort (won't block if not configured yet).
+  - Backend registration:
+- Notes / fix:
+  - Token registration must run AFTER login (when cached_user_data exists).
+    `LoginScreen` calls `PushNotificationsService.refreshBackendRegistration()` after login.
+    - Calls `POST /api/pos/fcm/register` with `{user_id, role, token, device{platform,device_id,...}}`.
+- Android setup required:
+  - Place `android/app/google-services.json`
+  - Gradle (KTS):
+    - `android/settings.gradle.kts`: add `com.google.gms.google-services` plugin version
+    - `android/app/build.gradle.kts`: apply `id("com.google.gms.google-services")`
+- iOS setup required:
+  - Place `ios/Runner/GoogleService-Info.plist`
+  - Enable Push Notifications + Background Modes (Remote notifications) in Xcode.
+- Backend (Odoo `pos_backend` in `/home/sith/odoo/pos/custom_addonsUAT`):
+  - Added fields on `res.users`:
+    - `pos_fcm_token`, `pos_fcm_platform`, `pos_fcm_device_id`
+  - Added endpoint:
+    - POST `/api/pos/fcm/register` (stores latest token)
+  - Ops:
+    - Upgrade `pos_backend` module after adding new fields.
+
+==================================================
+79) SELF-ORDER NOTIFICATIONS + BACKEND LOG (NEW FEATURE)
+==================================================
+- Request:
+  - Customer confirms self-order:
+    - Cashier must get notification with repeating sound (~10s) + vibration.
+  - After cashier confirms/reviews:
+    - Customer gets notification "order complete/confirmed".
+  - Backend must have list view to store customer self-order details.
+- Flutter:
+  - `PushNotificationsService`:
+    - On FCM `data.type == 'self_order_new'`:
+      - loop-play `assets/sounds/notification.mp3` for ~10s
+      - vibrate pattern for ~10s
+    - Foreground local notification uses Android custom sound `notification` (res/raw).
+  - Android:
+    - `android/app/src/main/res/raw/notification.mp3` added for notification channel sound.
+- Backend (Odoo pos_backend):
+  - Added config: `Settings > Custom POS > Push Notifications (FCM)`:
+    - `pos_backend.fcm_server_key`
+  - When `/api/pos/order` creates an order with `state='waiting_transfer_review'`:
+    - sends FCM to all cashier/admin users with `pos_fcm_token`
+    - payload: `data.type='self_order_new'` + order details
+  - Also sends the same alert for self-orders with `payment_type='pay_at_store'` (draft self-order),
+    so cashiers are notified for both transfer + pay-at-store flows.
+  - When `/api/pos/order/<id>/confirm_transfer` succeeds:
+    - sends FCM to the customer user (matched by `partner_id`) with `data.type='self_order_confirmed'`.
+  - Backend list view:
+    - Menu `Custom POS > Orders > Customer Self Orders` (transfer/self-orders).
+- Backend implementation (apply in `/home/sith/odoo/pos/custom_addonsUAT`):
+  - IMPORTANT: implement inside THIS addon: `/home/sith/odoo/pos/custom_addonsUAT/pos_backend`
+
+  - 1) Model (new file):
+    - Create: `pos_backend/models/pos_device_log.py`
+    - Model name: `pos.backend.device.log`
+    - Fields:
+      - `user_id` (Many2one `res.users`, required)
+      - `pos_name` (Char, required)
+      - `platform` (Selection: android/ios/windows/linux/macos/web/unknown)
+      - `device_id` (Char)
+      - `manufacturer` (Char)
+      - `brand` (Char)
+      - `model` (Char)
+      - `system_version` (Char)
+      - `ip_address` (Char)
+      - `raw_json` (Text)
+
+  - 2) Models init (edit):
+    - Update: `pos_backend/models/__init__.py`
+      - add: `from . import pos_device_log`
+
+  - 3) Controller (new file):
+    - Create: `pos_backend/controllers/pos_device_api.py`
+    - Route:
+      - POST `/api/pos/device/register`
+      - `type='http'`, `auth='public'`, `csrf=False`, `cors='*'`
+      - IMPORTANT (Odoo):
+        - Avoid 303 redirect to `/web/login` by NOT using `auth='user'`.
+        - Session cookie may be missing on some clients; fall back to payload `user_id`
+          (most POS endpoints in this addon are `auth='public'` anyway).
+      - Validates payload `pos_name` non-empty
+      - Creates a log row (always create; easiest audit trail)
+      - Returns: `{status:'success', data:{id:<log_id>}}`
+
+  - 4) Controllers init (edit):
+    - Update: `pos_backend/controllers/__init__.py`
+      - add: `from . import pos_device_api`
+
+  - 5) Views + menu (new file):
+    - Create: `pos_backend/views/pos_device_log_views.xml`
+      - Odoo 18 list view tag must be `<list>` (NOT `<tree>`) or module upgrade will fail.
+      - List view like loyalty log (newest first)
+      - Search view (user_id, pos_name, platform, model, device_id)
+      - Action + Menu: `Custom POS > Logs > POS Device Log`
+
+  - 6) Security access (edit):
+    - Update: `pos_backend/security/ir.model.access.csv`
+      - Add access row for `pos.backend.device.log`
+      - Recommended:
+        - Allow create for internal users (so session user can write)
+        - Allow read for admin/manager group (optional)
+
+  - 7) Manifest (edit):
+    - Update: `pos_backend/__manifest__.py`
+      - add xml: `views/pos_device_log_views.xml`
+
+  - 8) Ops:
+    - Restart Odoo service and upgrade module `pos_backend`
+    - Hard refresh web (`Ctrl+F5`)
 
 - Product fetch endpoint currently used by Flutter:
   GET /api/products
@@ -464,6 +661,203 @@ You are helping me continue development for my Flutter POS app integrated with O
   - Hot restart Flutter app.
 - Quick verification:
   - Tap Open Tickets: list should appear immediately (from cache) then silently refresh.
+
+==================================================
+76) LATEST IMPLEMENTED UPDATE (SESSION EXPIRED MESSAGE + CUSTOMER CONFIRMED DEFAULT SOUND + ENV RESILIENCE)
+==================================================
+- Request:
+  - When backend forces a customer logout (session revoked/expired), show a clear message instead of silently returning to login.
+  - When cashier confirms an order, customer notification should use the phone's default notification sound (not `notification.mp3`).
+  - Ensure fresh clones don't crash if `.env` is missing; keep `.env` out of git.
+- Implementation:
+  - Customer forced-logout:
+    - `CustomerSelfOrderScreen` now routes to `LoginScreen(infoMessage: 'Session expired. Please login again.')` when session validate fails.
+    - `LoginScreen` accepts optional `infoMessage` and displays it via Snackbar on first frame.
+  - Push notifications:
+    - Foreground local notifications now use separate Android channel IDs:
+      - `self_order_confirmed` → general channel with **system default sound**.
+      - other alerts (ex: `self_order_new`) can keep the custom alert sound behavior.
+    - Note: Android channel sound is sticky; new channel ID ensures the default sound actually takes effect.
+  - Env / startup:
+    - `.gitignore` updated to ignore `/.env` (previous `*.env` did not match `.env`).
+    - `main.dart` now loads `.env` best-effort (won't crash if missing).
+    - Theme background uses `scaffoldBackgroundColor` (avoids deprecated `ColorScheme.background`).
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/screens/login_screen.dart`
+  - `lib/services/push_notifications_service.dart`
+  - `lib/main.dart`
+  - `.gitignore`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Customer: log in on device A, then log in on device B → device A returns to login and shows "Session expired. Please login again."
+  - Customer: receive `self_order_confirmed` while app is foreground → plays default system notification sound.
+
+==================================================
+77) LATEST IMPLEMENTED UPDATE (CUSTOMER LOGIN SILENT DEVICE AUDIT LOG)
+==================================================
+- Request:
+  - Customer devices should also be logged to backend device audit on login (silent, no prompt).
+  - Backend requires `pos_name` non-empty, but customers do not pick a POS name.
+- Implementation:
+  - `ApiService.loginUser()` now best-effort calls `registerPosDevice(...)` after successful login when role == `customer`.
+  - Uses `pos_name: 'SelfOrder'` to satisfy backend validation while keeping audit logs meaningful.
+  - Runs in a detached `Future(...)` so it won't block login UX.
+- Files changed:
+  - `lib/services/api_service.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Login as customer and check backend POS Device Log: a new row is created with `pos_name = SelfOrder` and correct device details.
+
+==================================================
+78) LATEST IMPLEMENTED UPDATE (REGISTER: PHONE COUNTRY CODE PICKER DEFAULT +856)
+==================================================
+- Request:
+  - Registration phone field should show a country code picker (default Laos `+856`),
+    but allow selecting other countries (ex: Thailand `+66`).
+- Implementation:
+  - Replaced the plain phone `TextFormField` with `IntlPhoneField`.
+  - Default `initialCountryCode: 'LA'`.
+  - App now stores/sends the full number including dial code (ex: `+85620xxxxxxx`).
+- Files changed:
+  - `pubspec.yaml` (added `intl_phone_field`)
+  - `lib/screens/register_screen.dart`
+- Commands / ops needed:
+  - `flutter pub get`
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open Register screen: phone input shows `+856` by default.
+  - Change country to Thailand: dial code becomes `+66`.
+  - Register: backend receives phone including dial code.
+
+==================================================
+79) LATEST IMPLEMENTED UPDATE (CUSTOMER PROFILE: DOB FIELD + BACKEND SAVE)
+==================================================
+- Request:
+  - In self-order Profile tab:
+    - Replace showing Email with Date of Birth.
+    - Edit profile should update Date of Birth and save to backend.
+  - When changing profile image in app, it should auto-save to backend (no separate Save button).
+- Implementation:
+  - UI:
+    - Profile header now shows `DOB: YYYY-MM-DD` (instead of email).
+    - Profile details replaces `Email` row with `Date of birth`.
+    - Edit profile dialog replaces email input with a DOB date picker (stores ISO `YYYY-MM-DD`).
+  - Backend call:
+    - Extended `ApiService.saveCustomer()` to accept `dateOfBirth`.
+    - Sends both keys for compatibility: `date_of_birth` and `birthdate`.
+    - Saved response is used to refresh local profile state.
+  - Profile image:
+    - When customer picks a new profile image, app uploads base64 via `/api/pos/customers` (`image_base64`) best-effort.
+    - Updates local `_customerImageBase64` from the backend response so UI refreshes immediately.
+- Backend notes (required for persistence):
+  - Backend `/api/pos/customers` now supports:
+    - returning DOB as `date_of_birth`
+    - persisting incoming `date_of_birth` / `birthdate` into the first available Odoo field:
+      - `birthdate_date`, else `birthdate`, else `date_of_birth`, else `birthday`
+    - accepting `image_base64` (or data URL) and persisting into `image_1920` (fallback `image_512` / `image_128`)
+    - returning `image_url` + `image_base64` in the save response
+  - Ops: upgrade `pos_backend` module and restart Odoo service if needed.
+- Files changed:
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/services/api_service.dart`
+  - `pos_backend/controllers/pos_order_api.py`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Open Profile tab: DOB is displayed (or blank if not set).
+  - Tap Edit profile → set DOB → Save Changes → shows "Profile updated" and DOB persists after reopen.
+
+==================================================
+80) LATEST IMPLEMENTED UPDATE (TOP 50 REWARD RANKING WEBSITE + STORED RANK FIELD)
+==================================================
+- Request:
+  - Create a ranking website to show Top 50 customers with most reward points.
+  - Store rank as a field (1st, 2nd, 3rd...) so it can be referenced elsewhere.
+- Implementation (Odoo `pos_backend`):
+  - Added stored field on `res.partner`:
+    - `reward_rank` (Integer, stored rank for all active partners; 1 = top)
+  - Added cron job (every 15 minutes):
+    - recomputes rank for ALL active partners by `reward_points desc, id asc` and writes `reward_rank` (1..N).
+  - Added public website page:
+    - `GET /pos/ranking` → HTML table Top 50 with ordinal labels (1st/2nd/3rd...)
+  - Added JSON API endpoint:
+    - `GET /api/pos/ranking/top50`
+  - Added Contact form field:
+    - `reward_rank` shown read-only.
+- Files changed:
+  - `pos_backend/models/res_partner.py`
+  - `pos_backend/views/res_partner_views.xml`
+  - `pos_backend/data/reward_ranking_cron.xml` (New)
+  - `pos_backend/controllers/ranking_web.py` (New)
+  - `pos_backend/controllers/__init__.py`
+  - `pos_backend/__manifest__.py`
+- Ops:
+  - Restart Odoo service and upgrade `pos_backend` module.
+- Quick verification:
+  - Open `http://<odoo-host>:8069/pos/ranking` and confirm it lists 50 rows sorted by points.
+  - Check a Contact in Odoo: `reward_rank` is set for top users and updates after cron.
+
+==================================================
+81) LATEST IMPLEMENTED UPDATE (CUSTOMER PROFILE MENU + RANKING SCREEN UI)
+==================================================
+- Request:
+  - In customer Profile tab:
+    - keep profile image + reward points
+    - show a menu list with Profile + Ranking
+  - Ranking screen should look like the provided reference (top 3 podium + list below).
+- Implementation:
+  - Backend:
+    - `/api/pos/customers` now returns `reward_rank` so app can show "your rank" even outside Top 50.
+  - Flutter:
+    - Profile tab details card replaced with menu-style tiles:
+      - `Profile` → opens Edit profile dialog (DOB/phone/name)
+      - `Ranking` → opens new `RankingScreen` and shows current `reward_rank` pill
+    - Added `RankingScreen` (`lib/screens/ranking_screen.dart`):
+      - top 3 podium layout
+      - list for ranks 4–50
+      - "Your rank" + your points chip at top
+    - Added API call `ApiService.fetchRankingTop50()` (uses `GET /api/pos/ranking/top50`).
+- Files changed:
+  - `pos_backend/controllers/pos_order_api.py`
+  - `lib/screens/customer_self_order_screen.dart`
+  - `lib/screens/ranking_screen.dart` (New)
+  - `lib/services/api_service.dart`
+- Ops:
+  - Backend: restart Odoo and upgrade `pos_backend` so `reward_rank` is returned.
+  - Flutter: hot restart app.
+
+==================================================
+82) CUSTOMER NOTIFICATIONS TOGGLE + CUSTOMER SUPPORT (FACEBOOK / WHATSAPP)
+==================================================
+- Request:
+  - Customer can turn push order notifications on/off in the self-order app.
+  - Customer support screen: open Facebook and WhatsApp to reach admin; links come from backend config.
+  - WhatsApp: show the chat link and a QR code for the same `wa.me` URL.
+- Backend (Odoo `pos_backend`):
+  - New model: `pos.backend.customer.support.config` (menu: Custom POS > Customer support (app))
+    - `facebook_url`, `whatsapp_number` (admin enters digits; API builds `https://wa.me/<digits>`).
+  - `GET /api/pos/self_order_config` response `data` includes:
+    - `customer_support`: `{ facebook_url, whatsapp_number, whatsapp_link }`
+  - Data: `data/customer_support_config.xml` seeds one empty record; upgrade module after pull.
+- Flutter:
+  - `SharedPreferences` key `customer_push_notifications_enabled` (default true) via
+    `PushNotificationsService.isCustomerPushEnabled` / `setCustomerPushEnabled`.
+  - When disabled for a logged-in `customer` user: FCM token is deleted, foreground local notifications are skipped, backend registration is not refreshed until re-enabled.
+  - `CustomerSelfOrderScreen` Profile tab: Notifications switch + `Customer support` menu row.
+  - New `CustomerSupportScreen` (`url_launcher` + `qr_flutter`).
+  - `pubspec.yaml`: `url_launcher`, `qr_flutter`
+  - Android: manifest `<queries>` for `https` / `http` so `url_launcher` can resolve handlers.
+- Files changed:
+  - `pos_backend/models/customer_support_config.py`, `views/customer_support_views.xml`, `data/customer_support_config.xml`
+  - `pos_backend/controllers/pos_order_api.py` (self_order_config)
+  - `lib/services/push_notifications_service.dart`, `lib/screens/customer_self_order_screen.dart`, `lib/screens/customer_support_screen.dart` (new)
+  - `android/app/src/main/AndroidManifest.xml`, `pubspec.yaml`
+- Ops:
+  - Odoo: upgrade `pos_backend`, open Customer support (app) and set Facebook URL + WhatsApp number.
+  - Flutter: `flutter pub get` then rebuild the app.
 ==================================================
 2) WHAT THIS APP DOES (FLOW)
 ==================================================
@@ -2013,3 +2407,31 @@ Priority/decision rules:
   - lib/screens/tickets_screen.dart
 - Commands / ops needed:
   - Hot restart Flutter app. Clear cache or create 1 new ticket to overwrite the broken cache array.
+==================================================
+57) LATEST IMPLEMENTED UPDATE (OFFLINE DRAFT DEDUPE, CACHE TOTALS, RESUME PRICING)
+==================================================
+- Request:
+  - When adding new items to an already-selected/saved ticket, totals must include existing lines, not "only the latest" batch.
+  - After creating an offline ticket (not charged) and going online, Open Tickets must not show two rows (POS/… and OFFLINE-MOCK) for the same order.
+- Root cause:
+  - `updateOrder` success path in `api_service.dart` set `amount_total` on `cached_open_tickets` by summing only the **payload** `lines` (the new lines in that request), not the merged full ticket, so list totals and cache were wrong after incremental saves.
+  - `_saveCurrentTicket` in `pos_screen.dart` called `_clearCart()` after a successful update, wiping the cart and making behavior confusing.
+  - Resumed `CartItem`s used only `product.price` for `totalPrice`, ignoring server `price_unit` (toppings-included) from `TicketLine`.
+  - After offline `create` sync, `syncOfflineOrders` mapped mock→real for the queue but left the **negative mock id** in `cached_open_tickets`, while Odoo also had the new order = duplicate open tickets until merge logic overlapped.
+- Implementation:
+  - `api_service.dart`: Added `_sumCachedOpenTicketLinesAmount` and, after `replaceAll` or append merge in `updateOrder`, set `amount_total` from the **full** merged `lines` array.
+  - `api_service.dart`: Added `_remapCachedOpenTicketMockId`; on successful offline queue `action == 'create'`, when `realId` is known, rewrite cached open ticket `id` from mock to real and set `name` from response `data.order_reference` (or `name` when present).
+  - `pos_screen.dart`: After successful `updateOrder` in `_saveCurrentTicket`, **do not** `_clearCart()`; `setState` and mark all `_cartItems` as `isSaved: true` so the full ticket stays visible.
+  - `models/cart_item.dart`: Optional `priceUnitFromOrder` (from server line); `totalPrice` prefers it over `product` + `selectedToppings`.
+  - `tickets_screen.dart`: Pass `priceUnitFromOrder: line.priceUnit` when building `CartItem` from a resumed ticket.
+  - `pos_screen.dart`: `_lineUnitPrice` uses `priceUnitFromOrder` when set, so full-line API payloads (e.g. submit/pay) match server line prices.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/pos_screen.dart`
+  - `lib/models/cart_item.dart`
+  - `lib/screens/tickets_screen.dart`
+- Commands / ops needed:
+  - Hot restart Flutter app.
+- Quick verification:
+  - Resume a ticket, add one or more new items, save: CHARGE and Open Tickets **amount_total** should reflect **all** lines (old + new).
+  - Create ticket offline, reconnect and sync: Open Tickets should show **one** row per order (no parallel OFFLINE-MOCK with same table/total as a POS/… id).

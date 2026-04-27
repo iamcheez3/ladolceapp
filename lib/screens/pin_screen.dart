@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../theme/coffee_luxury_background.dart';
 import '../services/api_service.dart';
 import 'customer_self_order_screen.dart';
 import 'pos_screen.dart';
@@ -8,16 +9,16 @@ import 'login_screen.dart';
 class PinScreen extends StatefulWidget {
   final Map<String, dynamic> cachedUser;
 
-  const PinScreen({Key? key, required this.cachedUser}) : super(key: key);
+  const PinScreen({super.key, required this.cachedUser});
 
   @override
   State<PinScreen> createState() => _PinScreenState();
 }
 
 class _PinScreenState extends State<PinScreen> {
-  static const Color _brandNavy = Color(0xFF0D1565);
-  static const Color _coffeeBrown = Color(0xFF6B4F3A);
-  static const Color _coffeeGold = Color(0xFFC6A15B);
+  static const Color _brandNavy = kCoffeeBrandNavy;
+  static const Color _coffeeBrown = kCoffeeBrown;
+  static const Color _coffeeGold = kCoffeeGold;
 
   String _pin = '';
   final int _pinLength = 4;
@@ -156,44 +157,9 @@ class _PinScreenState extends State<PinScreen> {
     return Scaffold(
       backgroundColor: _brandNavy,
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Background Pattern
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _CoffeeLuxuryPatternPainter(
-                  smokeColor: Colors.white.withOpacity(0.06),
-                  medallionColor: _coffeeGold.withOpacity(0.09),
-                  coffeeColor: _coffeeBrown.withOpacity(0.09),
-                ),
-              ),
-            ),
-
-            // Background Logo
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Center(
-                  child: Opacity(
-                    opacity: 0.07,
-                    child: ColorFiltered(
-                      colorFilter: const ColorFilter.mode(
-                        _coffeeGold,
-                        BlendMode.modulate,
-                      ),
-                      child: Image.asset(
-                        'assets/images/ladolce_bear_logo.png',
-                        width: 380,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            Column(
-              children: [
+        child: PinStyleBackground(
+          child: Column(
+            children: [
                 // Header - Switch User
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -333,9 +299,8 @@ class _PinScreenState extends State<PinScreen> {
                 ),
               ],
             ),
-          ],
+          ),
         ),
-      ),
     );
   }
 
@@ -450,75 +415,4 @@ class _PinScreenState extends State<PinScreen> {
       ),
     );
   }
-}
-
-class _CoffeeLuxuryPatternPainter extends CustomPainter {
-  final Color smokeColor;
-  final Color medallionColor;
-  final Color coffeeColor;
-
-  _CoffeeLuxuryPatternPainter({
-    required this.smokeColor,
-    required this.medallionColor,
-    required this.coffeeColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final medallionPaint = Paint()
-      ..color = medallionColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-
-    final coffeeDotPaint = Paint()
-      ..color = coffeeColor
-      ..style = PaintingStyle.fill;
-
-    const spacing = 170.0;
-    for (double y = -50; y < size.height + spacing; y += spacing) {
-      for (double x = -50; x < size.width + spacing; x += spacing) {
-        final center = Offset(x, y);
-        canvas.drawCircle(center, 28, medallionPaint);
-        canvas.drawCircle(center, 12, medallionPaint);
-        canvas.drawCircle(center.translate(30, 0), 3.2, coffeeDotPaint);
-        canvas.drawCircle(center.translate(-30, 0), 3.2, coffeeDotPaint);
-        canvas.drawCircle(center.translate(0, 30), 3.2, coffeeDotPaint);
-        canvas.drawCircle(center.translate(0, -30), 3.2, coffeeDotPaint);
-      }
-    }
-
-    final smokePaint = Paint()
-      ..color = smokeColor
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 2.0;
-
-    final waveCount = (size.height / 120).ceil() + 1;
-    for (int i = 0; i < waveCount; i++) {
-      final baseY = 80.0 + (i * 120.0);
-      final path = Path()
-        ..moveTo(-20, baseY)
-        ..cubicTo(
-          size.width * 0.18,
-          baseY - 24,
-          size.width * 0.32,
-          baseY + 24,
-          size.width * 0.5,
-          baseY,
-        )
-        ..cubicTo(
-          size.width * 0.68,
-          baseY - 24,
-          size.width * 0.82,
-          baseY + 24,
-          size.width + 20,
-          baseY - 4,
-        );
-      canvas.drawPath(path, smokePaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _CoffeeLuxuryPatternPainter oldDelegate) =>
-      false;
 }
