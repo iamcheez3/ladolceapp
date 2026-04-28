@@ -116,7 +116,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   bool _isLoadingBranches = true;
   List<Map<String, dynamic>> _branches = const [];
   int? _selectedBranchId;
-  String _selectedBranchName = '';
 
   @override
   void initState() {
@@ -165,7 +164,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       setState(() {
         _branches = branches;
         _selectedBranchId = selectedId;
-        _selectedBranchName = selectedName;
         _isLoadingBranches = false;
       });
       if (selectedId != null && selectedId > 0) {
@@ -179,7 +177,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       setState(() {
         _branches = const [];
         _selectedBranchId = null;
-        _selectedBranchName = '';
         _isLoadingBranches = false;
       });
     }
@@ -996,7 +993,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               final name = match.isNotEmpty ? (match.first['name'] ?? '').toString() : '';
                               setSheetState(() {
                                 _selectedBranchId = v;
-                                _selectedBranchName = name;
                               });
                               await _apiService.setCachedCustomerBranch(
                                 branchId: v,

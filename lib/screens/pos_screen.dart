@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../models/table.dart';
@@ -51,6 +52,9 @@ class _PosScreenState extends State<PosScreen> {
   String? _cachedPosName;
   String? _cachedBranchName;
   PosTaxConfig _taxConfig = PosTaxConfig.disabled;
+  int _pendingSelfOrdersCount = 0;
+  Timer? _pendingSelfOrdersTimer;
+  bool _pendingSelfOrdersFetching = false;
 
   // ── Printer helper ────────────────────────────────────────────────────────
   List<CartItem> _filterItemsForPrinter(
@@ -133,6 +137,7 @@ class _PosScreenState extends State<PosScreen> {
     required String label,
     required VoidCallback onTap,
     bool isActive = false,
+    Widget? trailing,
   }) {
     return InkWell(
       onTap: onTap,
@@ -156,10 +161,40 @@ class _PosScreenState extends State<PosScreen> {
                 color: isActive ? _brandNavy : Colors.black87,
               ),
             ),
+            if (trailing != null) ...[
+              const Spacer(),
+              trailing,
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _refreshPendingSelfOrders({bool notifyOnIncrease = true}) async {
+    if (_pendingSelfOrdersFetching) return;
+    _pendingSelfOrdersFetching = true;
+    try {
+      final data = await _apiService.fetchPendingSelfOrders();
+      if (!mounted) return;
+      final nextCount = data.length;
+      final prevCount = _pendingSelfOrdersCount;
+      setState(() => _pendingSelfOrdersCount = nextCount);
+
+      if (notifyOnIncrease && nextCount > prevCount) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New self order waiting review ($nextCount)'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (_) {
+      // best-effort: no blocking UI
+    } finally {
+      _pendingSelfOrdersFetching = false;
+    }
   }
 
   // Active ticket tracking: when a ticket is resumed, we know its backend order ID
@@ -177,6 +212,11 @@ class _PosScreenState extends State<PosScreen> {
     printerService.initialize();
     _loadPosProfileLabels();
     _fetchOdooProducts();
+
+    // Self-order alert/badge: poll backend so POS is alerted even without FCM.
+    _refreshPendingSelfOrders(notifyOnIncrease: false);
+    _pendingSelfOrdersTimer =
+        Timer.periodic(const Duration(seconds: 12), (_) => _refreshPendingSelfOrders());
   }
 
   Future<void> _loadPosProfileLabels() async {
@@ -202,6 +242,7 @@ class _PosScreenState extends State<PosScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _pendingSelfOrdersTimer?.cancel();
     super.dispose();
   }
 
@@ -1230,6 +1271,26 @@ class _PosScreenState extends State<PosScreen> {
                     _drawerItem(
                       icon: Icons.fact_check_outlined,
                       label: 'Self Orders Review',
+                      trailing: _pendingSelfOrdersCount > 0
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade600,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                '$_pendingSelfOrdersCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            )
+                          : null,
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(

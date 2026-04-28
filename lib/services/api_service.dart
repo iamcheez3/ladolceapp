@@ -707,7 +707,7 @@ class ApiService {
     if (decoded is! Map || decoded['status']?.toString() != 'success') {
       throw Exception(decoded is Map ? (decoded['message'] ?? 'Failed') : 'Failed');
     }
-    return Map<String, dynamic>.from(decoded as Map);
+    return Map<String, dynamic>.from(decoded);
   }
 
   Future<Map<String, dynamic>> registerUser({

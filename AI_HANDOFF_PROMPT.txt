@@ -2986,3 +2986,45 @@ Priority/decision rules:
     `pos_admin_active_sid`, which is rotated each time the admin logs in.
     A leaked old SID becomes invalid the moment the admin logs in again.
   - Cookie-based auth is still preferred when available.
+
+==================================================
+79) FIX (RECEIPT HISTORY: REPRINT/REFUND PRINT STOPS HALF WAY)
+==================================================
+- Symptom:
+  - When reprinting a historical receipt (or printing refund slip) from Receipt History, printer sometimes prints only half then stops.
+- Root cause:
+  - Raw receipt data from API can return numeric fields as strings (e.g. `lines[].qty`, `lines[].subtotal`, `amount_total`).
+  - Printer code previously cast these as `num`, which can throw mid-loop and abort the remaining print commands.
+- Flutter fix:
+  - File: `lib/services/printer_service.dart`
+  - Hardened parsing for `qty/subtotal/amount_total` using safe converters (`_asInt`, `_asDouble`) and map-normalization for each line.
+  - Added ESC/POS-safe printing for historical receipts/refunds:
+    - Sanitizes text to ASCII (`_sanitizeForEscPos`) to prevent Unicode encoding crashes.
+    - Wraps each item row print in try/catch so one bad line won't abort the whole receipt.
+    - Important: truncation marker must be ASCII (`...`), not Unicode ellipsis (`…`) or the printer may stop mid-print.
+
+- Backend hardening (also done):
+  - File: `pos_backend/controllers/pos_order_api.py`
+  - `/api/pos/order/<id>/receipt` now normalizes numeric fields to JSON primitives:
+    - `lines[].qty` as int, `lines[].price_unit`/`lines[].subtotal` as float, `amount_total` as float.
+  - Refund payload builder uses the same normalization for the embedded `receipt` object.
+  - Also normalized numbers in `/api/pos/my_orders`, `/api/pos/open_tickets`, `/api/pos/self_orders/pending` for consistency.
+  - Ops: restart Odoo service after controller changes.
+
+- Additional Flutter fix (TCP flush + size2 buffer issue):
+  - Some thermal printers stopped at the `=` line just below items because:
+    1. `PosTextSize.size2` for TOTAL was doubling bytes and saturating the printer's small TCP buffer; replaced with regular bold.
+    2. `disconnect()` closed the socket before the printer drained the buffer; we now wait 800ms after `cut()` before disconnect.
+    3. Footer/feed order in `printReceiptFromRawData` and `printRefundFromRawData` now mirrors the working `_printReceiptToProfile` pattern.
+
+- ROOT CAUSE (confirmed via runtime debug logs): currency symbol `₭` (Lao kip) was non-ASCII and the
+  `esc_pos_utils` Latin-1 encoder threw `Invalid argument (string): Contains invalid characters.`
+  on the TOTAL row because we forgot to sanitize the currency string for that one row.
+  - Flutter fix: added `_safeCurrency()` (maps `₭`→`LAK`, `€`→`EUR`, etc.) used in both
+    `printReceiptFromRawData` and `printRefundFromRawData`.
+    Also explicitly sanitized the TOTAL/REFUND AMOUNT row text via `_sanitizeForEscPos`.
+  - Backend fix: `pos_backend/controllers/pos_order_api.py` now returns `currency_id.name`
+    (ISO code like `LAK`) instead of `currency_id.symbol` (`₭`) for both
+    `/api/pos/order/<id>/receipt` and the refund payload — so future printers don't have
+    to handle Unicode currency at all.
+  - Ops: restart Odoo to pick up controller change.
