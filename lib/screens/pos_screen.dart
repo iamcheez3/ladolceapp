@@ -14,12 +14,15 @@ import '../screens/login_screen.dart';
 import '../screens/split_ticket_screen.dart';
 import '../screens/self_orders_review_screen.dart';
 import '../screens/printer_settings_screen.dart';
+import '../screens/bill_template_settings_screen.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../models/topping.dart';
 import '../models/combo.dart';
 import '../theme/ladolce_pos_ui.dart';
 import 'package:intl/intl.dart';
+import '../models/pos_tax_config.dart';
+import '../utils/pos_tax.dart';
 
 class PosScreen extends StatefulWidget {
   final String cashierName;
@@ -47,6 +50,7 @@ class _PosScreenState extends State<PosScreen> {
   String? _errorMessage;
   String? _cachedPosName;
   String? _cachedBranchName;
+  PosTaxConfig _taxConfig = PosTaxConfig.disabled;
 
   // ── Printer helper ────────────────────────────────────────────────────────
   List<CartItem> _filterItemsForPrinter(
@@ -86,6 +90,12 @@ class _PosScreenState extends State<PosScreen> {
     required bool respectCategoryFilters,
   }) async {
     int printedCount = 0;
+    Map<String, dynamic>? tpl;
+    try {
+      tpl = await _apiService.fetchBillTemplate(type: 'kitchen');
+    } catch (_) {}
+    final headerText = (tpl?['header_text'] ?? '').toString();
+    final footerText = (tpl?['footer_text'] ?? '').toString();
     for (final p in _resolveOrderPrinters()) {
       final toPrint = respectCategoryFilters
           ? _filterItemsForPrinter(items, p)
@@ -95,6 +105,8 @@ class _PosScreenState extends State<PosScreen> {
         profile: p,
         items: toPrint,
         cashierName: widget.cashierName,
+        headerText: headerText,
+        footerText: footerText,
       );
       if (ok) printedCount++;
     }
@@ -171,12 +183,20 @@ class _PosScreenState extends State<PosScreen> {
     try {
       final posName = await _apiService.getCachedPosName();
       final branchName = await _apiService.getCachedBranchName();
+      final tax = await _apiService.getPosTaxConfig();
       if (!mounted) return;
       setState(() {
         _cachedPosName = posName;
         _cachedBranchName = branchName;
+        _taxConfig = tax;
       });
     } catch (_) {}
+  }
+
+  PosTaxBreakdown _cartTaxBreakdown() {
+    final linesSum =
+        _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    return computePosTaxBreakdown(linesSum, _taxConfig);
   }
 
   @override
@@ -787,19 +807,30 @@ class _PosScreenState extends State<PosScreen> {
                     break;
                   }
                   {
-                    final subtotal = _cartItems.fold(
-                      0.0,
-                      (sum, item) => sum + item.totalPrice,
-                    );
-                    final tax = subtotal * 0.10;
-                    final total = subtotal + tax;
+                    final bd = _cartTaxBreakdown();
+                    Map<String, dynamic>? tpl;
+                    try {
+                      tpl = await _apiService.fetchBillTemplate(type: 'bill');
+                    } catch (_) {}
+                    final headerText = (tpl?['header_text'] ?? '').toString();
+                    final footerText = (tpl?['footer_text'] ?? '').toString();
+                    final subLabel = bd.taxActive && _taxConfig.inclusive
+                        ? 'Amount (excl. VAT):'
+                        : 'Subtotal:';
+                    final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
+                        ? 'VAT (${_taxConfig.percentLabel}%):'
+                        : null;
                     final ok = await printerService.printBill(
                       cartItems: _cartItems,
-                      subtotal: subtotal,
-                      tax: tax,
-                      total: total,
+                      subtotal: bd.baseAmount,
+                      tax: bd.taxAmount,
+                      total: bd.totalDue,
                       cashierName: widget.cashierName,
                       ticketName: _activeTicketName,
+                      subtotalRowLabel: subLabel,
+                      taxRowLabel: taxLab,
+                      headerText: headerText,
+                      footerText: footerText,
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1561,6 +1592,7 @@ class _PosScreenState extends State<PosScreen> {
                   onAddCustomer: () => _showCustomerSelection(context),
                   onClearCustomer: () =>
                       setState(() => _selectedCustomer = null),
+                  taxConfig: _taxConfig,
                 ),
               ),
           ],
@@ -1575,7 +1607,7 @@ class _PosScreenState extends State<PosScreen> {
 
   Widget _buildMobileCartBar(BuildContext context) {
     final tItems = _cartItems.fold(0, (sum, item) => sum + item.quantity);
-    final total = _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    final payTotal = _cartTaxBreakdown().totalDue;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -1642,6 +1674,7 @@ class _PosScreenState extends State<PosScreen> {
                       setState(() => _selectedCustomer = null);
                       setSheetState(() {});
                     },
+                    taxConfig: _taxConfig,
                   ),
                 ),
               ),
@@ -1685,7 +1718,7 @@ class _PosScreenState extends State<PosScreen> {
                             ),
                             TextSpan(
                               text:
-                                  'K${NumberFormat('#,##0.00').format(total)}',
+                                  'K${NumberFormat('#,##0.00').format(payTotal)}',
                               style: const TextStyle(fontSize: 18),
                             ),
                           ],
@@ -2395,9 +2428,8 @@ class _PosScreenState extends State<PosScreen> {
   void _showChargeDialog(BuildContext context) {
     if (_cartItems.isEmpty) return;
 
-    final subtotal = _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final tax = subtotal * 0.10;
-    final total = subtotal + tax;
+    final bd = _cartTaxBreakdown();
+    final total = bd.totalDue;
     final bool isTransferTicket = _activeTicketPaymentType == 'transfer';
 
     if (isTransferTicket && _activeTicketPaymentMethodId != null) {
@@ -2769,9 +2801,7 @@ class _PosScreenState extends State<PosScreen> {
                           context,
                           setSheetState,
                           true,
-                          subtotal,
-                          tax,
-                          total,
+                          bd,
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF22C55E),
@@ -2805,10 +2835,14 @@ class _PosScreenState extends State<PosScreen> {
     BuildContext context,
     StateSetter setDialogState,
     bool printReceipt,
-    double subtotal,
-    double tax,
-    double total,
+    PosTaxBreakdown bd,
   ) async {
+    final subtotalRowLabel = bd.taxActive && _taxConfig.inclusive
+        ? 'Amount (excl. VAT):'
+        : 'Subtotal:';
+    final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
+        ? 'VAT (${_taxConfig.percentLabel}%):'
+        : null;
     setDialogState(() => _isCharging = true);
 
     // Only new (unsaved) lines need to be pushed — saved ones are already on server
@@ -2943,6 +2977,12 @@ class _PosScreenState extends State<PosScreen> {
       }
 
       if (printReceipt && printerService.isConfigured) {
+        Map<String, dynamic>? tpl;
+        try {
+          tpl = await _apiService.fetchBillTemplate(type: 'receipt');
+        } catch (_) {}
+        final headerText = (tpl?['header_text'] ?? '').toString();
+        final footerText = (tpl?['footer_text'] ?? '').toString();
         // Receipt/bill printers only — order tickets were already sent on save.
         // Printers with printReceiptsAndBills=true get the customer receipt.
         // Order printers (printOrders=true) are intentionally skipped here to
@@ -2956,10 +2996,14 @@ class _PosScreenState extends State<PosScreen> {
           final ok = await printerService.printReceiptToProfile(
             p,
             cartItems: _cartItems,
-            subtotal: subtotal,
-            tax: tax,
-            total: total,
+            subtotal: bd.baseAmount,
+            tax: bd.taxAmount,
+            total: bd.totalDue,
             cashierName: widget.cashierName,
+            subtotalRowLabel: subtotalRowLabel,
+            taxRowLabel: taxLab,
+            headerText: headerText,
+            footerText: footerText,
           );
           if (ok) anyOk = true;
         }
@@ -3433,6 +3477,21 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                 );
                 if (mounted) setState(() {});
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long_rounded, color: _brandNavy),
+              title: const Text('Bill Templates'),
+              subtitle: const Text('Select bill/receipt/refund templates for this branch'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const BillTemplateSettingsScreen(),
+                  ),
+                );
               },
             ),
             ListTile(

@@ -11,6 +11,7 @@ import '../models/product.dart';
 import '../models/table.dart';
 import '../models/payment_method.dart';
 import '../models/ticket.dart';
+import '../models/pos_tax_config.dart';
 
 class ApiService {
   /// Key used to store the dev IP override in SharedPreferences.
@@ -510,6 +511,159 @@ class ApiService {
     }
   }
 
+  /// Fetch the selected/default bill template for printing.
+  /// Backend: GET `/api/pos/bill_template?type=bill|receipt|refund`
+  Future<Map<String, dynamic>> fetchBillTemplate({String type = 'receipt', bool forceRefresh = false}) async {
+    // Try cache first (fast UI), then network.
+    if (!forceRefresh) {
+      final cached = await getCachedBillTemplate(type: type);
+      if (cached != null && cached.isNotEmpty) return cached;
+    }
+    final base = await getBaseUrl();
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+    final url = Uri.parse('$base/pos/bill_template').replace(
+      queryParameters: {
+        'type': type,
+        if (userId > 0) 'user_id': '$userId',
+        if (sid.isNotEmpty) 'session_id': sid,
+      },
+    );
+    final response = await http
+        .get(url, headers: await _authHeaders(json: true))
+        .timeout(const Duration(seconds: 5));
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load bill template (${response.statusCode})');
+    }
+    final jsonResponse = jsonDecode(response.body);
+    if (jsonResponse is Map && jsonResponse['status'] == 'success') {
+      final data = jsonResponse['data'];
+      if (data is Map) {
+        final out = Map<String, dynamic>.from(data);
+        await _setCachedBillTemplate(type: type, data: out);
+        return out;
+      }
+    }
+    throw Exception('Failed to load bill template');
+  }
+
+  /// List templates for selection in POS.
+  /// Backend: GET `/api/pos/bill_templates?type=bill|receipt|refund`
+  Future<List<Map<String, dynamic>>> fetchBillTemplates({String? type, bool forceRefresh = false}) async {
+    if (!forceRefresh) {
+      final cached = await getCachedBillTemplates(type: type ?? '');
+      if (cached != null && cached.isNotEmpty) return cached;
+    }
+    final base = await getBaseUrl();
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+    final qp = <String, String>{
+      if (type != null && type.trim().isNotEmpty) 'type': type.trim(),
+      if (userId > 0) 'user_id': '$userId',
+      if (sid.isNotEmpty) 'session_id': sid,
+    };
+    final url = Uri.parse('$base/pos/bill_templates').replace(
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+    final response = await http
+        .get(url, headers: await _authHeaders(json: true))
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load bill templates (${response.statusCode})');
+    }
+    final jsonResponse = jsonDecode(response.body);
+    if (jsonResponse is Map && jsonResponse['status'] == 'success') {
+      final raw = jsonResponse['data'];
+      if (raw is List) {
+        final out = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        await _setCachedBillTemplates(type: type ?? '', data: out);
+        return out;
+      }
+    }
+    throw Exception('Failed to load bill templates');
+  }
+
+  // ---------------------------------------------------------------------------
+  // BILL TEMPLATE CACHE (UI speed)
+  // ---------------------------------------------------------------------------
+
+  String _billTemplatesKey(String type) => 'cached_bill_templates_${type.trim().toLowerCase()}';
+  String _billTemplateKey(String type) => 'cached_bill_template_${type.trim().toLowerCase()}';
+
+  Future<List<Map<String, dynamic>>?> getCachedBillTemplates({required String type}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_billTemplatesKey(type));
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getCachedBillTemplate({required String type}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_billTemplateKey(type));
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _setCachedBillTemplates({required String type, required List<Map<String, dynamic>> data}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_billTemplatesKey(type), jsonEncode(data));
+  }
+
+  Future<void> _setCachedBillTemplate({required String type, required Map<String, dynamic> data}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_billTemplateKey(type), jsonEncode(data));
+  }
+
+  /// Admin-only: set templates for this admin's branch.
+  /// Backend: POST `/api/pos/branch/templates`
+  Future<void> setBranchBillTemplates({
+    int? billTemplateId,
+    int? receiptTemplateId,
+    int? refundTemplateId,
+    int? kitchenTemplateId,
+  }) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/branch/templates');
+    final payload = {
+      if (billTemplateId != null) 'bill_template_bill_id': billTemplateId,
+      if (receiptTemplateId != null) 'bill_template_receipt_id': receiptTemplateId,
+      if (refundTemplateId != null) 'bill_template_refund_id': refundTemplateId,
+      if (kitchenTemplateId != null) 'bill_template_kitchen_id': kitchenTemplateId,
+    };
+    final response = await http
+        .post(
+          url,
+          headers: await _authHeaders(json: true),
+          body: jsonEncode(payload),
+        )
+        .timeout(const Duration(seconds: 8));
+    final jsonResponse = jsonDecode(response.body);
+    if (response.statusCode == 200 && jsonResponse is Map && jsonResponse['status'] == 'success') {
+      return;
+    }
+    throw Exception(jsonResponse is Map ? (jsonResponse['message'] ?? 'Failed') : 'Failed');
+  }
+
   // ---------------------------------------------------------------------------
   // ADMIN REPORTS
   // ---------------------------------------------------------------------------
@@ -698,6 +852,27 @@ class ApiService {
     return null;
   }
 
+  /// Branch tax flags from login payload (`tax_active`, `tax_percent`, `tax_inclusive`).
+  Future<PosTaxConfig> getPosTaxConfig() async {
+    final u = await getCachedUser();
+    return PosTaxConfig.fromLoginJson(u);
+  }
+
+  /// Cashier id + device UTC time for Odoo security audit (void ticket / refund).
+  Future<Map<String, dynamic>> _cashierAuditFields() async {
+    final user = await getCachedUser();
+    int? uid;
+    if (user != null && user['user_id'] != null) {
+      final v = user['user_id'];
+      uid = v is int ? v : int.tryParse(v.toString());
+      if (uid != null && uid <= 0) uid = null;
+    }
+    return {
+      if (uid != null) 'user_id': uid,
+      'client_timestamp': DateTime.now().toUtc().toIso8601String(),
+    };
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cached_user_session');
@@ -807,7 +982,10 @@ class ApiService {
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-        final data = jsonResponse['data'];
+        final raw = jsonResponse['data'];
+        final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+        // Some endpoints return order_id but not id; normalize for Receipt History.
+        data['id'] ??= data['order_id'];
         await _updateCacheList('cached_receipt_history', data);
         return data;
       } else {
@@ -1115,7 +1293,10 @@ class ApiService {
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-        final data = jsonResponse['data'];
+        final raw = jsonResponse['data'];
+        final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+        // Some endpoints return order_id but not id; normalize for Receipt History.
+        data['id'] ??= data['order_id'] ?? orderId;
         await _removeFromCacheList('cached_open_tickets', orderId);
         await _updateCacheList('cached_receipt_history', data);
         return data;
@@ -1181,8 +1362,10 @@ class ApiService {
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/delete');
+    final audit = await _cashierAuditFields();
     final payload = {
       'admin_pin': adminPin,
+      ...audit,
     };
 
     _d('==============================');
@@ -1191,7 +1374,7 @@ class ApiService {
 
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(json: true),
       body: jsonEncode(payload),
     ).timeout(const Duration(seconds: 5));
 
@@ -1213,11 +1396,12 @@ class ApiService {
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/refund');
-    final payload = {'admin_pin': adminPin};
+    final audit = await _cashierAuditFields();
+    final payload = {'admin_pin': adminPin, ...audit};
 
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(json: true),
       body: jsonEncode(payload),
     ).timeout(const Duration(seconds: 8));
 

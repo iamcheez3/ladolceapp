@@ -220,8 +220,16 @@ class PrinterService {
     required PrinterProfile profile,
     required List<CartItem> items,
     required String cashierName,
+    String? headerText,
+    String? footerText,
   }) async {
-    return _printOrderTicketToProfile(profile, items: items, cashierName: cashierName);
+    return _printOrderTicketToProfile(
+      profile,
+      items: items,
+      cashierName: cashierName,
+      headerText: headerText,
+      footerText: footerText,
+    );
   }
 
   Future<bool> testConnection() async {
@@ -255,6 +263,10 @@ class PrinterService {
     required double tax,
     required double total,
     String cashierName = 'Cashier',
+    String subtotalRowLabel = 'Subtotal:',
+    String? taxRowLabel,
+    String? headerText,
+    String? footerText,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -273,6 +285,10 @@ class PrinterService {
             tax: tax,
             total: total,
             cashierName: cashierName,
+            subtotalRowLabel: subtotalRowLabel,
+            taxRowLabel: taxRowLabel,
+            headerText: headerText,
+            footerText: footerText,
           );
           allSuccess = allSuccess && ok;
         }
@@ -307,6 +323,10 @@ class PrinterService {
         tax: tax,
         total: total,
         cashierName: cashierName,
+        subtotalRowLabel: subtotalRowLabel,
+        taxRowLabel: taxRowLabel,
+        headerText: headerText,
+        footerText: footerText,
       );
     } catch (e) {
       _printerLog('[PRINTER] Print receipt failed: $e');
@@ -330,6 +350,10 @@ class PrinterService {
     required double total,
     String cashierName = 'Cashier',
     String? ticketName,
+    String subtotalRowLabel = 'Subtotal:',
+    String? taxRowLabel,
+    String? headerText,
+    String? footerText,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -359,6 +383,10 @@ class PrinterService {
         total: total,
         cashierName: cashierName,
         ticketName: ticketName,
+        subtotalRowLabel: subtotalRowLabel,
+        taxRowLabel: taxRowLabel,
+        headerText: headerText,
+        footerText: footerText,
       );
       allSuccess = allSuccess && ok;
     }
@@ -373,6 +401,10 @@ class PrinterService {
   required double total,
   required String cashierName,
   String? ticketName,
+  String subtotalRowLabel = 'Subtotal:',
+  String? taxRowLabel,
+  String? headerText,
+  String? footerText,
 }) async {
   try {
     final cap = await CapabilityProfile.load();
@@ -380,8 +412,17 @@ class PrinterService {
     final result = await printer.connect(profile.ip, port: profile.port);
     if (result != PosPrintResult.success) return false;
 
-    printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-    printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
+    final head = (headerText ?? '').trim();
+    if (head.isNotEmpty) {
+      for (final line in head.split('\n')) {
+        final t = line.trimRight();
+        if (t.isEmpty) continue;
+        printer.text(t, styles: const PosStyles(align: PosAlign.center, bold: true));
+      }
+    } else {
+      printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+      printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
+    }
     if (ticketName != null && ticketName.isNotEmpty) {
       printer.text(ticketName, styles: const PosStyles(align: PosAlign.center, bold: true));
     }
@@ -409,15 +450,18 @@ class PrinterService {
     }
 
     printer.hr();
-    printer.row([
-      PosColumn(text: 'Subtotal:', width: 8),
-      PosColumn(text: 'LAK ${subtotal.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    printer.row([
-      PosColumn(text: 'Tax (10%):', width: 8),
-      PosColumn(text: 'LAK ${tax.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    printer.hr(ch: '=');
+    final showTax = taxRowLabel != null && taxRowLabel.isNotEmpty && tax.abs() >= 0.005;
+    if (showTax) {
+      printer.row([
+        PosColumn(text: '$subtotalRowLabel ', width: 8),
+        PosColumn(text: 'LAK ${subtotal.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
+      ]);
+      printer.row([
+        PosColumn(text: '$taxRowLabel ', width: 8),
+        PosColumn(text: 'LAK ${tax.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
+      ]);
+      printer.hr(ch: '=');
+    }
     printer.row([
       PosColumn(text: 'TOTAL:', width: 8, styles: const PosStyles(bold: true, height: PosTextSize.size2)),
       PosColumn(text: 'LAK ${total.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2)),
@@ -425,6 +469,15 @@ class PrinterService {
     printer.feed(1);
     printer.text('** NOT A RECEIPT **', styles: const PosStyles(align: PosAlign.center, bold: true));
     printer.text('Please wait for your receipt', styles: const PosStyles(align: PosAlign.center));
+    final foot = (footerText ?? '').trim();
+    if (foot.isNotEmpty) {
+      printer.feed(1);
+      for (final line in foot.split('\n')) {
+        final t = line.trimRight();
+        if (t.isEmpty) continue;
+        printer.text(t, styles: const PosStyles(align: PosAlign.center));
+      }
+    }
     printer.feed(3);
     printer.cut();
     printer.disconnect();
@@ -445,6 +498,10 @@ class PrinterService {
     required double tax,
     required double total,
     required String cashierName,
+    String subtotalRowLabel = 'Subtotal:',
+    String? taxRowLabel,
+    String? headerText,
+    String? footerText,
   }) => _printReceiptToProfile(
         profile,
         cartItems: cartItems,
@@ -452,6 +509,10 @@ class PrinterService {
         tax: tax,
         total: total,
         cashierName: cashierName,
+        subtotalRowLabel: subtotalRowLabel,
+        taxRowLabel: taxRowLabel,
+        headerText: headerText,
+        footerText: footerText,
       );
 
   Future<bool> _printReceiptToProfile(
@@ -461,15 +522,27 @@ class PrinterService {
     required double tax,
     required double total,
     required String cashierName,
-    
+    String subtotalRowLabel = 'Subtotal:',
+    String? taxRowLabel,
+    String? headerText,
+    String? footerText,
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
     final result = await printer.connect(profile.ip, port: profile.port);
     if (result != PosPrintResult.success) return false;
 
-    printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-    printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
+    final head = (headerText ?? '').trim();
+    if (head.isNotEmpty) {
+      for (final line in head.split('\n')) {
+        final t = line.trimRight();
+        if (t.isEmpty) continue;
+        printer.text(t, styles: const PosStyles(align: PosAlign.center, bold: true));
+      }
+    } else {
+      printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+      printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
+    }
     printer.text('Printer: ${profile.name}', styles: const PosStyles(align: PosAlign.center));
     printer.hr();
     printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
@@ -482,15 +555,18 @@ class PrinterService {
       ]);
     }
     printer.hr();
-    printer.row([
-      PosColumn(text: 'Subtotal:', width: 8),
-      PosColumn(text: 'LAK${subtotal.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    printer.row([
-      PosColumn(text: 'Tax (10%):', width: 8),
-      PosColumn(text: 'LAK${tax.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    printer.hr(ch: '=');
+    final showTax = taxRowLabel != null && taxRowLabel.isNotEmpty && tax.abs() >= 0.005;
+    if (showTax) {
+      printer.row([
+        PosColumn(text: '$subtotalRowLabel ', width: 8),
+        PosColumn(text: 'LAK${subtotal.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
+      ]);
+      printer.row([
+        PosColumn(text: '$taxRowLabel ', width: 8),
+        PosColumn(text: 'LAK${tax.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
+      ]);
+      printer.hr(ch: '=');
+    }
     printer.row([
       PosColumn(text: 'TOTAL:', width: 8, styles: const PosStyles(bold: true, height: PosTextSize.size2)),
       PosColumn(text: 'LAK${total.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2)),
@@ -498,6 +574,15 @@ class PrinterService {
     printer.feed(1);
     printer.text('Thank you!', styles: const PosStyles(align: PosAlign.center, bold: true));
     printer.text('Please come again', styles: const PosStyles(align: PosAlign.center));
+    final foot = (footerText ?? '').trim();
+    if (foot.isNotEmpty) {
+      printer.feed(1);
+      for (final line in foot.split('\n')) {
+        final t = line.trimRight();
+        if (t.isEmpty) continue;
+        printer.text(t, styles: const PosStyles(align: PosAlign.center));
+      }
+    }
     printer.feed(3);
     printer.cut();
     printer.disconnect();
@@ -508,13 +593,31 @@ class PrinterService {
     PrinterProfile profile, {
     required List<CartItem> items,
     required String cashierName,
+    String? headerText,
+    String? footerText,
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
     final result = await printer.connect(profile.ip, port: profile.port);
     if (result != PosPrintResult.success) return false;
 
-    printer.text('Kitchen / Order Ticket', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2));
+    final head = (headerText ?? '').trim();
+    if (head.isNotEmpty) {
+      for (final line in head.split('\n')) {
+        final t = line.trimRight();
+        if (t.isEmpty) continue;
+        printer.text(
+          t,
+          styles: const PosStyles(
+            align: PosAlign.center,
+            bold: true,
+            height: PosTextSize.size2,
+          ),
+        );
+      }
+    } else {
+      printer.text('Kitchen / Order Ticket', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2));
+    }
     printer.text('Printer: ${profile.name}', styles: const PosStyles(align: PosAlign.center));
     printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
     printer.text('Cashier: $cashierName');
@@ -550,6 +653,15 @@ class PrinterService {
     for (final r in rows) {
       printer.text('${r['qty']}x ${r['name']}', styles: const PosStyles(bold: true, height: PosTextSize.size2));
       printer.feed(1);
+    }
+    final foot = (footerText ?? '').trim();
+    if (foot.isNotEmpty) {
+      printer.feed(1);
+      for (final line in foot.split('\n')) {
+        final t = line.trimRight();
+        if (t.isEmpty) continue;
+        printer.text(t, styles: const PosStyles(align: PosAlign.center));
+      }
     }
     printer.feed(2);
     printer.cut();
@@ -629,8 +741,17 @@ class PrinterService {
         final currency  = receiptData['currency']?.toString() ?? 'LAK';
         final dateStr   = receiptData['date_order']?.toString() ?? '';
 
-        printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-        printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
+        final head = (receiptData['header_text'] ?? '').toString().trim();
+        if (head.isNotEmpty) {
+          for (final line in head.split('\n')) {
+            final t = line.trimRight();
+            if (t.isEmpty) continue;
+            printer.text(t, styles: const PosStyles(align: PosAlign.center, bold: true));
+          }
+        } else {
+          printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+          printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
+        }
         printer.text('** REPRINT **', styles: const PosStyles(align: PosAlign.center, bold: true));
         printer.hr();
         printer.text('Order: $orderRef');
@@ -656,6 +777,14 @@ class PrinterService {
           PosColumn(text: '$currency ${total.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2)),
         ]);
         printer.feed(3);
+        final foot = (receiptData['footer_text'] ?? '').toString().trim();
+        if (foot.isNotEmpty) {
+          for (final line in foot.split('\n')) {
+            final t = line.trimRight();
+            if (t.isEmpty) continue;
+            printer.text(t, styles: const PosStyles(align: PosAlign.center));
+          }
+        }
         printer.cut();
         printer.disconnect();
         anyOk = true;
