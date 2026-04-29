@@ -3017,6 +3017,28 @@ Priority/decision rules:
     2. `disconnect()` closed the socket before the printer drained the buffer; we now wait 800ms after `cut()` before disconnect.
     3. Footer/feed order in `printReceiptFromRawData` and `printRefundFromRawData` now mirrors the working `_printReceiptToProfile` pattern.
 
+==================================================
+80) FIX (BILL TEMPLATES SAVE: 401 Missing session)
+==================================================
+- Symptom:
+  - Admin → Bill Templates Settings → SAVE returns `401 Missing session`
+    (`POST /api/pos/branch/templates`).
+- Root cause:
+  - The POST endpoint only accepted cookie-based `request.session.uid`.
+  - Some networks (ngrok / proxies) strip cookies, so the cookie session never reached Odoo.
+  - The matching GET endpoints already had a `user_id + session_id` fallback; POST didn't.
+- Backend fix (`pos_backend/controllers/pos_branch_api.py`):
+  - Added `_resolve_uid_with_fallback(payload)` to PosBranchApi (mirrors the helper used in
+    pos_order_api.py).
+  - `set_branch_templates` now uses the fallback, accepting `user_id + session_id` from JSON body,
+    query string, or `X-Openerp-Session-Id` header. Validates against `pos_active_sid` /
+    `pos_admin_active_sid`.
+- Flutter fix (`lib/services/api_service.dart`):
+  - `setBranchBillTemplates(...)` now sends `user_id` + `session_id` in the JSON body too.
+- Ops:
+  - Restart Odoo service after this controller change.
+
+==================================================
 - ROOT CAUSE (confirmed via runtime debug logs): currency symbol `₭` (Lao kip) was non-ASCII and the
   `esc_pos_utils` Latin-1 encoder threw `Invalid argument (string): Contains invalid characters.`
   on the TOTAL row because we forgot to sanitize the currency string for that one row.

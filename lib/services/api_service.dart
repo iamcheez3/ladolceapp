@@ -644,11 +644,24 @@ class ApiService {
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/branch/templates');
-    final payload = {
+
+    // Include user_id + session_id in the body so the backend can authenticate
+    // even when cookies don't reach the server (e.g. ngrok / proxy setups).
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+
+    final payload = <String, dynamic>{
       if (billTemplateId != null) 'bill_template_bill_id': billTemplateId,
       if (receiptTemplateId != null) 'bill_template_receipt_id': receiptTemplateId,
       if (refundTemplateId != null) 'bill_template_refund_id': refundTemplateId,
       if (kitchenTemplateId != null) 'bill_template_kitchen_id': kitchenTemplateId,
+      if (userId > 0) 'user_id': userId,
+      if (sid.isNotEmpty) 'session_id': sid,
     };
     final response = await http
         .post(
