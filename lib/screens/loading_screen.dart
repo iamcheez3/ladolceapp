@@ -35,8 +35,25 @@ class _LoadingScreenState extends State<LoadingScreen> {
       _hasError = false;
     });
 
+    final api = ApiService();
+
+    // If we already have cache, go straight to the app and sync in the background.
+    // This eliminates the 4-5 second wait for returning users.
+    final hasCache = await api.hasBasicCache();
+    if (hasCache) {
+      developer.log(
+        '[LoadingScreen] Cache found — navigating immediately, syncing in background.',
+        name: 'LoadingScreen',
+      );
+      _proceedToApp();
+      // Fire-and-forget background sync (updates cache silently, no onProgress).
+      api.syncAllData().catchError((_) {});
+      return;
+    }
+
+    // First-time setup (no cache) — show progress bar and wait for full sync.
     try {
-      await ApiService().syncAllData(
+      await api.syncAllData(
         onProgress: (message, progress) {
           if (!mounted) return;
           setState(() {
@@ -49,8 +66,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
       _proceedToApp();
     } catch (e) {
       if (!mounted) return;
-      final hasCache = await ApiService().hasBasicCache();
-      if (hasCache) {
+      final stillHasCache = await api.hasBasicCache();
+      if (stillHasCache) {
         developer.log(
           '[LoadingScreen] Sync failed, but we have offline cache. Proceeding.',
           name: 'LoadingScreen',

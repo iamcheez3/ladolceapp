@@ -415,8 +415,14 @@ class ApiService {
     final base = await getBaseUrl();
     final prevOpenTickets = prefs.getString('cached_open_tickets');
     try {
-      final url = Uri.parse('$base/pos/open_tickets');
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      // Filter by cashier's branch so each POS only sees its own tickets.
+      final branchId = await getCachedBranchId();
+      final uri = Uri.parse('$base/pos/open_tickets').replace(
+        queryParameters: (branchId != null && branchId > 0)
+            ? {'branch_id': '$branchId'}
+            : null,
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
@@ -1035,14 +1041,20 @@ class ApiService {
     int? tableId,
     int? customerId,
     String? name,
+    int? branchId,
     required List<Map<String, dynamic>> lines,
   }) async {
     final base = await getBaseUrl();
+    // Use explicitly provided branchId, or fall back to cashier's cached branch.
+    final effectiveBranchId = (branchId != null && branchId > 0)
+        ? branchId
+        : await getCachedBranchId();
     final payload = {
       'user_id': userId,
       if (tableId != null && tableId > 0) 'table_id': tableId,
       if (customerId != null && customerId > 0) 'partner_id': customerId,
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
       'lines': lines,
     };
 
@@ -1065,6 +1077,7 @@ class ApiService {
             'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
             'amount_total': total,
             'state': 'draft',
+            if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
             // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
             'opened_at': DateTime.now().toUtc().toIso8601String(),
             'lines': lines.map((l) => {
@@ -1099,6 +1112,7 @@ class ApiService {
          'partner_id': customerId, // keeping for record
          'amount_total': total,
          'state': 'draft',
+         if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
          // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
          'opened_at': DateTime.now().toUtc().toIso8601String(),
          'lines': lines.map((l) => {

@@ -2904,7 +2904,6 @@ class _PosScreenState extends State<PosScreen> {
     final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
         ? 'VAT (${_taxConfig.percentLabel}%):'
         : null;
-    setDialogState(() => _isCharging = true);
 
     // Only new (unsaved) lines need to be pushed — saved ones are already on server
     final newLines = _cartItems
@@ -2931,112 +2930,71 @@ class _PosScreenState extends State<PosScreen> {
         )
         .toList();
 
-    try {
-      final cashierId = widget.cashierId;
-      if (_activeTicketPaymentType == 'transfer' &&
-          _activeTicketPaymentMethodId != null &&
-          _selectedPaymentMethod?.id != _activeTicketPaymentMethodId) {
-        final fixedMethod = _paymentMethods
-            .where((m) => m.id == _activeTicketPaymentMethodId)
-            .firstOrNull;
-        if (fixedMethod != null) {
-          _selectedPaymentMethod = fixedMethod;
+    final cashierId = widget.cashierId;
+
+    // Lock down payment method if this is a saved transfer ticket.
+    if (_activeTicketPaymentType == 'transfer' &&
+        _activeTicketPaymentMethodId != null &&
+        _selectedPaymentMethod?.id != _activeTicketPaymentMethodId) {
+      final fixedMethod = _paymentMethods
+          .where((m) => m.id == _activeTicketPaymentMethodId)
+          .firstOrNull;
+      if (fixedMethod != null) _selectedPaymentMethod = fixedMethod;
+    }
+
+    // Snapshot everything needed for background work before clearing cart/state.
+    final snapshotCart = List<CartItem>.from(_cartItems);
+    final snapshotPaymentMethod = _selectedPaymentMethod;
+    final snapshotActiveTicketId = _activeTicketId;
+    final snapshotActiveTicketTableId = _activeTicketTableId;
+    final snapshotActiveTicketPaymentType = _activeTicketPaymentType;
+    final isCash =
+        snapshotPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
+
+    // --- Optimistic UI: update local state and close dialog immediately ---
+
+    // Clear open ticket from local cache right away.
+    if (snapshotActiveTicketId != null) {
+      await _apiService.clearLocalOpenTicket(
+        snapshotActiveTicketId,
+        tableId: snapshotActiveTicketTableId,
+      );
+    }
+
+    // Mark table as available in in-memory list.
+    if (snapshotActiveTicketTableId != null) {
+      try {
+        final idx = _tables.indexWhere((t) => t.id == snapshotActiveTicketTableId);
+        if (idx >= 0) {
+          final current = _tables[idx];
+          setState(() {
+            _tables[idx] = PosTable(
+              id: current.id,
+              name: current.name,
+              capacity: current.capacity,
+              status: current.status,
+              hasOpenOrder: false,
+            );
+          });
         }
-      }
+      } catch (_) {}
+    }
 
-      Map<String, dynamic> result;
+    // Close the charge sheet and clear cart NOW — no waiting for server.
+    _clearCart();
+    if (context.mounted) Navigator.pop(context);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order Paid Successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
 
-      if (_activeTicketId != null) {
-        // If this is an OFFLINE mock ticket (negative id), do NOT attempt /pay with the mock id.
-        // Instead, move it into Receipt History as "waiting to sync" by queuing a paid submit.
-        if (_activeTicketId! < 0) {
-          // Remove old queued tasks for this mock ticket (create/update/pay), then queue a single paid submit.
-          await _apiService.purgeOfflineTasksForOrder(_activeTicketId!);
-
-          result = await _apiService.submitOrder(
-            userId: cashierId,
-            partnerId: _selectedCustomer?['id'],
-            tableId: _activeTicketTableId,
-            paymentMethodId: _selectedPaymentMethod?.id,
-            paymentType: _activeTicketPaymentType.isNotEmpty
-                ? _activeTicketPaymentType
-                : 'pay_at_store',
-            isPaid: true,
-            lines: allLines,
-          );
-
-          // Ticket is now considered "charged" locally; clear the OPEN state immediately.
-          await _apiService.clearLocalOpenTicket(
-            _activeTicketId!,
-            tableId: _activeTicketTableId,
-          );
-
-          // Also update in-memory tables list so the selector immediately shows the table as available.
-          if (_activeTicketTableId != null) {
-            final idx = _tables.indexWhere((t) => t.id == _activeTicketTableId);
-            if (idx >= 0) {
-              final current = _tables[idx];
-              _tables[idx] = PosTable(
-                id: current.id,
-                name: current.name,
-                capacity: current.capacity,
-                status: current.status,
-                hasOpenOrder: false,
-              );
-            }
-          }
-        } else {
-        // Only update if there are new lines to add
-        if (newLines.isNotEmpty) {
-          await _apiService.updateOrder(
-            orderId: _activeTicketId!,
-            customerId: _selectedCustomer?['id'],
-            lines: newLines,
-          );
-        }
-
-        // Now mark the same order as paid (no duplicate!)
-        result = await _apiService.payOrder(
-          orderId: _activeTicketId!,
-          paymentMethodId: _selectedPaymentMethod?.id,
-        );
-        }
-      } else {
-        // No active ticket — create a new order and pay immediately
-        result = await _apiService.submitOrder(
-          userId: cashierId,
-          partnerId: _selectedCustomer?['id'],
-          isPaid: true,
-          paymentMethodId: _selectedPaymentMethod?.id,
-          lines: allLines,
-        );
-      }
-
-      final bool isOffline = result['offline'] == true;
-
-      if (context.mounted) {
-        if (isOffline) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                '⚡ Network unavailable. Order saved offline and will auto-sync later!',
-              ),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Order ${result['order_reference']} Paid Successfully!',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-
+    // --- Background: print receipt from local snapshot, then sync to server ---
+    Future(() async {
+      // Print receipt from local cart snapshot (no server data needed).
       if (printReceipt && printerService.isConfigured) {
         Map<String, dynamic>? tpl;
         try {
@@ -3044,19 +3002,13 @@ class _PosScreenState extends State<PosScreen> {
         } catch (_) {}
         final headerText = (tpl?['header_text'] ?? '').toString();
         final footerText = (tpl?['footer_text'] ?? '').toString();
-        // Receipt/bill printers only — order tickets were already sent on save.
-        // Printers with printReceiptsAndBills=true get the customer receipt.
-        // Order printers (printOrders=true) are intentionally skipped here to
-        // avoid double-printing items the kitchen already received on save.
         final receiptPrinters = printerService.profiles
             .where((p) => p.printReceiptsAndBills)
             .toList();
-        bool anyOk =
-            receiptPrinters.isEmpty; // consider success if no receipt printer
         for (final p in receiptPrinters) {
-          final ok = await printerService.printReceiptToProfile(
+          await printerService.printReceiptToProfile(
             p,
-            cartItems: _cartItems,
+            cartItems: snapshotCart,
             subtotal: bd.baseAmount,
             tax: bd.taxAmount,
             total: bd.totalDue,
@@ -3066,36 +3018,55 @@ class _PosScreenState extends State<PosScreen> {
             headerText: headerText,
             footerText: footerText,
           );
-          if (ok) anyOk = true;
         }
-        if (context.mounted && !anyOk) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Printer error'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        final isCash =
-            _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
-            false;
         if (isCash) {
           await printerService.openCashDrawer();
         }
       }
-      // Auto-open cash drawer on cash payments
 
-      _clearCart();
-      if (context.mounted) Navigator.pop(context);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+      // Sync to server (handles online success + offline queue internally).
+      try {
+        if (snapshotActiveTicketId != null) {
+          if (snapshotActiveTicketId < 0) {
+            // Offline mock ticket — purge old tasks and queue a paid submit.
+            await _apiService.purgeOfflineTasksForOrder(snapshotActiveTicketId);
+            await _apiService.submitOrder(
+              userId: cashierId,
+              partnerId: _selectedCustomer?['id'],
+              tableId: snapshotActiveTicketTableId,
+              paymentMethodId: snapshotPaymentMethod?.id,
+              paymentType: snapshotActiveTicketPaymentType.isNotEmpty
+                  ? snapshotActiveTicketPaymentType
+                  : 'pay_at_store',
+              isPaid: true,
+              lines: allLines,
+            );
+          } else {
+            if (newLines.isNotEmpty) {
+              await _apiService.updateOrder(
+                orderId: snapshotActiveTicketId,
+                customerId: _selectedCustomer?['id'],
+                lines: newLines,
+              );
+            }
+            await _apiService.payOrder(
+              orderId: snapshotActiveTicketId,
+              paymentMethodId: snapshotPaymentMethod?.id,
+            );
+          }
+        } else {
+          await _apiService.submitOrder(
+            userId: cashierId,
+            partnerId: _selectedCustomer?['id'],
+            isPaid: true,
+            paymentMethodId: snapshotPaymentMethod?.id,
+            lines: allLines,
+          );
+        }
+      } catch (_) {
+        // Server calls failed — offline queue already handles retry.
       }
-    } finally {
-      setDialogState(() => _isCharging = false);
-    }
+    });
   }
 
   /// Save current cart to existing ticket (update) or new ticket (table dialog)
@@ -3397,8 +3368,6 @@ class _PosScreenState extends State<PosScreen> {
     StateSetter setDialogState,
     PosTable table,
   ) async {
-    setDialogState(() => _isOpeningTicket = true);
-
     final lines = _cartItems
         .map(
           (item) => {
@@ -3411,51 +3380,16 @@ class _PosScreenState extends State<PosScreen> {
         )
         .toList();
 
+    final cashierId = widget.cashierId;
+
+    // --- Optimistic UI: update state immediately, no waiting ---
+
+    // Mark table as open in local in-memory list right away.
     try {
-      final cashierId = (widget as dynamic).cashierId ?? 1;
-
-      // IMPORTANT: This flow only creates a NEW draft ticket for an EMPTY table.
-      // For combining / moving into other OPEN tickets, use "Move ticket".
-      final result = await _apiService.createOrder(
-        userId: cashierId,
-        tableId: table.id,
-        customerId: _selectedCustomer?['id'],
-        lines: lines,
-      );
-
-      final int? orderId =
-          (result['order_id'] is int) ? result['order_id'] as int : null;
-      final bool isOffline = (orderId != null && orderId < 0) ||
-          (result['order_reference']?.toString().startsWith('OFFLINE') == true);
-
-      if (context.mounted) {
-        if (isOffline) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '⚡ Network unavailable. Ticket for ${table.name} saved offline!',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Ticket opened at ${table.name}!',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-
-      // Update local table state immediately so the selector shows OPEN next time
-      // even before the next network refresh.
-      try {
-        final idx = _tables.indexWhere((t) => t.id == table.id);
-        if (idx >= 0) {
-          final current = _tables[idx];
+      final idx = _tables.indexWhere((t) => t.id == table.id);
+      if (idx >= 0) {
+        final current = _tables[idx];
+        setState(() {
           _tables[idx] = PosTable(
             id: current.id,
             name: current.name,
@@ -3463,36 +3397,52 @@ class _PosScreenState extends State<PosScreen> {
             status: current.status,
             hasOpenOrder: true,
           );
-        }
-      } catch (_) {
-        // no-op
+        });
       }
+    } catch (_) {}
 
-      // Print to kitchen/bar printers and mark items as printed only on success
-      if (printerService.isConfigured) {
-        final printedCount = await _printOrderItemsToKitchen(
-          _cartItems,
-          respectCategoryFilters: true,
-        );
-        if (printedCount > 0) {
-          // Mark all items as printed so charge / subsequent saves don't re-print
-          for (final item in _cartItems) {
+    // Capture items for kitchen print before cart is cleared.
+    final itemsForKitchen = List<CartItem>.from(_cartItems);
+
+    // Close dialog and clear cart instantly — no waiting for server.
+    _clearCart();
+    if (context.mounted) Navigator.pop(context);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ticket opened at ${table.name}!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+
+    // Print to kitchen in background (fire-and-forget).
+    if (printerService.isConfigured) {
+      _printOrderItemsToKitchen(
+        itemsForKitchen,
+        respectCategoryFilters: true,
+      ).then((count) {
+        if (count > 0) {
+          for (final item in itemsForKitchen) {
             item.isPrinted = true;
           }
         }
-      }
-
-      _clearCart();
-      if (context.mounted) Navigator.pop(context);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      setDialogState(() => _isOpeningTicket = false);
+      }).catchError((_) {});
     }
+
+    // Persist to server in background.
+    // createOrder() handles both online (cache + real ID) and
+    // offline fallback (mock ID + offline queue) internally.
+    _apiService
+        .createOrder(
+          userId: cashierId,
+          tableId: table.id,
+          customerId: _selectedCustomer?['id'],
+          lines: lines,
+        )
+        .catchError((_) {});
+    // No finally needed — _isOpeningTicket is no longer set because we never
+    // show the spinner; the dialog is already dismissed above.
   }
 
   void _showSettingsSheet(BuildContext context) {
