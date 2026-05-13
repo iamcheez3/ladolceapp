@@ -19,6 +19,9 @@ class Product {
   // UI Helpers
   final int colorCode;
 
+  /// When true, customer self-order shows this item as run out and cannot add to cart.
+  final bool blockSelfOrder;
+
   /// Odoo often sends [category] as a path like "All / Saleable / Office Furniture".
   /// POS and customer UIs only need the leaf name for tabs and labels.
   static String leafCategoryName(Object? raw) {
@@ -49,7 +52,16 @@ class Product {
     this.isCombo = false,
     this.comboLines,
     this.colorCode = 0xFF1E3A8A, // Default Dark Blue
+    this.blockSelfOrder = false,
   });
+
+  static bool _parseBool(dynamic v) {
+    if (v == null) return false;
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    final s = v.toString().toLowerCase().trim();
+    return s == 'true' || s == '1' || s == 'yes';
+  }
 
   factory Product.fromJson(Map<String, dynamic> json) {
     List<Topping> parsedToppings = [];
@@ -73,6 +85,11 @@ class Product {
       defaultCode: json['default_code'] is String ? json['default_code'] : null,
       toppings: parsedToppings,
       isCombo: false,
+      blockSelfOrder: _parseBool(
+        json['block_self_order'] ??
+            json['self_order_blocked'] ??
+            json['blocked_for_self_order'],
+      ),
     );
   }
 
@@ -86,6 +103,7 @@ class Product {
       isCombo: true,
       comboLines: combo.lines,
       colorCode: combo.colorCode,
+      blockSelfOrder: false,
     );
   }
 }

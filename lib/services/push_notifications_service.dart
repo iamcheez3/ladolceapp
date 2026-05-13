@@ -83,11 +83,56 @@ class PushNotificationsService {
         }
         final type = (message.data['type'] ?? '').toString();
         if (type == 'self_order_new') {
+          final rawBranchId = message.data['branch_id'];
+          final messageBranchId = (rawBranchId is int)
+              ? rawBranchId
+              : int.tryParse(rawBranchId?.toString() ?? '');
+          if (messageBranchId != null && messageBranchId > 0) {
+            final api = ApiService();
+            final user = await api.getCachedUser();
+            final role = (user?['role'] ?? '').toString();
+            if (role == 'cashier' || role == 'admin') {
+              final currentBranchId = await api.getCachedBranchId();
+              if (currentBranchId != null &&
+                  currentBranchId > 0 &&
+                  currentBranchId != messageBranchId) {
+                return;
+              }
+            }
+          }
+        }
+        if (type == 'self_order_new') {
           await _startRepeatingAlarm(duration: const Duration(seconds: 10));
         }
 
         final n = message.notification;
         if (n == null) return;
+
+        var body = n.body ?? '';
+        if (type == 'self_order_new') {
+          final cn = (message.data['customer_name'] ??
+                  message.data['customer'] ??
+                  '')
+              .toString()
+              .trim();
+          final cp = (message.data['customer_phone'] ??
+                  message.data['phone'] ??
+                  '')
+              .toString()
+              .trim();
+          if (cn.isNotEmpty || cp.isNotEmpty) {
+            final line = [
+              if (cn.isNotEmpty) cn,
+              if (cp.isNotEmpty) cp,
+            ].join(' · ');
+            if (body.isEmpty) {
+              body = line;
+            } else if (!body.contains(cn) &&
+                (cp.isEmpty || !body.contains(cp))) {
+              body = '$body\n$line';
+            }
+          }
+        }
 
         // Android notification channel sound is "sticky" once created.
         // Use separate channel IDs so customer "confirmed" uses system default sound
@@ -124,7 +169,7 @@ class PushNotificationsService {
         await _local.show(
           DateTime.now().millisecondsSinceEpoch ~/ 1000,
           n.title,
-          n.body,
+          body,
           details,
           payload: jsonEncode(message.data),
         );

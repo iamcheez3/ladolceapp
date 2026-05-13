@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
+import '../utils/responsive_layout.dart';
 
 class ProductGrid extends StatelessWidget {
   final List<Product> products;
@@ -16,13 +17,15 @@ class ProductGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final maxExtent = ResponsiveLayout.productGridMaxCrossAxisExtent(context);
+    final aspect = ResponsiveLayout.productGridChildAspectRatio(context);
     return Container(
       color: LaDolcePosUi.surface,
       child: GridView.builder(
         padding: const EdgeInsets.all(12),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 200,
-          childAspectRatio: 0.86,
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: maxExtent,
+          childAspectRatio: aspect,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),

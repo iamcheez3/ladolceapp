@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:upgrader/upgrader.dart';
+import 'utils/responsive_layout.dart';
 import 'screens/loading_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
@@ -44,7 +45,9 @@ class PosApp extends StatelessWidget {
     return MaterialApp(
       title: 'LaDolce POS',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => UpgradeAlert(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => ResponsiveLayout.withClampedTextScaling(
+            child: UpgradeAlert(child: child ?? const SizedBox.shrink()),
+          ),
       theme: ThemeData(
         fontFamily: 'Inter',
         colorScheme: ColorScheme.fromSeed(

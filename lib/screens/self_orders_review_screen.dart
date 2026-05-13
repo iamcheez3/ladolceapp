@@ -160,6 +160,18 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
     );
   }
 
+  /// Phone from GET /api/pos/self_orders/pending (`customer_phone`, or legacy keys).
+  String _orderPhoneLine(Map<String, dynamic> order) {
+    final p = (order['customer_phone'] ??
+            order['phone'] ??
+            order['mobile'] ??
+            order['partner_phone'] ??
+            '')
+        .toString()
+        .trim();
+    return p.isEmpty ? '—' : p;
+  }
+
   void _openProofFullScreen({
     required String title,
     required String imageUrl,
@@ -233,6 +245,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 Text('Customer: ${order['customer'] ?? '-'}'),
+                                Text('Phone: ${_orderPhoneLine(order)}'),
                                 Text('Table: ${order['table_name'] ?? '-'}'),
                                 Text('Amount: ₭${(order['amount_total'] ?? 0).toString()}'),
                                 Text('Items: ${lines.length}'),

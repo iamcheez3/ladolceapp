@@ -272,6 +272,27 @@ class ApiService {
     }
   }
 
+  Future<Map<String, List<int>>> fetchProductHighlights() async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/products/highlights');
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          final data = jsonResponse['data'];
+          return {
+            'recommended': List<int>.from(data['recommended_ids'] ?? []),
+            'popular': List<int>.from(data['popular_ids'] ?? []),
+          };
+        }
+      }
+    } catch (e) {
+      _d('[API ERROR] Failed to fetch product highlights: $e');
+    }
+    return {'recommended': [], 'popular': []};
+  }
+
   /// Returns cached tables instantly (null if no cache)
   Future<List<PosTable>?> getCachedTables() async {
     final prefs = await SharedPreferences.getInstance();
@@ -970,8 +991,12 @@ class ApiService {
     bool isPaid = false,
     required List<Map<String, dynamic>> lines,
     int? branchId,
+    String? customerName,
+    String? customerPhone,
   }) async {
     final base = await getBaseUrl();
+    final cn = customerName?.trim() ?? '';
+    final cp = customerPhone?.trim() ?? '';
     final payload = {
       'user_id': userId,
       'partner_id': partnerId,
@@ -981,6 +1006,8 @@ class ApiService {
       'is_paid': isPaid,
       'lines': lines,
       if (branchId != null && branchId > 0) 'branch_id': branchId,
+      if (cn.isNotEmpty) 'customer_name': cn,
+      if (cp.isNotEmpty) 'customer_phone': cp,
     };
     
     try {
@@ -1889,12 +1916,14 @@ class ApiService {
     required double listPrice,
     int? categoryId,
     List<int>? toppingIds,
+    bool blockSelfOrder = false,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/products');
     final bodyData = <String, dynamic>{
       'name': name,
       'list_price': listPrice,
+      'block_self_order': blockSelfOrder,
     };
     if (id != null) bodyData['id'] = id;
     if (categoryId != null) bodyData['categ_id'] = categoryId;
@@ -2071,7 +2100,12 @@ class ApiService {
   Future<List<Map<String, dynamic>>> fetchPendingSelfOrders() async {
     final base = await getBaseUrl();
     try {
-      final url = Uri.parse('$base/pos/self_orders/pending');
+      final branchId = await getCachedBranchId();
+      final url = Uri.parse('$base/pos/self_orders/pending').replace(
+        queryParameters: (branchId != null && branchId > 0)
+            ? {'branch_id': '$branchId'}
+            : null,
+      );
       final response = await http.get(url).timeout(const Duration(seconds: 7));
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);

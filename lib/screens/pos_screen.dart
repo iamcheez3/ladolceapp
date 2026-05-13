@@ -24,6 +24,7 @@ import '../theme/ladolce_pos_ui.dart';
 import 'package:intl/intl.dart';
 import '../models/pos_tax_config.dart';
 import '../utils/pos_tax.dart';
+import '../utils/responsive_layout.dart';
 
 class PosScreen extends StatefulWidget {
   final String cashierName;
@@ -53,8 +54,42 @@ class _PosScreenState extends State<PosScreen> {
   String? _cachedBranchName;
   PosTaxConfig _taxConfig = PosTaxConfig.disabled;
   int _pendingSelfOrdersCount = 0;
+  final Set<int> _pendingSelfOrderKnownIds = {};
   Timer? _pendingSelfOrdersTimer;
   bool _pendingSelfOrdersFetching = false;
+
+  static int? _parseSelfOrderId(Map<String, dynamic> order) {
+    final raw = order['id'];
+    if (raw is int) return raw > 0 ? raw : null;
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  /// Pending list uses `customer`; newer APIs may send `customer_name` / `customer_phone`.
+  static String _selfOrderNamePhoneSummary(Map<String, dynamic> order) {
+    final name = (order['customer'] ??
+            order['customer_name'] ??
+            order['partner_name'] ??
+            '')
+        .toString()
+        .trim();
+    final phone = (order['customer_phone'] ??
+            order['phone'] ??
+            order['mobile'] ??
+            order['partner_phone'] ??
+            '')
+        .toString()
+        .trim();
+    if (name.isEmpty && phone.isEmpty) return '';
+    if (name.isNotEmpty && phone.isNotEmpty) return '$name · $phone';
+    if (name.isNotEmpty) return name;
+    return phone;
+  }
+
+  static String _newSelfOrderSnackText(Map<String, dynamic> order) {
+    final summary = _selfOrderNamePhoneSummary(order);
+    if (summary.isEmpty) return 'New self order waiting review';
+    return 'New self order: $summary';
+  }
 
   // ── Printer helper ────────────────────────────────────────────────────────
   List<CartItem> _filterItemsForPrinter(
@@ -179,12 +214,54 @@ class _PosScreenState extends State<PosScreen> {
       if (!mounted) return;
       final nextCount = data.length;
       final prevCount = _pendingSelfOrdersCount;
-      setState(() => _pendingSelfOrdersCount = nextCount);
+      final currentIds = <int>{
+        for (final o in data)
+          if (_parseSelfOrderId(o) != null) _parseSelfOrderId(o)!,
+      };
+      final newIds = currentIds.difference(_pendingSelfOrderKnownIds);
 
-      if (notifyOnIncrease && nextCount > prevCount) {
+      setState(() {
+        _pendingSelfOrdersCount = nextCount;
+        _pendingSelfOrderKnownIds
+          ..clear()
+          ..addAll(currentIds);
+      });
+
+      if (!notifyOnIncrease) return;
+
+      if (newIds.isNotEmpty) {
+        final newcomers =
+            data.where((o) => newIds.contains(_parseSelfOrderId(o))).toList();
+        if (newcomers.length == 1) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_newSelfOrderSnackText(newcomers.first)),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          final parts = newcomers
+              .map(_selfOrderNamePhoneSummary)
+              .where((s) => s.isNotEmpty)
+              .toList();
+          final detail = parts.isEmpty
+              ? 'waiting review'
+              : parts.join('; ');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${newcomers.length} new self orders: $detail',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        }
+      } else if (nextCount > prevCount) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('New self order waiting review ($nextCount)'),
+            content: Text('New self order waiting review ($nextCount pending)'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 4),
           ),
@@ -756,9 +833,11 @@ class _PosScreenState extends State<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final showInlineCart = ResponsiveLayout.showsPosCartRail(context);
+    final appBarTrailingWidth = MediaQuery.sizeOf(context).width < 360 ? 12.0 : 16.0;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: _brandSurface,
       appBar: AppBar(
         backgroundColor: _brandNavy,
@@ -786,16 +865,19 @@ class _PosScreenState extends State<PosScreen> {
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.receipt_outlined, color: Colors.white),
-                const SizedBox(width: 8),
-                const Text(
-                  'Open Tickets',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.receipt_outlined, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    MediaQuery.sizeOf(context).width < 380 ? 'Tickets' : 'Open Tickets',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1170,7 +1252,7 @@ class _PosScreenState extends State<PosScreen> {
               ];
             },
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: appBarTrailingWidth),
         ],
       ),
       drawer: Drawer(
@@ -1182,7 +1264,12 @@ class _PosScreenState extends State<PosScreen> {
               // ── Header ──────────────────────────────────────────
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  MediaQuery.paddingOf(context).top + 40,
+                  20,
+                  24,
+                ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -1614,8 +1701,8 @@ class _PosScreenState extends State<PosScreen> {
             ),
 
             // Cart Section (Sidebar)
-            if (isDesktop) const VerticalDivider(width: 1),
-            if (isDesktop)
+            if (showInlineCart) const VerticalDivider(width: 1),
+            if (showInlineCart)
               Expanded(
                 flex: 3,
                 child: CartSidebar(
@@ -1660,7 +1747,7 @@ class _PosScreenState extends State<PosScreen> {
         ),
       ),
       // Mobile Cart floating button or bottom sheet could go here if not desktop
-      bottomNavigationBar: !isDesktop && _cartItems.isNotEmpty
+      bottomNavigationBar: !showInlineCart && _cartItems.isNotEmpty
           ? _buildMobileCartBar(context)
           : null,
     );
@@ -1682,60 +1769,66 @@ class _PosScreenState extends State<PosScreen> {
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
+              useSafeArea: true,
               builder: (ctx) => StatefulBuilder(
-                builder: (innerCtx, setSheetState) => FractionallySizedBox(
-                  heightFactor: 0.8,
-                  child: CartSidebar(
-                    cartItems: _cartItems,
-                    onUpdateQuantity: (item, newQty) {
-                      _updateQuantity(item, newQty);
-                      setSheetState(() {});
-                      if (_cartItems.isEmpty) Navigator.pop(ctx);
-                    },
-                    onClearCart: () {
-                      _clearCart();
-                      Navigator.pop(ctx);
-                    },
-                    onViewTickets: () async {
-                      Navigator.pop(ctx);
-                      final result = await Navigator.push<ResumedTicket>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              TicketsScreen(cachedProducts: _products),
-                        ),
-                      );
-                      if (result != null) {
-                        setState(() {
-                          _cartItems = result.cartItems;
-                          _activeTicketId = result.orderId;
-                          _activeTicketName = result.orderName;
-                          _activeTicketTableId = result.tableId;
-                          _activeTicketPaymentType = result.paymentType;
-                          _activeTicketPaymentMethodId = result.paymentMethodId;
-                          _activeTicketPaymentMethodName =
-                              result.paymentMethodName;
-                        });
-                      }
-                    },
-                    onSaveTicket: () {
-                      Navigator.pop(ctx);
-                      _saveCurrentTicket(context);
-                    },
-                    onCharge: () {
-                      Navigator.pop(ctx);
-                      _showChargeDialog(context);
-                    },
-                    selectedCustomer: _selectedCustomer,
-                    onAddCustomer: () {
-                      Navigator.pop(ctx);
-                      _showCustomerSelection(context);
-                    },
-                    onClearCustomer: () {
-                      setState(() => _selectedCustomer = null);
-                      setSheetState(() {});
-                    },
-                    taxConfig: _taxConfig,
+                builder: (innerCtx, setSheetState) => Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                  ),
+                  child: FractionallySizedBox(
+                    heightFactor: 0.8,
+                    child: CartSidebar(
+                      cartItems: _cartItems,
+                      onUpdateQuantity: (item, newQty) {
+                        _updateQuantity(item, newQty);
+                        setSheetState(() {});
+                        if (_cartItems.isEmpty) Navigator.pop(ctx);
+                      },
+                      onClearCart: () {
+                        _clearCart();
+                        Navigator.pop(ctx);
+                      },
+                      onViewTickets: () async {
+                        Navigator.pop(ctx);
+                        final result = await Navigator.push<ResumedTicket>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                TicketsScreen(cachedProducts: _products),
+                          ),
+                        );
+                        if (result != null) {
+                          setState(() {
+                            _cartItems = result.cartItems;
+                            _activeTicketId = result.orderId;
+                            _activeTicketName = result.orderName;
+                            _activeTicketTableId = result.tableId;
+                            _activeTicketPaymentType = result.paymentType;
+                            _activeTicketPaymentMethodId = result.paymentMethodId;
+                            _activeTicketPaymentMethodName =
+                                result.paymentMethodName;
+                          });
+                        }
+                      },
+                      onSaveTicket: () {
+                        Navigator.pop(ctx);
+                        _saveCurrentTicket(context);
+                      },
+                      onCharge: () {
+                        Navigator.pop(ctx);
+                        _showChargeDialog(context);
+                      },
+                      selectedCustomer: _selectedCustomer,
+                      onAddCustomer: () {
+                        Navigator.pop(ctx);
+                        _showCustomerSelection(context);
+                      },
+                      onClearCustomer: () {
+                        setState(() => _selectedCustomer = null);
+                        setSheetState(() {});
+                      },
+                      taxConfig: _taxConfig,
+                    ),
                   ),
                 ),
               ),
@@ -1789,31 +1882,37 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                 ),
                 // ── Right: button ─────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E3A8A),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'View Ticket &\nCharge',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
-                        ),
-                        textAlign: TextAlign.center,
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
                       ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward, color: Colors.white, size: 16),
-                    ],
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E3A8A),
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View Ticket &\nCharge',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],

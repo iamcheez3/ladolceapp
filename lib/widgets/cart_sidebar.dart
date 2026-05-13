@@ -58,9 +58,12 @@ class CartSidebar extends StatelessWidget {
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'SAVE TICKET',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'SAVE TICKET',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
                     ),
                   ),
                 ),
@@ -78,12 +81,19 @@ class CartSidebar extends StatelessWidget {
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                       elevation: 0,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                        Text('₭${bd.totalDue.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      ],
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                          Text(
+                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -116,6 +126,8 @@ class CartSidebar extends StatelessWidget {
                               Text(
                                 'Customer: ${selectedCustomer!['name']}',
                                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 '${selectedCustomer!['reward_points']} pts',
@@ -270,30 +282,67 @@ class CartSidebar extends StatelessWidget {
               children: [
                 if (!bd.taxActive) ...[
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text('Total', style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600)),
-                      Text('₭${bd.totalDue.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _brandNavy)),
+                      Expanded(
+                        child: Text(
+                          'Total',
+                          style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _brandNavy),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ] else ...[
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        taxConfig.inclusive ? 'Amount (excl. VAT)' : 'Subtotal (excl. VAT)',
-                        style: TextStyle(color: Colors.grey[600]),
+                      Expanded(
+                        child: Text(
+                          taxConfig.inclusive ? 'Amount (excl. VAT)' : 'Subtotal (excl. VAT)',
+                          style: TextStyle(color: Colors.grey[600]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      Text('₭${bd.baseAmount.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey[800])),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          '₭${bd.baseAmount.toStringAsFixed(2)}',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(color: Colors.grey[800]),
+                        ),
+                      ),
                     ],
                   ),
                   if (taxConfig.showOnReceipt) ...[
                     const SizedBox(height: 8),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('VAT (${taxConfig.percentLabel}%)', style: TextStyle(color: Colors.grey[600])),
-                        Text('₭${bd.taxAmount.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey[800])),
+                        Expanded(
+                          child: Text(
+                            'VAT (${taxConfig.percentLabel}%)',
+                            style: TextStyle(color: Colors.grey[600]),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '₭${bd.taxAmount.toStringAsFixed(2)}',
+                            textAlign: TextAlign.end,
+                            style: TextStyle(color: Colors.grey[800]),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -302,23 +351,32 @@ class CartSidebar extends StatelessWidget {
                     child: Divider(),
                   ),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Total due', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                          Text(
-                            taxConfig.showOnReceipt
-                                ? (taxConfig.inclusive ? 'Price includes tax' : 'Includes VAT')
-                                : 'Tax hidden on receipt',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Total due', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(
+                              taxConfig.showOnReceipt
+                                  ? (taxConfig.inclusive ? 'Price includes tax' : 'Includes VAT')
+                                  : 'Tax hidden on receipt',
+                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
                       ),
-                      Text(
-                        '₭${bd.totalDue.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -424,6 +482,8 @@ class _CartItemRow extends StatelessWidget {
                       fontSize: 15,
                       color: textColor,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -454,13 +514,18 @@ class _CartItemRow extends StatelessWidget {
                 ],
               ),
             ),
-            // Price
-            Text(
-              '₭${item.totalPrice.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: priceColor,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '₭${item.totalPrice.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: priceColor,
+                  ),
+                ),
               ),
             ),
           ],

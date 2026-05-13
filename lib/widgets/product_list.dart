@@ -106,19 +106,27 @@ class ProductList extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: LaDolcePosUi.navy.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: LaDolcePosUi.navy.withOpacity(0.14)),
-                    ),
-                    child: Text(
-                      '₭${product.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        color: LaDolcePosUi.navy,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: LaDolcePosUi.navy.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                              color: LaDolcePosUi.navy.withOpacity(0.14)),
+                        ),
+                        child: Text(
+                          '₭${product.price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            color: LaDolcePosUi.navy,
+                          ),
+                        ),
                       ),
                     ),
                   ),

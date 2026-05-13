@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 import '../services/api_service.dart';
 import '../theme/coffee_luxury_background.dart';
+import '../utils/responsive_layout.dart';
 import 'customer_self_order_screen.dart';
 import 'pin_screen.dart';
 import 'login_screen.dart';
@@ -145,15 +146,25 @@ class _LoadingScreenState extends State<LoadingScreen> {
       backgroundColor: kCoffeeBrandNavy,
       body: PinStyleBackground(
         child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+          child: LayoutBuilder(
+            builder: (context, viewport) {
+              final hPad =
+                  ResponsiveLayout.pageHorizontalPadding(context).clamp(
+                22.0,
+                44.0,
+              );
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: viewport.maxHeight),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                     const Text(
                       'LaDolce',
                       style: TextStyle(
@@ -248,9 +259,12 @@ class _LoadingScreenState extends State<LoadingScreen> {
                       ),
                     ],
                   ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+            );
+            },
           ),
         ),
       ),

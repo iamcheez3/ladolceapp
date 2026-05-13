@@ -4,6 +4,7 @@ import 'register_screen.dart';
 import 'loading_screen.dart';
 import '../services/api_service.dart';
 import '../services/push_notifications_service.dart';
+import '../utils/responsive_layout.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV TOOLS FLAG
@@ -97,10 +98,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               const Text(
                 'Override the API base URL for this device.\n'
                 'Leave empty to use the default from .env',
@@ -168,6 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ],
+          ),
           ),
           actions: [
             // Clear override
@@ -329,7 +332,12 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+              padding: ResponsiveLayout.scrollablePaddingWithKeyboard(
+                context,
+                top: 20,
+                horizontal: ResponsiveLayout.pageHorizontalPadding(context),
+                bottomExtra: 20,
+              ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Container(
