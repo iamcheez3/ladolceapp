@@ -155,20 +155,12 @@ class ProductGrid extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    Container(
-                                      padding: EdgeInsets.symmetric(horizontal: pricePadH, vertical: pricePadV),
-                                      decoration: BoxDecoration(
-                                        color: LaDolcePosUi.navy.withOpacity(0.06),
-                                        borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: LaDolcePosUi.navy.withOpacity(0.14)),
-                                      ),
-                                      child: Text(
-                                        '₭${product.price.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          color: LaDolcePosUi.navy,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: priceSize,
-                                        ),
+                                    Text(
+                                      '₭${product.price.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        color: LaDolcePosUi.navy,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: priceSize,
                                       ),
                                     ),
                                   ],

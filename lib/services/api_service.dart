@@ -315,7 +315,12 @@ class ApiService {
     final base = await getBaseUrl();
 
     try {
-      final url = Uri.parse('$base/pos/tables');
+      final branchId = await getCachedBranchId();
+      final url = Uri.parse('$base/pos/tables').replace(
+        queryParameters: (branchId != null && branchId > 0)
+            ? {'branch_id': '$branchId'}
+            : null,
+      );
       final response = await http.get(url).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);

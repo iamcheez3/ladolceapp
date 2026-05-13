@@ -1356,7 +1356,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _selectedTabIndex =
             2; // History tab (Home=0, Cart=1, History=2, Profile=3)
       });
-      await _loadHistory();
+      // Refresh both history (to show the new order) and profile (to update reward points)
+      await Future.wait([_loadHistory(), _loadProfile()]);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2167,16 +2168,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   bool get _isAppBarRefreshBusy {
-    switch (_selectedTabIndex) {
-      case 0:
-        return _isLoadingCatalog;
-      case 2:
-        return _isLoadingHistory;
-      case 3:
-        return _isLoadingProfile;
-      default:
-        return false;
-    }
+    return _isLoadingCatalog ||
+        _isLoadingProfile ||
+        _isLoadingHistory ||
+        _isLoadingSelfOrderConfig ||
+        _isLoadingBranches;
   }
 
   @override
@@ -2321,26 +2317,18 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   Future<void> _onAppBarRefresh() async {
-    switch (_selectedTabIndex) {
-      case 0:
-        await Future.wait([
-          _loadCatalog(),
-          _loadProfile(),
-          _loadSelfOrderConfig(),
-        ]);
-        break;
-      case 1:
-        await _loadProfile();
-        break;
-      case 2:
-        await _loadHistory();
-        break;
-      case 3:
-        await _loadProfile();
-        break;
-      default:
-        await _loadProfile();
-    }
+    await _refreshEverything();
+  }
+
+  Future<void> _refreshEverything() async {
+    // Refresh all data like during initial login
+    await Future.wait([
+      _loadCatalog(),
+      _loadProfile(),
+      _loadHistory(),
+      _loadSelfOrderConfig(),
+      _loadBranches(),
+    ]);
   }
 
   Widget _buildHomeTab({required bool isWide, required bool isSmall}) {
@@ -3749,7 +3737,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadHistory,
+      onRefresh: _refreshEverything,
       color: _brandNavy,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),

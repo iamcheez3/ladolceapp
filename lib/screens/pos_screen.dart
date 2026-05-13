@@ -16,6 +16,7 @@ import '../screens/split_ticket_screen.dart';
 import '../screens/self_orders_review_screen.dart';
 import '../screens/printer_settings_screen.dart';
 import '../screens/bill_template_settings_screen.dart';
+import '../screens/pos_settings_screen.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../models/topping.dart';
@@ -1407,7 +1408,16 @@ class _PosScreenState extends State<PosScreen> {
                       label: 'Settings',
                       onTap: () {
                         Navigator.pop(context);
-                        _showSettingsSheet(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PosSettingsScreen(
+                              onSyncRequested: _syncAllDataAndRefresh,
+                            ),
+                          ),
+                        ).then((_) {
+                          if (mounted) setState(() {});
+                        });
                       },
                     ),
                   ],
@@ -2061,7 +2071,7 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        initialValue: sourceTicketId,
+                        value: sourceTicketId,
                         isExpanded: true,
                         items: tickets.map((t) {
                           final tableLabel = (t.tableName ?? '').trim().isNotEmpty
@@ -2069,22 +2079,10 @@ class _PosScreenState extends State<PosScreen> {
                               : (t.tableId != null ? 'Table ${t.tableId}' : 'No table');
                           return DropdownMenuItem<int>(
                             value: t.id,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  tableLabel,
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                                Text(
-                                  '${t.name} • ${t.lines.length} items',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              '$tableLabel / ${t.name}',
+                              style: const TextStyle(fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           );
                         }).toList(),
@@ -2142,7 +2140,7 @@ class _PosScreenState extends State<PosScreen> {
                       const SizedBox(height: 10),
                       if (destinationMode == 'ticket')
                         DropdownButtonFormField<int>(
-                          initialValue: destinationTicketId,
+                          value: destinationTicketId,
                           isExpanded: true,
                           items: destinationOptions.map((t) {
                             final tableLabel = (t.tableName ?? '').trim().isNotEmpty
@@ -2150,22 +2148,10 @@ class _PosScreenState extends State<PosScreen> {
                                 : (t.tableId != null ? 'Table ${t.tableId}' : 'No table');
                             return DropdownMenuItem<int>(
                               value: t.id,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    tableLabel,
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
-                                  ),
-                                  Text(
-                                    '${t.name} • ${t.lines.length} items',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                '$tableLabel / ${t.name}',
+                                style: const TextStyle(fontSize: 14),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }).toList(),
@@ -3542,83 +3528,5 @@ class _PosScreenState extends State<PosScreen> {
         .catchError((_) {});
     // No finally needed — _isOpeningTicket is no longer set because we never
     // show the spinner; the dialog is already dismissed above.
-  }
-
-  void _showSettingsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'App Settings',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.print, color: _brandNavy),
-              title: const Text('Printer Configuration'),
-              subtitle: Text(
-                printerService.profiles.isNotEmpty
-                    ? '${printerService.profiles.length} printer(s) configured'
-                    : (printerService.isConfigured
-                          ? 'Connected: ${printerService.printerIp}'
-                          : 'Not configured'),
-                style: TextStyle(
-                  color: printerService.isConfigured
-                      ? Colors.green
-                      : Colors.grey,
-                ),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PrinterSettingsScreen(),
-                  ),
-                );
-                if (mounted) setState(() {});
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long_rounded, color: _brandNavy),
-              title: const Text('Bill Templates'),
-              subtitle: const Text('Select bill/receipt/refund templates for this branch'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const BillTemplateSettingsScreen(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.sync, color: _brandNavy),
-              title: const Text('Sync All Data'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _syncAllDataAndRefresh();
-              },
-            ),
-            SizedBox(
-              height: 8 + LaDolcePosUi.gestureBarBottomPad(context),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
