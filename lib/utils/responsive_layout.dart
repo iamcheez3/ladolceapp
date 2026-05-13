@@ -74,10 +74,18 @@ class ResponsiveLayout {
   }
 
   static double productGridChildAspectRatio(BuildContext context) {
-    if (isTabletOrLarger(context) && screenSizeOf(context).width >= twoPaneMinWidth) {
+    final w = screenSizeOf(context).width;
+    final isTablet = isTabletOrLarger(context);
+
+    if (isTablet && w >= twoPaneMinWidth) {
       return 0.88;
     }
-    if (isPhoneCompact(context)) return 0.78;
+    
+    // For phones and small tablets in portrait, we need more height (smaller ratio)
+    if (!isTablet) {
+      return 0.78; // Taller cards for phones
+    }
+    
     return 0.86;
   }
 

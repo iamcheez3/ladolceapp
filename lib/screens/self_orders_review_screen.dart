@@ -62,6 +62,48 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
     }
   }
 
+  Future<void> _rejectOrder(Map<String, dynamic> order) async {
+    final orderId = order['id'];
+    if (orderId == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Order?'),
+        content: Text(
+            'Are you sure you want to reject and cancel order ${order['name']}?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reject', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _apiService.rejectSelfOrder(orderId as int);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order rejected and cancelled.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reject failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   void _openProofDialog(Map<String, dynamic> order) {
     final proofUrl = (order['transfer_proof_url'] ?? '').toString();
     final title = 'Proof - ${order['name'] ?? ''}';
@@ -102,28 +144,31 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      InteractiveViewer(
-                        minScale: 1,
-                        maxScale: 8,
-                        child: GestureDetector(
-                          onDoubleTap: () => _openProofFullScreen(
-                            title: title,
-                            imageUrl: absUrl,
-                            headers: headers,
-                          ),
-                          child: Image.network(
-                            absUrl,
-                            headers: headers,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Padding(
-                                padding: EdgeInsets.all(24.0),
-                                child: Center(child: CircularProgressIndicator()),
-                              );
-                            },
-                            errorBuilder: (_, _, _) =>
-                                const Text('Cannot load proof image'),
+                      SizedBox(
+                        height: 450,
+                        child: InteractiveViewer(
+                          minScale: 1,
+                          maxScale: 8,
+                          child: GestureDetector(
+                            onDoubleTap: () => _openProofFullScreen(
+                              title: title,
+                              imageUrl: absUrl,
+                              headers: headers,
+                            ),
+                            child: Image.network(
+                              absUrl,
+                              headers: headers,
+                              fit: BoxFit.contain,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const Padding(
+                                  padding: EdgeInsets.all(24.0),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              },
+                              errorBuilder: (_, _, _) =>
+                                  const Text('Cannot load proof image'),
+                            ),
                           ),
                         ),
                       ),
@@ -241,54 +286,102 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                               children: [
                                 Text(
                                   order['name']?.toString() ?? 'Order',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
                                 ),
                                 const SizedBox(height: 6),
                                 Text('Customer: ${order['customer'] ?? '-'}'),
                                 Text('Phone: ${_orderPhoneLine(order)}'),
                                 Text('Table: ${order['table_name'] ?? '-'}'),
-                                Text('Amount: ₭${(order['amount_total'] ?? 0).toString()}'),
+                                Text(
+                                    'Amount: ₭${(order['amount_total'] ?? 0).toString()}'),
                                 Text('Items: ${lines.length}'),
                                 if (isPayAtStore)
-                                  const Text(
-                                    'Payment: Pay at store (no proof needed)',
-                                    style: TextStyle(
-                                      color: Colors.green,
-                                      fontWeight: FontWeight.w600,
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Payment: Pay at store (no proof needed)',
+                                      style: TextStyle(
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 12),
                                 isPayAtStore
-                                    ? SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton.icon(
-                                          onPressed: () => _confirmOrder(order),
-                                          icon: const Icon(Icons.done_all),
-                                          label: const Text('Quick Confirm (Pay at Store)'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.green,
-                                            foregroundColor: Colors.white,
-                                          ),
-                                        ),
-                                      )
-                                    : Row(
+                                    ? Column(
                                         children: [
-                                          Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () => _openProofDialog(order),
-                                              icon: const Icon(Icons.image_search),
-                                              label: const Text('View Transfer Proof'),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
+                                          SizedBox(
+                                            width: double.infinity,
                                             child: ElevatedButton.icon(
                                               onPressed: () => _confirmOrder(order),
-                                              icon: const Icon(Icons.check_circle),
-                                              label: const Text('Confirm'),
+                                              icon: const Icon(Icons.done_all),
+                                              label: const Text(
+                                                  'Quick Confirm (Pay at Store)'),
                                               style: ElevatedButton.styleFrom(
-                                                backgroundColor: const Color(0xFF1E3A8A),
+                                                backgroundColor: Colors.green,
                                                 foregroundColor: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: OutlinedButton.icon(
+                                              onPressed: () => _rejectOrder(order),
+                                              icon: const Icon(Icons.cancel_outlined,
+                                                  color: Colors.red),
+                                              label: const Text('Reject Order',
+                                                  style: TextStyle(color: Colors.red)),
+                                              style: OutlinedButton.styleFrom(
+                                                side: const BorderSide(
+                                                    color: Colors.red),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Column(
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton.icon(
+                                                  onPressed: () =>
+                                                      _openProofDialog(order),
+                                                  icon: const Icon(Icons.image_search),
+                                                  label: const Text('View Proof'),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: ElevatedButton.icon(
+                                                  onPressed: () =>
+                                                      _confirmOrder(order),
+                                                  icon: const Icon(Icons.check_circle),
+                                                  label: const Text('Confirm'),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        const Color(0xFF1E3A8A),
+                                                    foregroundColor: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: OutlinedButton.icon(
+                                              onPressed: () => _rejectOrder(order),
+                                              icon: const Icon(Icons.cancel_outlined,
+                                                  color: Colors.red),
+                                              label: const Text('Reject Order',
+                                                  style: TextStyle(color: Colors.red)),
+                                              style: OutlinedButton.styleFrom(
+                                                side: const BorderSide(
+                                                    color: Colors.red),
                                               ),
                                             ),
                                           ),
@@ -303,4 +396,3 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
     );
   }
 }
-

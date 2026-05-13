@@ -41,6 +41,8 @@ class CustomerSelfOrderScreen extends StatefulWidget {
 class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   final ApiService _apiService = ApiService();
   final ImagePicker _imagePicker = ImagePicker();
+  final Map<String, String> _productNotes = {};
+  final Map<String, Uint8List> _decodedImageCache = {};
 
   // Brand palette (based on bear logo)
   static const _brandNavy = Color(0xFF0D1565);
@@ -538,14 +540,21 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             .where((e) => e.startsWith('data:image'))
             .toList();
         if (_bannerImageDataUrls.isEmpty) {
-          final legacyBanner = (config['banner_image_data_url'] ?? '')
-              .toString();
+          final legacyBanner = (config['banner_image_data_url'] ?? '').toString();
           if (legacyBanner.startsWith('data:image')) {
             _bannerImageDataUrls = [legacyBanner];
           }
         }
-        if (_adImageDataUrls.isEmpty &&
-            (config['ad_enabled'] ?? true) == true) {
+
+        // Pre-decode images to avoid lag during first display
+        for (final url in _bannerImageDataUrls) {
+          _bytesFromDataUrl(url);
+        }
+        for (final url in _adImageDataUrls) {
+          _bytesFromDataUrl(url);
+        }
+
+        if (_adImageDataUrls.isEmpty && (config['ad_enabled'] ?? true) == true) {
           final legacyAd = (config['ad_image_data_url'] ?? '').toString();
           if (legacyAd.startsWith('data:image')) {
             _adImageDataUrls = [legacyAd];
@@ -584,10 +593,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   Uint8List? _bytesFromDataUrl(String dataUrl) {
     if (dataUrl.isEmpty || !dataUrl.startsWith('data:image')) return null;
+    if (_decodedImageCache.containsKey(dataUrl)) return _decodedImageCache[dataUrl];
+    
     final comma = dataUrl.indexOf(',');
     if (comma < 0) return null;
     try {
-      return base64Decode(dataUrl.substring(comma + 1));
+      final bytes = base64Decode(dataUrl.substring(comma + 1));
+      _decodedImageCache[dataUrl] = bytes;
+      return bytes;
     } catch (_) {
       return null;
     }
@@ -626,9 +639,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               final adHeight = (screenH * heightFrac).clamp(140.0, 460.0);
               return SizedBox(
                 width: dialogWidth,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     SizedBox(
                       height: adHeight,
                       child: ClipRRect(
@@ -696,7 +710,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     ),
                   ],
                 ),
-              );
+              ),
+            );
             },
           ),
         );

@@ -361,8 +361,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Container(
-                            width: 108,
-                            height: 108,
+                            width: MediaQuery.of(context).size.width < 360 ? 80 : 108,
+                            height: MediaQuery.of(context).size.width < 360 ? 80 : 108,
                             margin: const EdgeInsets.only(bottom: 14),
                             decoration: BoxDecoration(
                               color: _brandNavy,
@@ -373,8 +373,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(18),
                               child: Image.asset(
                                 'assets/images/ladolce_bear_logo.png',
-                                width: 88,
-                                height: 88,
+                                width: MediaQuery.of(context).size.width < 360 ? 64 : 88,
+                                height: MediaQuery.of(context).size.width < 360 ? 64 : 88,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) {
                                   return const Icon(

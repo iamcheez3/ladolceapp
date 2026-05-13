@@ -2143,6 +2143,25 @@ class ApiService {
     }
   }
 
+  Future<void> rejectSelfOrder(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/order/$orderId/reject');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({}),
+      ).timeout(const Duration(seconds: 7));
+      final jsonResp = jsonDecode(response.body);
+      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+        return;
+      }
+      throw Exception(jsonResp['message'] ?? 'Failed to reject order');
+    } catch (e) {
+      throw Exception('Cannot reject order: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> uploadTransferProof({
     required int orderId,
     required String imagePath,
