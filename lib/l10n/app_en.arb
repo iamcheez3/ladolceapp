@@ -1,0 +1,19 @@
+{
+  "welcomeBack": "Welcome back",
+  "emailOrLogin": "Email / Login",
+  "password": "Password",
+  "loginButton": "LOGIN",
+  "createAccount": "Create a new account",
+  "choosePaymentMethod": "Choose Payment Method",
+  "selectBranch": "Select Branch",
+  "noBranchesFound": "No branches found. Please ask staff.",
+  "selectBank": "Select Bank",
+  "scanQrCode": "Scan QR Code",
+  "qrNotConfigured": "QR not configured in Odoo Settings",
+  "downloadQr": "Download QR",
+  "uploadTransferProof": "Upload Transfer Proof",
+  "proofSelected": "Proof Selected",
+  "transferProofSelectedMsg": "Transfer proof selected. It will be uploaded when you confirm order.",
+  "confirmOrder": "Confirm Order",
+  "runOut": "Run out"
+}

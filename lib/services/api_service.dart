@@ -11,6 +11,7 @@ import '../models/product.dart';
 import '../models/table.dart';
 import '../models/payment_method.dart';
 import '../models/ticket.dart';
+import '../models/pos_tax_config.dart';
 
 class ApiService {
   /// Key used to store the dev IP override in SharedPreferences.
@@ -271,6 +272,27 @@ class ApiService {
     }
   }
 
+  Future<Map<String, List<int>>> fetchProductHighlights() async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/products/highlights');
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          final data = jsonResponse['data'];
+          return {
+            'recommended': List<int>.from(data['recommended_ids'] ?? []),
+            'popular': List<int>.from(data['popular_ids'] ?? []),
+          };
+        }
+      }
+    } catch (e) {
+      _d('[API ERROR] Failed to fetch product highlights: $e');
+    }
+    return {'recommended': [], 'popular': []};
+  }
+
   /// Returns cached tables instantly (null if no cache)
   Future<List<PosTable>?> getCachedTables() async {
     final prefs = await SharedPreferences.getInstance();
@@ -293,7 +315,12 @@ class ApiService {
     final base = await getBaseUrl();
 
     try {
-      final url = Uri.parse('$base/pos/tables');
+      final branchId = await getCachedBranchId();
+      final url = Uri.parse('$base/pos/tables').replace(
+        queryParameters: (branchId != null && branchId > 0)
+            ? {'branch_id': '$branchId'}
+            : null,
+      );
       final response = await http.get(url).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
@@ -414,8 +441,14 @@ class ApiService {
     final base = await getBaseUrl();
     final prevOpenTickets = prefs.getString('cached_open_tickets');
     try {
-      final url = Uri.parse('$base/pos/open_tickets');
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      // Filter by cashier's branch so each POS only sees its own tickets.
+      final branchId = await getCachedBranchId();
+      final uri = Uri.parse('$base/pos/open_tickets').replace(
+        queryParameters: (branchId != null && branchId > 0)
+            ? {'branch_id': '$branchId'}
+            : null,
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
@@ -510,6 +543,172 @@ class ApiService {
     }
   }
 
+  /// Fetch the selected/default bill template for printing.
+  /// Backend: GET `/api/pos/bill_template?type=bill|receipt|refund`
+  Future<Map<String, dynamic>> fetchBillTemplate({String type = 'receipt', bool forceRefresh = false}) async {
+    // Try cache first (fast UI), then network.
+    if (!forceRefresh) {
+      final cached = await getCachedBillTemplate(type: type);
+      if (cached != null && cached.isNotEmpty) return cached;
+    }
+    final base = await getBaseUrl();
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+    final url = Uri.parse('$base/pos/bill_template').replace(
+      queryParameters: {
+        'type': type,
+        if (userId > 0) 'user_id': '$userId',
+        if (sid.isNotEmpty) 'session_id': sid,
+      },
+    );
+    final response = await http
+        .get(url, headers: await _authHeaders(json: true))
+        .timeout(const Duration(seconds: 5));
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load bill template (${response.statusCode})');
+    }
+    final jsonResponse = jsonDecode(response.body);
+    if (jsonResponse is Map && jsonResponse['status'] == 'success') {
+      final data = jsonResponse['data'];
+      if (data is Map) {
+        final out = Map<String, dynamic>.from(data);
+        await _setCachedBillTemplate(type: type, data: out);
+        return out;
+      }
+    }
+    throw Exception('Failed to load bill template');
+  }
+
+  /// List templates for selection in POS.
+  /// Backend: GET `/api/pos/bill_templates?type=bill|receipt|refund`
+  Future<List<Map<String, dynamic>>> fetchBillTemplates({String? type, bool forceRefresh = false}) async {
+    if (!forceRefresh) {
+      final cached = await getCachedBillTemplates(type: type ?? '');
+      if (cached != null && cached.isNotEmpty) return cached;
+    }
+    final base = await getBaseUrl();
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+    final qp = <String, String>{
+      if (type != null && type.trim().isNotEmpty) 'type': type.trim(),
+      if (userId > 0) 'user_id': '$userId',
+      if (sid.isNotEmpty) 'session_id': sid,
+    };
+    final url = Uri.parse('$base/pos/bill_templates').replace(
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+    final response = await http
+        .get(url, headers: await _authHeaders(json: true))
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load bill templates (${response.statusCode})');
+    }
+    final jsonResponse = jsonDecode(response.body);
+    if (jsonResponse is Map && jsonResponse['status'] == 'success') {
+      final raw = jsonResponse['data'];
+      if (raw is List) {
+        final out = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        await _setCachedBillTemplates(type: type ?? '', data: out);
+        return out;
+      }
+    }
+    throw Exception('Failed to load bill templates');
+  }
+
+  // ---------------------------------------------------------------------------
+  // BILL TEMPLATE CACHE (UI speed)
+  // ---------------------------------------------------------------------------
+
+  String _billTemplatesKey(String type) => 'cached_bill_templates_${type.trim().toLowerCase()}';
+  String _billTemplateKey(String type) => 'cached_bill_template_${type.trim().toLowerCase()}';
+
+  Future<List<Map<String, dynamic>>?> getCachedBillTemplates({required String type}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_billTemplatesKey(type));
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getCachedBillTemplate({required String type}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_billTemplateKey(type));
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _setCachedBillTemplates({required String type, required List<Map<String, dynamic>> data}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_billTemplatesKey(type), jsonEncode(data));
+  }
+
+  Future<void> _setCachedBillTemplate({required String type, required Map<String, dynamic> data}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_billTemplateKey(type), jsonEncode(data));
+  }
+
+  /// Admin-only: set templates for this admin's branch.
+  /// Backend: POST `/api/pos/branch/templates`
+  Future<void> setBranchBillTemplates({
+    int? billTemplateId,
+    int? receiptTemplateId,
+    int? refundTemplateId,
+    int? kitchenTemplateId,
+  }) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/branch/templates');
+
+    // Include user_id + session_id in the body so the backend can authenticate
+    // even when cookies don't reach the server (e.g. ngrok / proxy setups).
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+            ? user['user_id'] as int
+            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+
+    final payload = <String, dynamic>{
+      if (billTemplateId != null) 'bill_template_bill_id': billTemplateId,
+      if (receiptTemplateId != null) 'bill_template_receipt_id': receiptTemplateId,
+      if (refundTemplateId != null) 'bill_template_refund_id': refundTemplateId,
+      if (kitchenTemplateId != null) 'bill_template_kitchen_id': kitchenTemplateId,
+      if (userId > 0) 'user_id': userId,
+      if (sid.isNotEmpty) 'session_id': sid,
+    };
+    final response = await http
+        .post(
+          url,
+          headers: await _authHeaders(json: true),
+          body: jsonEncode(payload),
+        )
+        .timeout(const Duration(seconds: 8));
+    final jsonResponse = jsonDecode(response.body);
+    if (response.statusCode == 200 && jsonResponse is Map && jsonResponse['status'] == 'success') {
+      return;
+    }
+    throw Exception(jsonResponse is Map ? (jsonResponse['message'] ?? 'Failed') : 'Failed');
+  }
+
   // ---------------------------------------------------------------------------
   // ADMIN REPORTS
   // ---------------------------------------------------------------------------
@@ -553,7 +752,7 @@ class ApiService {
     if (decoded is! Map || decoded['status']?.toString() != 'success') {
       throw Exception(decoded is Map ? (decoded['message'] ?? 'Failed') : 'Failed');
     }
-    return Map<String, dynamic>.from(decoded as Map);
+    return Map<String, dynamic>.from(decoded);
   }
 
   Future<Map<String, dynamic>> registerUser({
@@ -698,6 +897,27 @@ class ApiService {
     return null;
   }
 
+  /// Branch tax flags from login payload (`tax_active`, `tax_percent`, `tax_inclusive`).
+  Future<PosTaxConfig> getPosTaxConfig() async {
+    final u = await getCachedUser();
+    return PosTaxConfig.fromLoginJson(u);
+  }
+
+  /// Cashier id + device UTC time for Odoo security audit (void ticket / refund).
+  Future<Map<String, dynamic>> _cashierAuditFields() async {
+    final user = await getCachedUser();
+    int? uid;
+    if (user != null && user['user_id'] != null) {
+      final v = user['user_id'];
+      uid = v is int ? v : int.tryParse(v.toString());
+      if (uid != null && uid <= 0) uid = null;
+    }
+    return {
+      if (uid != null) 'user_id': uid,
+      'client_timestamp': DateTime.now().toUtc().toIso8601String(),
+    };
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cached_user_session');
@@ -776,8 +996,12 @@ class ApiService {
     bool isPaid = false,
     required List<Map<String, dynamic>> lines,
     int? branchId,
+    String? customerName,
+    String? customerPhone,
   }) async {
     final base = await getBaseUrl();
+    final cn = customerName?.trim() ?? '';
+    final cp = customerPhone?.trim() ?? '';
     final payload = {
       'user_id': userId,
       'partner_id': partnerId,
@@ -787,6 +1011,8 @@ class ApiService {
       'is_paid': isPaid,
       'lines': lines,
       if (branchId != null && branchId > 0) 'branch_id': branchId,
+      if (cn.isNotEmpty) 'customer_name': cn,
+      if (cp.isNotEmpty) 'customer_phone': cp,
     };
     
     try {
@@ -807,7 +1033,10 @@ class ApiService {
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-        final data = jsonResponse['data'];
+        final raw = jsonResponse['data'];
+        final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+        // Some endpoints return order_id but not id; normalize for Receipt History.
+        data['id'] ??= data['order_id'];
         await _updateCacheList('cached_receipt_history', data);
         return data;
       } else {
@@ -844,14 +1073,20 @@ class ApiService {
     int? tableId,
     int? customerId,
     String? name,
+    int? branchId,
     required List<Map<String, dynamic>> lines,
   }) async {
     final base = await getBaseUrl();
+    // Use explicitly provided branchId, or fall back to cashier's cached branch.
+    final effectiveBranchId = (branchId != null && branchId > 0)
+        ? branchId
+        : await getCachedBranchId();
     final payload = {
       'user_id': userId,
       if (tableId != null && tableId > 0) 'table_id': tableId,
       if (customerId != null && customerId > 0) 'partner_id': customerId,
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
       'lines': lines,
     };
 
@@ -874,6 +1109,7 @@ class ApiService {
             'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
             'amount_total': total,
             'state': 'draft',
+            if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
             // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
             'opened_at': DateTime.now().toUtc().toIso8601String(),
             'lines': lines.map((l) => {
@@ -908,6 +1144,7 @@ class ApiService {
          'partner_id': customerId, // keeping for record
          'amount_total': total,
          'state': 'draft',
+         if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
          // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
          'opened_at': DateTime.now().toUtc().toIso8601String(),
          'lines': lines.map((l) => {
@@ -1115,7 +1352,10 @@ class ApiService {
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-        final data = jsonResponse['data'];
+        final raw = jsonResponse['data'];
+        final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+        // Some endpoints return order_id but not id; normalize for Receipt History.
+        data['id'] ??= data['order_id'] ?? orderId;
         await _removeFromCacheList('cached_open_tickets', orderId);
         await _updateCacheList('cached_receipt_history', data);
         return data;
@@ -1181,8 +1421,10 @@ class ApiService {
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/delete');
+    final audit = await _cashierAuditFields();
     final payload = {
       'admin_pin': adminPin,
+      ...audit,
     };
 
     _d('==============================');
@@ -1191,7 +1433,7 @@ class ApiService {
 
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(json: true),
       body: jsonEncode(payload),
     ).timeout(const Duration(seconds: 5));
 
@@ -1213,11 +1455,12 @@ class ApiService {
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/refund');
-    final payload = {'admin_pin': adminPin};
+    final audit = await _cashierAuditFields();
+    final payload = {'admin_pin': adminPin, ...audit};
 
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(json: true),
       body: jsonEncode(payload),
     ).timeout(const Duration(seconds: 8));
 
@@ -1678,12 +1921,14 @@ class ApiService {
     required double listPrice,
     int? categoryId,
     List<int>? toppingIds,
+    bool blockSelfOrder = false,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/products');
     final bodyData = <String, dynamic>{
       'name': name,
       'list_price': listPrice,
+      'block_self_order': blockSelfOrder,
     };
     if (id != null) bodyData['id'] = id;
     if (categoryId != null) bodyData['categ_id'] = categoryId;
@@ -1860,7 +2105,12 @@ class ApiService {
   Future<List<Map<String, dynamic>>> fetchPendingSelfOrders() async {
     final base = await getBaseUrl();
     try {
-      final url = Uri.parse('$base/pos/self_orders/pending');
+      final branchId = await getCachedBranchId();
+      final url = Uri.parse('$base/pos/self_orders/pending').replace(
+        queryParameters: (branchId != null && branchId > 0)
+            ? {'branch_id': '$branchId'}
+            : null,
+      );
       final response = await http.get(url).timeout(const Duration(seconds: 7));
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
@@ -1890,6 +2140,25 @@ class ApiService {
       throw Exception(jsonResp['message'] ?? 'Failed to confirm transfer');
     } catch (e) {
       throw Exception('Cannot confirm transfer: $e');
+    }
+  }
+
+  Future<void> rejectSelfOrder(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/order/$orderId/reject');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({}),
+      ).timeout(const Duration(seconds: 7));
+      final jsonResp = jsonDecode(response.body);
+      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+        return;
+      }
+      throw Exception(jsonResp['message'] ?? 'Failed to reject order');
+    } catch (e) {
+      throw Exception('Cannot reject order: $e');
     }
   }
 

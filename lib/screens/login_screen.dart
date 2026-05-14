@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
+import '../main.dart';
 import 'register_screen.dart';
 import 'loading_screen.dart';
 import '../services/api_service.dart';
 import '../services/push_notifications_service.dart';
+import '../utils/responsive_layout.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV TOOLS FLAG
@@ -97,10 +100,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               const Text(
                 'Override the API base URL for this device.\n'
                 'Leave empty to use the default from .env',
@@ -168,6 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ],
+          ),
           ),
           actions: [
             // Clear override
@@ -327,9 +332,16 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+          child: Stack(
+            children: [
+              Center(
+                child: SingleChildScrollView(
+              padding: ResponsiveLayout.scrollablePaddingWithKeyboard(
+                context,
+                top: 20,
+                horizontal: ResponsiveLayout.pageHorizontalPadding(context),
+                bottomExtra: 20,
+              ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Container(
@@ -353,8 +365,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Container(
-                            width: 108,
-                            height: 108,
+                            width: MediaQuery.of(context).size.width < 360 ? 80 : 108,
+                            height: MediaQuery.of(context).size.width < 360 ? 80 : 108,
                             margin: const EdgeInsets.only(bottom: 14),
                             decoration: BoxDecoration(
                               color: _brandNavy,
@@ -365,8 +377,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(18),
                               child: Image.asset(
                                 'assets/images/ladolce_bear_logo.png',
-                                width: 88,
-                                height: 88,
+                                width: MediaQuery.of(context).size.width < 360 ? 64 : 88,
+                                height: MediaQuery.of(context).size.width < 360 ? 64 : 88,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) {
                                   return const Icon(
@@ -427,10 +439,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             )
                           else
-                            const Text(
-                              'Welcome back',
+                            Text(
+                              AppLocalizations.of(context)?.welcomeBack ?? 'Welcome back',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Color(0xFF64748B),
                                 fontWeight: FontWeight.w600,
                               ),
@@ -439,7 +451,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _loginController,
                             decoration: InputDecoration(
-                              labelText: 'Email / Login',
+                              labelText: AppLocalizations.of(context)?.emailOrLogin ?? 'Email / Login',
                               filled: true,
                               fillColor: Colors.white,
                               prefixIcon: const Icon(
@@ -474,7 +486,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
-                              labelText: 'Password',
+                              labelText: AppLocalizations.of(context)?.password ?? 'Password',
                               filled: true,
                               fillColor: Colors.white,
                               prefixIcon: const Icon(
@@ -538,9 +550,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                         strokeWidth: 2.2,
                                       ),
                                     )
-                                  : const Text(
-                                      'LOGIN',
-                                      style: TextStyle(
+                                  : Text(
+                                      AppLocalizations.of(context)?.loginButton ?? 'LOGIN',
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w900,
                                       ),
@@ -556,9 +568,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               );
                             },
-                            child: const Text(
-                              'Create a new account',
-                              style: TextStyle(
+                            child: Text(
+                              AppLocalizations.of(context)?.createAccount ?? 'Create a new account',
+                              style: const TextStyle(
                                 color: _brandNavy,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -571,6 +583,31 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+          ),
+              Positioned(
+                top: 10,
+                right: 16,
+                child: Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => PosApp.setLocale(context, const Locale('en', '')),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Localizations.localeOf(context).languageCode == 'en' ? Colors.white : Colors.white60,
+                      ),
+                      child: const Text('EN'),
+                    ),
+                    const Text('|', style: TextStyle(color: Colors.white54)),
+                    TextButton(
+                      onPressed: () => PosApp.setLocale(context, const Locale('lo', '')),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Localizations.localeOf(context).languageCode == 'lo' ? Colors.white : Colors.white60,
+                      ),
+                      child: const Text('ລາວ'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

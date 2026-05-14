@@ -112,7 +112,7 @@ class PinStyleBackground extends StatelessWidget {
                   ),
                   child: Image.asset(
                     'assets/images/ladolce_bear_logo.png',
-                    width: watermarkLogoWidth,
+                    width: MediaQuery.of(context).size.width * 0.8,
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),

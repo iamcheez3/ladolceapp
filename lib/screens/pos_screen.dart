@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../models/table.dart';
@@ -14,12 +15,17 @@ import '../screens/login_screen.dart';
 import '../screens/split_ticket_screen.dart';
 import '../screens/self_orders_review_screen.dart';
 import '../screens/printer_settings_screen.dart';
+import '../screens/bill_template_settings_screen.dart';
+import '../screens/pos_settings_screen.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../models/topping.dart';
 import '../models/combo.dart';
 import '../theme/ladolce_pos_ui.dart';
 import 'package:intl/intl.dart';
+import '../models/pos_tax_config.dart';
+import '../utils/pos_tax.dart';
+import '../utils/responsive_layout.dart';
 
 class PosScreen extends StatefulWidget {
   final String cashierName;
@@ -47,6 +53,44 @@ class _PosScreenState extends State<PosScreen> {
   String? _errorMessage;
   String? _cachedPosName;
   String? _cachedBranchName;
+  PosTaxConfig _taxConfig = PosTaxConfig.disabled;
+  int _pendingSelfOrdersCount = 0;
+  final Set<int> _pendingSelfOrderKnownIds = {};
+  Timer? _pendingSelfOrdersTimer;
+  bool _pendingSelfOrdersFetching = false;
+
+  static int? _parseSelfOrderId(Map<String, dynamic> order) {
+    final raw = order['id'];
+    if (raw is int) return raw > 0 ? raw : null;
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  /// Pending list uses `customer`; newer APIs may send `customer_name` / `customer_phone`.
+  static String _selfOrderNamePhoneSummary(Map<String, dynamic> order) {
+    final name = (order['customer'] ??
+            order['customer_name'] ??
+            order['partner_name'] ??
+            '')
+        .toString()
+        .trim();
+    final phone = (order['customer_phone'] ??
+            order['phone'] ??
+            order['mobile'] ??
+            order['partner_phone'] ??
+            '')
+        .toString()
+        .trim();
+    if (name.isEmpty && phone.isEmpty) return '';
+    if (name.isNotEmpty && phone.isNotEmpty) return '$name · $phone';
+    if (name.isNotEmpty) return name;
+    return phone;
+  }
+
+  static String _newSelfOrderSnackText(Map<String, dynamic> order) {
+    final summary = _selfOrderNamePhoneSummary(order);
+    if (summary.isEmpty) return 'New self order waiting review';
+    return 'New self order: $summary';
+  }
 
   // ── Printer helper ────────────────────────────────────────────────────────
   List<CartItem> _filterItemsForPrinter(
@@ -86,6 +130,12 @@ class _PosScreenState extends State<PosScreen> {
     required bool respectCategoryFilters,
   }) async {
     int printedCount = 0;
+    Map<String, dynamic>? tpl;
+    try {
+      tpl = await _apiService.fetchBillTemplate(type: 'kitchen');
+    } catch (_) {}
+    final headerText = (tpl?['header_text'] ?? '').toString();
+    final footerText = (tpl?['footer_text'] ?? '').toString();
     for (final p in _resolveOrderPrinters()) {
       final toPrint = respectCategoryFilters
           ? _filterItemsForPrinter(items, p)
@@ -95,6 +145,8 @@ class _PosScreenState extends State<PosScreen> {
         profile: p,
         items: toPrint,
         cashierName: widget.cashierName,
+        headerText: headerText,
+        footerText: footerText,
       );
       if (ok) printedCount++;
     }
@@ -121,6 +173,7 @@ class _PosScreenState extends State<PosScreen> {
     required String label,
     required VoidCallback onTap,
     bool isActive = false,
+    Widget? trailing,
   }) {
     return InkWell(
       onTap: onTap,
@@ -144,10 +197,82 @@ class _PosScreenState extends State<PosScreen> {
                 color: isActive ? _brandNavy : Colors.black87,
               ),
             ),
+            if (trailing != null) ...[
+              const Spacer(),
+              trailing,
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _refreshPendingSelfOrders({bool notifyOnIncrease = true}) async {
+    if (_pendingSelfOrdersFetching) return;
+    _pendingSelfOrdersFetching = true;
+    try {
+      final data = await _apiService.fetchPendingSelfOrders();
+      if (!mounted) return;
+      final nextCount = data.length;
+      final prevCount = _pendingSelfOrdersCount;
+      final currentIds = <int>{
+        for (final o in data)
+          if (_parseSelfOrderId(o) != null) _parseSelfOrderId(o)!,
+      };
+      final newIds = currentIds.difference(_pendingSelfOrderKnownIds);
+
+      setState(() {
+        _pendingSelfOrdersCount = nextCount;
+        _pendingSelfOrderKnownIds
+          ..clear()
+          ..addAll(currentIds);
+      });
+
+      if (!notifyOnIncrease) return;
+
+      if (newIds.isNotEmpty) {
+        final newcomers =
+            data.where((o) => newIds.contains(_parseSelfOrderId(o))).toList();
+        if (newcomers.length == 1) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_newSelfOrderSnackText(newcomers.first)),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          final parts = newcomers
+              .map(_selfOrderNamePhoneSummary)
+              .where((s) => s.isNotEmpty)
+              .toList();
+          final detail = parts.isEmpty
+              ? 'waiting review'
+              : parts.join('; ');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${newcomers.length} new self orders: $detail',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        }
+      } else if (nextCount > prevCount) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New self order waiting review ($nextCount pending)'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (_) {
+      // best-effort: no blocking UI
+    } finally {
+      _pendingSelfOrdersFetching = false;
+    }
   }
 
   // Active ticket tracking: when a ticket is resumed, we know its backend order ID
@@ -165,23 +290,37 @@ class _PosScreenState extends State<PosScreen> {
     printerService.initialize();
     _loadPosProfileLabels();
     _fetchOdooProducts();
+
+    // Self-order alert/badge: poll backend so POS is alerted even without FCM.
+    _refreshPendingSelfOrders(notifyOnIncrease: false);
+    _pendingSelfOrdersTimer =
+        Timer.periodic(const Duration(seconds: 12), (_) => _refreshPendingSelfOrders());
   }
 
   Future<void> _loadPosProfileLabels() async {
     try {
       final posName = await _apiService.getCachedPosName();
       final branchName = await _apiService.getCachedBranchName();
+      final tax = await _apiService.getPosTaxConfig();
       if (!mounted) return;
       setState(() {
         _cachedPosName = posName;
         _cachedBranchName = branchName;
+        _taxConfig = tax;
       });
     } catch (_) {}
+  }
+
+  PosTaxBreakdown _cartTaxBreakdown() {
+    final linesSum =
+        _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    return computePosTaxBreakdown(linesSum, _taxConfig);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _pendingSelfOrdersTimer?.cancel();
     super.dispose();
   }
 
@@ -695,9 +834,11 @@ class _PosScreenState extends State<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final showInlineCart = ResponsiveLayout.showsPosCartRail(context);
+    final appBarTrailingWidth = MediaQuery.sizeOf(context).width < 360 ? 12.0 : 16.0;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: _brandSurface,
       appBar: AppBar(
         backgroundColor: _brandNavy,
@@ -725,16 +866,19 @@ class _PosScreenState extends State<PosScreen> {
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.receipt_outlined, color: Colors.white),
-                const SizedBox(width: 8),
-                const Text(
-                  'Open Tickets',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.receipt_outlined, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    MediaQuery.sizeOf(context).width < 380 ? 'Tickets' : 'Open Tickets',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -787,19 +931,30 @@ class _PosScreenState extends State<PosScreen> {
                     break;
                   }
                   {
-                    final subtotal = _cartItems.fold(
-                      0.0,
-                      (sum, item) => sum + item.totalPrice,
-                    );
-                    final tax = subtotal * 0.10;
-                    final total = subtotal + tax;
+                    final bd = _cartTaxBreakdown();
+                    Map<String, dynamic>? tpl;
+                    try {
+                      tpl = await _apiService.fetchBillTemplate(type: 'bill');
+                    } catch (_) {}
+                    final headerText = (tpl?['header_text'] ?? '').toString();
+                    final footerText = (tpl?['footer_text'] ?? '').toString();
+                    final subLabel = bd.taxActive && _taxConfig.inclusive
+                        ? 'Amount (excl. VAT):'
+                        : 'Subtotal:';
+                    final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
+                        ? 'VAT (${_taxConfig.percentLabel}%):'
+                        : null;
                     final ok = await printerService.printBill(
                       cartItems: _cartItems,
-                      subtotal: subtotal,
-                      tax: tax,
-                      total: total,
+                      subtotal: bd.baseAmount,
+                      tax: bd.taxAmount,
+                      total: bd.totalDue,
                       cashierName: widget.cashierName,
                       ticketName: _activeTicketName,
+                      subtotalRowLabel: subLabel,
+                      taxRowLabel: taxLab,
+                      headerText: headerText,
+                      footerText: footerText,
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1098,7 +1253,7 @@ class _PosScreenState extends State<PosScreen> {
               ];
             },
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: appBarTrailingWidth),
         ],
       ),
       drawer: Drawer(
@@ -1110,7 +1265,12 @@ class _PosScreenState extends State<PosScreen> {
               // ── Header ──────────────────────────────────────────
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  MediaQuery.paddingOf(context).top + 40,
+                  20,
+                  24,
+                ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -1199,6 +1359,26 @@ class _PosScreenState extends State<PosScreen> {
                     _drawerItem(
                       icon: Icons.fact_check_outlined,
                       label: 'Self Orders Review',
+                      trailing: _pendingSelfOrdersCount > 0
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade600,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                '$_pendingSelfOrdersCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            )
+                          : null,
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
@@ -1228,7 +1408,16 @@ class _PosScreenState extends State<PosScreen> {
                       label: 'Settings',
                       onTap: () {
                         Navigator.pop(context);
-                        _showSettingsSheet(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PosSettingsScreen(
+                              onSyncRequested: _syncAllDataAndRefresh,
+                            ),
+                          ),
+                        ).then((_) {
+                          if (mounted) setState(() {});
+                        });
                       },
                     ),
                   ],
@@ -1522,8 +1711,8 @@ class _PosScreenState extends State<PosScreen> {
             ),
 
             // Cart Section (Sidebar)
-            if (isDesktop) const VerticalDivider(width: 1),
-            if (isDesktop)
+            if (showInlineCart) const VerticalDivider(width: 1),
+            if (showInlineCart)
               Expanded(
                 flex: 3,
                 child: CartSidebar(
@@ -1561,13 +1750,14 @@ class _PosScreenState extends State<PosScreen> {
                   onAddCustomer: () => _showCustomerSelection(context),
                   onClearCustomer: () =>
                       setState(() => _selectedCustomer = null),
+                  taxConfig: _taxConfig,
                 ),
               ),
           ],
         ),
       ),
       // Mobile Cart floating button or bottom sheet could go here if not desktop
-      bottomNavigationBar: !isDesktop && _cartItems.isNotEmpty
+      bottomNavigationBar: !showInlineCart && _cartItems.isNotEmpty
           ? _buildMobileCartBar(context)
           : null,
     );
@@ -1575,7 +1765,7 @@ class _PosScreenState extends State<PosScreen> {
 
   Widget _buildMobileCartBar(BuildContext context) {
     final tItems = _cartItems.fold(0, (sum, item) => sum + item.quantity);
-    final total = _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    final payTotal = _cartTaxBreakdown().totalDue;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -1589,59 +1779,66 @@ class _PosScreenState extends State<PosScreen> {
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
+              useSafeArea: true,
               builder: (ctx) => StatefulBuilder(
-                builder: (innerCtx, setSheetState) => FractionallySizedBox(
-                  heightFactor: 0.8,
-                  child: CartSidebar(
-                    cartItems: _cartItems,
-                    onUpdateQuantity: (item, newQty) {
-                      _updateQuantity(item, newQty);
-                      setSheetState(() {});
-                      if (_cartItems.isEmpty) Navigator.pop(ctx);
-                    },
-                    onClearCart: () {
-                      _clearCart();
-                      Navigator.pop(ctx);
-                    },
-                    onViewTickets: () async {
-                      Navigator.pop(ctx);
-                      final result = await Navigator.push<ResumedTicket>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              TicketsScreen(cachedProducts: _products),
-                        ),
-                      );
-                      if (result != null) {
-                        setState(() {
-                          _cartItems = result.cartItems;
-                          _activeTicketId = result.orderId;
-                          _activeTicketName = result.orderName;
-                          _activeTicketTableId = result.tableId;
-                          _activeTicketPaymentType = result.paymentType;
-                          _activeTicketPaymentMethodId = result.paymentMethodId;
-                          _activeTicketPaymentMethodName =
-                              result.paymentMethodName;
-                        });
-                      }
-                    },
-                    onSaveTicket: () {
-                      Navigator.pop(ctx);
-                      _saveCurrentTicket(context);
-                    },
-                    onCharge: () {
-                      Navigator.pop(ctx);
-                      _showChargeDialog(context);
-                    },
-                    selectedCustomer: _selectedCustomer,
-                    onAddCustomer: () {
-                      Navigator.pop(ctx);
-                      _showCustomerSelection(context);
-                    },
-                    onClearCustomer: () {
-                      setState(() => _selectedCustomer = null);
-                      setSheetState(() {});
-                    },
+                builder: (innerCtx, setSheetState) => Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                  ),
+                  child: FractionallySizedBox(
+                    heightFactor: 0.8,
+                    child: CartSidebar(
+                      cartItems: _cartItems,
+                      onUpdateQuantity: (item, newQty) {
+                        _updateQuantity(item, newQty);
+                        setSheetState(() {});
+                        if (_cartItems.isEmpty) Navigator.pop(ctx);
+                      },
+                      onClearCart: () {
+                        _clearCart();
+                        Navigator.pop(ctx);
+                      },
+                      onViewTickets: () async {
+                        Navigator.pop(ctx);
+                        final result = await Navigator.push<ResumedTicket>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                TicketsScreen(cachedProducts: _products),
+                          ),
+                        );
+                        if (result != null) {
+                          setState(() {
+                            _cartItems = result.cartItems;
+                            _activeTicketId = result.orderId;
+                            _activeTicketName = result.orderName;
+                            _activeTicketTableId = result.tableId;
+                            _activeTicketPaymentType = result.paymentType;
+                            _activeTicketPaymentMethodId = result.paymentMethodId;
+                            _activeTicketPaymentMethodName =
+                                result.paymentMethodName;
+                          });
+                        }
+                      },
+                      onSaveTicket: () {
+                        Navigator.pop(ctx);
+                        _saveCurrentTicket(context);
+                      },
+                      onCharge: () {
+                        Navigator.pop(ctx);
+                        _showChargeDialog(context);
+                      },
+                      selectedCustomer: _selectedCustomer,
+                      onAddCustomer: () {
+                        Navigator.pop(ctx);
+                        _showCustomerSelection(context);
+                      },
+                      onClearCustomer: () {
+                        setState(() => _selectedCustomer = null);
+                        setSheetState(() {});
+                      },
+                      taxConfig: _taxConfig,
+                    ),
                   ),
                 ),
               ),
@@ -1685,7 +1882,7 @@ class _PosScreenState extends State<PosScreen> {
                             ),
                             TextSpan(
                               text:
-                                  'K${NumberFormat('#,##0.00').format(total)}',
+                                  'K${NumberFormat('#,##0.00').format(payTotal)}',
                               style: const TextStyle(fontSize: 18),
                             ),
                           ],
@@ -1695,31 +1892,37 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                 ),
                 // ── Right: button ─────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E3A8A),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'View Ticket &\nCharge',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
-                        ),
-                        textAlign: TextAlign.center,
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
                       ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward, color: Colors.white, size: 16),
-                    ],
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E3A8A),
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View Ticket &\nCharge',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -1868,7 +2071,7 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        initialValue: sourceTicketId,
+                        value: sourceTicketId,
                         isExpanded: true,
                         items: tickets.map((t) {
                           final tableLabel = (t.tableName ?? '').trim().isNotEmpty
@@ -1876,22 +2079,10 @@ class _PosScreenState extends State<PosScreen> {
                               : (t.tableId != null ? 'Table ${t.tableId}' : 'No table');
                           return DropdownMenuItem<int>(
                             value: t.id,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  tableLabel,
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                                Text(
-                                  '${t.name} • ${t.lines.length} items',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              '$tableLabel / ${t.name}',
+                              style: const TextStyle(fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           );
                         }).toList(),
@@ -1949,7 +2140,7 @@ class _PosScreenState extends State<PosScreen> {
                       const SizedBox(height: 10),
                       if (destinationMode == 'ticket')
                         DropdownButtonFormField<int>(
-                          initialValue: destinationTicketId,
+                          value: destinationTicketId,
                           isExpanded: true,
                           items: destinationOptions.map((t) {
                             final tableLabel = (t.tableName ?? '').trim().isNotEmpty
@@ -1957,22 +2148,10 @@ class _PosScreenState extends State<PosScreen> {
                                 : (t.tableId != null ? 'Table ${t.tableId}' : 'No table');
                             return DropdownMenuItem<int>(
                               value: t.id,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    tableLabel,
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
-                                  ),
-                                  Text(
-                                    '${t.name} • ${t.lines.length} items',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                '$tableLabel / ${t.name}',
+                                style: const TextStyle(fontSize: 14),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }).toList(),
@@ -2395,9 +2574,8 @@ class _PosScreenState extends State<PosScreen> {
   void _showChargeDialog(BuildContext context) {
     if (_cartItems.isEmpty) return;
 
-    final subtotal = _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final tax = subtotal * 0.10;
-    final total = subtotal + tax;
+    final bd = _cartTaxBreakdown();
+    final total = bd.totalDue;
     final bool isTransferTicket = _activeTicketPaymentType == 'transfer';
 
     if (isTransferTicket && _activeTicketPaymentMethodId != null) {
@@ -2769,9 +2947,7 @@ class _PosScreenState extends State<PosScreen> {
                           context,
                           setSheetState,
                           true,
-                          subtotal,
-                          tax,
-                          total,
+                          bd,
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF22C55E),
@@ -2805,11 +2981,14 @@ class _PosScreenState extends State<PosScreen> {
     BuildContext context,
     StateSetter setDialogState,
     bool printReceipt,
-    double subtotal,
-    double tax,
-    double total,
+    PosTaxBreakdown bd,
   ) async {
-    setDialogState(() => _isCharging = true);
+    final subtotalRowLabel = bd.taxActive && _taxConfig.inclusive
+        ? 'Amount (excl. VAT):'
+        : 'Subtotal:';
+    final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
+        ? 'VAT (${_taxConfig.percentLabel}%):'
+        : null;
 
     // Only new (unsaved) lines need to be pushed — saved ones are already on server
     final newLines = _cartItems
@@ -2836,161 +3015,143 @@ class _PosScreenState extends State<PosScreen> {
         )
         .toList();
 
-    try {
-      final cashierId = widget.cashierId;
-      if (_activeTicketPaymentType == 'transfer' &&
-          _activeTicketPaymentMethodId != null &&
-          _selectedPaymentMethod?.id != _activeTicketPaymentMethodId) {
-        final fixedMethod = _paymentMethods
-            .where((m) => m.id == _activeTicketPaymentMethodId)
-            .firstOrNull;
-        if (fixedMethod != null) {
-          _selectedPaymentMethod = fixedMethod;
+    final cashierId = widget.cashierId;
+
+    // Lock down payment method if this is a saved transfer ticket.
+    if (_activeTicketPaymentType == 'transfer' &&
+        _activeTicketPaymentMethodId != null &&
+        _selectedPaymentMethod?.id != _activeTicketPaymentMethodId) {
+      final fixedMethod = _paymentMethods
+          .where((m) => m.id == _activeTicketPaymentMethodId)
+          .firstOrNull;
+      if (fixedMethod != null) _selectedPaymentMethod = fixedMethod;
+    }
+
+    // Snapshot everything needed for background work before clearing cart/state.
+    final snapshotCart = List<CartItem>.from(_cartItems);
+    final snapshotPaymentMethod = _selectedPaymentMethod;
+    final snapshotActiveTicketId = _activeTicketId;
+    final snapshotActiveTicketTableId = _activeTicketTableId;
+    final snapshotActiveTicketPaymentType = _activeTicketPaymentType;
+    final isCash =
+        snapshotPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
+
+    // --- Optimistic UI: update local state and close dialog immediately ---
+
+    // Clear open ticket from local cache right away.
+    if (snapshotActiveTicketId != null) {
+      await _apiService.clearLocalOpenTicket(
+        snapshotActiveTicketId,
+        tableId: snapshotActiveTicketTableId,
+      );
+    }
+
+    // Mark table as available in in-memory list.
+    if (snapshotActiveTicketTableId != null) {
+      try {
+        final idx = _tables.indexWhere((t) => t.id == snapshotActiveTicketTableId);
+        if (idx >= 0) {
+          final current = _tables[idx];
+          setState(() {
+            _tables[idx] = PosTable(
+              id: current.id,
+              name: current.name,
+              capacity: current.capacity,
+              status: current.status,
+              hasOpenOrder: false,
+            );
+          });
         }
-      }
+      } catch (_) {}
+    }
 
-      Map<String, dynamic> result;
+    // Close the charge sheet and clear cart NOW — no waiting for server.
+    _clearCart();
+    if (context.mounted) Navigator.pop(context);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order Paid Successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
 
-      if (_activeTicketId != null) {
-        // If this is an OFFLINE mock ticket (negative id), do NOT attempt /pay with the mock id.
-        // Instead, move it into Receipt History as "waiting to sync" by queuing a paid submit.
-        if (_activeTicketId! < 0) {
-          // Remove old queued tasks for this mock ticket (create/update/pay), then queue a single paid submit.
-          await _apiService.purgeOfflineTasksForOrder(_activeTicketId!);
-
-          result = await _apiService.submitOrder(
-            userId: cashierId,
-            partnerId: _selectedCustomer?['id'],
-            tableId: _activeTicketTableId,
-            paymentMethodId: _selectedPaymentMethod?.id,
-            paymentType: _activeTicketPaymentType.isNotEmpty
-                ? _activeTicketPaymentType
-                : 'pay_at_store',
-            isPaid: true,
-            lines: allLines,
-          );
-
-          // Ticket is now considered "charged" locally; clear the OPEN state immediately.
-          await _apiService.clearLocalOpenTicket(
-            _activeTicketId!,
-            tableId: _activeTicketTableId,
-          );
-
-          // Also update in-memory tables list so the selector immediately shows the table as available.
-          if (_activeTicketTableId != null) {
-            final idx = _tables.indexWhere((t) => t.id == _activeTicketTableId);
-            if (idx >= 0) {
-              final current = _tables[idx];
-              _tables[idx] = PosTable(
-                id: current.id,
-                name: current.name,
-                capacity: current.capacity,
-                status: current.status,
-                hasOpenOrder: false,
-              );
-            }
-          }
-        } else {
-        // Only update if there are new lines to add
-        if (newLines.isNotEmpty) {
-          await _apiService.updateOrder(
-            orderId: _activeTicketId!,
-            customerId: _selectedCustomer?['id'],
-            lines: newLines,
-          );
-        }
-
-        // Now mark the same order as paid (no duplicate!)
-        result = await _apiService.payOrder(
-          orderId: _activeTicketId!,
-          paymentMethodId: _selectedPaymentMethod?.id,
-        );
-        }
-      } else {
-        // No active ticket — create a new order and pay immediately
-        result = await _apiService.submitOrder(
-          userId: cashierId,
-          partnerId: _selectedCustomer?['id'],
-          isPaid: true,
-          paymentMethodId: _selectedPaymentMethod?.id,
-          lines: allLines,
-        );
-      }
-
-      final bool isOffline = result['offline'] == true;
-
-      if (context.mounted) {
-        if (isOffline) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                '⚡ Network unavailable. Order saved offline and will auto-sync later!',
-              ),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Order ${result['order_reference']} Paid Successfully!',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-
+    // --- Background: print receipt from local snapshot, then sync to server ---
+    Future(() async {
+      // Print receipt from local cart snapshot (no server data needed).
       if (printReceipt && printerService.isConfigured) {
-        // Receipt/bill printers only — order tickets were already sent on save.
-        // Printers with printReceiptsAndBills=true get the customer receipt.
-        // Order printers (printOrders=true) are intentionally skipped here to
-        // avoid double-printing items the kitchen already received on save.
+        Map<String, dynamic>? tpl;
+        try {
+          tpl = await _apiService.fetchBillTemplate(type: 'receipt');
+        } catch (_) {}
+        final headerText = (tpl?['header_text'] ?? '').toString();
+        final footerText = (tpl?['footer_text'] ?? '').toString();
         final receiptPrinters = printerService.profiles
             .where((p) => p.printReceiptsAndBills)
             .toList();
-        bool anyOk =
-            receiptPrinters.isEmpty; // consider success if no receipt printer
         for (final p in receiptPrinters) {
-          final ok = await printerService.printReceiptToProfile(
+          await printerService.printReceiptToProfile(
             p,
-            cartItems: _cartItems,
-            subtotal: subtotal,
-            tax: tax,
-            total: total,
+            cartItems: snapshotCart,
+            subtotal: bd.baseAmount,
+            tax: bd.taxAmount,
+            total: bd.totalDue,
             cashierName: widget.cashierName,
-          );
-          if (ok) anyOk = true;
-        }
-        if (context.mounted && !anyOk) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Printer error'),
-              backgroundColor: Colors.red,
-            ),
+            subtotalRowLabel: subtotalRowLabel,
+            taxRowLabel: taxLab,
+            headerText: headerText,
+            footerText: footerText,
           );
         }
-        final isCash =
-            _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
-            false;
         if (isCash) {
           await printerService.openCashDrawer();
         }
       }
-      // Auto-open cash drawer on cash payments
 
-      _clearCart();
-      if (context.mounted) Navigator.pop(context);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+      // Sync to server (handles online success + offline queue internally).
+      try {
+        if (snapshotActiveTicketId != null) {
+          if (snapshotActiveTicketId < 0) {
+            // Offline mock ticket — purge old tasks and queue a paid submit.
+            await _apiService.purgeOfflineTasksForOrder(snapshotActiveTicketId);
+            await _apiService.submitOrder(
+              userId: cashierId,
+              partnerId: _selectedCustomer?['id'],
+              tableId: snapshotActiveTicketTableId,
+              paymentMethodId: snapshotPaymentMethod?.id,
+              paymentType: snapshotActiveTicketPaymentType.isNotEmpty
+                  ? snapshotActiveTicketPaymentType
+                  : 'pay_at_store',
+              isPaid: true,
+              lines: allLines,
+            );
+          } else {
+            if (newLines.isNotEmpty) {
+              await _apiService.updateOrder(
+                orderId: snapshotActiveTicketId,
+                customerId: _selectedCustomer?['id'],
+                lines: newLines,
+              );
+            }
+            await _apiService.payOrder(
+              orderId: snapshotActiveTicketId,
+              paymentMethodId: snapshotPaymentMethod?.id,
+            );
+          }
+        } else {
+          await _apiService.submitOrder(
+            userId: cashierId,
+            partnerId: _selectedCustomer?['id'],
+            isPaid: true,
+            paymentMethodId: snapshotPaymentMethod?.id,
+            lines: allLines,
+          );
+        }
+      } catch (_) {
+        // Server calls failed — offline queue already handles retry.
       }
-    } finally {
-      setDialogState(() => _isCharging = false);
-    }
+    });
   }
 
   /// Save current cart to existing ticket (update) or new ticket (table dialog)
@@ -3292,8 +3453,6 @@ class _PosScreenState extends State<PosScreen> {
     StateSetter setDialogState,
     PosTable table,
   ) async {
-    setDialogState(() => _isOpeningTicket = true);
-
     final lines = _cartItems
         .map(
           (item) => {
@@ -3306,51 +3465,16 @@ class _PosScreenState extends State<PosScreen> {
         )
         .toList();
 
+    final cashierId = widget.cashierId;
+
+    // --- Optimistic UI: update state immediately, no waiting ---
+
+    // Mark table as open in local in-memory list right away.
     try {
-      final cashierId = (widget as dynamic).cashierId ?? 1;
-
-      // IMPORTANT: This flow only creates a NEW draft ticket for an EMPTY table.
-      // For combining / moving into other OPEN tickets, use "Move ticket".
-      final result = await _apiService.createOrder(
-        userId: cashierId,
-        tableId: table.id,
-        customerId: _selectedCustomer?['id'],
-        lines: lines,
-      );
-
-      final int? orderId =
-          (result['order_id'] is int) ? result['order_id'] as int : null;
-      final bool isOffline = (orderId != null && orderId < 0) ||
-          (result['order_reference']?.toString().startsWith('OFFLINE') == true);
-
-      if (context.mounted) {
-        if (isOffline) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '⚡ Network unavailable. Ticket for ${table.name} saved offline!',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Ticket opened at ${table.name}!',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-
-      // Update local table state immediately so the selector shows OPEN next time
-      // even before the next network refresh.
-      try {
-        final idx = _tables.indexWhere((t) => t.id == table.id);
-        if (idx >= 0) {
-          final current = _tables[idx];
+      final idx = _tables.indexWhere((t) => t.id == table.id);
+      if (idx >= 0) {
+        final current = _tables[idx];
+        setState(() {
           _tables[idx] = PosTable(
             id: current.id,
             name: current.name,
@@ -3358,98 +3482,51 @@ class _PosScreenState extends State<PosScreen> {
             status: current.status,
             hasOpenOrder: true,
           );
-        }
-      } catch (_) {
-        // no-op
+        });
       }
+    } catch (_) {}
 
-      // Print to kitchen/bar printers and mark items as printed only on success
-      if (printerService.isConfigured) {
-        final printedCount = await _printOrderItemsToKitchen(
-          _cartItems,
-          respectCategoryFilters: true,
-        );
-        if (printedCount > 0) {
-          // Mark all items as printed so charge / subsequent saves don't re-print
-          for (final item in _cartItems) {
+    // Capture items for kitchen print before cart is cleared.
+    final itemsForKitchen = List<CartItem>.from(_cartItems);
+
+    // Close dialog and clear cart instantly — no waiting for server.
+    _clearCart();
+    if (context.mounted) Navigator.pop(context);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ticket opened at ${table.name}!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+
+    // Print to kitchen in background (fire-and-forget).
+    if (printerService.isConfigured) {
+      _printOrderItemsToKitchen(
+        itemsForKitchen,
+        respectCategoryFilters: true,
+      ).then((count) {
+        if (count > 0) {
+          for (final item in itemsForKitchen) {
             item.isPrinted = true;
           }
         }
-      }
-
-      _clearCart();
-      if (context.mounted) Navigator.pop(context);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      setDialogState(() => _isOpeningTicket = false);
+      }).catchError((_) {});
     }
-  }
 
-  void _showSettingsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'App Settings',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.print, color: _brandNavy),
-              title: const Text('Printer Configuration'),
-              subtitle: Text(
-                printerService.profiles.isNotEmpty
-                    ? '${printerService.profiles.length} printer(s) configured'
-                    : (printerService.isConfigured
-                          ? 'Connected: ${printerService.printerIp}'
-                          : 'Not configured'),
-                style: TextStyle(
-                  color: printerService.isConfigured
-                      ? Colors.green
-                      : Colors.grey,
-                ),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PrinterSettingsScreen(),
-                  ),
-                );
-                if (mounted) setState(() {});
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.sync, color: _brandNavy),
-              title: const Text('Sync All Data'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _syncAllDataAndRefresh();
-              },
-            ),
-            SizedBox(
-              height: 8 + LaDolcePosUi.gestureBarBottomPad(context),
-            ),
-          ],
-        ),
-      ),
-    );
+    // Persist to server in background.
+    // createOrder() handles both online (cache + real ID) and
+    // offline fallback (mock ID + offline queue) internally.
+    _apiService
+        .createOrder(
+          userId: cashierId,
+          tableId: table.id,
+          customerId: _selectedCustomer?['id'],
+          lines: lines,
+        )
+        .catchError((_) {});
+    // No finally needed — _isOpeningTicket is no longer set because we never
+    // show the spinner; the dialog is already dismissed above.
   }
 }

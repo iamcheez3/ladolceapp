@@ -1,0 +1,19 @@
+{
+  "welcomeBack": "ຍິນດີຕ້ອນຮັບກັບຄືນ",
+  "emailOrLogin": "ອີເມວ / ເຂົ້າສູ່ລະບົບ",
+  "password": "ລະຫັດຜ່ານ",
+  "loginButton": "ເຂົ້າສູ່ລະບົບ",
+  "createAccount": "ສ້າງບັນຊີໃໝ່",
+  "choosePaymentMethod": "ເລືອກວິທີການຊໍາລະເງິນ",
+  "selectBranch": "ເລືອກສາຂາ",
+  "noBranchesFound": "ບໍ່ພົບສາຂາ. ກະລຸນາຕິດຕໍ່ພະນັກງານ.",
+  "selectBank": "ເລືອກທະນາຄານ",
+  "scanQrCode": "ສະແກນ QR ໂຄດ",
+  "qrNotConfigured": "ບໍ່ໄດ້ຕັ້ງຄ່າ QR ໂຄດ",
+  "downloadQr": "ດາວໂຫລດ QR",
+  "uploadTransferProof": "ອັບໂຫຼດຫຼັກຖານການໂອນເງິນ",
+  "proofSelected": "ເລືອກຫຼັກຖານແລ້ວ",
+  "transferProofSelectedMsg": "ເລືອກຫຼັກຖານການໂອນເງິນແລ້ວ. ມັນຈະຖືກອັບໂຫຼດເມື່ອທ່ານຢືນຢັນຄໍາສັ່ງ.",
+  "confirmOrder": "ຢືນຢັນຄໍາສັ່ງ",
+  "runOut": "ໝົດແລ້ວ"
+}

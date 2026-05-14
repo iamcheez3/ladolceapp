@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
+import '../models/pos_tax_config.dart';
+import '../utils/pos_tax.dart';
 
 class CartSidebar extends StatelessWidget {
   static const Color _brandNavy = Color(0xFF0D1565);
@@ -15,6 +17,7 @@ class CartSidebar extends StatelessWidget {
   final VoidCallback onAddCustomer;
   final VoidCallback onClearCustomer; // New clear callback
   final Map<String, dynamic>? selectedCustomer; // Selected customer data
+  final PosTaxConfig taxConfig;
 
   const CartSidebar({
     super.key,
@@ -27,13 +30,13 @@ class CartSidebar extends StatelessWidget {
     required this.onAddCustomer,
     required this.onClearCustomer,
     this.selectedCustomer,
+    this.taxConfig = PosTaxConfig.disabled,
   });
 
   @override
   Widget build(BuildContext context) {
-    final subtotal = cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final tax = subtotal * 0.1; // 10% tax example
-    final total = subtotal + tax;
+    final linesSum = cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    final bd = computePosTaxBreakdown(linesSum, taxConfig);
 
     return Container(
       color: Colors.white,
@@ -55,9 +58,12 @@ class CartSidebar extends StatelessWidget {
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'SAVE TICKET',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'SAVE TICKET',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
                     ),
                   ),
                 ),
@@ -75,12 +81,19 @@ class CartSidebar extends StatelessWidget {
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                       elevation: 0,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                        Text('₭${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      ],
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                          Text(
+                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -113,6 +126,8 @@ class CartSidebar extends StatelessWidget {
                               Text(
                                 'Customer: ${selectedCustomer!['name']}',
                                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 '${selectedCustomer!['reward_points']} pts',
@@ -265,32 +280,107 @@ class CartSidebar extends StatelessWidget {
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Subtotal', style: TextStyle(color: Colors.grey[600])),
-                    Text('₭${subtotal.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey[800])),
+                if (!bd.taxActive) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Total',
+                          style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _brandNavy),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          taxConfig.inclusive ? 'Amount (excl. VAT)' : 'Subtotal (excl. VAT)',
+                          style: TextStyle(color: Colors.grey[600]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          '₭${bd.baseAmount.toStringAsFixed(2)}',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(color: Colors.grey[800]),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (taxConfig.showOnReceipt) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'VAT (${taxConfig.percentLabel}%)',
+                            style: TextStyle(color: Colors.grey[600]),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '₭${bd.taxAmount.toStringAsFixed(2)}',
+                            textAlign: TextAlign.end,
+                            style: TextStyle(color: Colors.grey[800]),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Tax (10%)', style: TextStyle(color: Colors.grey[600])),
-                    Text('₭${tax.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey[800])),
-                  ],
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    Text('₭${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy)),
-                  ],
-                ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Total due', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(
+                              taxConfig.showOnReceipt
+                                  ? (taxConfig.inclusive ? 'Price includes tax' : 'Includes VAT')
+                                  : 'Tax hidden on receipt',
+                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
               ],
             ),
@@ -392,6 +482,8 @@ class _CartItemRow extends StatelessWidget {
                       fontSize: 15,
                       color: textColor,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -422,13 +514,18 @@ class _CartItemRow extends StatelessWidget {
                 ],
               ),
             ),
-            // Price
-            Text(
-              '₭${item.totalPrice.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: priceColor,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '₭${item.totalPrice.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: priceColor,
+                  ),
+                ),
               ),
             ),
           ],

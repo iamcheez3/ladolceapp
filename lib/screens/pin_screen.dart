@@ -203,6 +203,9 @@ class _PinScreenState extends State<PinScreen> {
                   child: Center(
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.viewInsetsOf(context).bottom + 24,
+                      ),
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 400),
                         margin: const EdgeInsets.symmetric(
@@ -234,6 +237,8 @@ class _PinScreenState extends State<PinScreen> {
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 8),
                             Text(

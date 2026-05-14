@@ -2986,3 +2986,177 @@ Priority/decision rules:
     `pos_admin_active_sid`, which is rotated each time the admin logs in.
     A leaked old SID becomes invalid the moment the admin logs in again.
   - Cookie-based auth is still preferred when available.
+
+==================================================
+79) FIX (RECEIPT HISTORY: REPRINT/REFUND PRINT STOPS HALF WAY)
+==================================================
+- Symptom:
+  - When reprinting a historical receipt (or printing refund slip) from Receipt History, printer sometimes prints only half then stops.
+- Root cause:
+  - Raw receipt data from API can return numeric fields as strings (e.g. `lines[].qty`, `lines[].subtotal`, `amount_total`).
+  - Printer code previously cast these as `num`, which can throw mid-loop and abort the remaining print commands.
+- Flutter fix:
+  - File: `lib/services/printer_service.dart`
+  - Hardened parsing for `qty/subtotal/amount_total` using safe converters (`_asInt`, `_asDouble`) and map-normalization for each line.
+  - Added ESC/POS-safe printing for historical receipts/refunds:
+    - Sanitizes text to ASCII (`_sanitizeForEscPos`) to prevent Unicode encoding crashes.
+    - Wraps each item row print in try/catch so one bad line won't abort the whole receipt.
+    - Important: truncation marker must be ASCII (`...`), not Unicode ellipsis (`…`) or the printer may stop mid-print.
+
+- Backend hardening (also done):
+  - File: `pos_backend/controllers/pos_order_api.py`
+  - `/api/pos/order/<id>/receipt` now normalizes numeric fields to JSON primitives:
+    - `lines[].qty` as int, `lines[].price_unit`/`lines[].subtotal` as float, `amount_total` as float.
+  - Refund payload builder uses the same normalization for the embedded `receipt` object.
+  - Also normalized numbers in `/api/pos/my_orders`, `/api/pos/open_tickets`, `/api/pos/self_orders/pending` for consistency.
+  - Ops: restart Odoo service after controller changes.
+
+- Additional Flutter fix (TCP flush + size2 buffer issue):
+  - Some thermal printers stopped at the `=` line just below items because:
+    1. `PosTextSize.size2` for TOTAL was doubling bytes and saturating the printer's small TCP buffer; replaced with regular bold.
+    2. `disconnect()` closed the socket before the printer drained the buffer; we now wait 800ms after `cut()` before disconnect.
+    3. Footer/feed order in `printReceiptFromRawData` and `printRefundFromRawData` now mirrors the working `_printReceiptToProfile` pattern.
+
+==================================================
+80) FIX (BILL TEMPLATES SAVE: 401 Missing session)
+==================================================
+- Symptom:
+  - Admin → Bill Templates Settings → SAVE returns `401 Missing session`
+    (`POST /api/pos/branch/templates`).
+- Root cause:
+  - The POST endpoint only accepted cookie-based `request.session.uid`.
+  - Some networks (ngrok / proxies) strip cookies, so the cookie session never reached Odoo.
+  - The matching GET endpoints already had a `user_id + session_id` fallback; POST didn't.
+- Backend fix (`pos_backend/controllers/pos_branch_api.py`):
+  - Added `_resolve_uid_with_fallback(payload)` to PosBranchApi (mirrors the helper used in
+    pos_order_api.py).
+  - `set_branch_templates` now uses the fallback, accepting `user_id + session_id` from JSON body,
+    query string, or `X-Openerp-Session-Id` header. Validates against `pos_active_sid` /
+    `pos_admin_active_sid`.
+- Flutter fix (`lib/services/api_service.dart`):
+  - `setBranchBillTemplates(...)` now sends `user_id` + `session_id` in the JSON body too.
+- Ops:
+  - Restart Odoo service after this controller change.
+
+==================================================
+- ROOT CAUSE (confirmed via runtime debug logs): currency symbol `₭` (Lao kip) was non-ASCII and the
+  `esc_pos_utils` Latin-1 encoder threw `Invalid argument (string): Contains invalid characters.`
+  on the TOTAL row because we forgot to sanitize the currency string for that one row.
+  - Flutter fix: added `_safeCurrency()` (maps `₭`→`LAK`, `€`→`EUR`, etc.) used in both
+    `printReceiptFromRawData` and `printRefundFromRawData`.
+    Also explicitly sanitized the TOTAL/REFUND AMOUNT row text via `_sanitizeForEscPos`.
+  - Backend fix: `pos_backend/controllers/pos_order_api.py` now returns `currency_id.name`
+    (ISO code like `LAK`) instead of `currency_id.symbol` (`₭`) for both
+    `/api/pos/order/<id>/receipt` and the refund payload — so future printers don't have
+    to handle Unicode currency at all.
+  - Ops: restart Odoo to pick up controller change.
+
+==================================================
+82) FIX (LOADING SCREEN: INSTANT LAUNCH WITH BACKGROUND SYNC)
+==================================================
+- Symptom:
+  - Every login shows a 4-5 second loading progress screen (Loading products…,
+    Loading tables…, etc.) even when the app already has fresh cached data.
+- Root cause:
+  - `LoadingScreen._initializeApp()` always called `syncAllData(onProgress: …)`
+    which runs steps sequentially and WAITS for all network calls to finish
+    before navigating to POS — even when cache was already available.
+- Flutter fix (`lib/screens/loading_screen.dart`):
+  - `_initializeApp()` now checks `hasBasicCache()` first.
+  - If cache exists → immediately call `_proceedToApp()` (no wait),
+    then fire-and-forget `syncAllData()` (no onProgress, parallel fetch).
+    POS screen shows cached data instantly; cache refreshes silently in background.
+  - If no cache (first-time / cleared) → keep existing full sequential sync
+    with progress bar (same as before — required to initialize the app).
+- Files changed:
+  - `lib/screens/loading_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart app.
+- Quick verification:
+  - Login as cashier (cache already populated) → goes straight to POS
+    with no loading screen delay.
+  - On first login (no cache) → still shows loading progress screen normally.
+  - After navigating to POS, data refreshes silently (new products/tables appear
+    after a short moment without any visible loading state).
+
+==================================================
+83) FIX (SAVE TICKET + CHARGE: OPTIMISTIC UI — INSTANT RESPONSE)
+==================================================
+- Symptom:
+  - Tapping "Save Ticket" (open ticket to table) showed a spinner for 4-5 seconds
+    before the dialog closed.
+  - Tapping "CHARGE" showed a spinner for 4-5 seconds before the charge sheet closed.
+  - Both waited for server network round-trips before updating the UI.
+- Root cause:
+  - `_processOpenTicket()`: awaited `createOrder()` (5s timeout) before closing dialog.
+  - `_processCheckout()`: awaited `updateOrder()` + `payOrder()` / `submitOrder()`
+    (up to 10s combined) before printing receipt and closing dialog.
+- Flutter fix (`lib/screens/pos_screen.dart`):
+  - `_processOpenTicket()` — fully optimistic:
+    - Immediately marks table as open in local in-memory `_tables`.
+    - Clears cart and closes dialog instantly.
+    - Shows "Ticket opened at <table>!" snackbar immediately.
+    - Fires `createOrder()` as fire-and-forget (handles online cache update +
+      offline queue internally — no change to existing behaviour).
+    - Kitchen print runs in background (fire-and-forget).
+    - `_isOpeningTicket` spinner removed (dialog already dismissed before it matters).
+  - `_processCheckout()` — fully optimistic:
+    - Immediately clears the open ticket from local cache + updates table state.
+    - Closes the charge sheet and clears cart instantly.
+    - Shows "Order Paid Successfully!" snackbar immediately.
+    - Receipt printing runs in background using a snapshot of the cart.
+    - All server calls (updateOrder / payOrder / submitOrder) run in background.
+    - `_isCharging` spinner removed (charge sheet already dismissed).
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart.
+- Quick verification:
+  - Add items → Save Ticket → select table → dialog closes instantly, snackbar appears,
+    table shows OPEN — no spinner.
+  - Open that ticket → tap CHARGE → charge sheet closes instantly, snackbar appears,
+    receipt prints in background — no spinner.
+
+==================================================
+81) FIX (OPEN TICKETS: FILTER BY BRANCH + CASHIER ORDER BRANCH ASSIGNMENT)
+==================================================
+- Symptom:
+  - "Open Tickets" screen showed ALL draft orders from ALL branches.
+  - Customer self-orders (any branch) appeared for every cashier POS terminal.
+  - Cashier-created orders also had no explicit branch in the payload, relying only on
+    the backend user profile field `pos_branch_id` (which may not be set).
+- Root cause:
+  - `/api/pos/open_tickets` fetched all `pos_backend.order` records with `state='draft'`
+    and returned them with no branch restriction.
+  - `fetchOpenTickets()` in Flutter called the endpoint with no branch param.
+  - `createOrder()` in Flutter never sent `branch_id` for cashier orders.
+  - Backend `create_order` only overrode `branch_id` from the payload when `partner_id`
+    (customer self-order) was also present; cashier-sent `branch_id` was silently ignored.
+- Backend fixes (`pos_backend/controllers/pos_order_api.py`):
+  1. `get_open_tickets` now accepts optional query param `branch_id`.
+     When provided and > 0, domain includes `('branch_id', '=', branch_id_int)`.
+     No branch_id → returns all (backward-compatible).
+  2. `create_order`: After setting branch from `cashier.pos_branch_id`, if the
+     Flutter payload also includes `branch_id` (for ANY role), it now overrides
+     the user-profile branch — making the Flutter-selected branch authoritative.
+- Flutter fixes (`lib/services/api_service.dart`):
+  1. `fetchOpenTickets()` reads `getCachedBranchId()` and appends `?branch_id=<id>`.
+  2. `createOrder()` now accepts an optional `branchId` param.
+     Falls back to `getCachedBranchId()` if not explicitly provided.
+     Sends `branch_id` in the JSON payload for both cashier and customer orders.
+     Also stores `branch_id` in the local cached ticket (online and offline mock).
+- Files changed:
+  - `pos_backend/controllers/pos_order_api.py`
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Restart Odoo service (controller change).
+  - Flutter: hot restart app.
+- Quick verification:
+  - Two branches (A, B); cashier logged into Branch A terminal.
+  - Cashier creates an order → backend order gets `branch_id = A` from payload.
+  - Customer self-orders Branch B → does NOT appear in Branch A open tickets.
+  - Customer self-orders Branch A → DOES appear in Branch A open tickets.
+  - Cashier-created orders on Branch A always appear in Branch A open tickets.

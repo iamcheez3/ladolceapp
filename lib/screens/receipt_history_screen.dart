@@ -33,21 +33,28 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchHistory();
+    // Force refresh so dates/grouping come from backend, not stale cache.
+    _fetchHistory(forceRefresh: true);
   }
 
-  Future<void> _fetchHistory() async {
+  Future<void> _fetchHistory({bool forceRefresh = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final history = await _apiService.fetchReceiptHistory();
+      final history =
+          await _apiService.fetchReceiptHistory(forceRefresh: forceRefresh);
 
       final grouped = <String, List<Map<String, dynamic>>>{};
       for (var receipt in history) {
-        String dateStr = receipt['date_order'] ?? '';
+        // Some receipts (offline / older cache) may have missing `date_order`.
+        // Fall back to `date_paid` so grouping shows correctly.
+        String dateStr = (receipt['date_order'] ?? '').toString();
+        if (dateStr.isEmpty) {
+          dateStr = (receipt['date_paid'] ?? '').toString();
+        }
         String dayKey  = 'Unknown Date';
 
         if (dateStr.isNotEmpty) {
@@ -138,11 +145,21 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
     }
   }
 
-  void _showReceiptDetails(int orderId) {
-    Navigator.push(
+  Future<void> _showReceiptDetails(int orderId) async {
+    final refreshed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => ReceiptDetailScreen(orderId: orderId)),
     );
+    if (!mounted) return;
+    if (refreshed == true) {
+      await _fetchHistory(forceRefresh: true);
+    }
+  }
+
+  int? _resolveReceiptId(Map<String, dynamic> receipt) {
+    final raw = receipt['id'] ?? receipt['order_id'] ?? receipt['orderId'];
+    if (raw is int) return raw;
+    return int.tryParse(raw?.toString() ?? '');
   }
 
   // ─── Build ─────────────────────────────────────────────────────────────────
@@ -250,7 +267,19 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                   return Column(
                     children: [
                       InkWell(
-                        onTap: () => _showReceiptDetails(receipt['id']),
+                        onTap: () {
+                          final id = _resolveReceiptId(receipt);
+                          if (id == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('This receipt is missing an order id. Please refresh and try again.'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+                          _showReceiptDetails(id);
+                        },
                         borderRadius: BorderRadius.vertical(
                           top:    i == 0 ? const Radius.circular(16) : Radius.zero,
                           bottom: isLast ? const Radius.circular(16) : Radius.zero,

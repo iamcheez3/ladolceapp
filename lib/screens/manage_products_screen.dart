@@ -67,7 +67,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
   void _showProductForm({Product? product}) {
     final nameController = TextEditingController(text: product?.name ?? '');
     final priceController = TextEditingController(text: product?.price.toString() ?? '');
-    
+    bool blockSelfOrder = product?.blockSelfOrder ?? false;
+
     // Find matching category ID if editing, or default to first category if creating
     int? selectedCategoryId;
     if (product != null) {
@@ -127,6 +128,40 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                         setSheetState(() => selectedCategoryId = val);
                       },
                     ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Customer self-order',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    RadioListTile<bool>(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Available'),
+                      subtitle: const Text(
+                        'Customers can select and order',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      value: false,
+                      groupValue: blockSelfOrder,
+                      onChanged: (v) {
+                        if (v != null) setSheetState(() => blockSelfOrder = v);
+                      },
+                      dense: true,
+                    ),
+                    RadioListTile<bool>(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Run out (blocked)'),
+                      subtitle: const Text(
+                        'Shown as run out; cannot add to cart',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      value: true,
+                      groupValue: blockSelfOrder,
+                      onChanged: (v) {
+                        if (v != null) setSheetState(() => blockSelfOrder = v);
+                      },
+                      dense: true,
+                    ),
                     const SizedBox(height: 24),
                     const Text('Available Toppings', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
@@ -176,6 +211,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                               price: price,
                               categoryId: selectedCategoryId,
                               toppingIds: selectedToppingIds,
+                              blockSelfOrder: blockSelfOrder,
                             );
                           },
                           child: const Text('Save Product'),
@@ -193,7 +229,14 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     );
   }
 
-  Future<void> _saveProduct({int? id, required String name, required double price, int? categoryId, required List<int> toppingIds}) async {
+  Future<void> _saveProduct({
+    int? id,
+    required String name,
+    required double price,
+    int? categoryId,
+    required List<int> toppingIds,
+    bool blockSelfOrder = false,
+  }) async {
     setState(() => _isLoading = true);
     try {
       await _apiService.saveProduct(
@@ -202,6 +245,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
         listPrice: price,
         categoryId: categoryId,
         toppingIds: toppingIds,
+        blockSelfOrder: blockSelfOrder,
       );
       _fetchData(); // Refresh list
       if (mounted) {
@@ -329,7 +373,11 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                                   ),
                             ),
                             title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('${product.category}  |  \$${product.price.toStringAsFixed(2)}\n${product.toppings.length} Toppings enabled'),
+                            subtitle: Text(
+                              '${product.category}  |  \$${product.price.toStringAsFixed(2)}\n'
+                              '${product.toppings.length} Toppings enabled'
+                              '${product.blockSelfOrder ? '\nSelf-order: run out (blocked)' : ''}',
+                            ),
                             isThreeLine: true,
                             trailing: IconButton(
                               icon: const Icon(Icons.delete_outline, color: Colors.red),

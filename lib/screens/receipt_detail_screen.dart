@@ -49,8 +49,12 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
     }
     setState(() => _isActionLoading = true);
     try {
-      final ok = await printerService.printReceiptFromRawData(_receiptData!);
+      final ok = await printerService
+          .printReceiptFromRawData(_receiptData!)
+          .timeout(const Duration(seconds: 20), onTimeout: () => false);
       _snack(ok ? '🖨️ Receipt reprinted!' : 'Printer error. Check connection.', ok ? Colors.green : Colors.red);
+    } catch (e) {
+      _snack('Printer error: ${e.toString()}', Colors.red);
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
     }
@@ -130,6 +134,29 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
           _isRefunded = true;
           _isActionLoading = false;
         });
+        // Best-effort: print refund bill immediately after refund.
+        if (printerService.isConfigured) {
+          try {
+            Map<String, dynamic>? tpl;
+            try {
+              tpl = await _apiService.fetchBillTemplate(type: 'refund');
+            } catch (_) {}
+            final headerText = (tpl?['header_text'] ?? '').toString();
+            final footerText = (tpl?['footer_text'] ?? '').toString();
+
+            final latest = await _apiService.fetchOrderReceipt(widget.orderId);
+            await printerService
+                .printRefundFromRawData(
+                  latest,
+                  headerText: headerText,
+                  footerText: footerText,
+                )
+                .timeout(const Duration(seconds: 25), onTimeout: () => false);
+          } catch (_) {
+            // Do not block refund success if printing fails
+          }
+        }
+
         _snack('✅ Order refunded successfully.', Colors.green);
         // Go back to history after a short delay so the snack is visible
         await Future.delayed(const Duration(seconds: 2));
