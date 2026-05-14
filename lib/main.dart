@@ -6,6 +6,10 @@ import 'screens/loading_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'services/push_notifications_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   // Ensure bindings are initialized before loading dotenv
@@ -27,17 +31,53 @@ void main() async {
   runApp(PosApp(initialUser: cachedUser));
 }
 
-class PosApp extends StatelessWidget {
+class PosApp extends StatefulWidget {
   final Map<String, dynamic>? initialUser;
   
   const PosApp({super.key, this.initialUser});
 
+  static void setLocale(BuildContext context, Locale newLocale) {
+    _PosAppState state = context.findAncestorStateOfType<_PosAppState>()!;
+    state.setLocale(newLocale);
+  }
+
+  @override
+  State<PosApp> createState() => _PosAppState();
+}
+
+class _PosAppState extends State<PosApp> {
+  Locale? _locale;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocale().then((locale) {
+      setState(() {
+        _locale = locale;
+      });
+    });
+  }
+
+  Future<Locale> _fetchLocale() async {
+    var prefs = await SharedPreferences.getInstance();
+    String languageCode = prefs.getString('languageCode') ?? 'en';
+    return Locale(languageCode);
+  }
+
+  void setLocale(Locale locale) async {
+    var prefs = await SharedPreferences.getInstance();
+    await prefs.setString('languageCode', locale.languageCode);
+    setState(() {
+      _locale = locale;
+    });
+  }
+
   Widget _initialScreen() {
-    if (initialUser == null) {
+    if (widget.initialUser == null) {
       return const LoginScreen();
     }
 
-    return LoadingScreen(user: initialUser!);
+    return LoadingScreen(user: widget.initialUser!);
   }
 
   @override
@@ -45,11 +85,14 @@ class PosApp extends StatelessWidget {
     return MaterialApp(
       title: 'LaDolce POS',
       debugShowCheckedModeBanner: false,
+      locale: _locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => ResponsiveLayout.withClampedTextScaling(
             child: UpgradeAlert(child: child ?? const SizedBox.shrink()),
           ),
       theme: ThemeData(
-        fontFamily: 'Inter',
+        fontFamily: _locale?.languageCode == 'lo' ? GoogleFonts.notoSansLao().fontFamily : 'Inter',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF0D1565), // Brand navy
           primary: const Color(0xFF0D1565),

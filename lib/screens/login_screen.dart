@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
+import '../main.dart';
 import 'register_screen.dart';
 import 'loading_screen.dart';
 import '../services/api_service.dart';
@@ -330,8 +332,10 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
+          child: Stack(
+            children: [
+              Center(
+                child: SingleChildScrollView(
               padding: ResponsiveLayout.scrollablePaddingWithKeyboard(
                 context,
                 top: 20,
@@ -435,10 +439,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             )
                           else
-                            const Text(
-                              'Welcome back',
+                            Text(
+                              AppLocalizations.of(context)?.welcomeBack ?? 'Welcome back',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Color(0xFF64748B),
                                 fontWeight: FontWeight.w600,
                               ),
@@ -447,7 +451,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _loginController,
                             decoration: InputDecoration(
-                              labelText: 'Email / Login',
+                              labelText: AppLocalizations.of(context)?.emailOrLogin ?? 'Email / Login',
                               filled: true,
                               fillColor: Colors.white,
                               prefixIcon: const Icon(
@@ -482,7 +486,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
-                              labelText: 'Password',
+                              labelText: AppLocalizations.of(context)?.password ?? 'Password',
                               filled: true,
                               fillColor: Colors.white,
                               prefixIcon: const Icon(
@@ -546,9 +550,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                         strokeWidth: 2.2,
                                       ),
                                     )
-                                  : const Text(
-                                      'LOGIN',
-                                      style: TextStyle(
+                                  : Text(
+                                      AppLocalizations.of(context)?.loginButton ?? 'LOGIN',
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w900,
                                       ),
@@ -564,9 +568,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               );
                             },
-                            child: const Text(
-                              'Create a new account',
-                              style: TextStyle(
+                            child: Text(
+                              AppLocalizations.of(context)?.createAccount ?? 'Create a new account',
+                              style: const TextStyle(
                                 color: _brandNavy,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -579,6 +583,31 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+          ),
+              Positioned(
+                top: 10,
+                right: 16,
+                child: Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => PosApp.setLocale(context, const Locale('en', '')),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Localizations.localeOf(context).languageCode == 'en' ? Colors.white : Colors.white60,
+                      ),
+                      child: const Text('EN'),
+                    ),
+                    const Text('|', style: TextStyle(color: Colors.white54)),
+                    TextButton(
+                      onPressed: () => PosApp.setLocale(context, const Locale('lo', '')),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Localizations.localeOf(context).languageCode == 'lo' ? Colors.white : Colors.white60,
+                      ),
+                      child: const Text('ລາວ'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

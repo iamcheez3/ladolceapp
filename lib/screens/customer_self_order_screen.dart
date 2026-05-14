@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 
 import 'customer_order_detail_screen.dart';
 import '../models/cart_item.dart';
@@ -974,7 +975,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   void _showCheckoutOptions() {
     if (_cartItems.isEmpty || _isPlacingOrder) return;
 
-    String paymentChoice = 'pay_at_store';
+    String paymentChoice = 'transfer';
     XFile? proofImage;
 
     showModalBottomSheet(
@@ -1007,16 +1008,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Choose Payment Method',
+                              Text(
+                                AppLocalizations.of(context)?.choosePaymentMethod ?? 'Choose Payment Method',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               const SizedBox(height: 10),
-                              const Text(
-                                'Select Branch',
+                              Text(
+                                AppLocalizations.of(context)?.selectBranch ?? 'Select Branch',
                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                               ),
                               const SizedBox(height: 8),
@@ -1026,11 +1027,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   child: Center(child: CircularProgressIndicator()),
                                 )
                               else if (_branches.isEmpty)
-                                const Padding(
-                                  padding: EdgeInsets.only(bottom: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
                                   child: Text(
-                                    'No branches found. Please ask staff to configure branches in Odoo.',
-                                    style: TextStyle(color: Colors.redAccent),
+                                    AppLocalizations.of(context)?.noBranchesFound ?? 'No branches found. Please ask staff.',
+                                    style: const TextStyle(color: Colors.redAccent),
                                   ),
                                 )
                               else
@@ -1077,29 +1078,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                 ),
                               const SizedBox(height: 12),
-                              RadioListTile<String>(
-                                value: 'pay_at_store',
-                                groupValue: paymentChoice,
-                                onChanged: (val) =>
-                                    setSheetState(() => paymentChoice = val!),
-                                title: const Text('Pay at the store'),
-                                subtitle: const Text('Order now, pay when you arrive'),
-                              ),
-                              RadioListTile<String>(
-                                value: 'transfer',
-                                groupValue: paymentChoice,
-                                onChanged: (val) =>
-                                    setSheetState(() => paymentChoice = val!),
-                                title: const Text('Bank transfer'),
-                                subtitle: const Text(
-                                  'Upload transfer proof after payment',
-                                ),
-                              ),
+
                               if (paymentChoice == 'transfer') ...[
                                 const SizedBox(height: 10),
                                 if (_transferBanks.length > 1) ...[
-                                  const Text(
-                                    'Select Bank',
+                                  Text(
+                                    AppLocalizations.of(context)?.selectBank ?? 'Select Bank',
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                                   ),
                                   const SizedBox(height: 8),
@@ -1135,8 +1119,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                   const SizedBox(height: 10),
                                 ],
-                                const Text(
-                                  'Scan QR Code',
+                                Text(
+                                  AppLocalizations.of(context)?.scanQrCode ?? 'Scan QR Code',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -1191,7 +1175,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   child: OutlinedButton.icon(
                                     onPressed: _downloadQrCode,
                                     icon: const Icon(Icons.download),
-                                    label: const Text('Download QR'),
+                                    label: Text(AppLocalizations.of(context)?.downloadQr ?? 'Download QR'),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -1210,8 +1194,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     icon: const Icon(Icons.upload_file),
                                     label: Text(
                                       proofImage == null
-                                          ? 'Upload Transfer Proof'
-                                          : 'Proof Selected',
+                                          ? AppLocalizations.of(context)?.uploadTransferProof ?? 'Upload Transfer Proof'
+                                          : AppLocalizations.of(context)?.proofSelected ?? 'Proof Selected',
                                     ),
                                   ),
                                 ),
@@ -1225,9 +1209,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(color: Colors.green.shade200),
                                     ),
-                                    child: const Text(
-                                      'Transfer proof selected. It will be uploaded when you confirm order.',
-                                      style: TextStyle(
+                                    child: Text(
+                                      AppLocalizations.of(context)?.transferProofSelectedMsg ?? 'Transfer proof selected. It will be uploaded when you confirm order.',
+                                      style: const TextStyle(
                                         color: Colors.green,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -1263,7 +1247,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: Text(
-                            'Confirm Order (₭${_cartTotal.toStringAsFixed(2)})',
+                            '${AppLocalizations.of(context)?.confirmOrder ?? 'Confirm Order'} (₭${_cartTotal.toStringAsFixed(2)})',
                           ),
                         ),
                       ),
@@ -2388,7 +2372,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: isWide ? 3 : (isSmall ? 1 : 2),
-                childAspectRatio: isWide ? 0.8 : (isSmall ? 0.75 : 0.68),
+                mainAxisExtent: 120,
                 crossAxisSpacing: isSmall ? 8 : 10,
                 mainAxisSpacing: isSmall ? 8 : 10,
               ),
@@ -2861,42 +2845,43 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+              padding: const EdgeInsets.all(8.0),
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: AspectRatio(
-                      aspectRatio: 1.2,
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox(
+                      width: 104,
+                      height: 104,
                       child: _buildProductImage(product),
                     ),
                   ),
                   if (blocked)
                     Positioned.fill(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                         child: ColoredBox(
                           color: Colors.white.withOpacity(0.45),
                           child: Center(
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
+                                horizontal: 8,
+                                vertical: 4,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.black87,
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'Run out',
+                                AppLocalizations.of(context)?.runOut ?? 'Run out',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w900,
-                                  fontSize: isSmall ? 11 : 12,
+                                  fontSize: isSmall ? 10 : 11,
                                 ),
                               ),
                             ),
@@ -2904,35 +2889,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                       ),
                     ),
-                  if (!blocked)
-                  Positioned(
-                    right: 8,
-                    bottom: 8,
-                    child: Container(
-                      width: isSmall ? 28 : 30,
-                      height: isSmall ? 28 : 30,
-                      decoration: BoxDecoration(
-                        color: _brandNavy,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: isSmall ? 16 : 18,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
             Expanded(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isSmall ? 10 : 12,
-                  10,
-                  isSmall ? 10 : 12,
-                  isSmall ? 10 : 12,
-                ),
+                padding: const EdgeInsets.fromLTRB(4, 12, 12, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -2959,9 +2921,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const Spacer(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           '₭${product.price.toStringAsFixed(0)}',
@@ -2971,6 +2934,20 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             fontSize: isSmall ? 14 : 16,
                           ),
                         ),
+                        if (!blocked)
+                          Container(
+                            width: isSmall ? 28 : 30,
+                            height: isSmall ? 28 : 30,
+                            decoration: BoxDecoration(
+                              color: _brandNavy,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: isSmall ? 16 : 18,
+                            ),
+                          ),
                       ],
                     ),
                   ],
