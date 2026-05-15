@@ -28,6 +28,23 @@ class ApiService {
     }
     return envUrl;
   }
+  
+  Future<Map<String, dynamic>> fetchMaintenanceStatus() async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/maintenance/status');
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse['data'];
+        }
+      }
+    } catch (e) {
+      _d('[API ERROR] Failed to fetch maintenance status: $e');
+    }
+    return {'is_active': false};
+  }
 
   /// Async version that respects the dev IP override saved in prefs.
   Future<String> getBaseUrl() async {
