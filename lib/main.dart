@@ -10,6 +10,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'screens/maintenance_screen.dart';
+import 'services/maintenance_service.dart';
 
 void main() async {
   // Ensure bindings are initialized before loading dotenv
@@ -28,13 +30,20 @@ void main() async {
   // Check cache for offline auth
   final cachedUser = await ApiService().getCachedUser();
   
-  runApp(PosApp(initialUser: cachedUser));
+  // Check maintenance status
+  final maintenanceStatus = await ApiService().fetchMaintenanceStatus();
+  
+  runApp(PosApp(
+    initialUser: cachedUser,
+    maintenanceStatus: maintenanceStatus,
+  ));
 }
 
 class PosApp extends StatefulWidget {
   final Map<String, dynamic>? initialUser;
+  final Map<String, dynamic>? maintenanceStatus;
   
-  const PosApp({super.key, this.initialUser});
+  const PosApp({super.key, this.initialUser, this.maintenanceStatus});
 
   static void setLocale(BuildContext context, Locale newLocale) {
     _PosAppState state = context.findAncestorStateOfType<_PosAppState>()!;
@@ -51,6 +60,7 @@ class _PosAppState extends State<PosApp> {
   @override
   void initState() {
     super.initState();
+    MaintenanceService().startChecking();
     _fetchLocale().then((locale) {
       setState(() {
         _locale = locale;
@@ -73,6 +83,13 @@ class _PosAppState extends State<PosApp> {
   }
 
   Widget _initialScreen() {
+    if (widget.maintenanceStatus != null && widget.maintenanceStatus!['is_active'] == true) {
+      return MaintenanceScreen(
+        messageEn: widget.maintenanceStatus!['message_en'] ?? 'Maintenance',
+        messageLo: widget.maintenanceStatus!['message_lo'] ?? 'Maintenance',
+      );
+    }
+
     if (widget.initialUser == null) {
       return const LoginScreen();
     }
@@ -83,6 +100,7 @@ class _PosAppState extends State<PosApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: MaintenanceService().navigatorKey,
       title: 'LaDolce POS',
       debugShowCheckedModeBanner: false,
       locale: _locale,
@@ -108,6 +126,21 @@ class _PosAppState extends State<PosApp> {
         useMaterial3: true,
       ),
       home: _initialScreen(),
+      onGenerateRoute: (settings) {
+        if (settings.name == '/maintenance') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          return MaterialPageRoute(
+            builder: (context) => MaintenanceScreen(
+              messageEn: args?['message_en'] ?? 'Maintenance',
+              messageLo: args?['message_lo'] ?? 'Maintenance',
+            ),
+          );
+        }
+        if (settings.name == '/login') {
+          return MaterialPageRoute(builder: (context) => const LoginScreen());
+        }
+        return null;
+      },
     );
   }
 }

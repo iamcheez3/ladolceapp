@@ -2178,6 +2178,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= 900;
+    final isMobile = width < 600;
     final isSmall = width < 360;
 
     return Scaffold(
@@ -2233,7 +2234,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     child: IndexedStack(
                       index: _selectedTabIndex,
                       children: [
-                        _buildHomeTab(isWide: isWide, isSmall: isSmall),
+                        _buildHomeTab(isWide: isWide, isSmall: isSmall, isMobile: isMobile),
                         _buildCartTab(isSmall: isSmall),
                         _buildHistoryTab(isSmall: isSmall),
                         _buildProfileTab(isWide: isWide, isSmall: isSmall),
@@ -2330,7 +2331,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     ]);
   }
 
-  Widget _buildHomeTab({required bool isWide, required bool isSmall}) {
+  Widget _buildHomeTab({required bool isWide, required bool isSmall, bool isMobile = false}) {
     if (_isLoadingCatalog) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -2371,8 +2372,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             ),
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: isWide ? 3 : (isSmall ? 1 : 2),
-                mainAxisExtent: 120,
+                crossAxisCount: isWide ? 3 : (isMobile ? 1 : 2),
+                mainAxisExtent: isMobile ? 100 : 120,
                 crossAxisSpacing: isSmall ? 8 : 10,
                 mainAxisSpacing: isSmall ? 8 : 10,
               ),
