@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 
 class SelfOrdersReviewScreen extends StatefulWidget {
@@ -424,7 +425,7 @@ class _OrderCard extends StatelessWidget {
           _buildHeader(),
           const Divider(height: 1, color: Color(0xFFE8EDF5)),
           // ── Info row ──────────────────────────────────────────────────────
-          _buildInfoSection(),
+          _buildInfoSection(context),
           // ── Items section ─────────────────────────────────────────────────
           if (lines.isNotEmpty) ...[
             const Divider(height: 1, color: Color(0xFFE8EDF5)),
@@ -499,7 +500,7 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildInfoSection(BuildContext context) {
     final lines = (order['lines'] as List?) ?? [];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -513,6 +514,34 @@ class _OrderCard extends StatelessWidget {
           _InfoChip(
             icon: Icons.phone_outlined,
             label: orderPhoneLine(order),
+            onTap: orderPhoneLine(order) != '—'
+                ? () async {
+                    final phone = orderPhoneLine(order).replaceAll(RegExp(r'[^0-9+]'), '');
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Call Customer?'),
+                        content: Text('Do you want to call $phone?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Call'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      final url = Uri.parse('tel:$phone');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url);
+                      }
+                    }
+                  }
+                : null,
           ),
           const Spacer(),
           // Total amount
@@ -858,22 +887,39 @@ class _Badge extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label});
+  const _InfoChip({required this.icon, required this.label, this.onTap});
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final body = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: Colors.grey.shade500),
+        Icon(icon, size: 14, color: onTap != null ? const Color(0xFF1E3A8A) : Colors.grey.shade500),
         const SizedBox(width: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+          style: TextStyle(
+            fontSize: 12.5,
+            color: onTap != null ? const Color(0xFF1E3A8A) : Colors.grey.shade700,
+            fontWeight: onTap != null ? FontWeight.bold : FontWeight.normal,
+            decoration: onTap != null ? TextDecoration.underline : null,
+          ),
         ),
       ],
+    );
+
+    if (onTap == null) return body;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: body,
+      ),
     );
   }
 }
