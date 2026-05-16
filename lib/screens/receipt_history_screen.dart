@@ -96,11 +96,12 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
   }
 
   // ─── Payment helpers ───────────────────────────────────────────────────────
-  IconData _getPaymentIcon(String method) {
+  String _getPaymentAsset(String method) {
     method = method.toLowerCase();
-    if (method.contains('cash'))                          return Icons.point_of_sale_rounded;
-    if (method.contains('bank') || method.contains('card')) return Icons.credit_card_rounded;
-    return Icons.receipt_long_rounded;
+    if (method.contains('cash')) {
+      return 'assets/images/cash.png';
+    }
+    return 'assets/images/bank.png';
   }
 
   Color _getIconColor(String method) {
@@ -296,10 +297,12 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                                   color: _getIconBg(paymentMethod),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Icon(
-                                  _getPaymentIcon(paymentMethod),
-                                  color: _getIconColor(paymentMethod),
-                                  size: 20,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Image.asset(
+                                    _getPaymentAsset(paymentMethod),
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),

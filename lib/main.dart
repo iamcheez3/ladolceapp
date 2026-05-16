@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/maintenance_screen.dart';
 import 'services/maintenance_service.dart';
+import 'services/user_activity_service.dart';
 
 void main() async {
   // Ensure bindings are initialized before loading dotenv
@@ -61,6 +62,7 @@ class _PosAppState extends State<PosApp> {
   void initState() {
     super.initState();
     MaintenanceService().startChecking();
+    UserActivityService().startTracking();
     _fetchLocale().then((locale) {
       setState(() {
         _locale = locale;

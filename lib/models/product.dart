@@ -22,6 +22,9 @@ class Product {
   /// When true, customer self-order shows this item as run out and cannot add to cart.
   final bool blockSelfOrder;
 
+  final bool isRecommended;
+  final String? recommendedImageBase64;
+
   /// Odoo often sends [category] as a path like "All / Saleable / Office Furniture".
   /// POS and customer UIs only need the leaf name for tabs and labels.
   static String leafCategoryName(Object? raw) {
@@ -53,6 +56,8 @@ class Product {
     this.comboLines,
     this.colorCode = 0xFF1E3A8A, // Default Dark Blue
     this.blockSelfOrder = false,
+    this.isRecommended = false,
+    this.recommendedImageBase64,
   });
 
   static bool _parseBool(dynamic v) {
@@ -90,6 +95,8 @@ class Product {
             json['self_order_blocked'] ??
             json['blocked_for_self_order'],
       ),
+      isRecommended: _parseBool(json['is_recommended_self_order']),
+      recommendedImageBase64: json['recommended_image_base64'] is String ? json['recommended_image_base64'] : null,
     );
   }
 
