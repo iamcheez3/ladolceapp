@@ -83,7 +83,7 @@ class ResponsiveLayout {
     
     // For phones and small tablets in portrait, we need more height (smaller ratio)
     if (!isTablet) {
-      return 0.78; // Taller cards for phones
+      return 0.68; // Taller cards for phones to accommodate long names + price
     }
     
     return 0.86;

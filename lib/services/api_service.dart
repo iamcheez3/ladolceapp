@@ -46,6 +46,34 @@ class ApiService {
     return {'is_active': false};
   }
 
+  Future<void> sendHeartbeat({bool isNewSession = false}) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+              ? user['user_id'] as int
+              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+
+      if (userId == 0) return;
+
+      final url = Uri.parse('$base/pos/heartbeat');
+      final response = await http.post(
+        url,
+        headers: await _authHeaders(json: true),
+        body: jsonEncode({
+          'user_id': userId,
+          if (isNewSession) 'is_login': true,
+        }),
+      ).timeout(const Duration(seconds: 5));
+
+      _d('[HEARTBEAT] Sent for user $userId | New Session: $isNewSession | Status: ${response.statusCode}');
+    } catch (e) {
+      _d('[HEARTBEAT ERROR] $e');
+    }
+  }
+
   /// Async version that respects the dev IP override saved in prefs.
   Future<String> getBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();

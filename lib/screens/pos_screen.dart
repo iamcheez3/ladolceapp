@@ -837,8 +837,10 @@ class _PosScreenState extends State<PosScreen> {
     final showInlineCart = ResponsiveLayout.showsPosCartRail(context);
     final appBarTrailingWidth = MediaQuery.sizeOf(context).width < 360 ? 12.0 : 16.0;
 
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
       backgroundColor: _brandSurface,
       appBar: AppBar(
         backgroundColor: _brandNavy,
@@ -1519,58 +1521,48 @@ class _PosScreenState extends State<PosScreen> {
                       child: Column(
                         children: [
                           // Permanent Search Bar
+                          // Minimalist Search Bar (Underline)
                           Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(24),
-                                topRight: Radius.circular(24),
-                              ),
-                            ),
-                            margin: const EdgeInsets.only(top: 8),
+                            color: Colors.white,
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                               child: TextField(
                                 controller: _searchController,
+                                style: const TextStyle(fontSize: 15),
                                 decoration: InputDecoration(
-                                  hintText: 'Search products…',
+                                  hintText: 'Search products...',
                                   hintStyle: TextStyle(
                                     color: Colors.grey[400],
                                     fontSize: 15,
+                                    fontWeight: FontWeight.w400,
                                   ),
                                   prefixIcon: const Icon(
                                     Icons.search,
                                     color: Colors.grey,
+                                    size: 20,
+                                  ),
+                                  prefixIconConstraints: const BoxConstraints(
+                                    minWidth: 32,
                                   ),
                                   suffixIcon: _searchQuery.isNotEmpty
                                       ? IconButton(
-                                          icon: const Icon(Icons.clear),
+                                          icon: const Icon(Icons.clear, size: 18),
                                           onPressed: () {
                                             _searchController.clear();
                                             setState(() => _searchQuery = '');
                                           },
                                         )
                                       : null,
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 0,
-                                    horizontal: 20,
+                                  border: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.grey.shade200),
                                   ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                    borderSide: BorderSide.none,
+                                  enabledBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.grey.shade200),
                                   ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                    // borderSide: BorderSide(color: Colors.grey.shade200, width: 1),
-                                    borderSide: BorderSide.none,
+                                  focusedBorder: const UnderlineInputBorder(
+                                    borderSide: BorderSide(color: _brandNavy, width: 1.5),
                                   ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                    // borderSide: BorderSide(color: _brandNavy, width: 1.5),
-                                    borderSide: BorderSide.none,
-                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                                 ),
                                 onChanged: (value) {
                                   setState(() => _searchQuery = value);
@@ -1756,10 +1748,10 @@ class _PosScreenState extends State<PosScreen> {
           ],
         ),
       ),
-      // Mobile Cart floating button or bottom sheet could go here if not desktop
       bottomNavigationBar: !showInlineCart && _cartItems.isNotEmpty
           ? _buildMobileCartBar(context)
           : null,
+      ),
     );
   }
 
@@ -3291,160 +3283,270 @@ class _PosScreenState extends State<PosScreen> {
     showDialog(
       context: context,
       barrierDismissible: !_isOpeningTicket,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Open Ticket / Select Table'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: _tables.isEmpty
-                ? const Center(
-                    child: Text('No tables available.\nPlease sync catalog.'),
-                  )
-                : GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 150,
-                          childAspectRatio: 1,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
+      builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final bool isMobile = screenWidth < 600;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isMobile ? 20 : 28)),
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              width: isMobile ? screenWidth * 0.95 : 700,
+              constraints: BoxConstraints(maxHeight: isMobile ? 600 : 650),
+              color: Colors.white,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Premium Header
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 24,
+                      vertical: isMobile ? 16 : 20,
+                    ),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [_brandNavy, _brandNavy2],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                    itemCount: _tables.length,
-                    itemBuilder: (context, index) {
-                      final table = _tables[index];
-                      final isAvailable =
-                          table.status == 'available' ||
-                          table.status == 'empty';
-                      final hasOpenOrder = table.hasOpenOrder;
-
-                      // Three visual states:
-                      // Green  = available, no order
-                      // Orange = has an open draft order (tap to add to it)
-                      // Red    = occupied / unavailable (non-tappable)
-                      final Color cardColor;
-                      final Color borderColor;
-                      final Color iconColor;
-                      final IconData tableIcon;
-                      final String? badgeLabel;
-
-                      if (!isAvailable) {
-                        cardColor = Colors.red[50]!;
-                        borderColor = Colors.red[400]!;
-                        iconColor = Colors.red[700]!;
-                        tableIcon = Icons.block;
-                        badgeLabel = null;
-                      } else if (hasOpenOrder) {
-                        cardColor = Colors.orange[50]!;
-                        borderColor = Colors.orange[400]!;
-                        iconColor = Colors.orange[800]!;
-                        tableIcon = Icons.receipt_long;
-                        badgeLabel = 'OPEN';
-                      } else {
-                        cardColor = Colors.green[50]!;
-                        borderColor = Colors.green[400]!;
-                        iconColor = Colors.green[700]!;
-                        tableIcon = Icons.table_bar;
-                        badgeLabel = null;
-                      }
-
-                      return InkWell(
-                        // IMPORTANT: Tables with an OPEN ticket are intentionally NOT selectable
-                        // from this dialog. Combining tickets is handled only via "Move ticket".
-                        onTap: (!isAvailable || hasOpenOrder || _isOpeningTicket)
-                            ? null
-                            : () => _processOpenTicket(
-                                  context,
-                                  setDialogState,
-                                  table,
-                                ),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Card(
-                          color: cardColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: borderColor, width: 2),
-                          ),
-                          child: Stack(
+                        child: const Icon(Icons.table_restaurant_outlined, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Select Table',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            Text(
+                              'Choose a location to open a new ticket',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.1),
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Content
+                Expanded(
+                  child: _tables.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                              Icon(Icons.sync_problem, size: 48, color: Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No tables available.\nPlease sync catalog.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        )
+                      : GridView.builder(
+                          padding: EdgeInsets.all(isMobile ? 12 : 24),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: screenWidth > 800 ? 4 : (screenWidth > 500 ? 3 : 2),
+                            childAspectRatio: isMobile ? 1.0 : 0.9,
+                            crossAxisSpacing: isMobile ? 10 : 16,
+                            mainAxisSpacing: isMobile ? 10 : 16,
+                          ),
+                          itemCount: _tables.length,
+                          itemBuilder: (context, index) {
+                            final table = _tables[index];
+                            final isAvailable = table.status == 'available' || table.status == 'empty';
+                            final hasOpenOrder = table.hasOpenOrder;
+
+                            Color statusColor;
+                            IconData statusIcon;
+                            
+                            if (!isAvailable) {
+                              statusColor = Colors.red[400]!;
+                              statusIcon = Icons.lock_outline;
+                            } else if (hasOpenOrder) {
+                              statusColor = Colors.orange[400]!;
+                              statusIcon = Icons.receipt_long_outlined;
+                            } else {
+                              statusColor = Colors.green[400]!;
+                              statusIcon = Icons.check_circle_outline;
+                            }
+
+                            final bool selectable = isAvailable && !hasOpenOrder && !_isOpeningTicket;
+
+                            return InkWell(
+                              onTap: selectable
+                                  ? () => _processOpenTicket(context, setDialogState, table)
+                                  : null,
+                              borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: selectable ? const Color(0xFFF8FAFC) : Colors.grey[50],
+                                  borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+                                  border: Border.all(
+                                    color: selectable ? const Color(0xFFE2E8F0) : statusColor.withOpacity(0.3),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: selectable ? [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ] : null,
+                                ),
+                                child: Stack(
                                   children: [
-                                    Icon(tableIcon, color: iconColor, size: 32),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      table.name,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                    Padding(
+                                      padding: EdgeInsets.all(isMobile ? 8 : 12),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.all(isMobile ? 6 : 10),
+                                            decoration: BoxDecoration(
+                                              color: statusColor.withOpacity(0.1),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              selectable ? Icons.table_bar : statusIcon,
+                                              color: statusColor,
+                                              size: isMobile ? 18 : 24,
+                                            ),
+                                          ),
+                                          SizedBox(height: isMobile ? 4 : 12),
+                                          Text(
+                                            table.name,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: isMobile ? 14 : 16,
+                                              fontWeight: FontWeight.w800,
+                                              color: selectable ? _brandNavy : Colors.grey[500],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.people_outline, size: isMobile ? 12 : 14, color: Colors.grey[400]),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${table.capacity}',
+                                                style: TextStyle(fontSize: isMobile ? 11 : 13, color: Colors.grey[500]),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.person,
-                                          size: 14,
-                                          color: Colors.grey,
-                                        ),
-                                        Text(
-                                          '${table.capacity}',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
+                                    if (!selectable && !isAvailable)
+                                      Positioned.fill(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.4),
+                                            borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
                                   ],
                                 ),
                               ),
-                              // Badge for open order
-                              if (badgeLabel != null)
-                                Positioned(
-                                  top: 6,
-                                  right: 6,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      badgeLabel,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                ),
+                
+                // Footer Legend
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 16 : 24,
+                    vertical: isMobile ? 12 : 16,
                   ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                  ),
+                  child: isMobile
+                      ? Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            _statusDot(Colors.green[400]!, 'Available'),
+                            _statusDot(Colors.orange[400]!, 'Open'),
+                            _statusDot(Colors.red[400]!, 'Occupied'),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            _statusDot(Colors.green[400]!, 'Available'),
+                            const SizedBox(width: 24),
+                            _statusDot(Colors.orange[400]!, 'Open Order'),
+                            const SizedBox(width: 24),
+                            _statusDot(Colors.red[400]!, 'Occupied'),
+                            const Spacer(),
+                            if (_isOpeningTicket)
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2.5),
+                              ),
+                          ],
+                        ),
+                ),
+              ],
+            ),
           ),
-          actions: [
-            if (_isOpeningTicket)
-              const Padding(
-                padding: EdgeInsets.only(right: 16.0),
-                child: CircularProgressIndicator(),
-              )
-            else
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-          ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _statusDot(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-      ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+        ),
+      ],
     );
   }
 
