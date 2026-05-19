@@ -751,11 +751,26 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
   }
 
-  Future<void> _downloadQrCode() async {
+  Future<void> _downloadQrCode([ScaffoldMessengerState? feedbackMessenger]) async {
+    void showSnack(SnackBar snackBar) {
+      if (!mounted) return;
+      final messenger = feedbackMessenger ?? ScaffoldMessenger.maybeOf(context);
+      if (messenger == null) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: snackBar.content,
+          backgroundColor: snackBar.backgroundColor,
+          duration: snackBar.duration,
+          action: snackBar.action,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        ),
+      );
+    }
     try {
       final Uint8List? bytes = _qrBytesFromDataUrl();
       if (bytes == null || bytes.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSnack(
           const SnackBar(content: Text('No QR image configured yet'), backgroundColor: Colors.orange),
         );
         return;
@@ -766,8 +781,21 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         final status = await Permission.photosAddOnly.request();
         if (!status.isGranted && !status.isLimited) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Photo permission is required to save QR')),
+          final blocked = status.isPermanentlyDenied || status.isRestricted;
+          showSnack(
+            SnackBar(
+              content: Text(
+                blocked
+                    ? 'Photos permission is blocked. Open Settings to allow access.'
+                    : 'Photo permission is required to save QR',
+              ),
+              action: blocked
+                  ? SnackBarAction(
+                      label: 'Settings',
+                      onPressed: openAppSettings,
+                    )
+                  : null,
+            ),
           );
           return;
         }
@@ -778,7 +806,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           final status = await Permission.storage.request();
           if (!status.isGranted) {
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
+            showSnack(
               const SnackBar(content: Text('Storage permission is required to save QR')),
             );
             return;
@@ -786,52 +814,79 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         }
       }
 
-      // ── save via temp file → GallerySaver ────────────────────
-      final tempDir = await getTemporaryDirectory();
-      final filename = 'la_dolce_qr_${DateTime.now().millisecondsSinceEpoch}.png';
-      final tempFile = File('${tempDir.path}/$filename');
-      await tempFile.writeAsBytes(bytes, flush: true);
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      dynamic result;
+      if (Platform.isIOS) {
+        // iOS is more reliable with raw bytes saving directly to Photos.
+        result = await ImageGallerySaverPlus.saveImage(
+          bytes,
+          quality: 100,
+          name: 'la_dolce_qr_$timestamp',
+        );
+      } else {
+        // ── Android: save via temp file → GallerySaver ─────────
+        final tempDir = await getTemporaryDirectory();
+        final filename = 'la_dolce_qr_$timestamp.png';
+        final tempFile = File('${tempDir.path}/$filename');
+        await tempFile.writeAsBytes(bytes, flush: true);
+        result = await ImageGallerySaverPlus.saveFile(
+          tempFile.path,
+          name: 'la_dolce_qr_$timestamp',
+        );
+        // cleanup
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
 
-      // Verify file was written correctly
-      final written = await tempFile.readAsBytes();
-      debugPrint('Written file size: ${written.length}, header: ${written[0]} ${written[1]} ${written[2]} ${written[3]}');
-
-      final result = await ImageGallerySaverPlus.saveFile(
-        tempFile.path,
-        name: 'la_dolce_qr_${DateTime.now().millisecondsSinceEpoch}',
-      );
-      
       debugPrint('Gallery save result: $result');
-
-      // cleanup
-      try { await tempFile.delete(); } catch (_) {}
 
       if (!mounted) return;
 
       // ── check result more robustly ────────────────────────────
       final isSuccess = result is Map &&
           ((result['isSuccess'] == true) ||
-          (result['filePath'] != null && (result['filePath'] as String).isNotEmpty));
+              (result['success'] == true) ||
+              (result['filePath'] != null &&
+                  (result['filePath'] as String).isNotEmpty));
 
       if (isSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSnack(
           const SnackBar(content: Text('QR saved to gallery ✓'), backgroundColor: Colors.green),
         );
       } else {
         // Fallback: save to Downloads folder directly
-        await _saveQrToDownloads(bytes);
+        await _saveQrToDownloads(bytes, feedbackMessenger: feedbackMessenger);
       }
     } catch (e) {
       debugPrint('_downloadQrCode error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSnack(
         SnackBar(content: Text('Failed to download QR: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
   // ── fallback: save directly to Downloads ─────────────────────
-  Future<void> _saveQrToDownloads(Uint8List bytes) async {
+  Future<void> _saveQrToDownloads(
+    Uint8List bytes, {
+    ScaffoldMessengerState? feedbackMessenger,
+  }) async {
+    void showSnack(SnackBar snackBar) {
+      if (!mounted) return;
+      final messenger = feedbackMessenger ?? ScaffoldMessenger.maybeOf(context);
+      if (messenger == null) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: snackBar.content,
+          backgroundColor: snackBar.backgroundColor,
+          duration: snackBar.duration,
+          action: snackBar.action,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        ),
+      );
+    }
     try {
       Directory? dir;
       if (Platform.isAndroid) {
@@ -852,7 +907,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       debugPrint('Saved to: ${file.path}');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSnack(
         SnackBar(
           content: Text(
             Platform.isAndroid
@@ -865,7 +920,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     } catch (e) {
       debugPrint('_saveQrToDownloads error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSnack(
         SnackBar(content: Text('Save failed: $e'), backgroundColor: Colors.red),
       );
     }
@@ -989,6 +1044,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
     String paymentChoice = 'transfer';
     XFile? proofImage;
+    final sheetMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
     showModalBottomSheet(
       context: context,
@@ -1005,13 +1061,17 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 hasBranch && (paymentChoice != 'transfer' || proofImage != null);
             final bottomInset =
                 MediaQuery.viewInsetsOf(ctx).bottom + _gestureNavBottomPad(ctx);
-            return Padding(
-              padding: EdgeInsets.only(bottom: bottomInset),
-              child: FractionallySizedBox(
-                heightFactor: 0.90,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                  child: Column(
+            return ScaffoldMessenger(
+              key: sheetMessengerKey,
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(bottom: bottomInset),
+                    child: FractionallySizedBox(
+                      heightFactor: 0.90,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
@@ -1185,7 +1245,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 SizedBox(
                                   width: double.infinity,
                                   child: OutlinedButton.icon(
-                                    onPressed: _downloadQrCode,
+                                    onPressed: () => _downloadQrCode(
+                                      sheetMessengerKey.currentState,
+                                    ),
                                     icon: const Icon(Icons.download),
                                     label: Text(AppLocalizations.of(context)?.downloadQr ?? 'Download QR'),
                                   ),
@@ -1264,8 +1326,18 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                       ),
                     ],
+                    ),
+                    ),
+                      ),
+                    ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Scaffold(
+                        backgroundColor: Colors.transparent,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             );
           },
@@ -3007,7 +3079,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           ],
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -3061,12 +3133,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   children: [
                     Text(
                       product.name,
-                      maxLines: 2,
+                      maxLines: isWide ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Colors.black87,
-                        fontSize: isSmall ? 13 : 15,
+                        fontSize: isSmall ? 13 : 14,
                         height: 1.3,
                       ),
                     ),
@@ -3082,7 +3154,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -3108,8 +3180,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               );
                             },
                             child: Container(
-                              width: isSmall ? 32 : 36, // Slightly larger for better hit area
-                              height: isSmall ? 32 : 36,
+                              width: 32,
+                              height: 32,
                               decoration: BoxDecoration(
                                 color: _brandNavy,
                                 borderRadius: BorderRadius.circular(8),
@@ -3124,7 +3196,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               child: Icon(
                                 Icons.add,
                                 color: Colors.white,
-                                size: isSmall ? 18 : 20,
+                                size: 18,
                               ),
                             ),
                           ),
