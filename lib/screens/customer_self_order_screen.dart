@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'customer_support_screen.dart';
 import 'ranking_screen.dart';
@@ -72,6 +73,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   List<Product> _products = [];
   List<Product> _recommendedProducts = [];
   List<Product> _popularProducts = [];
+  PageController? _recommendedPageController;
+  Timer? _recommendedAutoSlideTimer;
+  int _recommendedSlideIndex = 0;
+  int _recommendedAutoSlideCount = 0;
+  double _recommendedViewportFraction = 0.86;
   List<Category> _categories = [Category(id: 'All', name: 'All Items')];
   final List<CartItem> _cartItems = [];
 
@@ -215,7 +221,47 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   @override
   void dispose() {
+    _recommendedAutoSlideTimer?.cancel();
+    _recommendedPageController?.dispose();
     super.dispose();
+  }
+
+  void _ensureRecommendedSliderController(double viewportFraction) {
+    if (_recommendedPageController != null &&
+        (_recommendedViewportFraction - viewportFraction).abs() < 0.001) {
+      return;
+    }
+    final oldController = _recommendedPageController;
+    _recommendedViewportFraction = viewportFraction;
+    _recommendedPageController = PageController(
+      viewportFraction: _recommendedViewportFraction,
+    );
+    oldController?.dispose();
+  }
+
+  void _startRecommendedAutoSlide(int itemCount) {
+    if (itemCount <= 1) {
+      _recommendedAutoSlideTimer?.cancel();
+      _recommendedAutoSlideTimer = null;
+      _recommendedAutoSlideCount = itemCount;
+      return;
+    }
+    if (_recommendedAutoSlideTimer != null &&
+        _recommendedAutoSlideCount == itemCount) {
+      return;
+    }
+    _recommendedAutoSlideTimer?.cancel();
+    _recommendedAutoSlideCount = itemCount;
+    _recommendedAutoSlideTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      final controller = _recommendedPageController;
+      if (!mounted || controller == null || !controller.hasClients) return;
+      _recommendedSlideIndex = (_recommendedSlideIndex + 1) % itemCount;
+      controller.animateToPage(
+        _recommendedSlideIndex,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   String get _profileImagePrefsKey =>
@@ -2506,6 +2552,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       SliverToBoxAdapter(child: _buildSectionHeader('All Products', isSmall: isSmall)),
     ];
 
+    final isNarrowWideLayout = isWide && MediaQuery.sizeOf(context).width < 1200;
     final sliverGrid = items.isEmpty
         ? const SliverFillRemaining(hasScrollBody: false, child: Center(child: Text('No items found')))
         : SliverPadding(
@@ -2515,10 +2562,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               isSmall ? 8 : 12,
               isWide ? 12 : (_isCartEmpty ? 12 : 92),
             ),
-            sliver: SliverGrid(
+              sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: isWide ? 3 : (isMobile ? 1 : 2),
-                mainAxisExtent: isWide ? 132 : (isMobile ? 110 : 126),
+                mainAxisExtent: isWide
+                    ? (isNarrowWideLayout ? 140 : 132)
+                    : (isMobile ? 110 : 126),
                 crossAxisSpacing: isSmall ? 8 : 10,
                 mainAxisSpacing: isSmall ? 8 : 10,
               ),
@@ -2618,18 +2667,23 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _buildSectionHeader('Recommended Products', isSmall: isSmall),
         const SizedBox(height: 8),
         LayoutBuilder(builder: (context, constraints) {
-          // Maintain a strict 2:1 aspect ratio for the banners
-          // Show ~2.2 cards on tablet (smaller) vs ~1.2 on phone (larger)
+          // Maintain a strict 2:1 aspect ratio for the banners.
           final cardWidth = isWide
               ? (constraints.maxWidth - hPad * 2) / 2.2
               : (constraints.maxWidth - hPad * 2) / 1.2;
           final cardHeight = cardWidth / 2;
+          final available = (constraints.maxWidth - hPad * 2).clamp(1.0, 99999.0);
+          final viewportFraction =
+              ((cardWidth / available).clamp(0.35, 0.95)).toDouble();
+          _ensureRecommendedSliderController(viewportFraction);
+          _startRecommendedAutoSlide(_recommendedProducts.length);
 
           return SizedBox(
             height: cardHeight,
-            child: ListView.builder(
-              padding: EdgeInsets.only(left: hPad, right: hPad),
-              scrollDirection: Axis.horizontal,
+            child: PageView.builder(
+              controller: _recommendedPageController,
+              padEnds: false,
+              onPageChanged: (index) => _recommendedSlideIndex = index,
               itemCount: _recommendedProducts.length,
               itemBuilder: (context, index) {
                 final product = _recommendedProducts[index];
@@ -2652,7 +2706,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     opacity: blocked ? 0.55 : 1.0,
                     child: Container(
                       width: cardWidth,
-                      margin: EdgeInsets.only(right: isSmall ? 10 : 14),
+                      margin: EdgeInsets.only(
+                        left: index == 0 ? hPad : (isSmall ? 5 : 7),
+                        right: index == _recommendedProducts.length - 1 ? hPad : (isSmall ? 5 : 7),
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(18),
@@ -3156,18 +3213,22 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     ),
                     const SizedBox(height: 4),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          '₭${product.price.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: blocked ? Colors.grey : _brandNavy,
-                            fontSize: isSmall ? 14 : 16,
+                        Expanded(
+                          child: Text(
+                            '₭${product.price.toStringAsFixed(0)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: blocked ? Colors.grey : _brandNavy,
+                              fontSize: isSmall ? 14 : 16,
+                            ),
                           ),
                         ),
-                        if (!blocked)
+                        if (!blocked) ...[
+                          const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () {
                               _addToCart(product, quantity: 1, selectedToppings: []);
@@ -3193,13 +3254,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                 ],
                               ),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.add,
                                 color: Colors.white,
                                 size: 18,
                               ),
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ],
@@ -4052,17 +4114,46 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   Widget _historyStatusPill(String friendly, String rawState) {
-    final paid = rawState == 'paid';
+    final state = rawState.toLowerCase().trim();
+    final label = friendly.toLowerCase().trim();
+    final isWaiting =
+        state == 'waiting_transfer_review' || label.contains('waiting');
+    final isCancelled = state == 'cancelled' || label.contains('cancel');
+    final isConfirmed = state == 'draft' || label.contains('confirm');
+    final isPaid = state == 'paid' || label == 'paid';
+
+    Color bg = const Color(0xFFE5EDFF);
+    Color fg = const Color(0xFF1E3A8A);
+    String text = friendly;
+
+    if (isCancelled) {
+      bg = const Color(0xFFFEE2E2); // red-100
+      fg = const Color(0xFFB91C1C); // red-700
+      text = 'Cancelled';
+    } else if (isWaiting) {
+      bg = const Color(0xFFFFEDD5); // orange-100
+      fg = const Color(0xFFC2410C); // orange-700
+      text = 'Waiting transfer verification';
+    } else if (isConfirmed) {
+      bg = const Color(0xFFDCFCE7); // green-100
+      fg = const Color(0xFF166534); // green-800
+      text = 'Order confirmed';
+    } else if (isPaid) {
+      bg = const Color(0xFFDCFCE7); // green-100
+      fg = const Color(0xFF166534); // green-800
+      text = 'Paid';
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: paid ? const Color(0xFFDCF4E0) : const Color(0xFFFFE7CC),
+        color: bg,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        paid ? 'Paid' : friendly,
+        text,
         style: TextStyle(
-          color: paid ? const Color(0xFF166534) : const Color(0xFFC2410C),
+          color: fg,
           fontWeight: FontWeight.w800,
           fontSize: 12,
         ),

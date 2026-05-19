@@ -63,6 +63,9 @@ class _PosAppState extends State<PosApp> {
     super.initState();
     MaintenanceService().startChecking();
     UserActivityService().startTracking();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationsService.requestPermissionPostFrame();
+    });
     _fetchLocale().then((locale) {
       setState(() {
         _locale = locale;

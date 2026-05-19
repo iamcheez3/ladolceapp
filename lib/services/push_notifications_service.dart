@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'api_service.dart';
 
@@ -60,13 +62,36 @@ class PushNotificationsService {
 
     final messaging = FirebaseMessaging.instance;
 
-    // iOS permissions (Android auto-grants on install)
+    // iOS permissions (Android 13+ asks runtime in system flow)
     final settings = await messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
     _d('FCM permission: ${settings.authorizationStatus}');
+
+    // Also ask iOS local notifications permission explicitly.
+    await _local
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+    await _local
+        .resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+
+    // Keep permission_handler state in sync (used elsewhere in app).
+    try {
+      await Permission.notification.request();
+    } catch (_) {}
 
     // Foreground presentation (iOS)
     await messaging.setForegroundNotificationPresentationOptions(
@@ -196,6 +221,39 @@ class PushNotificationsService {
     }
   }
 
+  /// iOS: request notification permission after first frame is rendered.
+  /// Calling too early (during app bootstrap) may not show the system prompt.
+  static Future<void> requestPermissionPostFrame() async {
+    if (!Platform.isIOS) return;
+    try {
+      final status = await Permission.notification.status;
+      if (status.isGranted || status.isPermanentlyDenied) return;
+    } catch (_) {}
+
+    try {
+      await _local
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+    } catch (_) {}
+
+    try {
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (_) {}
+
+    try {
+      await Permission.notification.request();
+    } catch (_) {}
+  }
+
   /// Customer self-order: in-app preference (default on). When off, FCM token is removed
   /// and foreground notifications are skipped.
   static Future<bool> isCustomerPushEnabled() async {
@@ -239,11 +297,44 @@ class PushNotificationsService {
         } catch (_) {}
         return;
       }
-      final token = await FirebaseMessaging.instance.getToken();
+      final token = await _resolveFcmTokenForRegistration();
       if (token != null && token.isNotEmpty) {
         await _registerTokenToBackend(token);
+      } else {
+        _d('FCM token unavailable (yet), skip register for now.');
       }
     } catch (_) {}
+  }
+
+  static Future<String?> _resolveFcmTokenForRegistration() async {
+    final messaging = FirebaseMessaging.instance;
+
+    if (Platform.isIOS) {
+      try {
+        final settings = await messaging.getNotificationSettings();
+        if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+          await messaging.requestPermission(alert: true, badge: true, sound: true);
+        }
+      } catch (_) {}
+
+      // iOS: APNs token may not be ready immediately after first launch/login.
+      for (int i = 0; i < 8; i++) {
+        try {
+          final apns = await messaging.getAPNSToken();
+          if (apns != null && apns.isNotEmpty) break;
+        } catch (_) {}
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      }
+    }
+
+    for (int i = 0; i < 5; i++) {
+      try {
+        final token = await messaging.getToken();
+        if (token != null && token.isNotEmpty) return token;
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+    }
+    return null;
   }
 
   static Future<void> _registerTokenToBackend(String token) async {
