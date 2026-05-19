@@ -319,12 +319,27 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
 
                       // ── Total ─────────────────────────────────────────
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Total Amount', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                          Text(
-                            '${data['currency'] ?? 'LAK'} ${(data['amount_total'] as num).toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
+                          const Expanded(
+                            child: Text(
+                              'Total Amount',
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                '${data['currency'] ?? 'LAK'} ${(data['amount_total'] as num).toStringAsFixed(2)}',
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: _navy,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
