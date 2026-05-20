@@ -83,7 +83,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   List<Map<String, dynamic>> _transferBanks = [];
   int _selectedBankIndex = 0;
-  
+
   bool get _isCartEmpty => _cartItems.isEmpty;
   int get _cartCount {
     if (_cartItems.isEmpty) return 0;
@@ -128,6 +128,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   List<Map<String, dynamic>> _branches = const [];
   int? _selectedBranchId;
 
+  final TextEditingController _noteController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -156,7 +158,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
       if (selectedId != null) {
         final match = branches.where((b) {
-          final id = (b['id'] is int) ? b['id'] as int : int.tryParse('${b['id']}') ?? 0;
+          final id = (b['id'] is int)
+              ? b['id'] as int
+              : int.tryParse('${b['id']}') ?? 0;
           return id == selectedId;
         }).toList();
         if (match.isNotEmpty) {
@@ -223,6 +227,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   void dispose() {
     _recommendedAutoSlideTimer?.cancel();
     _recommendedPageController?.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -252,7 +257,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
     _recommendedAutoSlideTimer?.cancel();
     _recommendedAutoSlideCount = itemCount;
-    _recommendedAutoSlideTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _recommendedAutoSlideTimer = Timer.periodic(const Duration(seconds: 3), (
+      _,
+    ) {
       final controller = _recommendedPageController;
       if (!mounted || controller == null || !controller.hasClients) return;
       _recommendedSlideIndex = (_recommendedSlideIndex + 1) % itemCount;
@@ -298,7 +305,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         final b64 = base64Encode(bytes);
         final saved = await _apiService.saveCustomer(
           id: _customerId,
-          name: _customerName.trim().isEmpty ? 'Customer' : _customerName.trim(),
+          name: _customerName.trim().isEmpty
+              ? 'Customer'
+              : _customerName.trim(),
           phone: _customerPhone.trim(),
           email: _customerEmail.trim().isEmpty ? null : _customerEmail.trim(),
           dateOfBirth: _customerDob.trim().isEmpty ? null : _customerDob.trim(),
@@ -360,30 +369,36 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       products.addAll(combos);
 
       final categorySet = products.map((p) => p.category).toSet();
-      final categories = [Category(id: 'All', name: 'All Items'), ...categorySet.map((name) => Category(id: name, name: name))]
-        ;
+      final categories = [
+        Category(id: 'All', name: 'All Items'),
+        ...categorySet.map((name) => Category(id: name, name: name)),
+      ];
 
       final highlights = await _apiService.fetchProductHighlights();
       final recIds = highlights['recommended'] ?? [];
       final popIds = highlights['popular'] ?? [];
 
-      final recommendedProducts = products.where((p) => recIds.contains(p.id)).toList();
-      final popularProducts = products.where((p) => popIds.contains(p.id)).toList();
+      final recommendedProducts = products
+          .where((p) => recIds.contains(p.id))
+          .toList();
+      final popularProducts = products
+          .where((p) => popIds.contains(p.id))
+          .toList();
 
       if (!mounted) return;
       final oldPreviewId = _previewProduct?.id;
       Product? nextPreview = _previewProduct;
       if (nextPreview != null) {
-        final match =
-            products.where((p) => p.id == nextPreview!.id).firstOrNull;
+        final match = products
+            .where((p) => p.id == nextPreview!.id)
+            .firstOrNull;
         if (match == null || match.blockSelfOrder) {
           nextPreview = null;
         } else {
           nextPreview = match;
         }
       }
-      nextPreview ??=
-          products.where((p) => !p.blockSelfOrder).firstOrNull;
+      nextPreview ??= products.where((p) => !p.blockSelfOrder).firstOrNull;
 
       setState(() {
         _products = products;
@@ -438,10 +453,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _customerPhone = (matched?['phone'] ?? '').toString();
         _customerEmail = (matched?['email'] ?? '').toString();
         _customerDob =
-            (matched?['date_of_birth'] ?? matched?['birthdate'] ?? '').toString();
+            (matched?['date_of_birth'] ?? matched?['birthdate'] ?? '')
+                .toString();
         _rewardPoints =
             int.tryParse((matched?['reward_points'] ?? 0).toString()) ?? 0;
-        _rewardRank = int.tryParse((matched?['reward_rank'] ?? 0).toString()) ?? 0;
+        _rewardRank =
+            int.tryParse((matched?['reward_rank'] ?? 0).toString()) ?? 0;
         _customerImageBase64 = matched?['image_base64']?.toString();
         _isLoadingProfile = false;
       });
@@ -514,10 +531,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         final merged = Map<String, dynamic>.from(item);
         // Keep local proof path as fallback if server proof URL is still empty.
         if (existing != null) {
-          final existingProofPath =
-              (existing['proof_image_path'] ?? '').toString().trim();
-          final mergedProofUrl =
-              (merged['transfer_proof_url'] ?? '').toString().trim();
+          final existingProofPath = (existing['proof_image_path'] ?? '')
+              .toString()
+              .trim();
+          final mergedProofUrl = (merged['transfer_proof_url'] ?? '')
+              .toString()
+              .trim();
           if (existingProofPath.isNotEmpty && mergedProofUrl.isEmpty) {
             merged['proof_image_path'] = existingProofPath;
           }
@@ -561,7 +580,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
         // ── select default bank ──
         if (_transferBanks.isNotEmpty) {
-          final defaultIdx = _transferBanks.indexWhere((b) => b['is_default'] == true);
+          final defaultIdx = _transferBanks.indexWhere(
+            (b) => b['is_default'] == true,
+          );
           _selectedBankIndex = defaultIdx >= 0 ? defaultIdx : 0;
           _syncSelectedBank();
         } else {
@@ -570,7 +591,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           _bankName = (config['bank_name'] ?? '').toString();
           _accountName = (config['account_name'] ?? '').toString();
           _accountNumber = (config['account_number'] ?? '').toString();
-          
         }
         final rawBanners = (config['banners'] as List?) ?? const [];
         final rawAds = (config['ads'] as List?) ?? const [];
@@ -587,7 +607,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             .where((e) => e.startsWith('data:image'))
             .toList();
         if (_bannerImageDataUrls.isEmpty) {
-          final legacyBanner = (config['banner_image_data_url'] ?? '').toString();
+          final legacyBanner = (config['banner_image_data_url'] ?? '')
+              .toString();
           if (legacyBanner.startsWith('data:image')) {
             _bannerImageDataUrls = [legacyBanner];
           }
@@ -601,7 +622,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           _bytesFromDataUrl(url);
         }
 
-        if (_adImageDataUrls.isEmpty && (config['ad_enabled'] ?? true) == true) {
+        if (_adImageDataUrls.isEmpty &&
+            (config['ad_enabled'] ?? true) == true) {
           final legacyAd = (config['ad_image_data_url'] ?? '').toString();
           if (legacyAd.startsWith('data:image')) {
             _adImageDataUrls = [legacyAd];
@@ -630,18 +652,19 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _syncSelectedBank() {
-  if (_transferBanks.isEmpty) return;
-  final b = _transferBanks[_selectedBankIndex];
-  _qrImageDataUrl = (b['qr_image_data_url'] ?? '').toString();
-  _bankName = (b['bank_name'] ?? '').toString();
-  _accountName = (b['account_name'] ?? '').toString();
-  _accountNumber = (b['account_number'] ?? '').toString();
-}
+    if (_transferBanks.isEmpty) return;
+    final b = _transferBanks[_selectedBankIndex];
+    _qrImageDataUrl = (b['qr_image_data_url'] ?? '').toString();
+    _bankName = (b['bank_name'] ?? '').toString();
+    _accountName = (b['account_name'] ?? '').toString();
+    _accountNumber = (b['account_number'] ?? '').toString();
+  }
 
   Uint8List? _bytesFromDataUrl(String dataUrl) {
     if (dataUrl.isEmpty || !dataUrl.startsWith('data:image')) return null;
-    if (_decodedImageCache.containsKey(dataUrl)) return _decodedImageCache[dataUrl];
-    
+    if (_decodedImageCache.containsKey(dataUrl))
+      return _decodedImageCache[dataUrl];
+
     final comma = dataUrl.indexOf(',');
     if (comma < 0) return null;
     try {
@@ -693,8 +716,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               final dialogWidth = constraints.maxWidth.clamp(0.0, 420.0);
               final screenH = MediaQuery.sizeOf(context).height;
               final orientation = MediaQuery.orientationOf(context);
-              final heightFrac =
-                  orientation == Orientation.landscape ? 0.38 : 0.5;
+              final heightFrac = orientation == Orientation.landscape
+                  ? 0.38
+                  : 0.5;
               final adHeight = (screenH * heightFrac).clamp(140.0, 460.0);
               return SizedBox(
                 width: dialogWidth,
@@ -702,75 +726,83 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                    SizedBox(
-                      height: adHeight,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: PageView.builder(
-                          controller: adPageController,
-                          itemCount: _adImageDataUrls.length,
-                          itemBuilder: (context, index) {
-                            final bytes = _bytesFromDataUrl(_adImageDataUrls[index]);
-                            if (bytes == null) {
-                              return Container(color: Colors.white);
-                            }
-                            return Image.memory(bytes, fit: BoxFit.cover);
-                          },
+                      SizedBox(
+                        height: adHeight,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: PageView.builder(
+                            controller: adPageController,
+                            itemCount: _adImageDataUrls.length,
+                            itemBuilder: (context, index) {
+                              final bytes = _bytesFromDataUrl(
+                                _adImageDataUrls[index],
+                              );
+                              if (bytes == null) {
+                                return Container(color: Colors.white);
+                              }
+                              return Image.memory(bytes, fit: BoxFit.cover);
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: dontShowToday,
-                      builder: (context, checked, _) {
-                        return Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.96),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Checkbox(
-                                value: checked,
-                                onChanged: (value) =>
-                                    dontShowToday.value = value ?? false,
-                                activeColor: _brandNavy,
-                              ),
-                              const Expanded(
-                                child: Text(
-                                  "Don't show again today",
-                                  style: TextStyle(fontWeight: FontWeight.w600),
+                      const SizedBox(height: 10),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: dontShowToday,
+                        builder: (context, checked, _) {
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.96),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: checked,
+                                  onChanged: (value) =>
+                                      dontShowToday.value = value ?? false,
+                                  activeColor: _brandNavy,
                                 ),
-                              ),
-                              
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    Material(
-                      color: Colors.white.withOpacity(0.45),
-                      borderRadius: BorderRadius.circular(28),
-                      child: InkWell(
+                                const Expanded(
+                                  child: Text(
+                                    "Don't show again today",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      Material(
+                        color: Colors.white.withOpacity(0.45),
                         borderRadius: BorderRadius.circular(28),
-                        onTap: () => Navigator.of(context).pop(dontShowToday.value),
-                        child: const SizedBox(
-                          width: 56,
-                          height: 56,
-                          child: Icon(Icons.close, color: Colors.white, size: 34),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(28),
+                          onTap: () =>
+                              Navigator.of(context).pop(dontShowToday.value),
+                          child: const SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 34,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
+              );
             },
           ),
         );
@@ -797,7 +829,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
   }
 
-  Future<void> _downloadQrCode([ScaffoldMessengerState? feedbackMessenger]) async {
+  Future<void> _downloadQrCode([
+    ScaffoldMessengerState? feedbackMessenger,
+  ]) async {
     void showSnack(SnackBar snackBar) {
       if (!mounted) return;
       final messenger = feedbackMessenger ?? ScaffoldMessenger.maybeOf(context);
@@ -813,11 +847,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         ),
       );
     }
+
     try {
       final Uint8List? bytes = _qrBytesFromDataUrl();
       if (bytes == null || bytes.isEmpty) {
         showSnack(
-          const SnackBar(content: Text('No QR image configured yet'), backgroundColor: Colors.orange),
+          const SnackBar(
+            content: Text('No QR image configured yet'),
+            backgroundColor: Colors.orange,
+          ),
         );
         return;
       }
@@ -853,7 +891,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           if (!status.isGranted) {
             if (!mounted) return;
             showSnack(
-              const SnackBar(content: Text('Storage permission is required to save QR')),
+              const SnackBar(
+                content: Text('Storage permission is required to save QR'),
+              ),
             );
             return;
           }
@@ -890,7 +930,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (!mounted) return;
 
       // ── check result more robustly ────────────────────────────
-      final isSuccess = result is Map &&
+      final isSuccess =
+          result is Map &&
           ((result['isSuccess'] == true) ||
               (result['success'] == true) ||
               (result['filePath'] != null &&
@@ -898,7 +939,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
       if (isSuccess) {
         showSnack(
-          const SnackBar(content: Text('QR saved to gallery ✓'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('QR saved to gallery ✓'),
+            backgroundColor: Colors.green,
+          ),
         );
       } else {
         // Fallback: save to Downloads folder directly
@@ -908,7 +952,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       debugPrint('_downloadQrCode error: $e');
       if (!mounted) return;
       showSnack(
-        SnackBar(content: Text('Failed to download QR: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Failed to download QR: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -933,6 +980,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         ),
       );
     }
+
     try {
       Directory? dir;
       if (Platform.isAndroid) {
@@ -946,7 +994,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
       if (dir == null) throw Exception('Cannot find save directory');
 
-      final filename = 'la_dolce_qr_${DateTime.now().millisecondsSinceEpoch}.png';
+      final filename =
+          'la_dolce_qr_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${dir.path}/$filename');
       await file.writeAsBytes(bytes, flush: true);
 
@@ -1088,6 +1137,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   void _showCheckoutOptions() {
     if (_cartItems.isEmpty || _isPlacingOrder) return;
 
+    _noteController.clear();
     String paymentChoice = 'transfer';
     XFile? proofImage;
     final sheetMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -1102,9 +1152,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final bool hasBranch = _selectedBranchId != null && (_selectedBranchId ?? 0) > 0;
+            final bool hasBranch =
+                _selectedBranchId != null && (_selectedBranchId ?? 0) > 0;
             final bool canConfirm =
-                hasBranch && (paymentChoice != 'transfer' || proofImage != null);
+                hasBranch &&
+                (paymentChoice != 'transfer' || proofImage != null);
             final bottomInset =
                 MediaQuery.viewInsetsOf(ctx).bottom + _gestureNavBottomPad(ctx);
             return ScaffoldMessenger(
@@ -1118,269 +1170,394 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                         child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          physics: const ClampingScrollPhysics(),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                AppLocalizations.of(context)?.choosePaymentMethod ?? 'Choose Payment Method',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                AppLocalizations.of(context)?.selectBranch ?? 'Select Branch',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 8),
-                              if (_isLoadingBranches)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 8),
-                                  child: Center(child: CircularProgressIndicator()),
-                                )
-                              else if (_branches.isEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    AppLocalizations.of(context)?.noBranchesFound ?? 'No branches found. Please ask staff.',
-                                    style: const TextStyle(color: Colors.redAccent),
-                                  ),
-                                )
-                              else
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey.shade300),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<int>(
-                                      value: _selectedBranchId,
-                                      isExpanded: true,
-                                      items: _branches.map((b) {
-                                        final id = (b['id'] is int)
-                                            ? b['id'] as int
-                                            : int.tryParse('${b['id']}') ?? 0;
-                                        final name = (b['name'] ?? '').toString();
-                                        final code = (b['code'] ?? '').toString().trim();
-                                        final label = code.isNotEmpty ? '$name ($code)' : name;
-                                        return DropdownMenuItem<int>(
-                                          value: id,
-                                          child: Text(label),
-                                        );
-                                      }).toList(),
-                                      onChanged: (v) async {
-                                        if (v == null) return;
-                                        final match = _branches.where((b) {
-                                          final id = (b['id'] is int)
-                                              ? b['id'] as int
-                                              : int.tryParse('${b['id']}') ?? 0;
-                                          return id == v;
-                                        }).toList();
-                                        final name = match.isNotEmpty ? (match.first['name'] ?? '').toString() : '';
-                                        setSheetState(() {
-                                          _selectedBranchId = v;
-                                        });
-                                        await _apiService.setCachedCustomerBranch(
-                                          branchId: v,
-                                          branchName: name,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 12),
-
-                              if (paymentChoice == 'transfer') ...[
-                                const SizedBox(height: 10),
-                                if (_transferBanks.length > 1) ...[
-                                  Text(
-                                    AppLocalizations.of(context)?.selectBank ?? 'Select Bank',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.grey.shade300),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<int>(
-                                        value: _selectedBankIndex,
-                                        isExpanded: true,
-                                        items: List.generate(_transferBanks.length, (i) {
-                                          final b = _transferBanks[i];
-                                          return DropdownMenuItem(
-                                            value: i,
-                                            child: Text(
-                                              '${b['label'] ?? b['bank_name']} — ${b['account_name']}',
-                                            ),
-                                          );
-                                        }),
-                                        onChanged: (idx) {
-                                          if (idx == null) return;
-                                          setSheetState(() {
-                                            _selectedBankIndex = idx;
-                                            _syncSelectedBank();
-                                            proofImage = null; // reset proof on bank change
-                                          });
-                                        },
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: SingleChildScrollView(
+                                physics: const ClampingScrollPhysics(),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      AppLocalizations.of(
+                                            context,
+                                          )?.choosePaymentMethod ??
+                                          'Choose Payment Method',
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                ],
-                                Text(
-                                  AppLocalizations.of(context)?.scanQrCode ?? 'Scan QR Code',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                LayoutBuilder(
-                                  builder: (context, c) {
-                                    final qrSide = (c.maxWidth * 0.72).clamp(160.0, 220.0);
-                                    return Center(
-                                      child: SizedBox(
-                                        width: qrSide,
-                                        height: qrSide,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: Colors.grey.shade300),
-                                          ),
-                                          child: _isLoadingSelfOrderConfig
-                                              ? const Center(child: CircularProgressIndicator())
-                                              : (_qrBytesFromDataUrl() != null
-                                                    ? Image.memory(
-                                                        _qrBytesFromDataUrl()!,
-                                                        fit: BoxFit.contain,
-                                                      )
-                                                    : const Center(
-                                                        child: Text(
-                                                          'QR not configured in Odoo Settings',
-                                                          textAlign: TextAlign.center,
-                                                        ),
-                                                      )),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                Center(
-                                  child: Text(
-                                    'Account: ${_accountName.isEmpty ? 'La Dolce' : _accountName}'
-                                    '\nBank: ${_bankName.isEmpty ? '-' : _bankName}'
-                                    '\nNo: ${_accountNumber.isEmpty ? '-' : _accountNumber}',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(color: Colors.black54),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => _downloadQrCode(
-                                      sheetMessengerKey.currentState,
-                                    ),
-                                    icon: const Icon(Icons.download),
-                                    label: Text(AppLocalizations.of(context)?.downloadQr ?? 'Download QR'),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final picked = await _imagePicker.pickImage(
-                                        source: ImageSource.gallery,
-                                        imageQuality: 70,
-                                      );
-                                      if (picked != null) {
-                                        setSheetState(() => proofImage = picked);
-                                      }
-                                    },
-                                    icon: const Icon(Icons.upload_file),
-                                    label: Text(
-                                      proofImage == null
-                                          ? AppLocalizations.of(context)?.uploadTransferProof ?? 'Upload Transfer Proof'
-                                          : AppLocalizations.of(context)?.proofSelected ?? 'Proof Selected',
-                                    ),
-                                  ),
-                                ),
-                                if (proofImage != null) ...[
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.green.shade200),
-                                    ),
-                                    child: Text(
-                                      AppLocalizations.of(context)?.transferProofSelectedMsg ?? 'Transfer proof selected. It will be uploaded when you confirm order.',
-                                      style: const TextStyle(
-                                        color: Colors.green,
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      AppLocalizations.of(
+                                            context,
+                                          )?.selectBranch ??
+                                          'Select Branch',
+                                      style: TextStyle(
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
+                                    const SizedBox(height: 8),
+                                    if (_isLoadingBranches)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 8,
+                                        ),
+                                        child: Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      )
+                                    else if (_branches.isEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: Text(
+                                          AppLocalizations.of(
+                                                context,
+                                              )?.noBranchesFound ??
+                                              'No branches found. Please ask staff.',
+                                          style: const TextStyle(
+                                            color: Colors.redAccent,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<int>(
+                                            value: _selectedBranchId,
+                                            isExpanded: true,
+                                            items: _branches.map((b) {
+                                              final id = (b['id'] is int)
+                                                  ? b['id'] as int
+                                                  : int.tryParse(
+                                                          '${b['id']}',
+                                                        ) ??
+                                                        0;
+                                              final name = (b['name'] ?? '')
+                                                  .toString();
+                                              final code = (b['code'] ?? '')
+                                                  .toString()
+                                                  .trim();
+                                              final label = code.isNotEmpty
+                                                  ? '$name ($code)'
+                                                  : name;
+                                              return DropdownMenuItem<int>(
+                                                value: id,
+                                                child: Text(label),
+                                              );
+                                            }).toList(),
+                                            onChanged: (v) async {
+                                              if (v == null) return;
+                                              final match = _branches.where((
+                                                b,
+                                              ) {
+                                                final id = (b['id'] is int)
+                                                    ? b['id'] as int
+                                                    : int.tryParse(
+                                                            '${b['id']}',
+                                                          ) ??
+                                                          0;
+                                                return id == v;
+                                              }).toList();
+                                              final name = match.isNotEmpty
+                                                  ? (match.first['name'] ?? '')
+                                                        .toString()
+                                                  : '';
+                                              setSheetState(() {
+                                                _selectedBranchId = v;
+                                              });
+                                              await _apiService
+                                                  .setCachedCustomerBranch(
+                                                    branchId: v,
+                                                    branchName: name,
+                                                  );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      AppLocalizations.of(context)?.orderNote ?? 'Order Note / Pickup Time',
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _noteController,
+                                      style: const TextStyle(color: Colors.black87),
+                                      decoration: InputDecoration(
+                                        hintText: AppLocalizations.of(context)?.orderNoteHint ?? 'e.g., Pickup at 3:00 PM, extra spicy, etc.',
+                                        hintStyle: TextStyle(color: Colors.grey.shade400),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                          borderSide: BorderSide(color: Colors.grey.shade300),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                          borderSide: const BorderSide(color: _brandNavy),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      ),
+                                      maxLines: 2,
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    if (paymentChoice == 'transfer') ...[
+                                      const SizedBox(height: 10),
+                                      if (_transferBanks.length > 1) ...[
+                                        Text(
+                                          AppLocalizations.of(
+                                                context,
+                                              )?.selectBank ??
+                                              'Select Bank',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.grey.shade300,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<int>(
+                                              value: _selectedBankIndex,
+                                              isExpanded: true,
+                                              items: List.generate(
+                                                _transferBanks.length,
+                                                (i) {
+                                                  final b = _transferBanks[i];
+                                                  return DropdownMenuItem(
+                                                    value: i,
+                                                    child: Text(
+                                                      '${b['label'] ?? b['bank_name']} — ${b['account_name']}',
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                              onChanged: (idx) {
+                                                if (idx == null) return;
+                                                setSheetState(() {
+                                                  _selectedBankIndex = idx;
+                                                  _syncSelectedBank();
+                                                  proofImage =
+                                                      null; // reset proof on bank change
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                      ],
+                                      Text(
+                                        AppLocalizations.of(
+                                              context,
+                                            )?.scanQrCode ??
+                                            'Scan QR Code',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      LayoutBuilder(
+                                        builder: (context, c) {
+                                          final qrSide = (c.maxWidth * 0.72)
+                                              .clamp(160.0, 220.0);
+                                          return Center(
+                                            child: SizedBox(
+                                              width: qrSide,
+                                              height: qrSide,
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  8,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: Colors.grey.shade300,
+                                                  ),
+                                                ),
+                                                child: _isLoadingSelfOrderConfig
+                                                    ? const Center(
+                                                        child:
+                                                            CircularProgressIndicator(),
+                                                      )
+                                                    : (_qrBytesFromDataUrl() !=
+                                                              null
+                                                          ? Image.memory(
+                                                              _qrBytesFromDataUrl()!,
+                                                              fit: BoxFit
+                                                                  .contain,
+                                                            )
+                                                          : const Center(
+                                                              child: Text(
+                                                                'QR not configured in Odoo Settings',
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .center,
+                                                              ),
+                                                            )),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Center(
+                                        child: Text(
+                                          'Account: ${_accountName.isEmpty ? 'La Dolce' : _accountName}'
+                                          '\nBank: ${_bankName.isEmpty ? '-' : _bankName}'
+                                          '\nNo: ${_accountNumber.isEmpty ? '-' : _accountNumber}',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => _downloadQrCode(
+                                            sheetMessengerKey.currentState,
+                                          ),
+                                          icon: const Icon(Icons.download),
+                                          label: Text(
+                                            AppLocalizations.of(
+                                                  context,
+                                                )?.downloadQr ??
+                                                'Download QR',
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton.icon(
+                                          onPressed: () async {
+                                            final picked = await _imagePicker
+                                                .pickImage(
+                                                  source: ImageSource.gallery,
+                                                  imageQuality: 70,
+                                                );
+                                            if (picked != null) {
+                                              setSheetState(
+                                                () => proofImage = picked,
+                                              );
+                                            }
+                                          },
+                                          icon: const Icon(Icons.upload_file),
+                                          label: Text(
+                                            proofImage == null
+                                                ? AppLocalizations.of(
+                                                        context,
+                                                      )?.uploadTransferProof ??
+                                                      'Upload Transfer Proof'
+                                                : AppLocalizations.of(
+                                                        context,
+                                                      )?.proofSelected ??
+                                                      'Proof Selected',
+                                          ),
+                                        ),
+                                      ),
+                                      if (proofImage != null) ...[
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.shade50,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.green.shade200,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            AppLocalizations.of(
+                                                  context,
+                                                )?.transferProofSelectedMsg ??
+                                                'Transfer proof selected. It will be uploaded when you confirm order.',
+                                            style: const TextStyle(
+                                              color: Colors.green,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                    const SizedBox(height: 16),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: (_isPlacingOrder || !canConfirm)
+                                    ? null
+                                    : () async {
+                                        Navigator.pop(ctx);
+                                        await _placeOrder(
+                                          paymentChoice: paymentChoice,
+                                          proofImagePath: proofImage?.path,
+                                          transferBankId:
+                                              _transferBanks.isNotEmpty
+                                              ? _transferBanks[_selectedBankIndex]['id']
+                                                    as int?
+                                              : null,
+                                          branchId: _selectedBranchId,
+                                          note: _noteController.text.trim(),
+                                        );
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _brandNavy,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
                                   ),
-                                ],
-                              ],
-                              const SizedBox(height: 16),
-                            ],
-                          ),
+                                ),
+                                child: Text(
+                                  '${AppLocalizations.of(context)?.confirmOrder ?? 'Confirm Order'} (₭${_cartTotal.toStringAsFixed(2)})',
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: (_isPlacingOrder || !canConfirm)
-                              ? null
-                              : () async {
-                                  Navigator.pop(ctx);
-                                  await _placeOrder(
-                                    paymentChoice: paymentChoice,
-                                    proofImagePath: proofImage?.path,
-                                    transferBankId: _transferBanks.isNotEmpty
-                                      ? _transferBanks[_selectedBankIndex]['id'] as int?
-                                      : null,
-                                    branchId: _selectedBranchId,
-                                  );
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _brandNavy,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: Text(
-                            '${AppLocalizations.of(context)?.confirmOrder ?? 'Confirm Order'} (₭${_cartTotal.toStringAsFixed(2)})',
-                          ),
-                        ),
-                      ),
-                    ],
                     ),
-                    ),
-                      ),
-                    ),
+                  ),
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: Scaffold(
-                        backgroundColor: Colors.transparent,
-                      ),
+                      child: Scaffold(backgroundColor: Colors.transparent),
                     ),
                   ),
                 ],
@@ -1397,6 +1574,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     String? proofImagePath,
     int? transferBankId,
     int? branchId,
+    String? note,
   }) async {
     if (_cartItems.isEmpty || _isPlacingOrder) return;
 
@@ -1426,6 +1604,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         branchId: branchId,
         customerName: displayName,
         customerPhone: _customerPhone.trim(),
+        note: note,
       );
 
       String? uploadedProofUrl;
@@ -1541,7 +1720,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               (saved['reward_points'] ?? _rewardPoints).toString(),
             ) ??
             _rewardPoints;
-        _rewardRank = int.tryParse((saved['reward_rank'] ?? _rewardRank).toString()) ?? _rewardRank;
+        _rewardRank =
+            int.tryParse((saved['reward_rank'] ?? _rewardRank).toString()) ??
+            _rewardRank;
       });
 
       await _loadHistory();
@@ -1868,7 +2049,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.emoji_events_rounded, size: 16, color: Color(0xFFF59E0B)),
+          const Icon(
+            Icons.emoji_events_rounded,
+            size: 16,
+            color: Color(0xFFF59E0B),
+          ),
           const SizedBox(width: 6),
           Text(
             '#$rank',
@@ -2003,7 +2188,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 trailing,
               ] else ...[
                 const SizedBox(width: 10),
-                const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF94A3B8),
+                ),
               ],
             ],
           ),
@@ -2028,8 +2216,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final totalPrice = (product.price + selectedToppings.fold(0.0, (sum, t) => sum + t.extraPrice)) * qty;
-            
+            final totalPrice =
+                (product.price +
+                    selectedToppings.fold(
+                      0.0,
+                      (sum, t) => sum + t.extraPrice,
+                    )) *
+                qty;
+
             return Container(
               height: MediaQuery.of(context).size.height * 0.9,
               decoration: const BoxDecoration(
@@ -2073,7 +2267,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 ),
                               ],
                             ),
-                            
+
                             // Content Card
                             Transform.translate(
                               offset: const Offset(0, -30),
@@ -2082,17 +2276,21 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 padding: const EdgeInsets.all(24),
                                 decoration: const BoxDecoration(
                                   color: Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(32),
+                                  ),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 product.name,
@@ -2109,7 +2307,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 style: TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.w700,
-                                                  color: _brandNavy.withOpacity(0.5),
+                                                  color: _brandNavy.withOpacity(
+                                                    0.5,
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -2117,12 +2317,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         ),
                                       ],
                                     ),
-                                    
+
                                     const SizedBox(height: 32),
-                                    
+
                                     // Quantity & Price Row
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text(
                                           'Quantity',
@@ -2134,14 +2335,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         ),
                                         _QtyStepper(
                                           qty: qty,
-                                          onChanged: (val) => setSheetState(() => qty = val),
+                                          onChanged: (val) =>
+                                              setSheetState(() => qty = val),
                                           color: _brandNavy,
                                         ),
                                       ],
                                     ),
-                                    
+
                                     const SizedBox(height: 40),
-                                    
+
                                     // Toppings Section
                                     if (product.toppings.isNotEmpty) ...[
                                       const Text(
@@ -2155,18 +2357,24 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       const SizedBox(height: 16),
                                       ListView.separated(
                                         shrinkWrap: true,
-                                        physics: const NeverScrollableScrollPhysics(),
+                                        physics:
+                                            const NeverScrollableScrollPhysics(),
                                         itemCount: product.toppings.length,
-                                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 12),
                                         itemBuilder: (context, index) {
-                                          final topping = product.toppings[index];
-                                          final isSelected = selectedToppings.any((t) => t.id == topping.id);
-                                          
+                                          final topping =
+                                              product.toppings[index];
+                                          final isSelected = selectedToppings
+                                              .any((t) => t.id == topping.id);
+
                                           return InkWell(
                                             onTap: () {
                                               setSheetState(() {
                                                 if (isSelected) {
-                                                  selectedToppings.removeWhere((t) => t.id == topping.id);
+                                                  selectedToppings.removeWhere(
+                                                    (t) => t.id == topping.id,
+                                                  );
                                                 } else {
                                                   selectedToppings.add(topping);
                                                 }
@@ -2175,10 +2383,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             child: Container(
                                               padding: const EdgeInsets.all(16),
                                               decoration: BoxDecoration(
-                                                color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
-                                                borderRadius: BorderRadius.circular(16),
+                                                color: isSelected
+                                                    ? const Color(0xFFEFF6FF)
+                                                    : Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
                                                 border: Border.all(
-                                                  color: isSelected ? _brandNavy : const Color(0xFFE2E8F0),
+                                                  color: isSelected
+                                                      ? _brandNavy
+                                                      : const Color(0xFFE2E8F0),
                                                   width: isSelected ? 2 : 1,
                                                 ),
                                               ),
@@ -2186,32 +2399,51 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 children: [
                                                   Expanded(
                                                     child: Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
                                                       children: [
                                                         Text(
                                                           topping.name,
                                                           style: TextStyle(
                                                             fontSize: 15,
-                                                            fontWeight: FontWeight.w800,
-                                                            color: isSelected ? _brandNavy : _textPrimaryDark,
+                                                            fontWeight:
+                                                                FontWeight.w800,
+                                                            color: isSelected
+                                                                ? _brandNavy
+                                                                : _textPrimaryDark,
                                                           ),
                                                         ),
-                                                        if (topping.extraPrice > 0)
+                                                        if (topping.extraPrice >
+                                                            0)
                                                           Text(
                                                             '+₭${topping.extraPrice.toStringAsFixed(0)}',
                                                             style: TextStyle(
                                                               fontSize: 13,
-                                                              fontWeight: FontWeight.w600,
-                                                              color: isSelected ? _brandNavy.withOpacity(0.7) : Colors.grey,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              color: isSelected
+                                                                  ? _brandNavy
+                                                                        .withOpacity(
+                                                                          0.7,
+                                                                        )
+                                                                  : Colors.grey,
                                                             ),
                                                           ),
                                                       ],
                                                     ),
                                                   ),
                                                   if (isSelected)
-                                                    const Icon(Icons.check_circle, color: _brandNavy)
+                                                    const Icon(
+                                                      Icons.check_circle,
+                                                      color: _brandNavy,
+                                                    )
                                                   else
-                                                    const Icon(Icons.add_circle_outline, color: Color(0xFFCBD5E1)),
+                                                    const Icon(
+                                                      Icons.add_circle_outline,
+                                                      color: Color(0xFFCBD5E1),
+                                                    ),
                                                 ],
                                               ),
                                             ),
@@ -2227,7 +2459,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                       ),
                     ),
-                    
+
                     // Top Bar (Close Button)
                     Positioned(
                       top: 16,
@@ -2241,14 +2473,19 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         icon: const Icon(Icons.close),
                       ),
                     ),
-                    
+
                     // Fixed Bottom Action Bar
                     Positioned(
                       left: 0,
                       right: 0,
                       bottom: 0,
                       child: Container(
-                        padding: EdgeInsets.fromLTRB(24, 20, 24, 20 + _gestureNavBottomPad(context)),
+                        padding: EdgeInsets.fromLTRB(
+                          24,
+                          20,
+                          24,
+                          20 + _gestureNavBottomPad(context),
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           boxShadow: [
@@ -2292,14 +2529,22 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 height: 56,
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    _addToCart(product, quantity: qty, selectedToppings: selectedToppings);
+                                    _addToCart(
+                                      product,
+                                      quantity: qty,
+                                      selectedToppings: selectedToppings,
+                                    );
                                     Navigator.pop(ctx);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('$qty ${product.name} added to cart'),
+                                        content: Text(
+                                          '$qty ${product.name} added to cart',
+                                        ),
                                         backgroundColor: _brandNavy,
                                         behavior: SnackBarBehavior.floating,
-                                        duration: const Duration(milliseconds: 1500),
+                                        duration: const Duration(
+                                          milliseconds: 1500,
+                                        ),
                                       ),
                                     );
                                   },
@@ -2313,7 +2558,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                   child: const Text(
                                     'Add to Cart',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -2372,7 +2620,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 icon: const Badge(
                   label: Text(''),
                   backgroundColor: Colors.red,
-                  child: Icon(Icons.shopping_bag, color: Colors.white, size: 20),
+                  child: Icon(
+                    Icons.shopping_bag,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 label: Text(
                   '₭${_cartTotal.toStringAsFixed(0)}',
@@ -2415,9 +2667,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 width: double.infinity,
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: SafeArea(
@@ -2427,7 +2677,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     child: IndexedStack(
                       index: _selectedTabIndex,
                       children: [
-                        _buildHomeTab(isWide: isWide, isSmall: isSmall, isMobile: isMobile),
+                        _buildHomeTab(
+                          isWide: isWide,
+                          isSmall: isSmall,
+                          isMobile: isMobile,
+                        ),
                         _buildCartTab(isSmall: isSmall),
                         _buildHistoryTab(isSmall: isSmall),
                         _buildProfileTab(isWide: isWide, isSmall: isSmall),
@@ -2448,10 +2702,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             elevation: 0,
             height: 64,
             labelTextStyle: WidgetStatePropertyAll(
-              TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-              ),
+              TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
             ),
           ),
         ),
@@ -2478,10 +2729,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         color: _navInactive,
                       ),
                     )
-                  : Icon(
-                      Icons.shopping_bag_outlined,
-                      color: _navInactive,
-                    ),
+                  : Icon(Icons.shopping_bag_outlined, color: _navInactive),
               selectedIcon: _cartCount > 0
                   ? Badge(
                       label: Text('$_cartCount'),
@@ -2522,7 +2770,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     ]);
   }
 
-  Widget _buildHomeTab({required bool isWide, required bool isSmall, bool isMobile = false}) {
+  Widget _buildHomeTab({
+    required bool isWide,
+    required bool isSmall,
+    bool isMobile = false,
+  }) {
     if (_isLoadingCatalog) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -2546,15 +2798,25 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     final showHighlights = _selectedCategory == 'All Items';
     final highlightsSlivers = <Widget>[
       if (showHighlights && _recommendedProducts.isNotEmpty)
-        SliverToBoxAdapter(child: _buildRecommendedSlider(isSmall: isSmall, isWide: isWide)),
+        SliverToBoxAdapter(
+          child: _buildRecommendedSlider(isSmall: isSmall, isWide: isWide),
+        ),
       if (showHighlights && _popularProducts.isNotEmpty)
-        SliverToBoxAdapter(child: _buildPopularSlider(isSmall: isSmall, isWide: isWide)),
-      SliverToBoxAdapter(child: _buildSectionHeader('All Products', isSmall: isSmall)),
+        SliverToBoxAdapter(
+          child: _buildPopularSlider(isSmall: isSmall, isWide: isWide),
+        ),
+      SliverToBoxAdapter(
+        child: _buildSectionHeader('All Products', isSmall: isSmall),
+      ),
     ];
 
-    final isNarrowWideLayout = isWide && MediaQuery.sizeOf(context).width < 1200;
+    final isNarrowWideLayout =
+        isWide && MediaQuery.sizeOf(context).width < 1200;
     final sliverGrid = items.isEmpty
-        ? const SliverFillRemaining(hasScrollBody: false, child: Center(child: Text('No items found')))
+        ? const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Text('No items found')),
+          )
         : SliverPadding(
             padding: EdgeInsets.fromLTRB(
               isSmall ? 8 : 12,
@@ -2562,7 +2824,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               isSmall ? 8 : 12,
               isWide ? 12 : (_isCartEmpty ? 12 : 92),
             ),
-              sliver: SliverGrid(
+            sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: isWide ? 3 : (isMobile ? 1 : 2),
                 mainAxisExtent: isWide
@@ -2584,7 +2846,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
     if (!isWide) {
       return _buildMobileHomeSliver(
-        isSmall: isSmall, 
+        isSmall: isSmall,
         highlightsSlivers: highlightsSlivers,
         sliverGrid: sliverGrid,
       );
@@ -2613,10 +2875,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               _buildCategoryChipsBar(isSmall: isSmall),
               Expanded(
                 child: CustomScrollView(
-                  slivers: [
-                    ...highlightsSlivers,
-                    sliverGrid,
-                  ],
+                  slivers: [...highlightsSlivers, sliverGrid],
                 ),
               ),
             ],
@@ -2655,7 +2914,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   // Big card slider for Recommended (image + name only, tappable)
-  Widget _buildRecommendedSlider({required bool isSmall, required bool isWide}) {
+  Widget _buildRecommendedSlider({
+    required bool isSmall,
+    required bool isWide,
+  }) {
     if (_recommendedProducts.isEmpty) return const SizedBox.shrink();
     // Card width: fill screen proportionally; 3 cards max
     // phone: ~(screenWidth - padding) / 1.35 to show partial 2nd card
@@ -2666,179 +2928,211 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       children: [
         _buildSectionHeader('Recommended Products', isSmall: isSmall),
         const SizedBox(height: 8),
-        LayoutBuilder(builder: (context, constraints) {
-          // Maintain a strict 2:1 aspect ratio for the banners.
-          final cardWidth = isWide
-              ? (constraints.maxWidth - hPad * 2) / 2.2
-              : (constraints.maxWidth - hPad * 2) / 1.2;
-          final cardHeight = cardWidth / 2;
-          final available = (constraints.maxWidth - hPad * 2).clamp(1.0, 99999.0);
-          final viewportFraction =
-              ((cardWidth / available).clamp(0.35, 0.95)).toDouble();
-          _ensureRecommendedSliderController(viewportFraction);
-          _startRecommendedAutoSlide(_recommendedProducts.length);
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Maintain a strict 2:1 aspect ratio for the banners.
+            final cardWidth = isWide
+                ? (constraints.maxWidth - hPad * 2) / 2.2
+                : (constraints.maxWidth - hPad * 2) / 1.2;
+            final cardHeight = cardWidth / 2;
+            final available = (constraints.maxWidth - hPad * 2).clamp(
+              1.0,
+              99999.0,
+            );
+            final viewportFraction = ((cardWidth / available).clamp(
+              0.35,
+              0.95,
+            )).toDouble();
+            _ensureRecommendedSliderController(viewportFraction);
+            _startRecommendedAutoSlide(_recommendedProducts.length);
 
-          return SizedBox(
-            height: cardHeight,
-            child: PageView.builder(
-              controller: _recommendedPageController,
-              padEnds: false,
-              onPageChanged: (index) => _recommendedSlideIndex = index,
-              itemCount: _recommendedProducts.length,
-              itemBuilder: (context, index) {
-                final product = _recommendedProducts[index];
-                final blocked = product.blockSelfOrder;
-                Uint8List? imgBytes;
-                
-                // Prioritize recommended image for this specific slider
-                final imgData = (product.recommendedImageBase64 != null && product.recommendedImageBase64!.isNotEmpty)
-                    ? product.recommendedImageBase64
-                    : product.imageBase64;
+            return SizedBox(
+              height: cardHeight,
+              child: PageView.builder(
+                controller: _recommendedPageController,
+                padEnds: false,
+                onPageChanged: (index) => _recommendedSlideIndex = index,
+                itemCount: _recommendedProducts.length,
+                itemBuilder: (context, index) {
+                  final product = _recommendedProducts[index];
+                  final blocked = product.blockSelfOrder;
+                  Uint8List? imgBytes;
 
-                if (imgData != null && imgData.isNotEmpty) {
-                  imgBytes = _bytesFromBase64(imgData);
-                }
-                return GestureDetector(
-                  onTap: blocked
-                      ? _showSelfOrderBlockedMessage
-                      : () => _openProductDetail(product),
-                  child: Opacity(
-                    opacity: blocked ? 0.55 : 1.0,
-                    child: Container(
-                      width: cardWidth,
-                      margin: EdgeInsets.only(
-                        left: index == 0 ? hPad : (isSmall ? 5 : 7),
-                        right: index == _recommendedProducts.length - 1 ? hPad : (isSmall ? 5 : 7),
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _brandNavy.withOpacity(0.10),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Stack(
-                          children: [
-                            // Full-card image
-                            Positioned.fill(
-                              child: imgBytes != null
-                                  ? Image.memory(
-                                      imgBytes,
-                                      fit: BoxFit.cover,
-                                      gaplessPlayback: true,
-                                    )
-                                  : Container(
-                                      color: _brandNavy.withOpacity(0.08),
-                                      child: const Icon(Icons.fastfood, size: 48, color: Color(0xFFCBD5E1)),
-                                    ),
-                            ),
-                            // Gradient overlay at bottom
-                            Positioned(
-                              left: 0, right: 0, bottom: 0,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    colors: [
-                                      Colors.black.withOpacity(0.72),
-                                      Colors.transparent,
-                                    ],
-                                  ),
-                                ),
-                                padding: EdgeInsets.fromLTRB(
-                                  isSmall ? 10 : 14,
-                                  20,
-                                  isSmall ? 10 : 14,
-                                  isSmall ? 10 : 14,
-                                ),
-                                child: Text(
-                                  product.name,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: isSmall ? 13 : 15,
-                                    height: 1.3,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Direct Add Button
-                            if (!blocked)
-                              Positioned(
-                                bottom: 10,
-                                right: 10,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    _addToCart(product, quantity: 1, selectedToppings: []);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('${product.name} added to cart'),
-                                        backgroundColor: _brandNavy,
-                                        duration: const Duration(milliseconds: 900),
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    width: isSmall ? 36 : 40,
-                                    height: isSmall ? 36 : 40,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                      Icons.add,
-                                      color: _brandNavy,
-                                      size: 22,
-                                    ),
-                                  ),
-                                ),
-                            ),
-                            // Recommended badge
-                            Positioned(
-                              top: 10,
-                              left: 10,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.deepOrange,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  '⭐ Recommended',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: isSmall ? 10 : 11,
-                                  ),
-                                ),
-                              ),
+                  // Prioritize recommended image for this specific slider
+                  final imgData =
+                      (product.recommendedImageBase64 != null &&
+                          product.recommendedImageBase64!.isNotEmpty)
+                      ? product.recommendedImageBase64
+                      : product.imageBase64;
+
+                  if (imgData != null && imgData.isNotEmpty) {
+                    imgBytes = _bytesFromBase64(imgData);
+                  }
+                  return GestureDetector(
+                    onTap: blocked
+                        ? _showSelfOrderBlockedMessage
+                        : () => _openProductDetail(product),
+                    child: Opacity(
+                      opacity: blocked ? 0.55 : 1.0,
+                      child: Container(
+                        width: cardWidth,
+                        margin: EdgeInsets.only(
+                          left: index == 0 ? hPad : (isSmall ? 5 : 7),
+                          right: index == _recommendedProducts.length - 1
+                              ? hPad
+                              : (isSmall ? 5 : 7),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _brandNavy.withOpacity(0.10),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Stack(
+                            children: [
+                              // Full-card image
+                              Positioned.fill(
+                                child: imgBytes != null
+                                    ? Image.memory(
+                                        imgBytes,
+                                        fit: BoxFit.cover,
+                                        gaplessPlayback: true,
+                                      )
+                                    : Container(
+                                        color: _brandNavy.withOpacity(0.08),
+                                        child: const Icon(
+                                          Icons.fastfood,
+                                          size: 48,
+                                          color: Color(0xFFCBD5E1),
+                                        ),
+                                      ),
+                              ),
+                              // Gradient overlay at bottom
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [
+                                        Colors.black.withOpacity(0.72),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                  padding: EdgeInsets.fromLTRB(
+                                    isSmall ? 10 : 14,
+                                    20,
+                                    isSmall ? 10 : 14,
+                                    isSmall ? 10 : 14,
+                                  ),
+                                  child: Text(
+                                    product.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: isSmall ? 13 : 15,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Direct Add Button
+                              if (!blocked)
+                                Positioned(
+                                  bottom: 10,
+                                  right: 10,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      _addToCart(
+                                        product,
+                                        quantity: 1,
+                                        selectedToppings: [],
+                                      );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '${product.name} added to cart',
+                                          ),
+                                          backgroundColor: _brandNavy,
+                                          duration: const Duration(
+                                            milliseconds: 900,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      width: isSmall ? 36 : 40,
+                                      height: isSmall ? 36 : 40,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.2,
+                                            ),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.add,
+                                        color: _brandNavy,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              // Recommended badge
+                              Positioned(
+                                top: 10,
+                                left: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.deepOrange,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '⭐ Recommended',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: isSmall ? 10 : 11,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-          );
-        }),
+                  );
+                },
+              ),
+            );
+          },
+        ),
         const SizedBox(height: 8),
       ],
     );
@@ -2865,7 +3159,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               final product = _popularProducts[index];
               final blocked = product.blockSelfOrder;
               Uint8List? imgBytes;
-              if (product.imageBase64 != null && product.imageBase64!.isNotEmpty) {
+              if (product.imageBase64 != null &&
+                  product.imageBase64!.isNotEmpty) {
                 imgBytes = _bytesFromBase64(product.imageBase64!);
               }
               return GestureDetector(
@@ -2905,14 +3200,21 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 : Container(
                                     color: _brandNavy.withOpacity(0.07),
                                     child: const Center(
-                                      child: Icon(Icons.fastfood, size: 36, color: Color(0xFFCBD5E1)),
+                                      child: Icon(
+                                        Icons.fastfood,
+                                        size: 36,
+                                        color: Color(0xFFCBD5E1),
+                                      ),
                                     ),
                                   ),
                           ),
                           Expanded(
                             flex: 4,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -2929,7 +3231,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         '₭${product.price.toStringAsFixed(0)}',
@@ -2942,12 +3245,22 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       if (!blocked)
                                         GestureDetector(
                                           onTap: () {
-                                            _addToCart(product, quantity: 1, selectedToppings: []);
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            _addToCart(
+                                              product,
+                                              quantity: 1,
+                                              selectedToppings: [],
+                                            );
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               SnackBar(
-                                                content: Text('${product.name} added to cart'),
+                                                content: Text(
+                                                  '${product.name} added to cart',
+                                                ),
                                                 backgroundColor: _brandNavy,
-                                                duration: const Duration(milliseconds: 900),
+                                                duration: const Duration(
+                                                  milliseconds: 900,
+                                                ),
                                               ),
                                             );
                                           },
@@ -2956,7 +3269,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             height: isSmall ? 26 : 28,
                                             decoration: BoxDecoration(
                                               color: _brandNavy,
-                                              borderRadius: BorderRadius.circular(6),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                             ),
                                             child: Icon(
                                               Icons.add,
@@ -3123,154 +3437,161 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       child: Opacity(
         opacity: blocked ? 0.55 : 1,
         child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE8E8E8)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: SizedBox(
-                      width: isWide ? 104 : 90,
-                      height: isWide ? 104 : 90,
-                      child: _buildProductImage(product),
-                    ),
-                  ),
-                  if (blocked)
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: ColoredBox(
-                          color: Colors.white.withOpacity(0.45),
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black87,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                AppLocalizations.of(context)?.runOut ?? 'Run out',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: isSmall ? 10 : 11,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE8E8E8)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Stack(
                   children: [
-                    Text(
-                      product.name,
-                      maxLines: isWide ? 2 : 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                        fontSize: isSmall ? 13 : 14,
-                        height: 1.3,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: SizedBox(
+                        width: isWide ? 104 : 90,
+                        height: isWide ? 104 : 90,
+                        child: _buildProductImage(product),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product.category,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: isSmall ? 10 : 11,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '₭${product.price.toStringAsFixed(0)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: blocked ? Colors.grey : _brandNavy,
-                              fontSize: isSmall ? 14 : 16,
+                    if (blocked)
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: ColoredBox(
+                            color: Colors.white.withOpacity(0.45),
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  AppLocalizations.of(context)?.runOut ??
+                                      'Run out',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: isSmall ? 10 : 11,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        if (!blocked) ...[
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () {
-                              _addToCart(product, quantity: 1, selectedToppings: []);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${product.name} added to cart'),
-                                  backgroundColor: _brandNavy,
-                                  duration: const Duration(milliseconds: 900),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: _brandNavy,
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _brandNavy.withOpacity(0.2),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: isWide ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                          fontSize: isSmall ? 13 : 14,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product.category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isSmall ? 10 : 11,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '₭${product.price.toStringAsFixed(0)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: blocked ? Colors.grey : _brandNavy,
+                                fontSize: isSmall ? 14 : 16,
+                              ),
+                            ),
+                          ),
+                          if (!blocked) ...[
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () {
+                                _addToCart(
+                                  product,
+                                  quantity: 1,
+                                  selectedToppings: [],
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${product.name} added to cart',
+                                    ),
+                                    backgroundColor: _brandNavy,
+                                    duration: const Duration(milliseconds: 900),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: _brandNavy,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _brandNavy.withOpacity(0.2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.add,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -3307,11 +3628,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-
   Widget _buildCurrentCartPanel() {
     final product = _previewProduct;
     final previewBlocked = product?.blockSelfOrder ?? false;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
@@ -3342,7 +3662,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           color: _brandNavy.withOpacity(0.05),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.touch_app_outlined, size: 40, color: _brandNavy),
+                        child: const Icon(
+                          Icons.touch_app_outlined,
+                          size: 40,
+                          color: _brandNavy,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       const Text(
@@ -3365,7 +3689,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 width: double.infinity,
                 child: _buildProductImage(product),
               ),
-              
+
               // Scrollable Details
               Expanded(
                 child: SingleChildScrollView(
@@ -3401,48 +3725,67 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFF7E8),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Text(
                               'L-POS',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: _brandGold),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: _brandGold,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Quantity Selector
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
                             'Quantity',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _brandNavy),
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: _brandNavy,
+                            ),
                           ),
                           _QtyStepper(
                             qty: _previewQty,
-                            onChanged: previewBlocked ? (v) {} : (val) => setState(() => _previewQty = val),
+                            onChanged: previewBlocked
+                                ? (v) {}
+                                : (val) => setState(() => _previewQty = val),
                             color: _brandNavy,
                             isSmall: true,
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Toppings List (Read-only summary with a button to edit)
                       const Text(
                         'Customization',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _brandNavy),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: _brandNavy,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       GestureDetector(
-                        onTap: previewBlocked ? null : () => _openToppingsPickerForPreview(product),
+                        onTap: previewBlocked
+                            ? null
+                            : () => _openToppingsPickerForPreview(product),
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           width: double.infinity,
@@ -3457,22 +3800,30 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 child: Text(
                                   _previewToppings.isEmpty
                                       ? 'No Toppings Selected'
-                                      : _previewToppings.map((t) => t.name).join(', '),
+                                      : _previewToppings
+                                            .map((t) => t.name)
+                                            .join(', '),
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: _previewToppings.isEmpty ? const Color(0xFF94A3B8) : _textPrimaryDark,
+                                    color: _previewToppings.isEmpty
+                                        ? const Color(0xFF94A3B8)
+                                        : _textPrimaryDark,
                                   ),
                                 ),
                               ),
-                              const Icon(Icons.chevron_right, size: 20, color: Color(0xFF94A3B8)),
+                              const Icon(
+                                Icons.chevron_right,
+                                size: 20,
+                                color: Color(0xFF94A3B8),
+                              ),
                             ],
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Total Row
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -3485,11 +3836,18 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           children: [
                             const Text(
                               'Subtotal',
-                              style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF64748B),
+                              ),
                             ),
                             Text(
                               '₭${_previewTotal(product, _previewQty, _previewToppings).toStringAsFixed(0)}',
-                              style: const TextStyle(fontWeight: FontWeight.w900, color: _brandNavy, fontSize: 17),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: _brandNavy,
+                                fontSize: 17,
+                              ),
                             ),
                           ],
                         ),
@@ -3498,7 +3856,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   ),
                 ),
               ),
-              
+
               // Bottom Action Button
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -3509,7 +3867,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     onPressed: previewBlocked
                         ? null
                         : () {
-                            _addToCart(product, quantity: _previewQty, selectedToppings: _previewToppings);
+                            _addToCart(
+                              product,
+                              quantity: _previewQty,
+                              selectedToppings: _previewToppings,
+                            );
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('${product.name} added to cart'),
@@ -3519,7 +3881,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             );
                           },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: previewBlocked ? Colors.grey : _brandNavy,
+                      backgroundColor: previewBlocked
+                          ? Colors.grey
+                          : _brandNavy,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -3528,7 +3892,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     ),
                     child: Text(
                       previewBlocked ? 'Run out' : 'Add to Cart',
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ),
@@ -3927,9 +4294,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   Widget _buildHistoryTab({bool isSmall = false}) {
     if (_isLoadingHistory) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_historyItems.isEmpty) {
@@ -3982,8 +4347,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             (item['state'] ?? '').toString(),
             (item['payment_method'] ?? '').toString(),
           );
-          final dateLabel =
-              _formatHistoryDateLabel(item['date_order']?.toString());
+          final dateLabel = _formatHistoryDateLabel(
+            item['date_order']?.toString(),
+          );
           final pay = (item['payment_method'] ?? 'Unknown').toString();
 
           return Material(
@@ -4047,7 +4413,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             fontSize: 13,
                           ),
                         ),
-                        _historyStatusPill(statusText, item['state']?.toString() ?? ''),
+                        _historyStatusPill(
+                          statusText,
+                          item['state']?.toString() ?? '',
+                        ),
                       ],
                     ),
                     if (dateLabel != '-') ...[
@@ -4152,11 +4521,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       ),
       child: Text(
         text,
-        style: TextStyle(
-          color: fg,
-          fontWeight: FontWeight.w800,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 12),
       ),
     );
   }
@@ -4201,9 +4566,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         ),
         child: const CustomPaint(
           painter: _LuxuryPatternPainter(),
-          child: Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          ),
+          child: Center(child: CircularProgressIndicator(color: Colors.white)),
         ),
       );
     }
@@ -4253,228 +4616,225 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ),
                       child: Column(
                         children: [
-                              Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  GestureDetector(
-                                    onTap: _pickProfileImage,
-                                    child: CircleAvatar(
-                                      radius: avatarOuterRadius,
-                                      backgroundColor: Colors.white,
-                                      child: CircleAvatar(
-                                        radius: avatarInnerRadius,
-                                        backgroundColor: const Color(
-                                          0xFFF2F5FF,
-                                        ),
-                                        backgroundImage:
-                                            (_profileImagePath != null &&
-                                                File(
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              GestureDetector(
+                                onTap: _pickProfileImage,
+                                child: CircleAvatar(
+                                  radius: avatarOuterRadius,
+                                  backgroundColor: Colors.white,
+                                  child: CircleAvatar(
+                                    radius: avatarInnerRadius,
+                                    backgroundColor: const Color(0xFFF2F5FF),
+                                    backgroundImage:
+                                        (_profileImagePath != null &&
+                                            File(
+                                              _profileImagePath!,
+                                            ).existsSync())
+                                        ? FileImage(File(_profileImagePath!))
+                                        : (customerMemoryImage != null)
+                                        ? customerMemoryImage
+                                        : null,
+                                    child:
+                                        (_profileImagePath == null ||
+                                                !File(
                                                   _profileImagePath!,
-                                                ).existsSync())
-                                            ? FileImage(
-                                                File(_profileImagePath!),
-                                              )
-                                            : (customerMemoryImage != null)
-                                            ? customerMemoryImage
-                                            : null,
-                                        child:
-                                            (_profileImagePath == null ||
-                                                    !File(
-                                                      _profileImagePath!,
-                                                    ).existsSync()) &&
-                                                (_customerImageBase64 == null ||
-                                                    _customerImageBase64!
-                                                        .isEmpty)
-                                            ? Text(
-                                                _customerName.isEmpty
-                                                    ? 'C'
-                                                    : _customerName
-                                                          .substring(0, 1)
-                                                          .toUpperCase(),
-                                                style: TextStyle(
-                                                  fontSize: initialsFontSize,
-                                                  fontWeight: FontWeight.w900,
-                                                  color: _brandNavy,
-                                                ),
-                                              )
-                                            : null,
-                                      ),
+                                                ).existsSync()) &&
+                                            (_customerImageBase64 == null ||
+                                                _customerImageBase64!.isEmpty)
+                                        ? Text(
+                                            _customerName.isEmpty
+                                                ? 'C'
+                                                : _customerName
+                                                      .substring(0, 1)
+                                                      .toUpperCase(),
+                                            style: TextStyle(
+                                              fontSize: initialsFontSize,
+                                              fontWeight: FontWeight.w900,
+                                              color: _brandNavy,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: isSmall ? 10 : 14,
+                                bottom: isSmall ? 10 : 14,
+                                child: Container(
+                                  width: statusDotSize,
+                                  height: statusDotSize,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF22C55E),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
                                     ),
                                   ),
-                                  Positioned(
-                                    left: isSmall ? 10 : 14,
-                                    bottom: isSmall ? 10 : 14,
-                                    child: Container(
-                                      width: statusDotSize,
-                                      height: statusDotSize,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF22C55E),
-                                        borderRadius: BorderRadius.circular(
-                                          999,
-                                        ),
-                                        border: Border.all(
-                                          color: Colors.white,
-                                          width: 2,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: isSmall ? 6 : 10,
-                                    bottom: isSmall ? 6 : 10,
-                                    child: InkWell(
-                                      onTap: _pickProfileImage,
+                                ),
+                              ),
+                              Positioned(
+                                right: isSmall ? 6 : 10,
+                                bottom: isSmall ? 6 : 10,
+                                child: InkWell(
+                                  onTap: _pickProfileImage,
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: Container(
+                                    width: cameraButtonSize,
+                                    height: cameraButtonSize,
+                                    decoration: BoxDecoration(
+                                      color: _brandNavy,
                                       borderRadius: BorderRadius.circular(999),
-                                      child: Container(
-                                        width: cameraButtonSize,
-                                        height: cameraButtonSize,
-                                        decoration: BoxDecoration(
-                                          color: _brandNavy,
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.camera_alt,
-                                          color: Colors.white,
-                                          size: cameraIconSize,
-                                        ),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
                                       ),
                                     ),
+                                    child: Icon(
+                                      Icons.camera_alt,
+                                      color: Colors.white,
+                                      size: cameraIconSize,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _customerName.isEmpty ? 'Customer' : _customerName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: isSmall ? 16 : 18,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _customerDob.isEmpty ? ' ' : 'DOB: $_customerDob',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFE2E8F0),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isSmall ? 12 : 14,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF2F5FF),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0xFFDCE5FF),
+                              ),
+                            ),
+                            child: Text(
+                              'Reward points: $_rewardPoints',
+                              style: TextStyle(
+                                color: _brandNavy,
+                                fontWeight: FontWeight.w800,
+                                fontSize: isSmall ? 12 : 14,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: detailsTopGap),
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isSmall ? 12 : 16,
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: _brandDivider),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x12000000),
+                                    blurRadius: 14,
+                                    offset: Offset(0, 6),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                _customerName.isEmpty
-                                    ? 'Customer'
-                                    : _customerName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: isSmall ? 16 : 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  isSmall ? 12 : 14,
+                                  12,
+                                  isSmall ? 12 : 14,
+                                  10,
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _customerDob.isEmpty ? ' ' : 'DOB: $_customerDob',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFFE2E8F0),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: isSmall ? 12 : 14,
-                                  vertical: 7,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF2F5FF),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: const Color(0xFFDCE5FF),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Reward points: $_rewardPoints',
-                                  style: TextStyle(
-                                    color: _brandNavy,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: isSmall ? 12 : 14,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: detailsTopGap),
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: isSmall ? 12 : 16,
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(color: _brandDivider),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0x12000000),
-                                        blurRadius: 14,
-                                        offset: Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: EdgeInsets.fromLTRB(
-                                      isSmall ? 12 : 14,
-                                      12,
-                                      isSmall ? 12 : 14,
-                                      10,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _profileMenuTile(
+                                      title: 'Profile',
+                                      subtitle:
+                                          '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
+                                      icon: Icons.person_outline,
+                                      onTap: _openEditProfileSheet,
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                          _profileMenuTile(
-                                            title: 'Profile',
-                                            subtitle:
-                                                '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
-                                            icon: Icons.person_outline,
-                                            onTap: _openEditProfileSheet,
+                                    const SizedBox(height: 10),
+                                    _profileNotificationTile(),
+                                    const SizedBox(height: 10),
+                                    _profileMenuTile(
+                                      title: 'Ranking',
+                                      subtitle:
+                                          'See Top 50 rewards leaderboard',
+                                      icon: Icons.emoji_events_outlined,
+                                      trailing: _rewardRank > 0
+                                          ? _rankPill(_rewardRank)
+                                          : null,
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => RankingScreen(
+                                              myRank: _rewardRank <= 0
+                                                  ? null
+                                                  : _rewardRank,
+                                              myPoints: _rewardPoints,
+                                              myName: _customerName,
+                                              myImageBase64:
+                                                  _customerImageBase64,
+                                            ),
                                           ),
-                                          const SizedBox(height: 10),
-                                          _profileNotificationTile(),
-                                          const SizedBox(height: 10),
-                                          _profileMenuTile(
-                                            title: 'Ranking',
-                                            subtitle: 'See Top 50 rewards leaderboard',
-                                            icon: Icons.emoji_events_outlined,
-                                            trailing: _rewardRank > 0
-                                                ? _rankPill(_rewardRank)
-                                                : null,
-                                            onTap: () {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (_) => RankingScreen(
-                                                    myRank: _rewardRank <= 0 ? null : _rewardRank,
-                                                    myPoints: _rewardPoints,
-                                                    myName: _customerName,
-                                                    myImageBase64: _customerImageBase64,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                          const SizedBox(height: 10),
-                                          _profileMenuTile(
-                                            title: 'Customer support',
-                                            subtitle: 'Facebook & WhatsApp (from store settings)',
-                                            icon: Icons.support_agent_outlined,
-                                            onTap: () {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (_) => CustomerSupportScreen(
-                                                    facebookUrl: _supportFacebookUrl,
-                                                    whatsappNumber: _supportWhatsappNumber,
-                                                    whatsappLink: _supportWhatsappLink,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                      ],
+                                        );
+                                      },
                                     ),
-                                  ),
+                                    const SizedBox(height: 10),
+                                    _profileMenuTile(
+                                      title: 'Customer support',
+                                      subtitle:
+                                          'Facebook & WhatsApp (from store settings)',
+                                      icon: Icons.support_agent_outlined,
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                CustomerSupportScreen(
+                                                  facebookUrl:
+                                                      _supportFacebookUrl,
+                                                  whatsappNumber:
+                                                      _supportWhatsappNumber,
+                                                  whatsappLink:
+                                                      _supportWhatsappLink,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -4544,7 +4904,9 @@ class _QtyStepper extends StatelessWidget {
           IconButton(
             visualDensity: VisualDensity.compact,
             padding: isSmall ? EdgeInsets.zero : const EdgeInsets.all(8),
-            constraints: isSmall ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
+            constraints: isSmall
+                ? const BoxConstraints(minWidth: 32, minHeight: 32)
+                : null,
             onPressed: qty <= 1 ? null : () => onChanged(qty - 1),
             icon: Icon(Icons.remove, color: color, size: isSmall ? 18 : 24),
           ),
@@ -4562,7 +4924,9 @@ class _QtyStepper extends StatelessWidget {
           IconButton(
             visualDensity: VisualDensity.compact,
             padding: isSmall ? EdgeInsets.zero : const EdgeInsets.all(8),
-            constraints: isSmall ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
+            constraints: isSmall
+                ? const BoxConstraints(minWidth: 32, minHeight: 32)
+                : null,
             onPressed: () => onChanged(qty + 1),
             icon: Icon(Icons.add, color: color, size: isSmall ? 18 : 24),
           ),

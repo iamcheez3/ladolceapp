@@ -59,4 +59,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get runOut => 'Run out';
+
+  @override
+  String get orderNote => 'Order Note / Pickup Time';
+
+  @override
+  String get orderNoteHint => 'e.g., Pickup at 3:00 PM, extra spicy, etc.';
 }

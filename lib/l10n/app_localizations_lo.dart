@@ -59,4 +59,10 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get runOut => 'ໝົດແລ້ວ';
+
+  @override
+  String get orderNote => 'ໝາຍເຫດ / ເວລາຮັບເຄື່ອງ';
+
+  @override
+  String get orderNoteHint => 'ຕົວຢ່າງ: ມາຮັບຕອນ 15:00 ໂມງ, ເຜັດຫຼາຍ, ແລະອື່ນໆ';
 }

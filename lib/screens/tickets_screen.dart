@@ -47,6 +47,7 @@ class _DisplayTicket {
   final int? offlineIndex;
   /// When the ticket was first opened — used to show live duration badge.
   final DateTime? openedAt;
+  final String note;
 
   _DisplayTicket({
     this.id,
@@ -61,6 +62,7 @@ class _DisplayTicket {
     this.isOffline = false,
     this.offlineIndex,
     this.openedAt,
+    this.note = '',
   });
 }
 
@@ -185,6 +187,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
           lines: t.lines,
           isOffline: false,
           openedAt: t.openedAt,
+          note: t.note,
         ));
       }
     } catch (e) {
@@ -234,6 +237,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
           lines: t.lines,
           isOffline: false,
           openedAt: t.openedAt,
+          note: t.note,
         ));
       }
 
@@ -443,23 +447,55 @@ class _TicketsScreenState extends State<TicketsScreen> {
                     textAlign: TextAlign.center,
                   ),
                 )
-              else if (openedAt != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _durationColor(openedAt).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '🕐 ${_formatElapsed(openedAt)}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: _durationColor(openedAt),
-                      fontWeight: FontWeight.bold,
+              else ...[
+                if (openedAt != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _durationColor(openedAt).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    textAlign: TextAlign.center,
+                    child: Text(
+                      '🕐 ${_formatElapsed(openedAt)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: _durationColor(openedAt),
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
+                if (ticket.note.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.edit_note_rounded, size: 14, color: Colors.amber.shade800),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            ticket.note,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.amber.shade900,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
 
               const Divider(height: 1),
 

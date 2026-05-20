@@ -426,6 +426,11 @@ class _OrderCard extends StatelessWidget {
           const Divider(height: 1, color: Color(0xFFE8EDF5)),
           // ── Info row ──────────────────────────────────────────────────────
           _buildInfoSection(context),
+          // ── Note section ──────────────────────────────────────────────────
+          if ((order['note']?.toString() ?? '').trim().isNotEmpty) ...[
+            const Divider(height: 1, color: Color(0xFFE8EDF5)),
+            _buildNoteSection(context),
+          ],
           // ── Items section ─────────────────────────────────────────────────
           if (lines.isNotEmpty) ...[
             const Divider(height: 1, color: Color(0xFFE8EDF5)),
@@ -501,7 +506,6 @@ class _OrderCard extends StatelessWidget {
   }
 
   Widget _buildInfoSection(BuildContext context) {
-    final lines = (order['lines'] as List?) ?? [];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -554,6 +558,53 @@ class _OrderCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNoteSection(BuildContext context) {
+    final note = (order['note']?.toString() ?? '').trim();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.amber.shade200),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.edit_note_rounded, color: Colors.amber.shade800, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Order Note / Pickup Time:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber.shade900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    note,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: const Color(0xFF451A03),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

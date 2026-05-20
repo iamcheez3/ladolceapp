@@ -12,6 +12,7 @@ class OpenTicket {
   final List<TicketLine> lines;
   /// When the ticket was first opened (from Odoo date_order).
   final DateTime? openedAt;
+  final String note;
 
   OpenTicket({
     required this.id,
@@ -26,6 +27,7 @@ class OpenTicket {
     this.transferProofUrl = '',
     required this.lines,
     this.openedAt,
+    this.note = '',
   });
 
   factory OpenTicket.fromJson(Map<String, dynamic> json) {
@@ -52,6 +54,7 @@ class OpenTicket {
           .map((lineJson) => TicketLine.fromJson(lineJson))
           .toList(),
       openedAt: openedAt,
+      note: (json['note'] ?? '').toString(),
     );
   }
 }

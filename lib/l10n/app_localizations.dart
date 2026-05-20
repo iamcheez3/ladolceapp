@@ -199,6 +199,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Run out'**
   String get runOut;
+
+  /// No description provided for @orderNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Note / Pickup Time'**
+  String get orderNote;
+
+  /// No description provided for @orderNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Pickup at 3:00 PM, extra spicy, etc.'**
+  String get orderNoteHint;
 }
 
 class _AppLocalizationsDelegate

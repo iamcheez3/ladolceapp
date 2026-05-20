@@ -1043,6 +1043,7 @@ class ApiService {
     int? branchId,
     String? customerName,
     String? customerPhone,
+    String? note,
   }) async {
     final base = await getBaseUrl();
     final cn = customerName?.trim() ?? '';
@@ -1058,6 +1059,7 @@ class ApiService {
       if (branchId != null && branchId > 0) 'branch_id': branchId,
       if (cn.isNotEmpty) 'customer_name': cn,
       if (cp.isNotEmpty) 'customer_phone': cp,
+      if (note != null && note.isNotEmpty) 'note': note,
     };
     
     try {
