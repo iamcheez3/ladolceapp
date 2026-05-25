@@ -65,6 +65,7 @@ class TicketLine {
   final int qty;
   final double priceUnit;
   final List<int> toppingIds;
+  final String note;
 
   TicketLine({
     required this.productId,
@@ -72,6 +73,7 @@ class TicketLine {
     required this.qty,
     required this.priceUnit,
     this.toppingIds = const [],
+    this.note = '',
   });
 
   factory TicketLine.fromJson(Map<String, dynamic> json) {
@@ -84,6 +86,7 @@ class TicketLine {
           .map((id) => int.tryParse(id.toString()) ?? 0)
           .where((id) => id > 0)
           .toList(),
+      note: (json['note'] ?? '').toString(),
     );
   }
 }

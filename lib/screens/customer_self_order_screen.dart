@@ -6,11 +6,18 @@ import 'ranking_screen.dart';
 import '../services/push_notifications_service.dart';
 import 'dart:typed_data';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart' show Factory;
+import 'package:flutter/gestures.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
@@ -22,6 +29,68 @@ import '../models/product.dart';
 import '../models/topping.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+
+class _FavoritePlace {
+  final String id;
+  final String name;
+  final String address;
+  final String placeId;
+  final double? latitude;
+  final double? longitude;
+  final String mapsUrl;
+
+  const _FavoritePlace({
+    required this.id,
+    required this.name,
+    required this.address,
+    required this.placeId,
+    this.latitude,
+    this.longitude,
+    this.mapsUrl = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'address': address,
+    'place_id': placeId,
+    'latitude': latitude,
+    'longitude': longitude,
+    'maps_url': mapsUrl,
+  };
+
+  factory _FavoritePlace.fromJson(Map<String, dynamic> json) {
+    return _FavoritePlace(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      address: (json['address'] ?? '').toString(),
+      placeId: (json['place_id'] ?? '').toString(),
+      latitude: double.tryParse((json['latitude'] ?? '').toString()),
+      longitude: double.tryParse((json['longitude'] ?? '').toString()),
+      mapsUrl: (json['maps_url'] ?? '').toString(),
+    );
+  }
+
+  _FavoritePlace copyWith({
+    String? id,
+    String? name,
+    String? address,
+    String? placeId,
+    double? latitude,
+    double? longitude,
+    String? mapsUrl,
+  }) {
+    return _FavoritePlace(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      address: address ?? this.address,
+      placeId: placeId ?? this.placeId,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      mapsUrl: mapsUrl ?? this.mapsUrl,
+    );
+  }
+}
 
 class CustomerSelfOrderScreen extends StatefulWidget {
   final String customerName;
@@ -43,14 +112,12 @@ class CustomerSelfOrderScreen extends StatefulWidget {
 class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   final ApiService _apiService = ApiService();
   final ImagePicker _imagePicker = ImagePicker();
-  final Map<String, String> _productNotes = {};
   final Map<String, Uint8List> _decodedImageCache = {};
 
   // Brand palette (based on bear logo)
   static const _brandNavy = Color(0xFF0D1565);
   static const _brandNavy2 = Color(0xFF142B8C);
   static const _brandSurface = Colors.white;
-  static const _brandCard = Colors.white;
   static const _brandDivider = Color(0xFFE6E8F2);
   static const _brandGold = Color(0xFFC6A15B);
   static const _navInactive = Color(0xFF94A3B8);
@@ -120,6 +187,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   bool _hasShownAdPopup = false;
   String? _profileImagePath;
   bool _isUploadingProfileImage = false;
+  List<_FavoritePlace> _favoritePlaces = [];
+  String? _selectedFavoritePlaceId;
 
   List<Map<String, dynamic>> _historyItems = [];
 
@@ -143,14 +212,23 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     _loadSelfOrderConfig();
     _loadProfileImage();
     _loadNotificationPref();
+    _loadFavoritePlaces();
   }
 
   Future<void> _loadBranches() async {
     setState(() => _isLoadingBranches = true);
+    final cachedId = await _apiService.getCachedCustomerBranchId();
+    final cachedName = await _apiService.getCachedCustomerBranchName();
     try {
-      final cachedId = await _apiService.getCachedCustomerBranchId();
-      final cachedName = await _apiService.getCachedCustomerBranchName();
-      final branches = await _apiService.fetchBranchesPublic();
+      var branches = <Map<String, dynamic>>[];
+      try {
+        branches = await _apiService.fetchBranchesPublic();
+      } catch (_) {}
+      if (branches.isEmpty) {
+        try {
+          branches = await _apiService.fetchBranches();
+        } catch (_) {}
+      }
       if (!mounted) return;
 
       int? selectedId = cachedId;
@@ -158,22 +236,25 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
       if (selectedId != null) {
         final match = branches.where((b) {
-          final id = (b['id'] is int)
-              ? b['id'] as int
-              : int.tryParse('${b['id']}') ?? 0;
-          return id == selectedId;
+          return _branchIdFromMap(b) == selectedId;
         }).toList();
         if (match.isNotEmpty) {
-          selectedName = (match.first['name'] ?? '').toString();
+          selectedName = _branchNameFromMap(match.first);
         } else {
           selectedId = null;
         }
       }
       if (selectedId == null && branches.isNotEmpty) {
-        selectedId = (branches.first['id'] is int)
-            ? branches.first['id'] as int
-            : int.tryParse('${branches.first['id']}');
-        selectedName = (branches.first['name'] ?? '').toString();
+        selectedId = _branchIdFromMap(branches.first);
+        selectedName = _branchNameFromMap(branches.first);
+      }
+      if (branches.isEmpty && selectedId != null && selectedId > 0) {
+        branches = [
+          {
+            'id': selectedId,
+            'name': selectedName.isEmpty ? 'Branch' : selectedName,
+          },
+        ];
       }
 
       setState(() {
@@ -190,11 +271,40 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _branches = const [];
-        _selectedBranchId = null;
+        if (cachedId != null && cachedId > 0) {
+          _branches = [
+            {
+              'id': cachedId,
+              'name': (cachedName ?? '').trim().isEmpty
+                  ? 'Branch'
+                  : cachedName!.trim(),
+            },
+          ];
+          _selectedBranchId = cachedId;
+        } else {
+          _branches = const [];
+          _selectedBranchId = null;
+        }
         _isLoadingBranches = false;
       });
     }
+  }
+
+  int? _branchIdFromMap(Map<String, dynamic> branch) {
+    for (final key in const ['id', 'branch_id', 'pos_branch_id']) {
+      final raw = branch[key];
+      final id = raw is int ? raw : int.tryParse('${raw ?? ''}');
+      if (id != null && id > 0) return id;
+    }
+    return null;
+  }
+
+  String _branchNameFromMap(Map<String, dynamic> branch) {
+    for (final key in const ['name', 'branch_name', 'display_name']) {
+      final name = (branch[key] ?? '').toString().trim();
+      if (name.isNotEmpty) return name;
+    }
+    return 'Branch';
   }
 
   Future<void> _loadNotificationPref() async {
@@ -273,6 +383,766 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   String get _profileImagePrefsKey =>
       'customer_profile_image_path_${widget.partnerId ?? widget.userId}';
+
+  String get _favoritePlacesPrefsKey =>
+      'customer_favorite_places_${widget.partnerId ?? widget.userId}';
+
+  _FavoritePlace? get _selectedFavoritePlace {
+    final id = _selectedFavoritePlaceId;
+    if (id == null) return null;
+    return _favoritePlaces.where((p) => p.id == id).firstOrNull;
+  }
+
+  Future<void> _loadFavoritePlaces() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_favoritePlacesPrefsKey);
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return;
+      final places = decoded
+          .whereType<Map>()
+          .map((m) => _FavoritePlace.fromJson(Map<String, dynamic>.from(m)))
+          .where((p) => p.id.isNotEmpty && p.address.trim().isNotEmpty)
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _favoritePlaces = places;
+        if (places.isNotEmpty) {
+          _selectedFavoritePlaceId = places.first.id;
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _saveFavoritePlaces() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _favoritePlacesPrefsKey,
+      jsonEncode(_favoritePlaces.map((p) => p.toJson()).toList()),
+    );
+  }
+
+  String get _googleMapsApiKey =>
+      (dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '').trim();
+
+  Future<List<Map<String, dynamic>>> _searchGooglePlaces(String query) async {
+    final key = _googleMapsApiKey;
+    if (key.isEmpty || query.trim().length < 3) return const [];
+    final uri = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/place/autocomplete/json',
+      {'input': query.trim(), 'key': key, 'types': 'geocode'},
+    );
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+    final decoded = jsonDecode(response.body);
+    if (response.statusCode != 200 || decoded is! Map) return const [];
+    final predictions = decoded['predictions'];
+    if (predictions is! List) return const [];
+    return predictions
+        .whereType<Map>()
+        .map((p) => Map<String, dynamic>.from(p))
+        .toList();
+  }
+
+  Future<_FavoritePlace?> _fetchGooglePlaceDetails(
+    Map<String, dynamic> prediction,
+  ) async {
+    final key = _googleMapsApiKey;
+    final placeId = (prediction['place_id'] ?? '').toString();
+    if (key.isEmpty || placeId.isEmpty) return null;
+    final uri =
+        Uri.https('maps.googleapis.com', '/maps/api/place/details/json', {
+          'place_id': placeId,
+          'fields': 'place_id,name,formatted_address,geometry,url',
+          'key': key,
+        });
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+    final decoded = jsonDecode(response.body);
+    if (response.statusCode != 200 || decoded is! Map) return null;
+    final result = decoded['result'];
+    if (result is! Map) return null;
+    final location = result['geometry'] is Map
+        ? (result['geometry'] as Map)['location']
+        : null;
+    final lat = location is Map
+        ? double.tryParse((location['lat'] ?? '').toString())
+        : null;
+    final lng = location is Map
+        ? double.tryParse((location['lng'] ?? '').toString())
+        : null;
+    final name = (result['name'] ?? prediction['description'] ?? '').toString();
+    final address =
+        (result['formatted_address'] ?? prediction['description'] ?? '')
+            .toString();
+    return _FavoritePlace(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      name: name.trim().isEmpty ? address : name.trim(),
+      address: address.trim(),
+      placeId: placeId,
+      latitude: lat,
+      longitude: lng,
+      mapsUrl: (result['url'] ?? '').toString(),
+    );
+  }
+
+  String _mapsUrlForLatLng(LatLng latLng) =>
+      'https://www.google.com/maps/search/?api=1&query=${latLng.latitude},${latLng.longitude}';
+
+  Future<_FavoritePlace> _favoritePlaceFromLatLng(LatLng latLng) async {
+    final key = _googleMapsApiKey;
+    String name = 'Selected location';
+    String address =
+        '${latLng.latitude.toStringAsFixed(6)}, ${latLng.longitude.toStringAsFixed(6)}';
+    String placeId =
+        '${latLng.latitude.toStringAsFixed(6)},${latLng.longitude.toStringAsFixed(6)}';
+
+    if (key.isNotEmpty) {
+      final uri = Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
+        'latlng': '${latLng.latitude},${latLng.longitude}',
+        'key': key,
+      });
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded is Map) {
+        final results = decoded['results'];
+        if (results is List && results.isNotEmpty && results.first is Map) {
+          final result = Map<String, dynamic>.from(results.first as Map);
+          final formatted = (result['formatted_address'] ?? '').toString();
+          final reversePlaceId = (result['place_id'] ?? '').toString();
+          if (formatted.trim().isNotEmpty) {
+            address = formatted.trim();
+            name = formatted.split(',').first.trim();
+          }
+          if (reversePlaceId.trim().isNotEmpty) {
+            placeId = reversePlaceId.trim();
+          }
+        }
+      }
+    }
+
+    return _FavoritePlace(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      name: name,
+      address: address,
+      placeId: placeId,
+      latitude: latLng.latitude,
+      longitude: latLng.longitude,
+      mapsUrl: _mapsUrlForLatLng(latLng),
+    );
+  }
+
+  Future<void> _openAddFavoritePlaceSheet(StateSetter parentSetState) async {
+    final searchController = TextEditingController();
+    final labelController = TextEditingController();
+    List<Map<String, dynamic>> predictions = [];
+    bool isSearching = false;
+    bool isResolvingMapTap = false;
+    String? error;
+    final selected = _selectedFavoritePlace;
+    final fallbackLatLng = LatLng(
+      selected?.latitude ?? 17.9757,
+      selected?.longitude ?? 102.6331,
+    );
+    LatLng selectedLatLng = fallbackLatLng;
+    _FavoritePlace? selectedPlace = selected;
+    if (selected != null) {
+      labelController.text = selected.name;
+    }
+    GoogleMapController? mapController;
+    int cameraResolveToken = 0;
+    String? sheetMapStyle;
+
+    void savePlace(_FavoritePlace place) {
+      setState(() {
+        _favoritePlaces = [place, ..._favoritePlaces];
+        _selectedFavoritePlaceId = place.id;
+      });
+      parentSetState(() {
+        _selectedFavoritePlaceId = place.id;
+      });
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> runSearch(String value) async {
+              setSheetState(() {
+                isSearching = true;
+                error = null;
+              });
+              try {
+                final result = await _searchGooglePlaces(value);
+                if (!context.mounted) return;
+                setSheetState(() => predictions = result);
+              } catch (e) {
+                if (!context.mounted) return;
+                setSheetState(() => error = 'Cannot search places: $e');
+              } finally {
+                if (context.mounted) {
+                  setSheetState(() => isSearching = false);
+                }
+              }
+            }
+
+            Future<void> loadMapStyle() async {
+              try {
+                final style = await rootBundle.loadString('assets/map_styles/night_elegant.json');
+                if (sheetCtx.mounted) {
+                  setSheetState(() => sheetMapStyle = style);
+                  if (mapController != null) {
+                    mapController!.setMapStyle(style);
+                  }
+                }
+              } catch (_) {}
+            }
+
+            Future<void> resolveMapCenter() async {
+              final token = ++cameraResolveToken;
+              setSheetState(() {
+                selectedPlace = null;
+                isResolvingMapTap = true;
+                error = null;
+              });
+              try {
+                final place = await _favoritePlaceFromLatLng(selectedLatLng);
+                if (!sheetCtx.mounted || token != cameraResolveToken) return;
+                setSheetState(() => selectedPlace = place);
+              } catch (e) {
+                if (!sheetCtx.mounted || token != cameraResolveToken) return;
+                setSheetState(() => error = 'Cannot read this address: $e');
+              } finally {
+                if (sheetCtx.mounted && token == cameraResolveToken) {
+                  setSheetState(() => isResolvingMapTap = false);
+                }
+              }
+            }
+
+            final screenHeight = MediaQuery.sizeOf(sheetCtx).height;
+            final keyboardInset = MediaQuery.viewInsetsOf(sheetCtx).bottom;
+            final bottomPad = keyboardInset + _gestureNavBottomPad(sheetCtx);
+            final maxSheetHeight = screenHeight - bottomPad - 32;
+            final sheetHeight = maxSheetHeight < 320
+                ? maxSheetHeight
+                : maxSheetHeight.clamp(320.0, screenHeight * 0.86).toDouble();
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPad),
+              child: SizedBox(
+                height: sheetHeight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Add favorite place',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: searchController,
+                      autofocus: false,
+                      decoration: InputDecoration(
+                        hintText: 'Search address or place',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: isSearching
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        if (value.trim().length < 3) {
+                          setSheetState(() => predictions = []);
+                          return;
+                        }
+                        Future.delayed(const Duration(milliseconds: 350), () {
+                          if (searchController.text == value) {
+                            runSearch(value);
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: labelController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        hintText: 'Name this place, e.g. House',
+                        prefixIcon: const Icon(Icons.bookmark_border),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: ['House', 'Work', 'Friend house']
+                          .map(
+                            (label) => ActionChip(
+                              label: Text(label),
+                              onPressed: () {
+                                labelController.text = label;
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        error!,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ],
+                    if (predictions.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: predictions.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final p = predictions[index];
+                            final title =
+                                (p['structured_formatting'] is Map
+                                        ? (p['structured_formatting']
+                                              as Map)['main_text']
+                                        : null)
+                                    ?.toString() ??
+                                (p['description'] ?? '').toString();
+                            final subtitle =
+                                (p['structured_formatting'] is Map
+                                        ? (p['structured_formatting']
+                                              as Map)['secondary_text']
+                                        : null)
+                                    ?.toString() ??
+                                '';
+                            return ListTile(
+                              leading: const Icon(Icons.place_outlined),
+                              title: Text(title),
+                              subtitle: subtitle.isEmpty
+                                  ? null
+                                  : Text(subtitle),
+                              onTap: () async {
+                                final place = await _fetchGooglePlaceDetails(p);
+                                if (place == null) return;
+                                final latLng =
+                                    place.latitude != null &&
+                                        place.longitude != null
+                                    ? LatLng(place.latitude!, place.longitude!)
+                                    : selectedLatLng;
+                                selectedLatLng = latLng;
+                                selectedPlace = place;
+                                searchController.text = place.name;
+                                setSheetState(() => predictions = []);
+                                await mapController?.animateCamera(
+                                  CameraUpdate.newLatLngZoom(latLng, 17),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            GoogleMap(
+                              initialCameraPosition: CameraPosition(
+                                target: selectedLatLng,
+                                zoom: 15,
+                              ),
+                              gestureRecognizers: {
+                                Factory<OneSequenceGestureRecognizer>(
+                                  () => EagerGestureRecognizer(),
+                                ),
+                              },
+                              myLocationButtonEnabled: false,
+                              zoomControlsEnabled: false,
+                              onMapCreated: (controller) {
+                                mapController = controller;
+                                if (sheetMapStyle != null) {
+                                  controller.setMapStyle(sheetMapStyle);
+                                } else {
+                                  loadMapStyle();
+                                }
+                              },
+                              onCameraMove: (position) {
+                                selectedLatLng = position.target;
+                              },
+                              onCameraIdle: resolveMapCenter,
+                            ),
+                            const IgnorePointer(
+                              child: Icon(
+                                Icons.location_pin,
+                                size: 46,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: Ink(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Color(0x22000000),
+                                        blurRadius: 6,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () async {
+                                      try {
+                                        final locationEnabled = await Geolocator.isLocationServiceEnabled();
+                                        if (!locationEnabled) {
+                                          if (sheetCtx.mounted) {
+                                            setSheetState(() => error = 'Location services are disabled. Please enable them in Settings.');
+                                          }
+                                          return;
+                                        }
+                                        final status = await Geolocator.checkPermission();
+                                        if (status == LocationPermission.denied) {
+                                          final req = await Geolocator.requestPermission();
+                                          if (req == LocationPermission.denied) {
+                                            if (sheetCtx.mounted) {
+                                              setSheetState(() => error = 'Location permission denied.');
+                                            }
+                                            return;
+                                          }
+                                        }
+                                        if (status == LocationPermission.deniedForever) {
+                                          if (sheetCtx.mounted) {
+                                            setSheetState(() => error = 'Location permission permanently denied. Please enable it in Settings.');
+                                          }
+                                          return;
+                                        }
+                                        final pos = await Geolocator.getCurrentPosition(
+                                          locationSettings: const LocationSettings(
+                                            accuracy: LocationAccuracy.high,
+                                            timeLimit: Duration(seconds: 10),
+                                          ),
+                                        );
+                                        final latLng = LatLng(pos.latitude, pos.longitude);
+                                        selectedLatLng = latLng;
+                                        await mapController?.animateCamera(
+                                          CameraUpdate.newLatLngZoom(latLng, 17),
+                                        );
+                                      } catch (e) {
+                                        if (sheetCtx.mounted) {
+                                          setSheetState(() => error = 'Could not get current location: $e');
+                                        }
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        Icons.my_location,
+                                        color: Color(0xFF0D1565),
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: 12,
+                              right: 12,
+                              bottom: 12,
+                              child: IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(999),
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Color(0x22000000),
+                                        blurRadius: 10,
+                                        offset: Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    child: Text(
+                                      'Move the map to place the pin',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: _brandNavy,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.place_outlined,
+                            color: selectedPlace == null
+                                ? Colors.grey
+                                : _brandNavy,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              isResolvingMapTap
+                                  ? 'Reading selected address...'
+                                  : selectedPlace?.address ??
+                                        'Search or move the map to select a place.',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: selectedPlace == null || isResolvingMapTap
+                            ? null
+                            : () async {
+                                final customName = labelController.text.trim();
+                                final place = selectedPlace!.copyWith(
+                                  name: customName.isEmpty
+                                      ? selectedPlace!.name
+                                      : customName,
+                                );
+                                savePlace(place);
+                                await _saveFavoritePlaces();
+                                if (sheetCtx.mounted) {
+                                  Navigator.pop(sheetCtx);
+                                }
+                              },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Add selected place'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _brandNavy,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteFavoritePlace(
+    _FavoritePlace place,
+    StateSetter parentSetState,
+  ) async {
+    setState(() {
+      _favoritePlaces = _favoritePlaces.where((p) => p.id != place.id).toList();
+      if (_selectedFavoritePlaceId == place.id) {
+        _selectedFavoritePlaceId = _favoritePlaces.isNotEmpty
+            ? _favoritePlaces.first.id
+            : null;
+      }
+    });
+    parentSetState(() {});
+    await _saveFavoritePlaces();
+  }
+
+  String get _favoritePlacesSubtitle {
+    if (_favoritePlaces.isEmpty) return 'Add delivery places for self order';
+    final selected = _selectedFavoritePlace;
+    final count = _favoritePlaces.length;
+    final label = selected?.name ?? _favoritePlaces.first.name;
+    return count == 1 ? label : '$label  •  $count saved';
+  }
+
+  void _openFavoritePlacesSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                16 + _gestureNavBottomPad(sheetCtx),
+              ),
+              child: SizedBox(
+                height: MediaQuery.sizeOf(sheetCtx).height * 0.62,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Favorite places',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: _brandNavy,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () =>
+                              _openAddFavoritePlaceSheet(setSheetState),
+                          icon: const Icon(Icons.add_location_alt_outlined),
+                          label: const Text('Add'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: _favoritePlaces.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No favorite places saved yet.',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: _favoritePlaces.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                final place = _favoritePlaces[index];
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: _selectedFavoritePlaceId == place.id
+                                        ? const Color(0xFFEFF6FF)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color:
+                                          _selectedFavoritePlaceId == place.id
+                                          ? _brandNavy
+                                          : const Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  child: RadioListTile<String>(
+                                    value: place.id,
+                                    groupValue: _selectedFavoritePlaceId,
+                                    activeColor: _brandNavy,
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      setState(() {
+                                        _selectedFavoritePlaceId = value;
+                                      });
+                                      setSheetState(() {});
+                                    },
+                                    title: Text(
+                                      place.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      place.address,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    secondary: IconButton(
+                                      icon: const Icon(Icons.delete_outline),
+                                      onPressed: () => _deleteFavoritePlace(
+                                        place,
+                                        setSheetState,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   String get _adSuppressDatePrefsKey =>
       'customer_popup_ad_suppress_date_${widget.partnerId ?? widget.userId}';
 
@@ -308,8 +1178,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           name: _customerName.trim().isEmpty
               ? 'Customer'
               : _customerName.trim(),
-          phone: _customerPhone.trim(),
-          email: _customerEmail.trim().isEmpty ? null : _customerEmail.trim(),
+          phone: _cleanProfileText(_customerPhone),
+          email: _cleanProfileText(_customerEmail).isEmpty
+              ? null
+              : _cleanProfileText(_customerEmail),
           dateOfBirth: _customerDob.trim().isEmpty ? null : _customerDob.trim(),
           imageBase64: b64,
         );
@@ -347,6 +1219,18 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  String _cleanProfileText(dynamic value) {
+    final text = (value ?? '').toString().trim();
+    final lower = text.toLowerCase();
+    if (text.isEmpty ||
+        lower == 'false' ||
+        lower == 'null' ||
+        lower == 'none') {
+      return '';
+    }
+    return text;
   }
 
   Future<void> _loadCatalog() async {
@@ -449,12 +1333,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (!mounted) return;
       setState(() {
         _customerId = matched?['id'] as int?;
-        _customerName = (matched?['name'] ?? widget.customerName).toString();
-        _customerPhone = (matched?['phone'] ?? '').toString();
-        _customerEmail = (matched?['email'] ?? '').toString();
-        _customerDob =
-            (matched?['date_of_birth'] ?? matched?['birthdate'] ?? '')
-                .toString();
+        final matchedName = _cleanProfileText(matched?['name']);
+        _customerName = matchedName.isNotEmpty
+            ? matchedName
+            : widget.customerName;
+        _customerPhone = _cleanProfileText(matched?['phone']);
+        _customerEmail = _cleanProfileText(matched?['email']);
+        final matchedDob = _cleanProfileText(matched?['date_of_birth']);
+        _customerDob = matchedDob.isNotEmpty
+            ? matchedDob
+            : _cleanProfileText(matched?['birthdate']);
         _rewardPoints =
             int.tryParse((matched?['reward_points'] ?? 0).toString()) ?? 0;
         _rewardRank =
@@ -662,8 +1550,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   Uint8List? _bytesFromDataUrl(String dataUrl) {
     if (dataUrl.isEmpty || !dataUrl.startsWith('data:image')) return null;
-    if (_decodedImageCache.containsKey(dataUrl))
+    if (_decodedImageCache.containsKey(dataUrl)) {
       return _decodedImageCache[dataUrl];
+    }
 
     final comma = dataUrl.indexOf(',');
     if (comma < 0) return null;
@@ -1154,8 +2043,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           builder: (context, setSheetState) {
             final bool hasBranch =
                 _selectedBranchId != null && (_selectedBranchId ?? 0) > 0;
+            final bool hasPlace = _selectedFavoritePlace != null;
             final bool canConfirm =
                 hasBranch &&
+                hasPlace &&
                 (paymentChoice != 'transfer' || proofImage != null);
             final bottomInset =
                 MediaQuery.viewInsetsOf(ctx).bottom + _gestureNavBottomPad(ctx);
@@ -1242,14 +2133,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             value: _selectedBranchId,
                                             isExpanded: true,
                                             items: _branches.map((b) {
-                                              final id = (b['id'] is int)
-                                                  ? b['id'] as int
-                                                  : int.tryParse(
-                                                          '${b['id']}',
-                                                        ) ??
-                                                        0;
-                                              final name = (b['name'] ?? '')
-                                                  .toString();
+                                              final id =
+                                                  _branchIdFromMap(b) ?? 0;
+                                              final name = _branchNameFromMap(
+                                                b,
+                                              );
                                               final code = (b['code'] ?? '')
                                                   .toString()
                                                   .trim();
@@ -1266,17 +2154,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                               final match = _branches.where((
                                                 b,
                                               ) {
-                                                final id = (b['id'] is int)
-                                                    ? b['id'] as int
-                                                    : int.tryParse(
-                                                            '${b['id']}',
-                                                          ) ??
-                                                          0;
-                                                return id == v;
+                                                return _branchIdFromMap(b) == v;
                                               }).toList();
                                               final name = match.isNotEmpty
-                                                  ? (match.first['name'] ?? '')
-                                                        .toString()
+                                                  ? _branchNameFromMap(
+                                                      match.first,
+                                                    )
                                                   : '';
                                               setSheetState(() {
                                                 _selectedBranchId = v;
@@ -1290,27 +2173,160 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           ),
                                         ),
                                       ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        const Expanded(
+                                          child: Text(
+                                            'Delivery place',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        TextButton.icon(
+                                          onPressed: () =>
+                                              _openAddFavoritePlaceSheet(
+                                                setSheetState,
+                                              ),
+                                          icon: const Icon(
+                                            Icons.add_location_alt_outlined,
+                                          ),
+                                          label: const Text('Add'),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (_favoritePlaces.isEmpty)
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.orange.shade200,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Please add a favorite place before confirming the order.',
+                                          style: TextStyle(
+                                            color: Colors.deepOrange,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            value: _selectedFavoritePlaceId,
+                                            isExpanded: true,
+                                            hint: const Text(
+                                              'Select a delivery place',
+                                            ),
+                                            items: _favoritePlaces.map((place) {
+                                              return DropdownMenuItem<String>(
+                                                value: place.id,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      place.name,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      place.address,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors
+                                                            .grey.shade600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: (value) {
+                                              if (value == null) return;
+                                              setState(() {
+                                                _selectedFavoritePlaceId =
+                                                    value;
+                                              });
+                                              setSheetState(() {});
+                                            },
+                                          ),
+                                        ),
+                                      ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      AppLocalizations.of(context)?.orderNote ?? 'Order Note / Pickup Time',
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                      AppLocalizations.of(context)?.orderNote ??
+                                          'Order Note / Pickup Time',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                     const SizedBox(height: 8),
                                     TextField(
                                       controller: _noteController,
-                                      style: const TextStyle(color: Colors.black87),
+                                      style: const TextStyle(
+                                        color: Colors.black87,
+                                      ),
                                       decoration: InputDecoration(
-                                        hintText: AppLocalizations.of(context)?.orderNoteHint ?? 'e.g., Pickup at 3:00 PM, extra spicy, etc.',
-                                        hintStyle: TextStyle(color: Colors.grey.shade400),
+                                        hintText:
+                                            AppLocalizations.of(
+                                              context,
+                                            )?.orderNoteHint ??
+                                            'e.g., Pickup at 3:00 PM, extra spicy, etc.',
+                                        hintStyle: TextStyle(
+                                          color: Colors.grey.shade400,
+                                        ),
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          borderSide: BorderSide(color: Colors.grey.shade300),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: Colors.grey.shade300,
+                                          ),
                                         ),
                                         focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          borderSide: const BorderSide(color: _brandNavy),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: _brandNavy,
+                                          ),
                                         ),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
                                       ),
                                       maxLines: 2,
                                     ),
@@ -1536,6 +2552,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                               : null,
                                           branchId: _selectedBranchId,
                                           note: _noteController.text.trim(),
+                                          favoritePlace: _selectedFavoritePlace,
                                         );
                                       },
                                 style: ElevatedButton.styleFrom(
@@ -1575,8 +2592,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     int? transferBankId,
     int? branchId,
     String? note,
+    _FavoritePlace? favoritePlace,
   }) async {
     if (_cartItems.isEmpty || _isPlacingOrder) return;
+    if (!_hasCustomerPhone()) {
+      await _showPhoneRequiredForOrderDialog();
+      return;
+    }
 
     setState(() => _isPlacingOrder = true);
     try {
@@ -1603,8 +2625,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         lines: lines,
         branchId: branchId,
         customerName: displayName,
-        customerPhone: _customerPhone.trim(),
+        customerPhone: _cleanProfileText(_customerPhone),
         note: note,
+        deliveryPlaceName: favoritePlace?.name,
+        deliveryPlaceAddress: favoritePlace?.address,
+        deliveryPlaceId: favoritePlace?.placeId,
+        deliveryLatitude: favoritePlace?.latitude,
+        deliveryLongitude: favoritePlace?.longitude,
+        deliveryMapsUrl: favoritePlace?.mapsUrl,
       );
 
       String? uploadedProofUrl;
@@ -1639,6 +2667,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             ? 'waiting transfer verification'
             : 'waiting payment at store',
         'customer': _customerName,
+        'delivery_place_name': favoritePlace?.name,
+        'delivery_place_address': favoritePlace?.address,
+        'delivery_maps_url': favoritePlace?.mapsUrl,
         'proof_image_path': proofImagePath,
         'transfer_proof_url': uploadedProofUrl,
         'lines': lines.map((e) {
@@ -1693,6 +2724,41 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
   }
 
+  bool _hasCustomerPhone() {
+    return _cleanProfileText(_customerPhone).isNotEmpty;
+  }
+
+  Future<void> _showPhoneRequiredForOrderDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Phone number required'),
+        content: const Text(
+          'Please add your phone number before placing an order. This is required for customer verification and so the store can contact you if needed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _openEditProfileSheet();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandNavy,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Add phone'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveProfile() async {
     if (_isSavingProfile || _customerName.trim().isEmpty) return;
     setState(() => _isSavingProfile = true);
@@ -1700,21 +2766,27 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       final saved = await _apiService.saveCustomer(
         id: _customerId,
         name: _customerName.trim(),
-        phone: _customerPhone.trim(),
+        phone: _cleanProfileText(_customerPhone),
         // Email no longer shown in UI; keep sending if already populated.
-        email: _customerEmail.trim().isEmpty ? null : _customerEmail.trim(),
+        email: _cleanProfileText(_customerEmail).isEmpty
+            ? null
+            : _cleanProfileText(_customerEmail),
         dateOfBirth: _customerDob.trim().isEmpty ? null : _customerDob.trim(),
       );
 
       if (!mounted) return;
       setState(() {
         _customerId = saved['id'] as int?;
-        _customerName = (saved['name'] ?? _customerName).toString();
-        _customerPhone = (saved['phone'] ?? _customerPhone).toString();
-        _customerEmail = (saved['email'] ?? _customerEmail).toString();
-        _customerDob =
-            (saved['date_of_birth'] ?? saved['birthdate'] ?? _customerDob)
-                .toString();
+        final savedName = _cleanProfileText(saved['name']);
+        if (savedName.isNotEmpty) _customerName = savedName;
+        _customerPhone = _cleanProfileText(saved['phone']);
+        _customerEmail = _cleanProfileText(saved['email']);
+        final savedDob = _cleanProfileText(saved['date_of_birth']);
+        _customerDob = savedDob.isNotEmpty
+            ? savedDob
+            : _cleanProfileText(saved['birthdate']).isNotEmpty
+            ? _cleanProfileText(saved['birthdate'])
+            : _customerDob;
         _rewardPoints =
             int.tryParse(
               (saved['reward_points'] ?? _rewardPoints).toString(),
@@ -1758,8 +2830,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _openEditProfileSheet() {
-    String name = _customerName;
-    String phone = _customerPhone;
+    final nameController = TextEditingController(text: _customerName);
+    final phoneController = TextEditingController(
+      text: _cleanProfileText(_customerPhone),
+    );
+    final dobController = TextEditingController(text: _customerDob);
     String dob = _customerDob;
 
     showDialog(
@@ -1788,108 +2863,104 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 ),
               ],
             ),
-            child: StatefulBuilder(
-              builder: (context, setSheetState) {
-                return SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
                     children: [
-                      // Header
-                      Row(
-                        children: [
-                          const Text(
-                            'Edit profile',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: _brandNavy,
-                            ),
+                      const Text(
+                        'Edit profile',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: _brandNavy,
+                        ),
+                      ),
+                      const Spacer(),
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.close,
+                            size: 24,
+                            color: Colors.grey[600],
                           ),
-                          const Spacer(),
-                          InkWell(
-                            onTap: () => Navigator.pop(context),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.close,
-                                size: 24,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Input fields
-                      _buildProfileInputField(
-                        label: 'FULL NAME',
-                        value: name,
-                        icon: Icons.person_outline,
-                        onChanged: (val) => setSheetState(() => name = val),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildProfileInputField(
-                        label: 'PHONE',
-                        value: phone,
-                        icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                        onChanged: (val) => setSheetState(() => phone = val),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildProfileDateField(
-                        label: 'DATE OF BIRTH',
-                        value: dob,
-                        onChanged: (val) => setSheetState(() => dob = val),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // Save button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _isSavingProfile
-                              ? null
-                              : () async {
-                                  _customerName = name;
-                                  _customerPhone = phone;
-                                  _customerDob = dob;
-                                  Navigator.pop(context);
-                                  await _saveProfile();
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _brandNavy,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: _isSavingProfile
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Save Changes',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
                         ),
                       ),
                     ],
                   ),
-                );
-              },
+                  const SizedBox(height: 24),
+
+                  // Input fields
+                  _buildProfileInputField(
+                    label: 'FULL NAME',
+                    controller: nameController,
+                    icon: Icons.person_outline,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildProfileInputField(
+                    label: 'PHONE',
+                    controller: phoneController,
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildProfileDateField(
+                    label: 'DATE OF BIRTH',
+                    controller: dobController,
+                    onChanged: (val) => dob = val,
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Save button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isSavingProfile
+                          ? null
+                          : () async {
+                              _customerName = nameController.text;
+                              _customerPhone = _cleanProfileText(
+                                phoneController.text,
+                              );
+                              _customerDob = dob;
+                              Navigator.pop(context);
+                              await _saveProfile();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _brandNavy,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: _isSavingProfile
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Save Changes',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1899,10 +2970,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   Widget _buildProfileInputField({
     required String label,
-    required String value,
+    required TextEditingController controller,
     required IconData icon,
     TextInputType? keyboardType,
-    required ValueChanged<String> onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1933,7 +3003,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 ),
                 Expanded(
                   child: TextField(
-                    controller: TextEditingController(text: value),
+                    controller: controller,
                     keyboardType: keyboardType,
                     decoration: InputDecoration(
                       border: InputBorder.none,
@@ -1952,7 +3022,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
                     ),
-                    onChanged: onChanged,
                   ),
                 ),
               ],
@@ -1965,10 +3034,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   Widget _buildProfileDateField({
     required String label,
-    required String value,
+    required TextEditingController controller,
     required ValueChanged<String> onChanged,
   }) {
-    final controller = TextEditingController(text: value);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1994,7 +3062,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 final now = DateTime.now();
                 DateTime initial = DateTime(now.year - 20, 1, 1);
                 try {
-                  final parts = value.split('-');
+                  final parts = controller.text.split('-');
                   if (parts.length == 3) {
                     final y = int.parse(parts[0]);
                     final m = int.parse(parts[1]);
@@ -2360,7 +3428,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         physics:
                                             const NeverScrollableScrollPhysics(),
                                         itemCount: product.toppings.length,
-                                        separatorBuilder: (_, __) =>
+                                        separatorBuilder: (context, index) =>
                                             const SizedBox(height: 12),
                                         itemBuilder: (context, index) {
                                           final topping =
@@ -4780,6 +5848,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
                                       icon: Icons.person_outline,
                                       onTap: _openEditProfileSheet,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _profileMenuTile(
+                                      title: 'Favorite places',
+                                      subtitle: _favoritePlacesSubtitle,
+                                      icon: Icons.place_outlined,
+                                      onTap: _openFavoritePlacesSheet,
                                     ),
                                     const SizedBox(height: 10),
                                     _profileNotificationTile(),

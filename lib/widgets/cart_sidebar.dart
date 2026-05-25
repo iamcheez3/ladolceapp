@@ -13,6 +13,7 @@ class CartSidebar extends StatelessWidget {
   final VoidCallback onCharge;
   final VoidCallback onSaveTicket; // Replacing onOpenTicket when cart has items
   final VoidCallback onViewTickets; // For when cart is empty
+  final ValueChanged<CartItem> onEditKitchenNote;
 
   final VoidCallback onAddCustomer;
   final VoidCallback onClearCustomer; // New clear callback
@@ -27,6 +28,7 @@ class CartSidebar extends StatelessWidget {
     required this.onCharge,
     required this.onSaveTicket,
     required this.onViewTickets,
+    required this.onEditKitchenNote,
     required this.onAddCustomer,
     required this.onClearCustomer,
     this.selectedCustomer,
@@ -223,6 +225,7 @@ class CartSidebar extends StatelessWidget {
                                 item: item,
                                 isSaved: true,
                                 onUpdateQuantity: onUpdateQuantity,
+                                onEditKitchenNote: onEditKitchenNote,
                               )),
                           const Divider(height: 1, thickness: 2, color: Color(0xFFE3E8F0)),
                         ],
@@ -252,6 +255,7 @@ class CartSidebar extends StatelessWidget {
                                 item: item,
                                 isSaved: false,
                                 onUpdateQuantity: onUpdateQuantity,
+                                onEditKitchenNote: onEditKitchenNote,
                               )),
                         ],
 
@@ -396,11 +400,13 @@ class _CartItemRow extends StatelessWidget {
   final CartItem item;
   final bool isSaved;
   final Function(CartItem, int) onUpdateQuantity;
+  final ValueChanged<CartItem> onEditKitchenNote;
 
   const _CartItemRow({
     required this.item,
     required this.isSaved,
     required this.onUpdateQuantity,
+    required this.onEditKitchenNote,
   });
 
   @override
@@ -409,9 +415,11 @@ class _CartItemRow extends StatelessWidget {
     final priceColor = isSaved ? Colors.grey[600]! : const Color(0xFF0D1565);
     final iconColor = isSaved ? Colors.grey[500]! : const Color(0xFF0D1565);
 
-    return Container(
+    return Material(
       color: isSaved ? const Color(0xFFFAFBFF) : Colors.white,
-      child: Padding(
+      child: InkWell(
+        onTap: () => onEditKitchenNote(item),
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -511,6 +519,32 @@ class _CartItemRow extends StatelessWidget {
                       }).toList(),
                     ),
                   ],
+                  if (item.kitchenNote.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 14,
+                          color: Colors.amber[800],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            item.kitchenNote.trim(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.amber[900],
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -530,6 +564,7 @@ class _CartItemRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

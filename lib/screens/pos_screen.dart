@@ -459,6 +459,7 @@ class _PosScreenState extends State<PosScreen> {
       // Check if there's already a NEW (unsaved) item with EXACTLY the same toppings
       final existingNewIndex = _cartItems.indexWhere((item) {
         if (item.product.id != product.id || item.isSaved) return false;
+        if (item.kitchenNote.trim().isNotEmpty) return false;
 
         // Compare toppings exactly
         if (item.selectedToppings.length != selectedToppings.length) {
@@ -485,6 +486,55 @@ class _PosScreenState extends State<PosScreen> {
         );
       }
     });
+  }
+
+  Future<void> _editCartItemKitchenNote(
+    CartItem item, {
+    VoidCallback? onUpdated,
+  }) async {
+    final controller = TextEditingController(text: item.kitchenNote);
+    final note = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          'Kitchen note',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          textInputAction: TextInputAction.newline,
+          decoration: const InputDecoration(
+            hintText: 'Less sugar, no ice, extra spicy...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ''),
+            child: const Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandNavy,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (note == null) return;
+    setState(() => item.kitchenNote = note.trim());
+    onUpdated?.call();
   }
 
   void _showToppingsSelection(Product product) {
@@ -621,6 +671,17 @@ class _PosScreenState extends State<PosScreen> {
       unit += t.extraPrice;
     }
     return unit;
+  }
+
+  Map<String, dynamic> _orderLinePayload(CartItem item) {
+    final note = item.kitchenNote.trim();
+    return {
+      'product_id': item.product.id,
+      'qty': item.quantity,
+      'price_unit': _lineUnitPrice(item),
+      'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
+      if (note.isNotEmpty) 'note': note,
+    };
   }
 
   Future<void> _handleClearTicket(BuildContext context) async {
@@ -1060,18 +1121,7 @@ class _PosScreenState extends State<PosScreen> {
                       // Build line format matching _saveCurrentTicket
                       List<Map<String, dynamic>> toLines(
                         List<CartItem> items,
-                      ) => items
-                          .map(
-                            (item) => {
-                              'product_id': item.product.id,
-                              'qty': item.quantity,
-                              'price_unit': _lineUnitPrice(item),
-                              'topping_ids': item.selectedToppings
-                                  .map((t) => t.id)
-                                  .toList(),
-                            },
-                          )
-                          .toList();
+                      ) => items.map(_orderLinePayload).toList();
 
                       // Step 1: Replace ALL lines on the original ticket with ONLY the remaining items
                       await _apiService.updateOrder(
@@ -1710,6 +1760,7 @@ class _PosScreenState extends State<PosScreen> {
                 child: CartSidebar(
                   cartItems: _cartItems,
                   onUpdateQuantity: _updateQuantity,
+                  onEditKitchenNote: _editCartItemKitchenNote,
                   onClearCart: _clearCart,
                   onViewTickets: () async {
                     final result = await Navigator.push<ResumedTicket>(
@@ -1786,6 +1837,10 @@ class _PosScreenState extends State<PosScreen> {
                         setSheetState(() {});
                         if (_cartItems.isEmpty) Navigator.pop(ctx);
                       },
+                      onEditKitchenNote: (item) => _editCartItemKitchenNote(
+                        item,
+                        onUpdated: () => setSheetState(() {}),
+                      ),
                       onClearCart: () {
                         _clearCart();
                         Navigator.pop(ctx);
@@ -2985,27 +3040,11 @@ class _PosScreenState extends State<PosScreen> {
     // Only new (unsaved) lines need to be pushed — saved ones are already on server
     final newLines = _cartItems
         .where((item) => !item.isSaved)
-        .map(
-          (item) => {
-            'product_id': item.product.id,
-            'qty': item.quantity,
-            'price_unit': _lineUnitPrice(item),
-            'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
-          },
-        )
+        .map(_orderLinePayload)
         .toList();
 
     // All lines (for offline/new-order path)
-    final allLines = _cartItems
-        .map(
-          (item) => {
-            'product_id': item.product.id,
-            'qty': item.quantity,
-            'price_unit': _lineUnitPrice(item),
-            'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
-          },
-        )
-        .toList();
+    final allLines = _cartItems.map(_orderLinePayload).toList();
 
     final cashierId = widget.cashierId;
 
@@ -3154,14 +3193,7 @@ class _PosScreenState extends State<PosScreen> {
       // Only send the NEW (unsaved) items — saved items are already on the server
       final newLines = _cartItems
           .where((item) => !item.isSaved)
-          .map(
-            (item) => {
-              'product_id': item.product.id,
-              'qty': item.quantity,
-              'price_unit': _lineUnitPrice(item),
-              'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
-            },
-          )
+          .map(_orderLinePayload)
           .toList();
 
       // If there are no new items, nothing to update — just go back
@@ -3556,15 +3588,7 @@ class _PosScreenState extends State<PosScreen> {
     PosTable table,
   ) async {
     final lines = _cartItems
-        .map(
-          (item) => {
-            'product_id': item.product.id,
-            'qty': item.quantity,
-            'price_unit': _lineUnitPrice(item),
-            if (item.selectedToppings.isNotEmpty)
-              'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
-          },
-        )
+        .map(_orderLinePayload)
         .toList();
 
     final cashierId = widget.cashierId;

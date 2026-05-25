@@ -143,6 +143,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
               productName: product?.name ?? 'Product #${l['product_id']}',
               qty: (l['qty'] ?? 1).toInt(),
               priceUnit: ((l['price_unit'] ?? 0) as num).toDouble(),
+              note: (l['note'] ?? '').toString(),
             );
           }).toList();
 
@@ -263,6 +264,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
           isSaved: true,
           isPrinted: true, // already sent to kitchen when originally saved
           priceUnitFromOrder: line.priceUnit,
+          kitchenNote: line.note,
         ));
       } else {
         debugPrint('Product ${line.productId} not found in catalog');

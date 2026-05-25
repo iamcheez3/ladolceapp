@@ -6,6 +6,15 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val envFile = rootProject.file("../.env")
+val googleMapsApiKey = envFile
+    .takeIf { it.exists() }
+    ?.readLines()
+    ?.lastOrNull { it.trim().startsWith("GOOGLE_MAPS_API_KEY=") }
+    ?.substringAfter("=")
+    ?.trim()
+    ?: ""
+
 android {
     namespace = "com.example.ladolce"
     compileSdk = flutter.compileSdkVersion
@@ -30,6 +39,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
     }
 
     buildTypes {
