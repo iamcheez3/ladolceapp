@@ -347,6 +347,7 @@ class PrinterService {
     String? taxRowLabel,
     String? headerText,
     String? footerText,
+    double discountAmount = 0.0,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -369,6 +370,7 @@ class PrinterService {
             taxRowLabel: taxRowLabel,
             headerText: headerText,
             footerText: footerText,
+            discountAmount: discountAmount,
           );
           allSuccess = allSuccess && ok;
         }
@@ -407,6 +409,7 @@ class PrinterService {
         taxRowLabel: taxRowLabel,
         headerText: headerText,
         footerText: footerText,
+        discountAmount: discountAmount,
       );
     } catch (e) {
       _printerLog('[PRINTER] Print receipt failed: $e');
@@ -434,6 +437,7 @@ class PrinterService {
     String? taxRowLabel,
     String? headerText,
     String? footerText,
+    double discountAmount = 0.0,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -467,6 +471,7 @@ class PrinterService {
         taxRowLabel: taxRowLabel,
         headerText: headerText,
         footerText: footerText,
+        discountAmount: discountAmount,
       );
       allSuccess = allSuccess && ok;
     }
@@ -485,6 +490,7 @@ class PrinterService {
   String? taxRowLabel,
   String? headerText,
   String? footerText,
+  double discountAmount = 0.0,
 }) async {
   final cap = await CapabilityProfile.load();
   final printer = NetworkPrinter(profile.paperSize, cap);
@@ -532,6 +538,12 @@ class PrinterService {
     }
 
     printer.hr();
+    if (discountAmount > 0) {
+      printer.row([
+        PosColumn(text: 'Discount ', width: 8, styles: const PosStyles(bold: true)),
+        PosColumn(text: '-LAK ${discountAmount.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
+      ]);
+    }
     final showTax = taxRowLabel != null && taxRowLabel.isNotEmpty && tax.abs() >= 0.005;
     if (showTax) {
       printer.row([
@@ -585,6 +597,7 @@ class PrinterService {
     String? taxRowLabel,
     String? headerText,
     String? footerText,
+    double discountAmount = 0.0,
   }) => _printReceiptToProfile(
         profile,
         cartItems: cartItems,
@@ -596,6 +609,7 @@ class PrinterService {
         taxRowLabel: taxRowLabel,
         headerText: headerText,
         footerText: footerText,
+        discountAmount: discountAmount,
       );
 
   Future<bool> _printReceiptToProfile(
@@ -609,6 +623,7 @@ class PrinterService {
     String? taxRowLabel,
     String? headerText,
     String? footerText,
+    double discountAmount = 0.0,
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
@@ -641,6 +656,12 @@ class PrinterService {
         ]);
       }
       printer.hr();
+      if (discountAmount > 0) {
+        printer.row([
+          PosColumn(text: 'Discount ', width: 8, styles: const PosStyles(bold: true)),
+          PosColumn(text: '-LAK ${discountAmount.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
+        ]);
+      }
       final showTax = taxRowLabel != null && taxRowLabel.isNotEmpty && tax.abs() >= 0.005;
       if (showTax) {
         printer.row([
@@ -964,6 +985,16 @@ class PrinterService {
           }
         }
         _printerLog('REPRINT >> items done');
+
+        currentStep = 'discount';
+        final discountAmt = _asDouble(receiptData['amount_discount']);
+        if (discountAmt > 0) {
+          _printerLog('REPRINT >> [${++step}] discount line');
+          printer.row([
+            PosColumn(text: 'Discount:', width: 8, styles: const PosStyles(bold: true)),
+            PosColumn(text: '-$currency ${discountAmt.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
+          ]);
+        }
 
         currentStep = 'hr#3 (=)';
         _printerLog('REPRINT >> [${++step}] hr (=)');

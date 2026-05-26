@@ -150,6 +150,19 @@ class ApiService {
     return sum;
   }
 
+  /// Compute total after applying discount, matching the frontend's [computePosDiscount].
+  double _discountedTotal(double subtotal, String? discountType, double? discountValue) {
+    if (discountType == null || discountValue == null || discountValue <= 0) {
+      return subtotal;
+    }
+    if (discountType == 'percentage') {
+      final pct = discountValue.clamp(0.0, 100.0);
+      return subtotal - (subtotal * pct / 100.0);
+    }
+    final amount = discountValue.clamp(0.0, subtotal);
+    return subtotal - amount;
+  }
+
   /// After offline `create` syncs, replace mock id in cache with real Odoo id
   /// so Open Tickets does not list both OFFLINE-MOCK and POS/… for one order.
   Future<void> _remapCachedOpenTicketMockId({
@@ -624,6 +637,209 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> fetchRiderOrders() async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse(
+        '$base/pos/rider/orders',
+      ).replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse;
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to load rider orders');
+      }
+      throw Exception('Failed to load rider orders');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Fetch list of approved riders for a given branch.
+  Future<List<dynamic>> fetchRiderList({int? branchId}) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final params = <String, String>{};
+      if (userId > 0) params['user_id'] = '$userId';
+      if (branchId != null && branchId > 0) params['branch_id'] = '$branchId';
+      final url = Uri.parse('$base/pos/rider/list')
+          .replace(queryParameters: params.isNotEmpty ? params : null);
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse['data'] ?? [];
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to load riders');
+      }
+      throw Exception('Failed to load riders');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Assign a rider to a paid order.
+  Future<Map<String, dynamic>> assignRider({
+    required int orderId,
+    required int riderId,
+  }) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse('$base/pos/order/$orderId/assign_rider')
+          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final response = await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({'rider_id': riderId}),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse;
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to assign rider');
+      }
+      throw Exception('Failed to assign rider');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Rider marks arrival at customer location.
+  Future<Map<String, dynamic>> riderArrived(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse('$base/pos/order/$orderId/rider_arrived')
+          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final response = await http
+          .post(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse;
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to mark arrived');
+      }
+      throw Exception('Failed to mark arrived');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Rider marks delivery as complete.
+  Future<Map<String, dynamic>> riderComplete(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse('$base/pos/order/$orderId/rider_complete')
+          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final response = await http
+          .post(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse;
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to complete delivery');
+      }
+      throw Exception('Failed to complete delivery');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Rider sends GPS location to backend (called every 5s).
+  Future<void> riderUpdateLocation({
+    required int orderId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse('$base/pos/rider/location')
+          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({
+              'order_id': orderId,
+              'latitude': latitude,
+              'longitude': longitude,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Silent fail — location updates are best-effort
+    }
+  }
+
+  /// Fetch the latest rider location for an order.
+  /// GET /api/pos/order/<id>/rider_location
+  Future<Map<String, dynamic>?> fetchRiderLocation(String orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/order/$orderId/rider_location');
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success' && jsonResponse['data'] != null) {
+          return Map<String, dynamic>.from(jsonResponse['data']);
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Fetch the selected/default bill template for printing.
   /// Backend: GET `/api/pos/bill_template?type=bill|receipt|refund`
   Future<Map<String, dynamic>> fetchBillTemplate({
@@ -881,7 +1097,7 @@ class ApiService {
       'password': password,
       'role': role,
       if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
-      if (role == 'cashier' && branchId != null && branchId > 0)
+      if ((role == 'cashier' || role == 'rider') && branchId != null && branchId > 0)
         'branch_id': branchId,
       if (authProvider != null && authProvider.trim().isNotEmpty)
         'auth_provider': authProvider.trim(),
@@ -1132,6 +1348,8 @@ class ApiService {
     double? deliveryLatitude,
     double? deliveryLongitude,
     String? deliveryMapsUrl,
+    String? discountType,
+    double? discountValue,
   }) async {
     final base = await getBaseUrl();
     final cn = customerName?.trim() ?? '';
@@ -1158,6 +1376,8 @@ class ApiService {
       if (deliveryLongitude != null) 'delivery_longitude': deliveryLongitude,
       if ((deliveryMapsUrl ?? '').trim().isNotEmpty)
         'delivery_maps_url': deliveryMapsUrl!.trim(),
+      if (discountType != null && discountValue != null && discountValue > 0)
+        ...{'discount_type': discountType, 'discount_value': discountValue},
     };
 
     try {
@@ -1202,6 +1422,12 @@ class ApiService {
         'mock_id': mockId,
       });
       final now = DateTime.now();
+      final rawSubtotal = lines.fold<double>(
+        0.0,
+        (sum, line) => sum + (line['price_unit'] * line['qty']),
+      );
+      final discounted = _discountedTotal(rawSubtotal, discountType, discountValue);
+      final discountAmount = rawSubtotal - discounted;
       final mockReceipt = {
         'offline': true,
         'synced': false,
@@ -1213,10 +1439,8 @@ class ApiService {
         'payment_method': paymentMethodId != null
             ? 'Method #$paymentMethodId'
             : 'Offline',
-        'amount_total': lines.fold<double>(
-          0.0,
-          (sum, line) => sum + (line['price_unit'] * line['qty']),
-        ),
+        'amount_total': discounted,
+        'amount_discount': discountAmount,
         'state': isPaid ? 'paid' : 'draft',
       };
       await _updateCacheList('cached_receipt_history', mockReceipt);
@@ -1243,6 +1467,8 @@ class ApiService {
     String? name,
     int? branchId,
     required List<Map<String, dynamic>> lines,
+    String? discountType,
+    double? discountValue,
   }) async {
     final base = await getBaseUrl();
     // Use explicitly provided branchId, or fall back to cashier's cached branch.
@@ -1257,6 +1483,8 @@ class ApiService {
       if (effectiveBranchId != null && effectiveBranchId > 0)
         'branch_id': effectiveBranchId,
       'lines': lines,
+      if (discountType != null && discountValue != null && discountValue > 0)
+        ...{'discount_type': discountType, 'discount_value': discountValue},
     };
 
     try {
@@ -1272,7 +1500,7 @@ class ApiService {
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
         final data = jsonResponse['data'];
-        final total = lines.fold<double>(
+        final subtotal = lines.fold<double>(
           0.0,
           (sum, line) =>
               sum +
@@ -1286,8 +1514,12 @@ class ApiService {
           'table_name': tableId != null
               ? 'Table $tableId'
               : (name ?? 'Customer'),
-          'amount_total': total,
+          'amount_total': _discountedTotal(subtotal, discountType, discountValue),
           'state': 'draft',
+          if (discountType != null && discountValue != null && discountValue > 0)
+            'discount_type': discountType,
+          if (discountType != null && discountValue != null && discountValue > 0)
+            'discount_value': discountValue,
           if (effectiveBranchId != null && effectiveBranchId > 0)
             'branch_id': effectiveBranchId,
           // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
@@ -1319,7 +1551,7 @@ class ApiService {
         'payload': payload,
         'mock_id': mockId,
       });
-      final total = lines.fold<double>(
+      final subtotal = lines.fold<double>(
         0.0,
         (sum, line) =>
             sum +
@@ -1332,8 +1564,12 @@ class ApiService {
         'table_id': tableId,
         'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
         'partner_id': customerId, // keeping for record
-        'amount_total': total,
+        'amount_total': _discountedTotal(subtotal, discountType, discountValue),
         'state': 'draft',
+        if (discountType != null && discountValue != null && discountValue > 0)
+          'discount_type': discountType,
+        if (discountType != null && discountValue != null && discountValue > 0)
+          'discount_value': discountValue,
         if (effectiveBranchId != null && effectiveBranchId > 0)
           'branch_id': effectiveBranchId,
         // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
@@ -1364,6 +1600,8 @@ class ApiService {
     int? customerId,
     required List<Map<String, dynamic>> lines,
     bool replaceAll = false,
+    String? discountType,
+    double? discountValue,
   }) async {
     final base = await getBaseUrl();
     final payload = {
@@ -1371,6 +1609,8 @@ class ApiService {
       'partner_id': customerId,
       'lines': lines,
       if (replaceAll) 'replace_all': true,
+      if (discountType != null && discountValue != null && discountValue > 0)
+        ...{'discount_type': discountType, 'discount_value': discountValue},
     };
 
     try {
@@ -1452,10 +1692,20 @@ class ApiService {
               );
               list[index]['lines'] = existing;
             }
+            // Update discount on cached ticket
+            if (discountType != null && discountValue != null && discountValue > 0) {
+              list[index]['discount_type'] = discountType;
+              list[index]['discount_value'] = discountValue;
+            }
             // Always total the full ticket, not just this request's new lines
             // (append mode used to set amount_total to "latest lines only").
-            list[index]['amount_total'] = _sumCachedOpenTicketLinesAmount(
+            final rawSubtotal = _sumCachedOpenTicketLinesAmount(
               list[index]['lines'],
+            );
+            list[index]['amount_total'] = _discountedTotal(
+              rawSubtotal,
+              list[index]['discount_type'] as String?,
+              (list[index]['discount_value'] as num?)?.toDouble(),
             );
             await prefs.setString('cached_open_tickets', jsonEncode(list));
           }
@@ -1523,8 +1773,17 @@ class ApiService {
             );
             list[index]['lines'] = existing;
           }
-          list[index]['amount_total'] = _sumCachedOpenTicketLinesAmount(
+          if (discountType != null && discountValue != null && discountValue > 0) {
+            list[index]['discount_type'] = discountType;
+            list[index]['discount_value'] = discountValue;
+          }
+          final rawSubtotal = _sumCachedOpenTicketLinesAmount(
             list[index]['lines'],
+          );
+          list[index]['amount_total'] = _discountedTotal(
+            rawSubtotal,
+            list[index]['discount_type'] as String?,
+            (list[index]['discount_value'] as num?)?.toDouble(),
           );
           await prefs.setString('cached_open_tickets', jsonEncode(list));
           return list[index];
@@ -1537,10 +1796,16 @@ class ApiService {
   Future<Map<String, dynamic>> payOrder({
     required int orderId,
     int? paymentMethodId,
+    String? discountType,
+    double? discountValue,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/pay');
-    final payload = {'payment_method_id': paymentMethodId};
+    final payload = {
+      'payment_method_id': paymentMethodId,
+      if (discountType != null && discountValue != null && discountValue > 0)
+        ...{'discount_type': discountType, 'discount_value': discountValue},
+    };
 
     _d('==============================');
     _d('[API CALL] POST $url (PAY)');
@@ -1597,6 +1862,15 @@ class ApiService {
                 ? (t['amount_total'] as num).toDouble()
                 : double.tryParse(t['amount_total']?.toString() ?? '') ??
                       amountTotal;
+            // If discount wasn't baked into cached amount_total, apply it now
+            if (discountType != null && discountValue != null && discountValue > 0) {
+              final cachedDiscountType = t['discount_type'] as String?;
+              final cachedDiscountValue = (t['discount_value'] as num?)?.toDouble();
+              if (cachedDiscountType != discountType || cachedDiscountValue != discountValue) {
+                final rawSubtotal = _sumCachedOpenTicketLinesAmount(t['lines']);
+                amountTotal = _discountedTotal(rawSubtotal, discountType, discountValue);
+              }
+            }
             dateOrder = (t['opened_at'] ?? t['date_order'] ?? dateOrder)
                 .toString();
           }
@@ -1606,6 +1880,27 @@ class ApiService {
       await _removeFromCacheList('cached_open_tickets', orderId);
       if (tableId != null) {
         await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
+      }
+      // Compute discount amount for offline mock receipt
+      double offlineDiscountAmount = 0.0;
+      if (discountType != null && discountValue != null && discountValue > 0) {
+        double rawSubtotalForDiscount = 0.0;
+        try {
+          final prefs2 = await SharedPreferences.getInstance();
+          final cached2 = prefs2.getString('cached_open_tickets');
+          if (cached2 != null) {
+            final list2 = List<dynamic>.from(jsonDecode(cached2));
+            final idx2 = list2.indexWhere((t) => t is Map && t['id'] == orderId);
+            if (idx2 >= 0) {
+              final t2 = Map<String, dynamic>.from(list2[idx2] as Map);
+              rawSubtotalForDiscount = _sumCachedOpenTicketLinesAmount(t2['lines']);
+            }
+          }
+        } catch (_) {}
+        if (rawSubtotalForDiscount > 0) {
+          final discounted = _discountedTotal(rawSubtotalForDiscount, discountType, discountValue);
+          offlineDiscountAmount = rawSubtotalForDiscount - discounted;
+        }
       }
       final mockReceipt = {
         'offline': true,
@@ -1620,6 +1915,7 @@ class ApiService {
             : 'Offline',
         'state': 'paid',
         'amount_total': amountTotal,
+        'amount_discount': offlineDiscountAmount,
       };
       await _updateCacheList('cached_receipt_history', mockReceipt);
       return mockReceipt;

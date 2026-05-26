@@ -24,7 +24,9 @@ import '../models/combo.dart';
 import '../theme/ladolce_pos_ui.dart';
 import 'package:intl/intl.dart';
 import '../models/pos_tax_config.dart';
+import '../models/pos_discount_config.dart';
 import '../utils/pos_tax.dart';
+import '../utils/pos_discount.dart';
 import '../utils/responsive_layout.dart';
 
 class PosScreen extends StatefulWidget {
@@ -54,6 +56,25 @@ class _PosScreenState extends State<PosScreen> {
   String? _cachedPosName;
   String? _cachedBranchName;
   PosTaxConfig _taxConfig = PosTaxConfig.disabled;
+  PosDiscountConfig _discountConfig = PosDiscountConfig.disabled;
+  PosDiscountOption? _selectedDiscountOption;
+  DiscountBreakdown _discountBreakdown = DiscountBreakdown.none;
+  double? _pendingDiscountManualValue;
+
+  String? get _appliedDiscountType {
+    if (!_discountConfig.enabled || !_discountBreakdown.active) return null;
+    return _selectedDiscountOption?.type;
+  }
+
+  double? get _appliedDiscountValue {
+    if (!_discountConfig.enabled || !_discountBreakdown.active) return null;
+    final opt = _selectedDiscountOption;
+    if (opt == null) return null;
+    if (opt.type == 'percentage') {
+      return opt.value ?? _pendingDiscountManualValue ?? 0.0;
+    }
+    return _discountBreakdown.discountAmount;
+  }
   int _pendingSelfOrdersCount = 0;
   final Set<int> _pendingSelfOrderKnownIds = {};
   Timer? _pendingSelfOrdersTimer;
@@ -282,6 +303,10 @@ class _PosScreenState extends State<PosScreen> {
   String _activeTicketPaymentType = '';
   int? _activeTicketPaymentMethodId;
   String _activeTicketPaymentMethodName = '';
+  bool _activeTicketIsSelfOrder = false;
+  String _activeTicketPartnerName = '';
+  String _activeTicketDeliveryPlaceName = '';
+  String _activeTicketDeliveryPlaceAddress = '';
   Map<String, dynamic>? _selectedCustomer;
 
   @override
@@ -302,19 +327,199 @@ class _PosScreenState extends State<PosScreen> {
       final posName = await _apiService.getCachedPosName();
       final branchName = await _apiService.getCachedBranchName();
       final tax = await _apiService.getPosTaxConfig();
+      final discount = await PosDiscountConfig.load();
       if (!mounted) return;
       setState(() {
         _cachedPosName = posName;
         _cachedBranchName = branchName;
         _taxConfig = tax;
+        _discountConfig = discount;
       });
+      _recomputeDiscount();
     } catch (_) {}
   }
 
-  PosTaxBreakdown _cartTaxBreakdown() {
+  void _recomputeDiscount({double? manualValue}) {
     final linesSum =
         _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    return computePosTaxBreakdown(linesSum, _taxConfig);
+    final bd = computePosDiscount(linesSum, _selectedDiscountOption,
+        manualValue: manualValue);
+    setState(() {
+      _discountBreakdown = bd;
+      _pendingDiscountManualValue = manualValue;
+    });
+  }
+
+  void _clearDiscount() {
+    setState(() {
+      _selectedDiscountOption = null;
+      _discountBreakdown = DiscountBreakdown.none;
+      _pendingDiscountManualValue = null;
+    });
+  }
+
+  void _showApplyDiscountDialog() {
+    final linesSum =
+        _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    if (linesSum <= 0) return;
+
+    PosDiscountOption? selectedOption = _selectedDiscountOption;
+    double? manualVal = _pendingDiscountManualValue;
+
+    final manualCtrl = TextEditingController(
+      text: manualVal?.toStringAsFixed(0) ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.discount_outlined, color: Colors.red.shade700),
+                const SizedBox(width: 8),
+                const Text('Apply Discount'),
+              ],
+            ),
+            content: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select Discount Option',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<PosDiscountOption?>(
+                        value: selectedOption,
+                        hint: const Text('No Discount'),
+                        isExpanded: true,
+                        items: [
+                          const DropdownMenuItem<PosDiscountOption?>(
+                            value: null,
+                            child: Text('No Discount'),
+                          ),
+                          ..._discountConfig.options.map((opt) {
+                            String valStr = '';
+                            if (opt.value == null) {
+                              valStr = opt.type == 'percentage'
+                                  ? '(Custom %)'
+                                  : '(Custom Amount)';
+                            } else {
+                              valStr = opt.type == 'percentage'
+                                  ? '(${opt.value!.toStringAsFixed(0)}%)'
+                                  : '(₭${opt.value!.toStringAsFixed(0)})';
+                            }
+                            return DropdownMenuItem<PosDiscountOption?>(
+                              value: opt,
+                              child: Text('${opt.name} $valStr'),
+                            );
+                          }),
+                        ],
+                        onChanged: (opt) {
+                          setDialogState(() {
+                            selectedOption = opt;
+                            if (opt == null || !opt.isManual) {
+                              manualVal = null;
+                              manualCtrl.clear();
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  if (selectedOption != null && selectedOption!.isManual) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      selectedOption!.type == 'percentage'
+                          ? 'Enter Discount Percentage'
+                          : 'Enter Discount Amount',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: manualCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        suffixText:
+                            selectedOption!.type == 'percentage' ? '%' : null,
+                        prefixText:
+                            selectedOption!.type == 'value' ? '₭ ' : null,
+                        hintText: selectedOption!.type == 'percentage'
+                            ? 'e.g. 10'
+                            : 'e.g. 5000',
+                      ),
+                      onChanged: (v) {
+                        manualVal = double.tryParse(v);
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _clearDiscount();
+                  Navigator.pop(ctx);
+                },
+                child: Text(
+                  'Remove Discount',
+                  style: TextStyle(color: Colors.red.shade400),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D1565),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _selectedDiscountOption = selectedOption;
+                    _pendingDiscountManualValue = manualVal;
+                  });
+                  _recomputeDiscount(manualValue: manualVal);
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Apply'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  CartBreakdown _cartBreakdown() {
+    final linesSum =
+        _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    return computeCartBreakdown(
+      linesSum,
+      _taxConfig,
+      selectedDiscountOption: _selectedDiscountOption,
+      discountManualValue: _pendingDiscountManualValue,
+    );
   }
 
   @override
@@ -657,6 +862,8 @@ class _PosScreenState extends State<PosScreen> {
       _activeTicketPaymentMethodId = null;
       _activeTicketPaymentMethodName = '';
       _selectedCustomer = null;
+      _discountBreakdown = DiscountBreakdown.none;
+      _pendingDiscountManualValue = null;
     });
   }
 
@@ -923,6 +1130,10 @@ class _PosScreenState extends State<PosScreen> {
                 _activeTicketPaymentType = result.paymentType;
                 _activeTicketPaymentMethodId = result.paymentMethodId;
                 _activeTicketPaymentMethodName = result.paymentMethodName;
+                _activeTicketIsSelfOrder = result.isSelfOrder;
+                _activeTicketPartnerName = result.partnerName;
+                _activeTicketDeliveryPlaceName = result.deliveryPlaceName;
+                _activeTicketDeliveryPlaceAddress = result.deliveryPlaceAddress;
               });
             }
           },
@@ -994,7 +1205,7 @@ class _PosScreenState extends State<PosScreen> {
                     break;
                   }
                   {
-                    final bd = _cartTaxBreakdown();
+                    final bd = _cartBreakdown();
                     Map<String, dynamic>? tpl;
                     try {
                       tpl = await _apiService.fetchBillTemplate(type: 'bill');
@@ -1018,6 +1229,7 @@ class _PosScreenState extends State<PosScreen> {
                       taxRowLabel: taxLab,
                       headerText: headerText,
                       footerText: footerText,
+                      discountAmount: bd.discount.discountAmount,
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1206,6 +1418,11 @@ class _PosScreenState extends State<PosScreen> {
                   }
                   break;
 
+                case 'send_to_rider':
+                  if (_activeTicketId == null) break;
+                  await _showRiderPickerDialog(context);
+                  break;
+
                 default:
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Feature coming soon!')),
@@ -1281,6 +1498,18 @@ class _PosScreenState extends State<PosScreen> {
                     Icons.open_in_new_rounded,
                     'Move ticket',
                     enabled: hasTicket,
+                  ),
+                ),
+                const PopupMenuDivider(),
+
+                // ── Rider delivery ──────────────────────────────────────────
+                PopupMenuItem<String>(
+                  value: 'send_to_rider',
+                  enabled: hasTicket && _activeTicketIsSelfOrder,
+                  child: disablableTile(
+                    Icons.delivery_dining_rounded,
+                    'Send to rider',
+                    enabled: hasTicket && _activeTicketIsSelfOrder,
                   ),
                 ),
                 const PopupMenuDivider(),
@@ -1794,6 +2023,8 @@ class _PosScreenState extends State<PosScreen> {
                   onClearCustomer: () =>
                       setState(() => _selectedCustomer = null),
                   taxConfig: _taxConfig,
+                  selectedDiscountOption: _selectedDiscountOption,
+                  discountManualValue: _pendingDiscountManualValue,
                 ),
               ),
           ],
@@ -1808,7 +2039,7 @@ class _PosScreenState extends State<PosScreen> {
 
   Widget _buildMobileCartBar(BuildContext context) {
     final tItems = _cartItems.fold(0, (sum, item) => sum + item.quantity);
-    final payTotal = _cartTaxBreakdown().totalDue;
+    final payTotal = _cartBreakdown().totalDue;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -1885,6 +2116,8 @@ class _PosScreenState extends State<PosScreen> {
                         setSheetState(() {});
                       },
                       taxConfig: _taxConfig,
+                      selectedDiscountOption: _selectedDiscountOption,
+                      discountManualValue: _pendingDiscountManualValue,
                     ),
                   ),
                 ),
@@ -2404,6 +2637,118 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
+  Future<void> _showRiderPickerDialog(BuildContext context) async {
+    List<dynamic> riders = [];
+    try {
+      riders = await _apiService.fetchRiderList();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot load riders: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    if (riders.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No riders available for this branch.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final rider = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Select Rider',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _activeTicketPartnerName.isNotEmpty
+                    ? 'Order for: $_activeTicketPartnerName'
+                    : _activeTicketDeliveryPlaceName.isNotEmpty
+                        ? 'Delivery to: $_activeTicketDeliveryPlaceName'
+                        : 'Self-order delivery',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...riders.map((r) {
+                final name = r['name'] ?? 'Unnamed';
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFF1E3A8A),
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : 'R',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  title: Text(name),
+                  subtitle: Text(r['login'] ?? ''),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                  onTap: () => Navigator.pop(ctx, r),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (rider == null || !context.mounted) return;
+
+    final riderId = rider['id'];
+    final riderName = rider['name'] ?? 'Rider';
+
+    setState(() => _isLoading = true);
+    try {
+      await _apiService.assignRider(
+        orderId: _activeTicketId!,
+        riderId: riderId,
+      );
+      if (!context.mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Order sent to $riderName'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to assign rider: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showCustomerSelection(BuildContext context) async {
     // Show loading state while fetching customers before opening modal (or inside)
     final rootContext = context; // capture valid context unconditionally
@@ -2621,7 +2966,7 @@ class _PosScreenState extends State<PosScreen> {
   void _showChargeDialog(BuildContext context) {
     if (_cartItems.isEmpty) return;
 
-    final bd = _cartTaxBreakdown();
+    final bd = _cartBreakdown();
     final total = bd.totalDue;
     final bool isTransferTicket = _activeTicketPaymentType == 'transfer';
 
@@ -2639,6 +2984,9 @@ class _PosScreenState extends State<PosScreen> {
     final TextEditingController amountReceivedCtrl = TextEditingController(
       text: total.toStringAsFixed(0),
     );
+    final TextEditingController manualDiscountCtrl = TextEditingController(
+      text: _pendingDiscountManualValue?.toStringAsFixed(0) ?? '',
+    );
 
     final fmt = NumberFormat('#,##0.00');
 
@@ -2648,6 +2996,8 @@ class _PosScreenState extends State<PosScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
+          final bd = _cartBreakdown();
+          final total = bd.totalDue;
           final isCash =
               _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
               false;
@@ -2772,6 +3122,157 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                             ),
                           ),
+
+                        // ── Select Discount Dropdown ──────────────────────
+                        if (_discountConfig.enabled) ...[
+                          const Text(
+                            'Select Discount',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<PosDiscountOption?>(
+                                value: _selectedDiscountOption,
+                                hint: const Text('No Discount'),
+                                isExpanded: true,
+                                items: [
+                                  const DropdownMenuItem<PosDiscountOption?>(
+                                    value: null,
+                                    child: Text('No Discount'),
+                                  ),
+                                  ..._discountConfig.options.map((opt) {
+                                    String valStr = '';
+                                    if (opt.value == null) {
+                                      valStr = opt.type == 'percentage'
+                                          ? '(Custom %)'
+                                          : '(Custom Amount)';
+                                    } else {
+                                      valStr = opt.type == 'percentage'
+                                          ? '(${opt.value!.toStringAsFixed(0)}%)'
+                                          : '(₭${opt.value!.toStringAsFixed(0)})';
+                                    }
+                                    return DropdownMenuItem<PosDiscountOption?>(
+                                      value: opt,
+                                      child: Text('${opt.name} $valStr'),
+                                    );
+                                  }),
+                                ],
+                                onChanged: (opt) {
+                                  setSheetState(() {
+                                    _selectedDiscountOption = opt;
+                                    if (opt == null || !opt.isManual) {
+                                      _pendingDiscountManualValue = null;
+                                      manualDiscountCtrl.clear();
+                                    }
+                                  });
+                                  setState(() {
+                                    _selectedDiscountOption = opt;
+                                    if (opt == null || !opt.isManual) {
+                                      _pendingDiscountManualValue = null;
+                                    }
+                                  });
+                                  _recomputeDiscount(
+                                      manualValue: _pendingDiscountManualValue);
+                                  final newTotal = _cartBreakdown().totalDue;
+                                  amountReceivedCtrl.text =
+                                      newTotal.toStringAsFixed(0);
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (_selectedDiscountOption != null &&
+                              _selectedDiscountOption!.isManual) ...[
+                            Text(
+                              _selectedDiscountOption!.type == 'percentage'
+                                  ? 'Enter Discount Percentage'
+                                  : 'Enter Discount Amount',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 16),
+                                    child: Text(
+                                      _selectedDiscountOption!.type ==
+                                              'percentage'
+                                          ? '% '
+                                          : '₭ ',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black45,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: manualDiscountCtrl,
+                                      keyboardType: const TextInputType
+                                          .numberWithOptions(decimal: true),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                      decoration: InputDecoration(
+                                        border: InputBorder.none,
+                                        hintText: _selectedDiscountOption!
+                                                    .type ==
+                                                'percentage'
+                                            ? 'e.g. 10'
+                                            : 'e.g. 5000',
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                          horizontal: 4,
+                                        ),
+                                      ),
+                                      onChanged: (v) {
+                                        final val = double.tryParse(v);
+                                        setSheetState(() {
+                                          _pendingDiscountManualValue = val;
+                                        });
+                                        setState(() {
+                                          _pendingDiscountManualValue = val;
+                                        });
+                                        _recomputeDiscount(manualValue: val);
+                                        final newTotal =
+                                            _cartBreakdown().totalDue;
+                                        amountReceivedCtrl.text =
+                                            newTotal.toStringAsFixed(0);
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                          const SizedBox(height: 12),
+                        ],
 
                         // ── Payment Method Label ──────────────────────────
                         const Text(
@@ -3028,7 +3529,7 @@ class _PosScreenState extends State<PosScreen> {
     BuildContext context,
     StateSetter setDialogState,
     bool printReceipt,
-    PosTaxBreakdown bd,
+    CartBreakdown bd,
   ) async {
     final subtotalRowLabel = bd.taxActive && _taxConfig.inclusive
         ? 'Amount (excl. VAT):'
@@ -3064,6 +3565,8 @@ class _PosScreenState extends State<PosScreen> {
     final snapshotActiveTicketId = _activeTicketId;
     final snapshotActiveTicketTableId = _activeTicketTableId;
     final snapshotActiveTicketPaymentType = _activeTicketPaymentType;
+    final snapshotDiscountType = _appliedDiscountType;
+    final snapshotDiscountValue = _appliedDiscountValue;
     final isCash =
         snapshotPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
 
@@ -3133,6 +3636,7 @@ class _PosScreenState extends State<PosScreen> {
             taxRowLabel: taxLab,
             headerText: headerText,
             footerText: footerText,
+            discountAmount: bd.discount.discountAmount,
           );
         }
         if (isCash) {
@@ -3156,6 +3660,8 @@ class _PosScreenState extends State<PosScreen> {
                   : 'pay_at_store',
               isPaid: true,
               lines: allLines,
+              discountType: snapshotDiscountType,
+              discountValue: snapshotDiscountValue,
             );
           } else {
             if (newLines.isNotEmpty) {
@@ -3163,11 +3669,15 @@ class _PosScreenState extends State<PosScreen> {
                 orderId: snapshotActiveTicketId,
                 customerId: _selectedCustomer?['id'],
                 lines: newLines,
+                discountType: snapshotDiscountType,
+                discountValue: snapshotDiscountValue,
               );
             }
             await _apiService.payOrder(
               orderId: snapshotActiveTicketId,
               paymentMethodId: snapshotPaymentMethod?.id,
+              discountType: snapshotDiscountType,
+              discountValue: snapshotDiscountValue,
             );
           }
         } else {
@@ -3177,6 +3687,8 @@ class _PosScreenState extends State<PosScreen> {
             isPaid: true,
             paymentMethodId: snapshotPaymentMethod?.id,
             lines: allLines,
+            discountType: snapshotDiscountType,
+            discountValue: snapshotDiscountValue,
           );
         }
       } catch (_) {
@@ -3234,6 +3746,8 @@ class _PosScreenState extends State<PosScreen> {
           tableId: _activeTicketTableId,
           customerId: _selectedCustomer?['id'],
           lines: newLines,
+          discountType: _appliedDiscountType,
+          discountValue: _appliedDiscountValue,
         );
 
         // Print only the unprinted new items to kitchen/bar printers

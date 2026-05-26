@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
+import '../models/pos_discount_config.dart';
 import '../models/pos_tax_config.dart';
-import '../utils/pos_tax.dart';
+import '../utils/pos_discount.dart';
 
 class CartSidebar extends StatelessWidget {
   static const Color _brandNavy = Color(0xFF0D1565);
@@ -11,14 +12,16 @@ class CartSidebar extends StatelessWidget {
   final Function(CartItem, int) onUpdateQuantity;
   final VoidCallback onClearCart;
   final VoidCallback onCharge;
-  final VoidCallback onSaveTicket; // Replacing onOpenTicket when cart has items
-  final VoidCallback onViewTickets; // For when cart is empty
+  final VoidCallback onSaveTicket;
+  final VoidCallback onViewTickets;
   final ValueChanged<CartItem> onEditKitchenNote;
 
   final VoidCallback onAddCustomer;
-  final VoidCallback onClearCustomer; // New clear callback
-  final Map<String, dynamic>? selectedCustomer; // Selected customer data
+  final VoidCallback onClearCustomer;
+  final Map<String, dynamic>? selectedCustomer;
   final PosTaxConfig taxConfig;
+  final PosDiscountOption? selectedDiscountOption;
+  final double? discountManualValue;
 
   const CartSidebar({
     super.key,
@@ -33,12 +36,19 @@ class CartSidebar extends StatelessWidget {
     required this.onClearCustomer,
     this.selectedCustomer,
     this.taxConfig = PosTaxConfig.disabled,
+    this.selectedDiscountOption,
+    this.discountManualValue,
   });
 
   @override
   Widget build(BuildContext context) {
     final linesSum = cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final bd = computePosTaxBreakdown(linesSum, taxConfig);
+    final cd = computeCartBreakdown(
+      linesSum,
+      taxConfig,
+      selectedDiscountOption: selectedDiscountOption,
+      discountManualValue: discountManualValue,
+    );
 
     return Container(
       color: Colors.white,
@@ -91,7 +101,7 @@ class CartSidebar extends StatelessWidget {
                         children: [
                           const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                           Text(
-                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -284,7 +294,33 @@ class CartSidebar extends StatelessWidget {
             ),
             child: Column(
               children: [
-                if (!bd.taxActive) ...[
+                // ── Subtotal ──────────────────────────────────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Subtotal',
+                        style: TextStyle(color: Colors.grey[600]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '₭${cd.cartLinesSum.toStringAsFixed(2)}',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(color: Colors.grey[800]),
+                      ),
+                    ),
+                  ],
+                ),
+
+
+
+                // ── Tax Breakdown ─────────────────────────────────────────────
+                if (!cd.taxActive) ...[
+                  const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -299,7 +335,7 @@ class CartSidebar extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
                             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _brandNavy),
                           ),
                         ),
@@ -307,6 +343,7 @@ class CartSidebar extends StatelessWidget {
                     ],
                   ),
                 ] else ...[
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
@@ -320,7 +357,7 @@ class CartSidebar extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          '₭${bd.baseAmount.toStringAsFixed(2)}',
+                          '₭${cd.baseAmount.toStringAsFixed(2)}',
                           textAlign: TextAlign.end,
                           style: TextStyle(color: Colors.grey[800]),
                         ),
@@ -342,7 +379,7 @@ class CartSidebar extends StatelessWidget {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            '₭${bd.taxAmount.toStringAsFixed(2)}',
+                            '₭${cd.taxAmount.toStringAsFixed(2)}',
                             textAlign: TextAlign.end,
                             style: TextStyle(color: Colors.grey[800]),
                           ),
@@ -377,7 +414,7 @@ class CartSidebar extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
                             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy),
                           ),
                         ),
@@ -385,6 +422,9 @@ class CartSidebar extends StatelessWidget {
                     ],
                   ),
                 ],
+
+
+
                 const SizedBox(height: 16),
               ],
             ),

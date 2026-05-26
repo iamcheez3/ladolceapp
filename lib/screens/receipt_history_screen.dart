@@ -330,6 +330,19 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                                         fontWeight: FontWeight.w400,
                                       ),
                                     ),
+                                    if ((receipt['amount_discount'] is num && (receipt['amount_discount'] as num) > 0) ||
+                                        (receipt['amount_discount'] is double && receipt['amount_discount'] > 0))
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          'Discount: -K${(receipt['amount_discount'] as num).toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.red,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),

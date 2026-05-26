@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show sin, cos, sqrt, asin;
+import 'dart:ui' as ui;
 import 'customer_support_screen.dart';
 import 'ranking_screen.dart';
 import '../services/push_notifications_service.dart';
@@ -10,6 +12,7 @@ import 'package:flutter/foundation.dart' show Factory;
 import 'package:flutter/gestures.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -191,6 +194,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String? _selectedFavoritePlaceId;
 
   List<Map<String, dynamic>> _historyItems = [];
+  Timer? _riderLocationTimer;
+  final Map<String, Map<String, dynamic>> _riderLocations = {};
 
   // Branch selection (customer self-order)
   bool _isLoadingBranches = true;
@@ -213,6 +218,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     _loadProfileImage();
     _loadNotificationPref();
     _loadFavoritePlaces();
+    _startRiderLocationPolling();
   }
 
   Future<void> _loadBranches() async {
@@ -338,6 +344,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     _recommendedAutoSlideTimer?.cancel();
     _recommendedPageController?.dispose();
     _noteController.dispose();
+    _riderLocationTimer?.cancel();
     super.dispose();
   }
 
@@ -1380,6 +1387,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           'date_order': item['date_order'],
           'payment_method': item['payment_method'] ?? 'Unknown',
           'state': item['state'] ?? 'paid',
+          'delivery_status': item['delivery_status'] ?? 'none',
+          'delivery_latitude': item['delivery_latitude'],
+          'delivery_longitude': item['delivery_longitude'],
           'customer': item['customer'] ?? '',
           'transfer_proof_url': item['transfer_proof_url'],
           'lines': item['lines'] ?? const [],
@@ -1452,6 +1462,67 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (!mounted) return;
       setState(() => _isLoadingHistory = false);
     }
+  }
+
+  void _startRiderLocationPolling() {
+    _riderLocationTimer?.cancel();
+    _pollRiderLocations();
+    _riderLocationTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _pollRiderLocations(),
+    );
+  }
+
+  Future<void> _pollRiderLocations() async {
+    final activeOrders = _historyItems.where((item) {
+      final ds = (item['delivery_status'] ?? '').toString().toLowerCase();
+      return ds == 'on_the_way' || ds == 'arrived';
+    }).toList();
+    if (activeOrders.isEmpty) return;
+    for (final order in activeOrders) {
+      final id = order['id'];
+      if (id == null) continue;
+      try {
+        final loc = await _apiService.fetchRiderLocation(id.toString());
+        if (loc != null && mounted) {
+          setState(() {
+            _riderLocations[id.toString()] = Map<String, dynamic>.from(loc);
+          });
+        }
+      } catch (_) {
+        // best-effort
+      }
+    }
+  }
+
+  void _openRiderMap(String orderId) {
+    final order = _historyItems.cast<Map<String, dynamic>?>().firstWhere(
+      (o) => (o?['id']?.toString() ?? '') == orderId,
+      orElse: () => null,
+    );
+    double? destLat;
+    double? destLng;
+    if (order != null) {
+      final rawLat = order['delivery_latitude'];
+      final rawLng = order['delivery_longitude'];
+      if (rawLat != null) destLat = (rawLat is num) ? rawLat.toDouble() : double.tryParse(rawLat.toString());
+      if (rawLng != null) destLng = (rawLng is num) ? rawLng.toDouble() : double.tryParse(rawLng.toString());
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _RiderTrackingSheet(
+        orderId: orderId,
+        apiService: _apiService,
+        initialLocation: _riderLocations[orderId],
+        destinationLat: destLat,
+        destinationLng: destLng,
+      ),
+    );
   }
 
   Future<void> _loadSelfOrderConfig() async {
@@ -5411,9 +5482,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final item = _historyItems[index];
+          final deliveryStatus = (item['delivery_status'] ?? '').toString();
           final statusText = _friendlyStatus(
             (item['state'] ?? '').toString(),
             (item['payment_method'] ?? '').toString(),
+            deliveryStatus: deliveryStatus,
           );
           final dateLabel = _formatHistoryDateLabel(
             item['date_order']?.toString(),
@@ -5484,9 +5557,37 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         _historyStatusPill(
                           statusText,
                           item['state']?.toString() ?? '',
+                          deliveryStatus: deliveryStatus,
                         ),
                       ],
                     ),
+                    if (deliveryStatus.isNotEmpty &&
+                        deliveryStatus != 'none' &&
+                        deliveryStatus != 'pending') ...[
+                      const SizedBox(height: 12),
+                      _buildDeliveryProgress(deliveryStatus),
+                    ],
+                    if (deliveryStatus == 'on_the_way' || deliveryStatus == 'arrived') ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _openRiderMap(
+                            (item['id'] ?? '').toString(),
+                          ),
+                          icon: const Icon(Icons.location_on, size: 18),
+                          label: const Text('Track Rider'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1D4ED8),
+                            side: const BorderSide(color: Color(0xFF1D4ED8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                    ],
                     if (dateLabel != '-') ...[
                       const SizedBox(height: 6),
                       _historyMetaRow('Date', dateLabel),
@@ -5550,9 +5651,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-  Widget _historyStatusPill(String friendly, String rawState) {
+  Widget _historyStatusPill(String friendly, String rawState, {String? deliveryStatus}) {
     final state = rawState.toLowerCase().trim();
     final label = friendly.toLowerCase().trim();
+    final ds = (deliveryStatus ?? '').toLowerCase().trim();
     final isWaiting =
         state == 'waiting_transfer_review' || label.contains('waiting');
     final isCancelled = state == 'cancelled' || label.contains('cancel');
@@ -5563,21 +5665,37 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     Color fg = const Color(0xFF1E3A8A);
     String text = friendly;
 
-    if (isCancelled) {
-      bg = const Color(0xFFFEE2E2); // red-100
-      fg = const Color(0xFFB91C1C); // red-700
+    if (ds == 'delivered') {
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF166534);
+      text = 'Delivered';
+    } else if (ds == 'arrived') {
+      bg = const Color(0xFFCCFBF1);
+      fg = const Color(0xFF0F766E);
+      text = 'Rider arrived';
+    } else if (ds == 'on_the_way') {
+      bg = const Color(0xFFDBEAFE);
+      fg = const Color(0xFF1D4ED8);
+      text = 'On the way';
+    } else if (ds == 'preparing') {
+      bg = const Color(0xFFFFEDD5);
+      fg = const Color(0xFFC2410C);
+      text = 'Preparing';
+    } else if (isCancelled) {
+      bg = const Color(0xFFFEE2E2);
+      fg = const Color(0xFFB91C1C);
       text = 'Cancelled';
     } else if (isWaiting) {
-      bg = const Color(0xFFFFEDD5); // orange-100
-      fg = const Color(0xFFC2410C); // orange-700
+      bg = const Color(0xFFFFEDD5);
+      fg = const Color(0xFFC2410C);
       text = 'Waiting transfer verification';
     } else if (isConfirmed) {
-      bg = const Color(0xFFDCFCE7); // green-100
-      fg = const Color(0xFF166534); // green-800
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF166534);
       text = 'Order confirmed';
     } else if (isPaid) {
-      bg = const Color(0xFFDCFCE7); // green-100
-      fg = const Color(0xFF166534); // green-800
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF166534);
       text = 'Paid';
     }
 
@@ -5594,7 +5712,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-  String _friendlyStatus(String rawState, String paymentMethod) {
+  String _friendlyStatus(String rawState, String paymentMethod, {String? deliveryStatus}) {
+    final ds = (deliveryStatus ?? '').toLowerCase();
+    if (ds == 'delivered') return 'Delivered';
+    if (ds == 'arrived') return 'Rider arrived';
+    if (ds == 'on_the_way') return 'Rider is on the way';
+    if (ds == 'preparing') return 'Preparing your order';
     if (rawState == 'waiting_transfer_review') {
       return 'Waiting transfer verification';
     }
@@ -5606,6 +5729,83 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     if (rawState == 'paid') return 'Paid';
     if (rawState == 'cancelled') return 'Cancelled';
     return rawState.isEmpty ? '-' : rawState;
+  }
+
+  Widget _buildDeliveryProgress(String deliveryStatus) {
+    const steps = ['preparing', 'on_the_way', 'arrived', 'delivered'];
+    const labels = ['Preparing', 'On the way', 'Arrived', 'Delivered'];
+    final currentIndex = switch (deliveryStatus.toLowerCase().trim()) {
+      'preparing' => 0,
+      'on_the_way' => 1,
+      'arrived' => 2,
+      'delivered' => 3,
+      _ => -1,
+    };
+    if (currentIndex < 0) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Delivery progress',
+          style: TextStyle(
+            color: _labelGray,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(steps.length, (i) {
+            final isCompleted = i <= currentIndex;
+            final isLast = i == steps.length - 1;
+            return Expanded(
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 10,
+                    backgroundColor:
+                        isCompleted ? const Color(0xFF166534) : const Color(0xFFE2E8F0),
+                    child: isCompleted
+                        ? const Icon(Icons.check, size: 12, color: Colors.white)
+                        : const SizedBox.shrink(),
+                  ),
+                  if (!isLast)
+                    Expanded(
+                      child: Container(
+                        height: 2,
+                        color: isCompleted
+                            ? const Color(0xFF166534)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: List.generate(steps.length, (i) {
+            final isCompleted = i <= currentIndex;
+            return Expanded(
+              child: Text(
+                labels[i],
+                textAlign: i == 0
+                    ? TextAlign.left
+                    : (i == steps.length - 1 ? TextAlign.right : TextAlign.center),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isCompleted ? FontWeight.w700 : FontWeight.w500,
+                  color:
+                      isCompleted ? const Color(0xFF166534) : const Color(0xFF94A3B8),
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
   }
 
   void _openHistoryDetail(Map<String, dynamic> item) {
@@ -6104,5 +6304,431 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _CategoryHeaderDelegate oldDelegate) {
     return oldDelegate.height != height || oldDelegate.child != child;
+  }
+}
+
+class _RiderTrackingSheet extends StatefulWidget {
+  final String orderId;
+  final ApiService apiService;
+  final Map<String, dynamic>? initialLocation;
+  final double? destinationLat;
+  final double? destinationLng;
+
+  const _RiderTrackingSheet({
+    required this.orderId,
+    required this.apiService,
+    this.initialLocation,
+    this.destinationLat,
+    this.destinationLng,
+  });
+
+  @override
+  State<_RiderTrackingSheet> createState() => _RiderTrackingSheetState();
+}
+
+class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
+  GoogleMapController? _mapController;
+  Timer? _refreshTimer;
+  Timer? _animTimer;
+  BitmapDescriptor? _bikeMarker;
+  final GlobalKey _markerCaptureKey = GlobalKey();
+
+  double _riderLat = 0;
+  double _riderLng = 0;
+  double _targetLat = 0;
+  double _targetLng = 0;
+  bool _hasLocation = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final init = widget.initialLocation;
+    if (init != null) {
+      _targetLat = (init['latitude'] ?? 0).toDouble();
+      _targetLng = (init['longitude'] ?? 0).toDouble();
+      _riderLat = _targetLat;
+      _riderLng = _targetLng;
+      _hasLocation = true;
+      _isLoading = false;
+    }
+    _fetchLocation();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _fetchLocation();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _animTimer?.cancel();
+    super.dispose();
+  }
+
+  void _captureMarkerIcon() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_bikeMarker != null) return;
+      try {
+        final boundary = _markerCaptureKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
+        if (boundary == null) return;
+        final image = await boundary.toImage(pixelRatio: 3);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData != null && mounted) {
+          setState(() => _bikeMarker = BitmapDescriptor.fromBytes(byteData.buffer.asUint8List()));
+        }
+      } catch (_) {}
+    });
+  }
+
+  double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371.0;
+    final rad = 3.141592653589793 / 180;
+    final dLat = (lat2 - lat1) * rad;
+    final dLng = (lng2 - lng1) * rad;
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * rad) * cos(lat2 * rad) * sin(dLng / 2) * sin(dLng / 2);
+    final c = 2 * asin(sqrt(a));
+    return r * c;
+  }
+
+  String _formatEta(double distanceKm) {
+    if (distanceKm < 0.1) return 'Arriving soon';
+    final hours = distanceKm / 50;
+    final totalMinutes = (hours * 60).round();
+    if (totalMinutes < 60) return '$totalMinutes min';
+    final h = totalMinutes ~/ 60;
+    final m = totalMinutes % 60;
+    return '${h}h ${m}m';
+  }
+
+  Future<void> _fetchLocation() async {
+    try {
+      final loc = await widget.apiService.fetchRiderLocation(widget.orderId);
+      if (!mounted) return;
+      if (loc != null) {
+        final newLat = (loc['latitude'] ?? 0).toDouble();
+        final newLng = (loc['longitude'] ?? 0).toDouble();
+        setState(() {
+          _targetLat = newLat;
+          _targetLng = newLng;
+          _isLoading = false;
+          _hasLocation = true;
+        });
+        _startSmoothAnimation();
+      } else if (!_hasLocation) {
+        setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      if (mounted && !_hasLocation) setState(() => _isLoading = false);
+    }
+  }
+
+  void _startSmoothAnimation() {
+    _animTimer?.cancel();
+    // Animate camera to the NEW target once (not on every 100ms tick)
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLng(LatLng(_targetLat, _targetLng)),
+    );
+    _animTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted) { _animTimer?.cancel(); return; }
+      final remainingLat = _targetLat - _riderLat;
+      final remainingLng = _targetLng - _riderLng;
+      const step = 0.12;
+      _riderLat += remainingLat * step;
+      _riderLng += remainingLng * step;
+      final close = remainingLat.abs() < 0.000001 && remainingLng.abs() < 0.000001;
+      if (close) {
+        _riderLat = _targetLat;
+        _riderLng = _targetLng;
+        _animTimer?.cancel();
+      }
+      setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _captureMarkerIcon();
+
+    final destLat = widget.destinationLat;
+    final destLng = widget.destinationLng;
+    final eta = (_hasLocation && destLat != null && destLng != null)
+        ? _formatEta(_distanceKm(_riderLat, _riderLng, destLat, destLng))
+        : null;
+
+    final markers = <Marker>{};
+    if (_hasLocation) {
+      markers.add(Marker(
+        markerId: const MarkerId('rider'),
+        position: LatLng(_riderLat, _riderLng),
+        icon: _bikeMarker ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        anchor: const Offset(0.5, 0.5),
+        infoWindow: const InfoWindow(title: 'Rider'),
+      ));
+    }
+    if (destLat != null && destLng != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('destination'),
+        position: LatLng(destLat, destLng),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: const InfoWindow(title: 'Delivery location'),
+      ));
+    }
+
+    final polylines = <Polyline>{};
+    if (_hasLocation && destLat != null && destLng != null) {
+      polylines.add(Polyline(
+        polylineId: const PolylineId('route'),
+        points: [LatLng(_riderLat, _riderLng), LatLng(destLat, destLng)],
+        color: const Color(0xFF1D4ED8).withValues(alpha: 0.6),
+        width: 4,
+      ));
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        children: [
+          // Hidden icon render target (0 opacity — still rendered for capture)
+          Opacity(
+            opacity: 0,
+            child: RepaintBoundary(
+              key: _markerCaptureKey,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1D4ED8),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delivery_dining, color: Colors.white, size: 28),
+              ),
+            ),
+          ),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.delivery_dining, color: Color(0xFF1D4ED8), size: 20),
+              const SizedBox(width: 6),
+              const Text(
+                'Live Rider Tracking',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: _CustomerSelfOrderScreenState._textPrimaryDark,
+                ),
+              ),
+              const Spacer(),
+              if (eta != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.access_time, size: 14, color: Color(0xFF1D4ED8)),
+                      const SizedBox(width: 4),
+                      Text(
+                        eta,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1D4ED8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_hasLocation) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.fiber_manual_record, size: 10, color: Color(0xFF16A34A)),
+                      SizedBox(width: 4),
+                      Text(
+                        'LIVE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF166534),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (eta != null && destLat != null && destLng != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.directions_bike, size: 18, color: Color(0xFF1D4ED8)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Rider is on the way',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _CustomerSelfOrderScreenState._textPrimaryDark,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'ETA: $eta',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1D4ED8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  if (_hasLocation)
+                    GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target: LatLng(_riderLat, _riderLng),
+                        zoom: 16,
+                      ),
+                      markers: markers,
+                      polylines: polylines,
+                      gestureRecognizers: {
+                        Factory<OneSequenceGestureRecognizer>(
+                          () => EagerGestureRecognizer(),
+                        ),
+                      },
+                      myLocationButtonEnabled: false,
+                      zoomControlsEnabled: true,
+                      onMapCreated: (controller) {
+                        _mapController = controller;
+                      },
+                    )
+                  else
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isLoading) ...[
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Fetching rider location…',
+                              style: TextStyle(
+                                color: _CustomerSelfOrderScreenState._labelGray,
+                              ),
+                            ),
+                          ] else ...[
+                            const Icon(Icons.location_off, size: 48, color: Color(0xFFCBD5E1)),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'No location data yet',
+                              style: TextStyle(
+                                color: _CustomerSelfOrderScreenState._labelGray,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Rider location will appear here once available',
+                              style: TextStyle(
+                                color: _CustomerSelfOrderScreenState._labelGray,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                setState(() => _isLoading = true);
+                                _fetchLocation();
+                              },
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text('Retry'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  if (_hasLocation)
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Rider location',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _CustomerSelfOrderScreenState._labelGray,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${_riderLat.toStringAsFixed(6)}, ${_riderLng.toStringAsFixed(6)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: _CustomerSelfOrderScreenState._textPrimaryDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -259,10 +259,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       final role = response['role']?.toString();
-      if (role == 'cashier' || role == 'customer' || role == 'admin') {
+      if (role == 'cashier' || role == 'customer' || role == 'admin' || role == 'rider') {
         if (!mounted) return;
         final navigator = Navigator.of(context);
-        // Ensure FCM token is registered after login (now we have cached_user_data).
         try {
           await PushNotificationsService.refreshBackendRegistration();
         } catch (_) {}
@@ -327,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
       final role = response['role']?.toString();
-      if (role == 'cashier' || role == 'customer' || role == 'admin') {
+      if (role == 'cashier' || role == 'customer' || role == 'admin' || role == 'rider') {
         if (!mounted) return;
         final navigator = Navigator.of(context);
         try {

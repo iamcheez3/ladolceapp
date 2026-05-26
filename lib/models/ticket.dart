@@ -13,6 +13,12 @@ class OpenTicket {
   /// When the ticket was first opened (from Odoo date_order).
   final DateTime? openedAt;
   final String note;
+  final bool isSelfOrder;
+  final int? partnerId;
+  final String partnerName;
+  final String customerPhone;
+  final String deliveryPlaceName;
+  final String deliveryPlaceAddress;
 
   OpenTicket({
     required this.id,
@@ -28,6 +34,12 @@ class OpenTicket {
     required this.lines,
     this.openedAt,
     this.note = '',
+    this.isSelfOrder = false,
+    this.partnerId,
+    this.partnerName = '',
+    this.customerPhone = '',
+    this.deliveryPlaceName = '',
+    this.deliveryPlaceAddress = '',
   });
 
   factory OpenTicket.fromJson(Map<String, dynamic> json) {
@@ -55,6 +67,12 @@ class OpenTicket {
           .toList(),
       openedAt: openedAt,
       note: (json['note'] ?? '').toString(),
+      isSelfOrder: json['is_self_order'] == true,
+      partnerId: json['partner_id'],
+      partnerName: (json['partner_name'] ?? '').toString(),
+      customerPhone: (json['customer_phone'] ?? '').toString(),
+      deliveryPlaceName: (json['delivery_place_name'] ?? '').toString(),
+      deliveryPlaceAddress: (json['delivery_place_address'] ?? '').toString(),
     );
   }
 }

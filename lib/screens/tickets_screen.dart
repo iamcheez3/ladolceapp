@@ -18,6 +18,10 @@ class ResumedTicket {
   final String paymentMethodName;
   final List<CartItem> cartItems;
   final bool isOffline;
+  final bool isSelfOrder;
+  final String partnerName;
+  final String deliveryPlaceName;
+  final String deliveryPlaceAddress;
 
   ResumedTicket({
     this.orderId,
@@ -29,6 +33,10 @@ class ResumedTicket {
     this.paymentMethodName = '',
     required this.cartItems,
     this.isOffline = false,
+    this.isSelfOrder = false,
+    this.partnerName = '',
+    this.deliveryPlaceName = '',
+    this.deliveryPlaceAddress = '',
   });
 }
 
@@ -48,6 +56,10 @@ class _DisplayTicket {
   /// When the ticket was first opened — used to show live duration badge.
   final DateTime? openedAt;
   final String note;
+  final bool isSelfOrder;
+  final String partnerName;
+  final String deliveryPlaceName;
+  final String deliveryPlaceAddress;
 
   _DisplayTicket({
     this.id,
@@ -63,6 +75,10 @@ class _DisplayTicket {
     this.offlineIndex,
     this.openedAt,
     this.note = '',
+    this.isSelfOrder = false,
+    this.partnerName = '',
+    this.deliveryPlaceName = '',
+    this.deliveryPlaceAddress = '',
   });
 }
 
@@ -189,6 +205,10 @@ class _TicketsScreenState extends State<TicketsScreen> {
           isOffline: false,
           openedAt: t.openedAt,
           note: t.note,
+          isSelfOrder: t.isSelfOrder,
+          partnerName: t.partnerName,
+          deliveryPlaceName: t.deliveryPlaceName,
+          deliveryPlaceAddress: t.deliveryPlaceAddress,
         ));
       }
     } catch (e) {
@@ -239,6 +259,10 @@ class _TicketsScreenState extends State<TicketsScreen> {
           isOffline: false,
           openedAt: t.openedAt,
           note: t.note,
+          isSelfOrder: t.isSelfOrder,
+          partnerName: t.partnerName,
+          deliveryPlaceName: t.deliveryPlaceName,
+          deliveryPlaceAddress: t.deliveryPlaceAddress,
         ));
       }
 
@@ -296,6 +320,10 @@ class _TicketsScreenState extends State<TicketsScreen> {
         paymentMethodName: ticket.paymentMethodName,
         cartItems: cartItems,
         isOffline: ticket.isOffline,
+        isSelfOrder: ticket.isSelfOrder,
+        partnerName: ticket.partnerName,
+        deliveryPlaceName: ticket.deliveryPlaceName,
+        deliveryPlaceAddress: ticket.deliveryPlaceAddress,
       ),
     );
   }

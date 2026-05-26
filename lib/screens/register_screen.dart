@@ -40,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _maybeLoadBranches() async {
-    if (_selectedRole != 'cashier') return;
+    if (_selectedRole != 'cashier' && _selectedRole != 'rider') return;
     setState(() => _isLoadingBranches = true);
     try {
       final branches = await _apiService.fetchBranchesPublic();
@@ -74,7 +74,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
         role: _selectedRole,
         phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
-        branchId: _selectedRole == 'cashier' ? _selectedBranchId : null,
+        branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider') ? _selectedBranchId : null,
       );
 
       if (!mounted) return;
@@ -102,7 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _continueWithGoogle() async {
-    if (_selectedRole == 'cashier' &&
+    if ((_selectedRole == 'cashier' || _selectedRole == 'rider') &&
         (_selectedBranchId == null || _selectedBranchId! <= 0)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -133,7 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: uid,
         role: _selectedRole,
         phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
-        branchId: _selectedRole == 'cashier' ? _selectedBranchId : null,
+        branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider') ? _selectedBranchId : null,
         authProvider: 'google',
       );
 
@@ -143,7 +143,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         authProvider: 'google',
       );
       final role = response['role']?.toString();
-      if (role == 'cashier' || role == 'customer' || role == 'admin') {
+      if (role == 'cashier' || role == 'customer' || role == 'admin' || role == 'rider') {
         if (!mounted) return;
         final navigator = Navigator.of(context);
         try {
@@ -393,9 +393,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   await _maybeLoadBranches();
                                 },
                               ),
+                              ChoiceChip(
+                                label: const Text('Rider'),
+                                selected: _selectedRole == 'rider',
+                                selectedColor: _brandNavy,
+                                labelStyle: TextStyle(
+                                  color: _selectedRole == 'rider'
+                                      ? Colors.white
+                                      : _brandNavy,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                side: const BorderSide(
+                                  color: Color(0xFFDCE5FF),
+                                ),
+                                onSelected: (_) async {
+                                  setState(() => _selectedRole = 'rider');
+                                  await _maybeLoadBranches();
+                                },
+                              ),
                             ],
                           ),
-                          if (_selectedRole == 'cashier') ...[
+                          if (_selectedRole == 'cashier' || _selectedRole == 'rider') ...[
                             const SizedBox(height: 14),
                             const Text(
                               'Branch',
@@ -446,7 +464,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   Icons.account_tree_outlined,
                                 ),
                                 validator: (v) {
-                                  if (_selectedRole != 'cashier') return null;
+                                  if (_selectedRole != 'cashier' && _selectedRole != 'rider') return null;
                                   if (v == null || v <= 0) {
                                     return 'Please select a branch';
                                   }
