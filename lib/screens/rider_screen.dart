@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+import 'rider_navigation_screen.dart';
 
 class RiderScreen extends StatefulWidget {
   final String riderName;
@@ -29,12 +30,56 @@ class _RiderScreenState extends State<RiderScreen> {
   bool _locationPermissionGranted = false;
   bool _isSendingLocation = false;
 
+  Map<String, double>? _parseLatLngFromUrl(String url) {
+    try {
+      final uri = Uri.tryParse(url);
+      if (uri == null) return null;
+
+      // Check query parameters like 'q' or 'query'
+      String? q = uri.queryParameters['q'] ?? uri.queryParameters['query'];
+      if (q != null) {
+        final parts = q.split(',');
+        if (parts.length >= 2) {
+          final lat = double.tryParse(parts[0].trim());
+          final lng = double.tryParse(parts[1].trim());
+          if (lat != null && lng != null) {
+            return {'latitude': lat, 'longitude': lng};
+          }
+        }
+      }
+
+      // Check path for patterns like @18.0123,102.6123
+      final match = RegExp(r'@(-?\d+\.\d+),(-?\d+\.\d+)').firstMatch(url);
+      if (match != null) {
+        final lat = double.tryParse(match.group(1) ?? '');
+        final lng = double.tryParse(match.group(2) ?? '');
+        if (lat != null && lng != null) {
+          return {'latitude': lat, 'longitude': lng};
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static const Color _navy = Color(0xFF1E3A8A);
 
   @override
   void initState() {
     super.initState();
+    _checkInitialLocationPermission();
     _fetchOrders();
+  }
+
+  Future<void> _checkInitialLocationPermission() async {
+    try {
+      final status = await Permission.location.status;
+      if (status.isGranted) {
+        final enabled = await Geolocator.isLocationServiceEnabled();
+        if (enabled && mounted) {
+          setState(() => _locationPermissionGranted = true);
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -68,34 +113,61 @@ class _RiderScreenState extends State<RiderScreen> {
     if (!_locationPermissionGranted || _isSendingLocation) return;
     _isSendingLocation = true;
     try {
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 5),
-        ),
-      );
-      for (final order in _orders) {
-        final status = (order['delivery_status'] ?? '').toString();
-        if (status == 'on_the_way' || status == 'arrived') {
-          await _apiService.riderUpdateLocation(
-            orderId: order['id'],
-            latitude: pos.latitude,
-            longitude: pos.longitude,
-          );
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+      } catch (e) {
+        debugPrint("[Rider tracking] getCurrentPosition failed: $e. Trying last known position...");
+        try {
+          pos = await Geolocator.getLastKnownPosition();
+        } catch (err) {
+          debugPrint("[Rider tracking] getLastKnownPosition failed: $err");
         }
       }
-    } catch (_) {} finally {
+
+      if (pos != null) {
+        for (final order in _orders) {
+          final status = (order['delivery_status'] ?? '').toString();
+          if (status == 'on_the_way' || status == 'arrived') {
+            await _apiService.riderUpdateLocation(
+              orderId: order['id'],
+              latitude: pos.latitude,
+              longitude: pos.longitude,
+            );
+            debugPrint("[Rider tracking] Sent location update: (${pos.latitude}, ${pos.longitude}) for order ${order['id']}");
+          }
+        }
+      } else {
+        debugPrint("[Rider tracking] Could not retrieve any position (both current and last known were null)");
+      }
+    } catch (e) {
+      debugPrint("[Rider tracking] Unexpected error in _sendLocationUpdate: $e");
+    } finally {
       _isSendingLocation = false;
     }
   }
 
   Future<void> _requestLocationPermission() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) {
-      final enabled = await Geolocator.isLocationServiceEnabled();
-      if (enabled) {
-        setState(() => _locationPermissionGranted = true);
+    try {
+      final status = await Permission.location.request();
+      if (status.isGranted) {
+        final enabled = await Geolocator.isLocationServiceEnabled();
+        if (enabled) {
+          if (mounted) setState(() => _locationPermissionGranted = true);
+          debugPrint("[Rider tracking] Location permission granted & services enabled.");
+        } else {
+          debugPrint("[Rider tracking] Location permission granted but services are disabled.");
+        }
+      } else {
+        debugPrint("[Rider tracking] Location permission denied: $status");
       }
+    } catch (e) {
+      debugPrint("[Rider tracking] Error requesting location permission: $e");
     }
   }
 
@@ -312,6 +384,26 @@ class _RiderScreenState extends State<RiderScreen> {
     final status = order['delivery_status']?.toString() ?? 'none';
     final mapsUrl = order['delivery_maps_url']?.toString() ?? '';
 
+    final rawLat = order['delivery_latitude'];
+    final rawLng = order['delivery_longitude'];
+    double? destLat;
+    double? destLng;
+    if (rawLat != null) {
+      destLat = (rawLat is num) ? rawLat.toDouble() : double.tryParse(rawLat.toString());
+    }
+    if (rawLng != null) {
+      destLng = (rawLng is num) ? rawLng.toDouble() : double.tryParse(rawLng.toString());
+    }
+
+    if ((destLat == null || destLng == null || destLat == 0.0 || destLng == 0.0) && mapsUrl.isNotEmpty) {
+      final parsed = _parseLatLngFromUrl(mapsUrl);
+      if (parsed != null) {
+        destLat = parsed['latitude'];
+        destLng = parsed['longitude'];
+      }
+    }
+    final hasValidCoordinates = destLat != null && destLng != null && destLat != 0.0 && destLng != 0.0;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -404,8 +496,49 @@ class _RiderScreenState extends State<RiderScreen> {
                     Text(address,
                         style: TextStyle(color: Colors.grey[700])),
                   ],
+                  if (hasValidCoordinates && (status == 'on_the_way' || status == 'arrived')) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.navigation_outlined, size: 18),
+                        label: const Text('Navigate (In App)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _navy,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 1,
+                        ),
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RiderNavigationScreen(
+                                orderId: order['id'],
+                                orderRef: ref,
+                                customerName: customer,
+                                customerPhone: phone,
+                                deliveryPlace: place,
+                                deliveryAddress: address,
+                                destinationLat: destLat!,
+                                destinationLng: destLng!,
+                                mapsUrl: mapsUrl,
+                                initialStatus: status,
+                              ),
+                            ),
+                          );
+                          if (result == true) {
+                            _fetchOrders();
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                   if (mapsUrl.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     InkWell(
                       onTap: () async {
                         final uri = Uri.tryParse(mapsUrl);
@@ -418,19 +551,24 @@ class _RiderScreenState extends State<RiderScreen> {
                           } catch (_) {}
                         }
                       },
-                      child: Row(
-                        children: [
-                          Icon(Icons.map, size: 16, color: Colors.blue[700]),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Open Maps',
-                            style: TextStyle(
-                              color: Colors.blue[700],
-                              fontWeight: FontWeight.w500,
-                              decoration: TextDecoration.underline,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.map, size: 16, color: Colors.blue[700]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Open in Google Maps App',
+                              style: TextStyle(
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],

@@ -601,7 +601,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
             Future<void> loadMapStyle() async {
               try {
-                final style = await rootBundle.loadString('assets/map_styles/night_elegant.json');
+                final style = await rootBundle.loadString(
+                  'assets/map_styles/night_elegant.json',
+                );
                 if (sheetCtx.mounted) {
                   setSheetState(() => sheetMapStyle = style);
                   if (mapController != null) {
@@ -835,43 +837,72 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     customBorder: const CircleBorder(),
                                     onTap: () async {
                                       try {
-                                        final locationEnabled = await Geolocator.isLocationServiceEnabled();
+                                        final locationEnabled =
+                                            await Geolocator.isLocationServiceEnabled();
                                         if (!locationEnabled) {
                                           if (sheetCtx.mounted) {
-                                            setSheetState(() => error = 'Location services are disabled. Please enable them in Settings.');
+                                            setSheetState(
+                                              () => error =
+                                                  'Location services are disabled. Please enable them in Settings.',
+                                            );
                                           }
                                           return;
                                         }
-                                        final status = await Geolocator.checkPermission();
-                                        if (status == LocationPermission.denied) {
-                                          final req = await Geolocator.requestPermission();
-                                          if (req == LocationPermission.denied) {
+                                        final status =
+                                            await Geolocator.checkPermission();
+                                        if (status ==
+                                            LocationPermission.denied) {
+                                          final req =
+                                              await Geolocator.requestPermission();
+                                          if (req ==
+                                              LocationPermission.denied) {
                                             if (sheetCtx.mounted) {
-                                              setSheetState(() => error = 'Location permission denied.');
+                                              setSheetState(
+                                                () => error =
+                                                    'Location permission denied.',
+                                              );
                                             }
                                             return;
                                           }
                                         }
-                                        if (status == LocationPermission.deniedForever) {
+                                        if (status ==
+                                            LocationPermission.deniedForever) {
                                           if (sheetCtx.mounted) {
-                                            setSheetState(() => error = 'Location permission permanently denied. Please enable it in Settings.');
+                                            setSheetState(
+                                              () => error =
+                                                  'Location permission permanently denied. Please enable it in Settings.',
+                                            );
                                           }
                                           return;
                                         }
-                                        final pos = await Geolocator.getCurrentPosition(
-                                          locationSettings: const LocationSettings(
-                                            accuracy: LocationAccuracy.high,
-                                            timeLimit: Duration(seconds: 10),
-                                          ),
+                                        final pos =
+                                            await Geolocator.getCurrentPosition(
+                                              locationSettings:
+                                                  const LocationSettings(
+                                                    accuracy:
+                                                        LocationAccuracy.high,
+                                                    timeLimit: Duration(
+                                                      seconds: 10,
+                                                    ),
+                                                  ),
+                                            );
+                                        final latLng = LatLng(
+                                          pos.latitude,
+                                          pos.longitude,
                                         );
-                                        final latLng = LatLng(pos.latitude, pos.longitude);
                                         selectedLatLng = latLng;
                                         await mapController?.animateCamera(
-                                          CameraUpdate.newLatLngZoom(latLng, 17),
+                                          CameraUpdate.newLatLngZoom(
+                                            latLng,
+                                            17,
+                                          ),
                                         );
                                       } catch (e) {
                                         if (sheetCtx.mounted) {
-                                          setSheetState(() => error = 'Could not get current location: $e');
+                                          setSheetState(
+                                            () => error =
+                                                'Could not get current location: $e',
+                                          );
                                         }
                                       }
                                     },
@@ -1505,8 +1536,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     if (order != null) {
       final rawLat = order['delivery_latitude'];
       final rawLng = order['delivery_longitude'];
-      if (rawLat != null) destLat = (rawLat is num) ? rawLat.toDouble() : double.tryParse(rawLat.toString());
-      if (rawLng != null) destLng = (rawLng is num) ? rawLng.toDouble() : double.tryParse(rawLng.toString());
+      if (rawLat != null)
+        destLat = (rawLat is num)
+            ? rawLat.toDouble()
+            : double.tryParse(rawLat.toString());
+      if (rawLng != null)
+        destLng = (rawLng is num)
+            ? rawLng.toDouble()
+            : double.tryParse(rawLng.toString());
     }
     showModalBottomSheet<void>(
       context: context,
@@ -2335,7 +2372,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                       style: TextStyle(
                                                         fontSize: 12,
                                                         color: Colors
-                                                            .grey.shade600,
+                                                            .grey
+                                                            .shade600,
                                                       ),
                                                     ),
                                                   ],
@@ -5567,14 +5605,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       const SizedBox(height: 12),
                       _buildDeliveryProgress(deliveryStatus),
                     ],
-                    if (deliveryStatus == 'on_the_way' || deliveryStatus == 'arrived') ...[
+                    if (deliveryStatus == 'on_the_way' ||
+                        deliveryStatus == 'arrived') ...[
                       const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () => _openRiderMap(
-                            (item['id'] ?? '').toString(),
-                          ),
+                          onPressed: () =>
+                              _openRiderMap((item['id'] ?? '').toString()),
                           icon: const Icon(Icons.location_on, size: 18),
                           label: const Text('Track Rider'),
                           style: OutlinedButton.styleFrom(
@@ -5651,7 +5689,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-  Widget _historyStatusPill(String friendly, String rawState, {String? deliveryStatus}) {
+  Widget _historyStatusPill(
+    String friendly,
+    String rawState, {
+    String? deliveryStatus,
+  }) {
     final state = rawState.toLowerCase().trim();
     final label = friendly.toLowerCase().trim();
     final ds = (deliveryStatus ?? '').toLowerCase().trim();
@@ -5712,7 +5754,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-  String _friendlyStatus(String rawState, String paymentMethod, {String? deliveryStatus}) {
+  String _friendlyStatus(
+    String rawState,
+    String paymentMethod, {
+    String? deliveryStatus,
+  }) {
     final ds = (deliveryStatus ?? '').toLowerCase();
     if (ds == 'delivered') return 'Delivered';
     if (ds == 'arrived') return 'Rider arrived';
@@ -5764,8 +5810,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 children: [
                   CircleAvatar(
                     radius: 10,
-                    backgroundColor:
-                        isCompleted ? const Color(0xFF166534) : const Color(0xFFE2E8F0),
+                    backgroundColor: isCompleted
+                        ? const Color(0xFF166534)
+                        : const Color(0xFFE2E8F0),
                     child: isCompleted
                         ? const Icon(Icons.check, size: 12, color: Colors.white)
                         : const SizedBox.shrink(),
@@ -5793,12 +5840,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 labels[i],
                 textAlign: i == 0
                     ? TextAlign.left
-                    : (i == steps.length - 1 ? TextAlign.right : TextAlign.center),
+                    : (i == steps.length - 1
+                          ? TextAlign.right
+                          : TextAlign.center),
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: isCompleted ? FontWeight.w700 : FontWeight.w500,
-                  color:
-                      isCompleted ? const Color(0xFF166534) : const Color(0xFF94A3B8),
+                  color: isCompleted
+                      ? const Color(0xFF166534)
+                      : const Color(0xFF94A3B8),
                 ),
               ),
             );
@@ -6340,6 +6390,13 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
   bool _hasLocation = false;
   bool _isLoading = true;
 
+  // Directions API variables
+  List<LatLng> _routePoints = [];
+  String? _apiDurationText;
+  String? _apiDistanceText;
+  LatLng? _lastRouteFetchedLatLng;
+  bool _isFetchingRoute = false;
+
   @override
   void initState() {
     super.initState();
@@ -6353,7 +6410,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
       _isLoading = false;
     }
     _fetchLocation();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _fetchLocation();
     });
   }
@@ -6369,13 +6426,18 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_bikeMarker != null) return;
       try {
-        final boundary = _markerCaptureKey.currentContext?.findRenderObject()
-            as RenderRepaintBoundary?;
+        final boundary =
+            _markerCaptureKey.currentContext?.findRenderObject()
+                as RenderRepaintBoundary?;
         if (boundary == null) return;
         final image = await boundary.toImage(pixelRatio: 3);
         final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
         if (byteData != null && mounted) {
-          setState(() => _bikeMarker = BitmapDescriptor.fromBytes(byteData.buffer.asUint8List()));
+          setState(
+            () => _bikeMarker = BitmapDescriptor.fromBytes(
+              byteData.buffer.asUint8List(),
+            ),
+          );
         }
       } catch (_) {}
     });
@@ -6386,7 +6448,8 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
     final rad = 3.141592653589793 / 180;
     final dLat = (lat2 - lat1) * rad;
     final dLng = (lng2 - lng1) * rad;
-    final a = sin(dLat / 2) * sin(dLat / 2) +
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(lat1 * rad) * cos(lat2 * rad) * sin(dLng / 2) * sin(dLng / 2);
     final c = 2 * asin(sqrt(a));
     return r * c;
@@ -6409,19 +6472,149 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
       if (loc != null) {
         final newLat = (loc['latitude'] ?? 0).toDouble();
         final newLng = (loc['longitude'] ?? 0).toDouble();
+        debugPrint(
+          "[Customer Tracking] Fetched rider location: ($newLat, $newLng)",
+        );
         setState(() {
           _targetLat = newLat;
           _targetLng = newLng;
           _isLoading = false;
           _hasLocation = true;
         });
+
+        // Smart route fetch: if we haven't fetched yet, or if rider moved > 150 meters
+        if (_lastRouteFetchedLatLng == null) {
+          _fetchRoute();
+        } else {
+          final double distanceMoved = _distanceKm(
+            newLat,
+            newLng,
+            _lastRouteFetchedLatLng!.latitude,
+            _lastRouteFetchedLatLng!.longitude,
+          ) * 1000.0;
+          if (distanceMoved > 150.0) {
+            _fetchRoute();
+          }
+        }
+
         _startSmoothAnimation();
-      } else if (!_hasLocation) {
-        setState(() => _isLoading = false);
+      } else {
+        debugPrint("[Customer Tracking] Rider location is null");
+        if (!_hasLocation) {
+          setState(() => _isLoading = false);
+        }
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint("[Customer Tracking] Error fetching rider location: $e");
       if (mounted && !_hasLocation) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _fetchRoute() async {
+    if (_isFetchingRoute) return;
+    final destLat = widget.destinationLat;
+    final destLng = widget.destinationLng;
+    if (!_hasLocation || destLat == null || destLng == null) return;
+
+    final apiKey = (dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '').trim();
+    if (apiKey.isEmpty) {
+      debugPrint("[Customer Tracking] GOOGLE_MAPS_API_KEY is empty.");
+      return;
+    }
+
+    setState(() => _isFetchingRoute = true);
+
+    try {
+      final currentLatLng = LatLng(_targetLat, _targetLng);
+      final url = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/directions/json',
+        {
+          'origin': '$_targetLat,$_targetLng',
+          'destination': '$destLat,$destLng',
+          'key': apiKey,
+        },
+      );
+
+      final response = await http.get(url).timeout(const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map && data['status'] == 'OK') {
+          final routes = data['routes'] as List;
+          if (routes.isNotEmpty) {
+            final route = routes[0] as Map;
+            final legs = route['legs'] as List;
+            final overviewPolyline = route['overview_polyline'] as Map;
+            final pointsStr = overviewPolyline['points'] as String;
+
+            final points = _decodePolyline(pointsStr);
+
+            String? duration;
+            String? distance;
+            if (legs.isNotEmpty) {
+              final leg = legs[0] as Map;
+              duration = leg['duration']['text'] as String;
+              distance = leg['distance']['text'] as String;
+            }
+
+            if (mounted) {
+              setState(() {
+                _routePoints = points;
+                _apiDurationText = duration;
+                _apiDistanceText = distance;
+                _lastRouteFetchedLatLng = currentLatLng;
+              });
+            }
+            debugPrint("[Customer Tracking] Successfully fetched route from Directions API.");
+            return;
+          }
+        } else {
+          debugPrint("[Customer Tracking] Directions API status not OK: ${data['status']}");
+        }
+      } else {
+        debugPrint("[Customer Tracking] Directions API HTTP status: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("[Customer Tracking] Error fetching Directions API: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isFetchingRoute = false);
+      }
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> points = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    try {
+      while (index < len) {
+        int b, shift = 0, result = 0;
+        do {
+          b = encoded.codeUnitAt(index++) - 63;
+          result |= (b & 0x1f) << shift;
+          shift += 5;
+        } while (b >= 0x20);
+        int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+        lat += dlat;
+
+        shift = 0;
+        result = 0;
+        do {
+          b = encoded.codeUnitAt(index++) - 63;
+          result |= (b & 0x1f) << shift;
+          shift += 5;
+        } while (b >= 0x20);
+        int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+        lng += dlng;
+
+        points.add(LatLng(lat / 1E5, lng / 1E5));
+      }
+    } catch (e) {
+      debugPrint("[Customer Tracking] Error decoding polyline: $e");
+    }
+    return points;
   }
 
   void _startSmoothAnimation() {
@@ -6431,13 +6624,17 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
       CameraUpdate.newLatLng(LatLng(_targetLat, _targetLng)),
     );
     _animTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!mounted) { _animTimer?.cancel(); return; }
+      if (!mounted) {
+        _animTimer?.cancel();
+        return;
+      }
       final remainingLat = _targetLat - _riderLat;
       final remainingLng = _targetLng - _riderLng;
       const step = 0.12;
       _riderLat += remainingLat * step;
       _riderLng += remainingLng * step;
-      final close = remainingLat.abs() < 0.000001 && remainingLng.abs() < 0.000001;
+      final close =
+          remainingLat.abs() < 0.000001 && remainingLng.abs() < 0.000001;
       if (close) {
         _riderLat = _targetLat;
         _riderLng = _targetLng;
@@ -6454,36 +6651,48 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
     final destLat = widget.destinationLat;
     final destLng = widget.destinationLng;
     final eta = (_hasLocation && destLat != null && destLng != null)
-        ? _formatEta(_distanceKm(_riderLat, _riderLng, destLat, destLng))
+        ? (_apiDurationText != null
+            ? (_apiDistanceText != null ? '$_apiDurationText ($_apiDistanceText)' : _apiDurationText!)
+            : _formatEta(_distanceKm(_riderLat, _riderLng, destLat, destLng)))
         : null;
 
     final markers = <Marker>{};
     if (_hasLocation) {
-      markers.add(Marker(
-        markerId: const MarkerId('rider'),
-        position: LatLng(_riderLat, _riderLng),
-        icon: _bikeMarker ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        anchor: const Offset(0.5, 0.5),
-        infoWindow: const InfoWindow(title: 'Rider'),
-      ));
+      markers.add(
+        Marker(
+          markerId: const MarkerId('rider'),
+          position: LatLng(_riderLat, _riderLng),
+          icon:
+              _bikeMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          anchor: const Offset(0.5, 0.5),
+          infoWindow: const InfoWindow(title: 'Rider'),
+        ),
+      );
     }
     if (destLat != null && destLng != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('destination'),
-        position: LatLng(destLat, destLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        infoWindow: const InfoWindow(title: 'Delivery location'),
-      ));
+      markers.add(
+        Marker(
+          markerId: const MarkerId('destination'),
+          position: LatLng(destLat, destLng),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: const InfoWindow(title: 'Delivery location'),
+        ),
+      );
     }
 
     final polylines = <Polyline>{};
     if (_hasLocation && destLat != null && destLng != null) {
-      polylines.add(Polyline(
-        polylineId: const PolylineId('route'),
-        points: [LatLng(_riderLat, _riderLng), LatLng(destLat, destLng)],
-        color: const Color(0xFF1D4ED8).withValues(alpha: 0.6),
-        width: 4,
-      ));
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: _routePoints.isNotEmpty
+              ? _routePoints
+              : [LatLng(_riderLat, _riderLng), LatLng(destLat, destLng)],
+          color: const Color(0xFF1D4ED8).withValues(alpha: 0.6),
+          width: 4,
+        ),
+      );
     }
 
     return Padding(
@@ -6502,7 +6711,11 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                   color: Color(0xFF1D4ED8),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.delivery_dining, color: Colors.white, size: 28),
+                child: const Icon(
+                  Icons.delivery_dining,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
             ),
           ),
@@ -6517,7 +6730,11 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.delivery_dining, color: Color(0xFF1D4ED8), size: 20),
+              const Icon(
+                Icons.delivery_dining,
+                color: Color(0xFF1D4ED8),
+                size: 20,
+              ),
               const SizedBox(width: 6),
               const Text(
                 'Live Rider Tracking',
@@ -6530,7 +6747,10 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
               const Spacer(),
               if (eta != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(12),
@@ -6538,7 +6758,11 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.access_time, size: 14, color: Color(0xFF1D4ED8)),
+                      const Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: Color(0xFF1D4ED8),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         eta,
@@ -6554,7 +6778,10 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
               if (_hasLocation) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(12),
@@ -6562,7 +6789,11 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.fiber_manual_record, size: 10, color: Color(0xFF16A34A)),
+                      Icon(
+                        Icons.fiber_manual_record,
+                        size: 10,
+                        color: Color(0xFF16A34A),
+                      ),
                       SizedBox(width: 4),
                       Text(
                         'LIVE',
@@ -6589,7 +6820,11 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.directions_bike, size: 18, color: Color(0xFF1D4ED8)),
+                  const Icon(
+                    Icons.directions_bike,
+                    size: 18,
+                    color: Color(0xFF1D4ED8),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Rider is on the way',
@@ -6651,7 +6886,11 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                               ),
                             ),
                           ] else ...[
-                            const Icon(Icons.location_off, size: 48, color: Color(0xFFCBD5E1)),
+                            const Icon(
+                              Icons.location_off,
+                              size: 48,
+                              color: Color(0xFFCBD5E1),
+                            ),
                             const SizedBox(height: 8),
                             const Text(
                               'No location data yet',
@@ -6686,7 +6925,10 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                       left: 8,
                       bottom: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(10),
@@ -6716,7 +6958,8 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: _CustomerSelfOrderScreenState._textPrimaryDark,
+                                color: _CustomerSelfOrderScreenState
+                                    ._textPrimaryDark,
                               ),
                             ),
                           ],
