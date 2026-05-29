@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:upgrader/upgrader.dart';
 import 'utils/responsive_layout.dart';
@@ -27,23 +28,20 @@ void main() async {
   try {
     await PushNotificationsService.initialize();
   } catch (_) {}
-  
+
   // Check cache for offline auth
   final cachedUser = await ApiService().getCachedUser();
-  
+
   // Check maintenance status
   final maintenanceStatus = await ApiService().fetchMaintenanceStatus();
-  
-  runApp(PosApp(
-    initialUser: cachedUser,
-    maintenanceStatus: maintenanceStatus,
-  ));
+
+  runApp(PosApp(initialUser: cachedUser, maintenanceStatus: maintenanceStatus));
 }
 
 class PosApp extends StatefulWidget {
   final Map<String, dynamic>? initialUser;
   final Map<String, dynamic>? maintenanceStatus;
-  
+
   const PosApp({super.key, this.initialUser, this.maintenanceStatus});
 
   static void setLocale(BuildContext context, Locale newLocale) {
@@ -88,7 +86,8 @@ class _PosAppState extends State<PosApp> {
   }
 
   Widget _initialScreen() {
-    if (widget.maintenanceStatus != null && widget.maintenanceStatus!['is_active'] == true) {
+    if (widget.maintenanceStatus != null &&
+        widget.maintenanceStatus!['is_active'] == true) {
       return MaintenanceScreen(
         messageEn: widget.maintenanceStatus!['message_en'] ?? 'Maintenance',
         messageLo: widget.maintenanceStatus!['message_lo'] ?? 'Maintenance',
@@ -111,20 +110,24 @@ class _PosAppState extends State<PosApp> {
       locale: _locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      builder: (context, child) => ResponsiveLayout.withClampedTextScaling(
-            child: UpgradeAlert(child: child ?? const SizedBox.shrink()),
-          ),
+      builder: (context, child) => _OrientationLocker(
+        child: ResponsiveLayout.withClampedTextScaling(
+          child: UpgradeAlert(child: child ?? const SizedBox.shrink()),
+        ),
+      ),
       theme: ThemeData(
-        fontFamily: _locale?.languageCode == 'lo' ? GoogleFonts.notoSansLao().fontFamily : 'Inter',
+        fontFamily: _locale?.languageCode == 'lo'
+            ? GoogleFonts.notoSansLao().fontFamily
+            : 'Inter',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0D1565), // Brand navy
-          primary: const Color(0xFF0D1565),
+          seedColor: const Color(0xFF001460), // Brand navy
+          primary: const Color(0xFF001460),
           secondary: const Color(0xFF3B82F6),
           surface: Colors.white,
         ),
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0D1565),
+          backgroundColor: Color(0xFF001460),
           foregroundColor: Colors.white,
           elevation: 0,
         ),
@@ -148,4 +151,38 @@ class _PosAppState extends State<PosApp> {
       },
     );
   }
+}
+
+class _OrientationLocker extends StatefulWidget {
+  final Widget child;
+  const _OrientationLocker({required this.child});
+
+  @override
+  State<_OrientationLocker> createState() => _OrientationLockerState();
+}
+
+class _OrientationLockerState extends State<_OrientationLocker> {
+  bool? _wasTablet;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isTablet = ResponsiveLayout.isTabletOrLarger(context);
+    if (_wasTablet != isTablet) {
+      _wasTablet = isTablet;
+      if (isTablet) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      } else {
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

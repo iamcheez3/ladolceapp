@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'printer_settings_screen.dart';
 import 'bill_template_settings_screen.dart';
+import 'discount_config_screen.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../theme/ladolce_pos_ui.dart';
+import '../models/pos_discount_config.dart';
 
 class PosSettingsScreen extends StatefulWidget {
-  final Future<void> Function() onSyncRequested;
-
-  const PosSettingsScreen({
-    super.key,
-    required this.onSyncRequested,
-  });
+  const PosSettingsScreen({super.key});
 
   @override
   State<PosSettingsScreen> createState() => _PosSettingsScreenState();
@@ -19,6 +16,18 @@ class PosSettingsScreen extends StatefulWidget {
 
 class _PosSettingsScreenState extends State<PosSettingsScreen> {
   final ApiService _apiService = ApiService();
+  PosDiscountConfig _discountConfig = PosDiscountConfig.disabled;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDiscountConfig();
+  }
+
+  Future<void> _loadDiscountConfig() async {
+    final cfg = await PosDiscountConfig.load();
+    if (mounted) setState(() => _discountConfig = cfg);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,11 +78,22 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
           const SizedBox(height: 12),
           _buildMenuCard(
             context,
-            icon: Icons.sync,
-            title: 'Sync All Data',
-            subtitle: 'Manually refresh all local data from Odoo server',
+            icon: Icons.discount_outlined,
+            title: 'Discount Configuration',
+            subtitle: _discountConfig.enabled
+                ? '${_discountConfig.options.length} discount option(s) configured'
+                : 'Not configured',
+            subtitleColor: _discountConfig.enabled ? Colors.green : null,
             onTap: () async {
-              await widget.onSyncRequested();
+              final changed = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DiscountConfigScreen(
+                    initialConfig: _discountConfig,
+                  ),
+                ),
+              );
+              if (changed == true) _loadDiscountConfig();
             },
           ),
         ],
@@ -100,7 +120,7 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
           border: Border.all(color: LaDolcePosUi.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 14,
               offset: const Offset(0, 8),
             ),
@@ -112,9 +132,9 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: LaDolcePosUi.navy.withOpacity(0.06),
+                color: LaDolcePosUi.navy.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: LaDolcePosUi.navy.withOpacity(0.14)),
+                border: Border.all(color: LaDolcePosUi.navy.withValues(alpha: 0.14)),
               ),
               child: Icon(icon, color: LaDolcePosUi.navy, size: 22),
             ),

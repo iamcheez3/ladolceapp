@@ -7,6 +7,7 @@ import 'customer_self_order_screen.dart';
 import 'pin_screen.dart';
 import 'login_screen.dart';
 import 'pos_identity_screen.dart';
+import 'rider_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -103,6 +104,17 @@ class _LoadingScreenState extends State<LoadingScreen> {
       nextScreen = const LoginScreen();
     }
 
+    if (role == 'rider') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => RiderScreen(
+            riderName: widget.user['name'] ?? 'Rider',
+            riderId: widget.user['user_id'] ?? 1,
+          ),
+        ),
+      );
+      return;
+    }
     if (role == 'cashier') {
       _goCashierFlow();
       return;
@@ -144,9 +156,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
     // from [PinStyleBackground] stay visually consistent.
     return Scaffold(
       backgroundColor: kCoffeeBrandNavy,
-      body: PinStyleBackground(
-        child: SafeArea(
-          child: LayoutBuilder(
+      body: SafeArea(
+        child: LayoutBuilder(
             builder: (context, viewport) {
               final hPad =
                   ResponsiveLayout.pageHorizontalPadding(context).clamp(
@@ -266,7 +277,6 @@ class _LoadingScreenState extends State<LoadingScreen> {
             );
             },
           ),
-        ),
       ),
     );
   }

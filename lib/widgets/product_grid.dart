@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'dart:typed_data';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../utils/responsive_layout.dart';
@@ -35,14 +33,7 @@ class ProductGrid extends StatelessWidget {
           final initial = product.name.trim().isNotEmpty ? product.name.trim()[0].toUpperCase() : '?';
           final textScale = MediaQuery.textScalerOf(context).scale(1.0);
           final isCompactText = textScale > 1.1;
-          Uint8List? imageBytes;
-          if (product.imageBase64 != null && product.imageBase64!.isNotEmpty) {
-            try {
-              imageBytes = base64Decode(product.imageBase64!);
-            } catch (_) {
-              imageBytes = null;
-            }
-          }
+          final imageBytes = product.decodedImageBytes;
 
           return InkWell(
             onTap: () => onProductTap(product),
@@ -69,8 +60,6 @@ class ProductGrid extends StatelessWidget {
                   final nameSize = cardHeight < 220 ? 13.0 : 14.0;
                   final categorySize = cardHeight < 220 ? 10.5 : 11.5;
                   final priceSize = cardHeight < 220 ? 11.0 : 12.0;
-                  final pricePadH = cardHeight < 220 ? 8.0 : 10.0;
-                  final pricePadV = cardHeight < 220 ? 4.0 : 6.0;
                   final gap = cardHeight < 220 ? 6.0 : 8.0;
 
                   return Column(

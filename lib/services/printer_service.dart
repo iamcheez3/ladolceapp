@@ -347,6 +347,7 @@ class PrinterService {
     String? taxRowLabel,
     String? headerText,
     String? footerText,
+    double discountAmount = 0.0,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -369,6 +370,7 @@ class PrinterService {
             taxRowLabel: taxRowLabel,
             headerText: headerText,
             footerText: footerText,
+            discountAmount: discountAmount,
           );
           allSuccess = allSuccess && ok;
         }
@@ -407,6 +409,7 @@ class PrinterService {
         taxRowLabel: taxRowLabel,
         headerText: headerText,
         footerText: footerText,
+        discountAmount: discountAmount,
       );
     } catch (e) {
       _printerLog('[PRINTER] Print receipt failed: $e');
@@ -434,6 +437,7 @@ class PrinterService {
     String? taxRowLabel,
     String? headerText,
     String? footerText,
+    double discountAmount = 0.0,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -467,6 +471,7 @@ class PrinterService {
         taxRowLabel: taxRowLabel,
         headerText: headerText,
         footerText: footerText,
+        discountAmount: discountAmount,
       );
       allSuccess = allSuccess && ok;
     }
@@ -485,6 +490,7 @@ class PrinterService {
   String? taxRowLabel,
   String? headerText,
   String? footerText,
+  double discountAmount = 0.0,
 }) async {
   final cap = await CapabilityProfile.load();
   final printer = NetworkPrinter(profile.paperSize, cap);
@@ -532,6 +538,12 @@ class PrinterService {
     }
 
     printer.hr();
+    if (discountAmount > 0) {
+      printer.row([
+        PosColumn(text: 'Discount ', width: 8, styles: const PosStyles(bold: true)),
+        PosColumn(text: '-LAK ${discountAmount.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
+      ]);
+    }
     final showTax = taxRowLabel != null && taxRowLabel.isNotEmpty && tax.abs() >= 0.005;
     if (showTax) {
       printer.row([
@@ -585,6 +597,7 @@ class PrinterService {
     String? taxRowLabel,
     String? headerText,
     String? footerText,
+    double discountAmount = 0.0,
   }) => _printReceiptToProfile(
         profile,
         cartItems: cartItems,
@@ -596,6 +609,7 @@ class PrinterService {
         taxRowLabel: taxRowLabel,
         headerText: headerText,
         footerText: footerText,
+        discountAmount: discountAmount,
       );
 
   Future<bool> _printReceiptToProfile(
@@ -609,6 +623,7 @@ class PrinterService {
     String? taxRowLabel,
     String? headerText,
     String? footerText,
+    double discountAmount = 0.0,
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
@@ -641,6 +656,12 @@ class PrinterService {
         ]);
       }
       printer.hr();
+      if (discountAmount > 0) {
+        printer.row([
+          PosColumn(text: 'Discount ', width: 8, styles: const PosStyles(bold: true)),
+          PosColumn(text: '-LAK ${discountAmount.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
+        ]);
+      }
       final showTax = taxRowLabel != null && taxRowLabel.isNotEmpty && tax.abs() >= 0.005;
       if (showTax) {
         printer.row([
@@ -721,6 +742,13 @@ class PrinterService {
         for (final i in items) {
           for (int q = 0; q < i.quantity; q++) {
             printer.text('1x ${i.product.name}', styles: const PosStyles(bold: true, height: PosTextSize.size2));
+            for (final topping in i.selectedToppings) {
+              printer.text('  + ${topping.name}');
+            }
+            final note = i.kitchenNote.trim();
+            if (note.isNotEmpty) {
+              printer.text('  NOTE: $note', styles: const PosStyles(bold: true));
+            }
             printer.feed(2);
             printer.cut();
           }
@@ -730,21 +758,48 @@ class PrinterService {
 
       final rows = <Map<String, dynamic>>[];
       if (profile.groupIdenticalItems) {
-        final map = <String, int>{};
+        final map = <String, Map<String, dynamic>>{};
         for (final i in items) {
-          map[i.product.name] = (map[i.product.name] ?? 0) + i.quantity;
+          final toppingNames = i.selectedToppings.map((t) => t.name).toList();
+          final note = i.kitchenNote.trim();
+          final key = [
+            i.product.name,
+            toppingNames.join('|'),
+            note,
+          ].join('__');
+          final row = map.putIfAbsent(
+            key,
+            () => {
+              'name': i.product.name,
+              'qty': 0,
+              'toppings': toppingNames,
+              'note': note,
+            },
+          );
+          row['qty'] = (row['qty'] as int) + i.quantity;
         }
-        for (final entry in map.entries) {
-          rows.add({'name': entry.key, 'qty': entry.value});
-        }
+        rows.addAll(map.values);
       } else {
         for (final i in items) {
-          rows.add({'name': i.product.name, 'qty': i.quantity});
+          rows.add({
+            'name': i.product.name,
+            'qty': i.quantity,
+            'toppings': i.selectedToppings.map((t) => t.name).toList(),
+            'note': i.kitchenNote.trim(),
+          });
         }
       }
 
       for (final r in rows) {
         printer.text('${r['qty']}x ${r['name']}', styles: const PosStyles(bold: true, height: PosTextSize.size2));
+        final toppings = (r['toppings'] as List?) ?? const [];
+        for (final topping in toppings) {
+          printer.text('  + $topping');
+        }
+        final note = (r['note'] ?? '').toString().trim();
+        if (note.isNotEmpty) {
+          printer.text('  NOTE: $note', styles: const PosStyles(bold: true));
+        }
         printer.feed(1);
       }
       final foot = (footerText ?? '').trim();
@@ -930,6 +985,16 @@ class PrinterService {
           }
         }
         _printerLog('REPRINT >> items done');
+
+        currentStep = 'discount';
+        final discountAmt = _asDouble(receiptData['amount_discount']);
+        if (discountAmt > 0) {
+          _printerLog('REPRINT >> [${++step}] discount line');
+          printer.row([
+            PosColumn(text: 'Discount:', width: 8, styles: const PosStyles(bold: true)),
+            PosColumn(text: '-$currency ${discountAmt.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
+          ]);
+        }
 
         currentStep = 'hr#3 (=)';
         _printerLog('REPRINT >> [${++step}] hr (=)');

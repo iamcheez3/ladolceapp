@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
+import '../models/pos_discount_config.dart';
 import '../models/pos_tax_config.dart';
-import '../utils/pos_tax.dart';
+import '../utils/pos_discount.dart';
 
 class CartSidebar extends StatelessWidget {
-  static const Color _brandNavy = Color(0xFF0D1565);
+  static const Color _brandNavy = Color(0xFF001460);
   static const Color _brandNavy2 = Color(0xFF142B8C);
 
   final List<CartItem> cartItems;
   final Function(CartItem, int) onUpdateQuantity;
   final VoidCallback onClearCart;
   final VoidCallback onCharge;
-  final VoidCallback onSaveTicket; // Replacing onOpenTicket when cart has items
-  final VoidCallback onViewTickets; // For when cart is empty
+  final VoidCallback onSaveTicket;
+  final VoidCallback onViewTickets;
+  final ValueChanged<CartItem> onEditKitchenNote;
 
   final VoidCallback onAddCustomer;
-  final VoidCallback onClearCustomer; // New clear callback
-  final Map<String, dynamic>? selectedCustomer; // Selected customer data
+  final VoidCallback onClearCustomer;
+  final Map<String, dynamic>? selectedCustomer;
   final PosTaxConfig taxConfig;
+  final PosDiscountOption? selectedDiscountOption;
+  final double? discountManualValue;
 
   const CartSidebar({
     super.key,
@@ -27,16 +31,24 @@ class CartSidebar extends StatelessWidget {
     required this.onCharge,
     required this.onSaveTicket,
     required this.onViewTickets,
+    required this.onEditKitchenNote,
     required this.onAddCustomer,
     required this.onClearCustomer,
     this.selectedCustomer,
     this.taxConfig = PosTaxConfig.disabled,
+    this.selectedDiscountOption,
+    this.discountManualValue,
   });
 
   @override
   Widget build(BuildContext context) {
     final linesSum = cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final bd = computePosTaxBreakdown(linesSum, taxConfig);
+    final cd = computeCartBreakdown(
+      linesSum,
+      taxConfig,
+      selectedDiscountOption: selectedDiscountOption,
+      discountManualValue: discountManualValue,
+    );
 
     return Container(
       color: Colors.white,
@@ -89,7 +101,7 @@ class CartSidebar extends StatelessWidget {
                         children: [
                           const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                           Text(
-                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -223,6 +235,7 @@ class CartSidebar extends StatelessWidget {
                                 item: item,
                                 isSaved: true,
                                 onUpdateQuantity: onUpdateQuantity,
+                                onEditKitchenNote: onEditKitchenNote,
                               )),
                           const Divider(height: 1, thickness: 2, color: Color(0xFFE3E8F0)),
                         ],
@@ -252,6 +265,7 @@ class CartSidebar extends StatelessWidget {
                                 item: item,
                                 isSaved: false,
                                 onUpdateQuantity: onUpdateQuantity,
+                                onEditKitchenNote: onEditKitchenNote,
                               )),
                         ],
 
@@ -280,7 +294,33 @@ class CartSidebar extends StatelessWidget {
             ),
             child: Column(
               children: [
-                if (!bd.taxActive) ...[
+                // ── Subtotal ──────────────────────────────────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Subtotal',
+                        style: TextStyle(color: Colors.grey[600]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '₭${cd.cartLinesSum.toStringAsFixed(2)}',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(color: Colors.grey[800]),
+                      ),
+                    ),
+                  ],
+                ),
+
+
+
+                // ── Tax Breakdown ─────────────────────────────────────────────
+                if (!cd.taxActive) ...[
+                  const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -295,7 +335,7 @@ class CartSidebar extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
                             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _brandNavy),
                           ),
                         ),
@@ -303,6 +343,7 @@ class CartSidebar extends StatelessWidget {
                     ],
                   ),
                 ] else ...[
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
@@ -316,7 +357,7 @@ class CartSidebar extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          '₭${bd.baseAmount.toStringAsFixed(2)}',
+                          '₭${cd.baseAmount.toStringAsFixed(2)}',
                           textAlign: TextAlign.end,
                           style: TextStyle(color: Colors.grey[800]),
                         ),
@@ -338,7 +379,7 @@ class CartSidebar extends StatelessWidget {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            '₭${bd.taxAmount.toStringAsFixed(2)}',
+                            '₭${cd.taxAmount.toStringAsFixed(2)}',
                             textAlign: TextAlign.end,
                             style: TextStyle(color: Colors.grey[800]),
                           ),
@@ -373,7 +414,7 @@ class CartSidebar extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '₭${bd.totalDue.toStringAsFixed(2)}',
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
                             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy),
                           ),
                         ),
@@ -381,6 +422,9 @@ class CartSidebar extends StatelessWidget {
                     ],
                   ),
                 ],
+
+
+
                 const SizedBox(height: 16),
               ],
             ),
@@ -396,22 +440,26 @@ class _CartItemRow extends StatelessWidget {
   final CartItem item;
   final bool isSaved;
   final Function(CartItem, int) onUpdateQuantity;
+  final ValueChanged<CartItem> onEditKitchenNote;
 
   const _CartItemRow({
     required this.item,
     required this.isSaved,
     required this.onUpdateQuantity,
+    required this.onEditKitchenNote,
   });
 
   @override
   Widget build(BuildContext context) {
     final textColor = isSaved ? Colors.grey[700]! : Colors.black87;
-    final priceColor = isSaved ? Colors.grey[600]! : const Color(0xFF0D1565);
-    final iconColor = isSaved ? Colors.grey[500]! : const Color(0xFF0D1565);
+    final priceColor = isSaved ? Colors.grey[600]! : const Color(0xFF001460);
+    final iconColor = isSaved ? Colors.grey[500]! : const Color(0xFF001460);
 
-    return Container(
+    return Material(
       color: isSaved ? const Color(0xFFFAFBFF) : Colors.white,
-      child: Padding(
+      child: InkWell(
+        onTap: () => onEditKitchenNote(item),
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -511,6 +559,32 @@ class _CartItemRow extends StatelessWidget {
                       }).toList(),
                     ),
                   ],
+                  if (item.kitchenNote.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 14,
+                          color: Colors.amber[800],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            item.kitchenNote.trim(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.amber[900],
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -530,6 +604,7 @@ class _CartItemRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

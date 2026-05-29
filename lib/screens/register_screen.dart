@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import '../services/api_service.dart';
+import '../services/firebase_auth_service.dart';
+import '../services/push_notifications_service.dart';
 import '../utils/responsive_layout.dart';
+import 'loading_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -11,7 +14,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static const Color _brandNavy = Color(0xFF0D1565);
+  static const Color _brandNavy = Color(0xFF001460);
   static const Color _brandNavy2 = Color(0xFF142B8C);
   static const Color _brandSurface = Color(0xFFF6F7FB);
 
@@ -20,7 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   String _phoneE164 = '';
-  
+
   String _selectedRole = 'customer'; // Default role
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
@@ -37,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _maybeLoadBranches() async {
-    if (_selectedRole != 'cashier') return;
+    if (_selectedRole != 'cashier' && _selectedRole != 'rider') return;
     setState(() => _isLoadingBranches = true);
     try {
       final branches = await _apiService.fetchBranchesPublic();
@@ -71,11 +74,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
         role: _selectedRole,
         phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
-        branchId: _selectedRole == 'cashier' ? _selectedBranchId : null,
+        branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider') ? _selectedBranchId : null,
       );
 
       if (!mounted) return;
-      
+
       // Show success and pop back to login
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -83,7 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      
+
       Navigator.pop(context); // Go back to login screen
     } catch (e) {
       if (!mounted) return;
@@ -96,6 +99,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _continueWithGoogle() async {
+    if ((_selectedRole == 'cashier' || _selectedRole == 'rider') &&
+        (_selectedBranchId == null || _selectedBranchId! <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a branch before Google registration'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
+
+    try {
+      final credential = await FirebaseAuthService.instance.signInWithGoogle();
+      final user = credential.user;
+      final email = user?.email?.trim().toLowerCase() ?? '';
+      final uid = user?.uid ?? '';
+      final googleLogin = _googleOdooLogin(uid);
+      final name = (user?.displayName?.trim().isNotEmpty ?? false)
+          ? user!.displayName!.trim()
+          : email.split('@').first;
+      if (email.isEmpty || uid.isEmpty) {
+        throw Exception('Google account is missing email information.');
+      }
+
+      await _apiService.registerUser(
+        name: name,
+        login: googleLogin,
+        password: uid,
+        role: _selectedRole,
+        phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
+        branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider') ? _selectedBranchId : null,
+        authProvider: 'google',
+      );
+
+      final response = await _apiService.loginUser(
+        googleLogin,
+        uid,
+        authProvider: 'google',
+      );
+      final role = response['role']?.toString();
+      if (role == 'cashier' || role == 'customer' || role == 'admin' || role == 'rider') {
+        if (!mounted) return;
+        final navigator = Navigator.of(context);
+        try {
+          await PushNotificationsService.refreshBackendRegistration();
+        } catch (_) {}
+        if (!mounted) return;
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => LoadingScreen(user: response)),
+          (route) => false,
+        );
+      } else {
+        throw Exception('Unknown role from server');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google Registration Failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _googleOdooLogin(String uid) {
+    return 'g${uid.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}';
   }
 
   @override
@@ -144,7 +220,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             alignment: Alignment.centerLeft,
                             child: IconButton(
                               onPressed: () => Navigator.pop(context),
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                              ),
                               color: _brandNavy,
                             ),
                           ),
@@ -197,8 +275,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 18),
                           TextFormField(
                             controller: _nameController,
-                            decoration: _inputDecoration('Full Name', Icons.badge_outlined),
-                            validator: (value) => value!.isEmpty ? 'Please enter name' : null,
+                            decoration: _inputDecoration(
+                              'Full Name',
+                              Icons.badge_outlined,
+                            ),
+                            validator: (value) =>
+                                value!.isEmpty ? 'Please enter name' : null,
                           ),
                           const SizedBox(height: 12),
                           IntlPhoneField(
@@ -216,8 +298,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             validator: (phone) {
                               if (_selectedRole == 'customer') {
                                 final v = phone?.completeNumber.trim() ?? '';
-                                if (v.isEmpty) return 'Phone number is required for customers';
-                                if (!v.startsWith('+')) return 'Phone number must start with +';
+                                if (v.isEmpty) {
+                                  return 'Phone number is required for customers';
+                                }
+                                if (!v.startsWith('+')) {
+                                  return 'Phone number must start with +';
+                                }
                               }
                               return null;
                             },
@@ -225,23 +311,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _loginController,
-                            decoration: _inputDecoration('Email / Login', Icons.email_outlined),
-                            validator: (value) => value!.isEmpty ? 'Please enter login/email' : null,
+                            decoration: _inputDecoration(
+                              'Email / Login',
+                              Icons.email_outlined,
+                            ),
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter login/email'
+                                : null,
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            decoration: _inputDecoration('Password', Icons.lock_outline).copyWith(
-                              suffixIcon: IconButton(
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                  color: const Color(0xFF64748B),
+                            decoration:
+                                _inputDecoration(
+                                  'Password',
+                                  Icons.lock_outline,
+                                ).copyWith(
+                                  suffixIcon: IconButton(
+                                    onPressed: () => setState(
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
+                                    ),
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                            validator: (value) => value!.isEmpty ? 'Please enter password' : null,
+                            validator: (value) =>
+                                value!.isEmpty ? 'Please enter password' : null,
                           ),
                           const SizedBox(height: 16),
                           const Text(
@@ -260,10 +361,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 selected: _selectedRole == 'customer',
                                 selectedColor: _brandNavy,
                                 labelStyle: TextStyle(
-                                  color: _selectedRole == 'customer' ? Colors.white : _brandNavy,
+                                  color: _selectedRole == 'customer'
+                                      ? Colors.white
+                                      : _brandNavy,
                                   fontWeight: FontWeight.w700,
                                 ),
-                                side: const BorderSide(color: Color(0xFFDCE5FF)),
+                                side: const BorderSide(
+                                  color: Color(0xFFDCE5FF),
+                                ),
                                 onSelected: (_) => setState(() {
                                   _selectedRole = 'customer';
                                   _branches = const [];
@@ -275,18 +380,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 selected: _selectedRole == 'cashier',
                                 selectedColor: _brandNavy,
                                 labelStyle: TextStyle(
-                                  color: _selectedRole == 'cashier' ? Colors.white : _brandNavy,
+                                  color: _selectedRole == 'cashier'
+                                      ? Colors.white
+                                      : _brandNavy,
                                   fontWeight: FontWeight.w700,
                                 ),
-                                side: const BorderSide(color: Color(0xFFDCE5FF)),
+                                side: const BorderSide(
+                                  color: Color(0xFFDCE5FF),
+                                ),
                                 onSelected: (_) async {
                                   setState(() => _selectedRole = 'cashier');
                                   await _maybeLoadBranches();
                                 },
                               ),
+                              ChoiceChip(
+                                label: const Text('Rider'),
+                                selected: _selectedRole == 'rider',
+                                selectedColor: _brandNavy,
+                                labelStyle: TextStyle(
+                                  color: _selectedRole == 'rider'
+                                      ? Colors.white
+                                      : _brandNavy,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                side: const BorderSide(
+                                  color: Color(0xFFDCE5FF),
+                                ),
+                                onSelected: (_) async {
+                                  setState(() => _selectedRole = 'rider');
+                                  await _maybeLoadBranches();
+                                },
+                              ),
                             ],
                           ),
-                          if (_selectedRole == 'cashier') ...[
+                          if (_selectedRole == 'cashier' || _selectedRole == 'rider') ...[
                             const SizedBox(height: 14),
                             const Text(
                               'Branch',
@@ -303,7 +430,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   child: SizedBox(
                                     width: 22,
                                     height: 22,
-                                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                    ),
                                   ),
                                 ),
                               )
@@ -311,10 +440,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               DropdownButtonFormField<int>(
                                 value: _selectedBranchId,
                                 items: _branches.map((b) {
-                                  final id = (b['id'] is int) ? b['id'] as int : int.tryParse('${b['id']}') ?? 0;
+                                  final id = (b['id'] is int)
+                                      ? b['id'] as int
+                                      : int.tryParse('${b['id']}') ?? 0;
                                   final name = (b['name'] ?? '').toString();
-                                  final code = (b['code'] ?? '').toString().trim();
-                                  final label = code.isNotEmpty ? '$name ($code)' : name;
+                                  final code = (b['code'] ?? '')
+                                      .toString()
+                                      .trim();
+                                  final label = code.isNotEmpty
+                                      ? '$name ($code)'
+                                      : name;
                                   return DropdownMenuItem<int>(
                                     value: id,
                                     child: Text(label),
@@ -322,11 +457,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 }).toList(),
                                 onChanged: _isLoading
                                     ? null
-                                    : (v) => setState(() => _selectedBranchId = v),
-                                decoration: _inputDecoration('Select branch', Icons.account_tree_outlined),
+                                    : (v) =>
+                                          setState(() => _selectedBranchId = v),
+                                decoration: _inputDecoration(
+                                  'Select branch',
+                                  Icons.account_tree_outlined,
+                                ),
                                 validator: (v) {
-                                  if (_selectedRole != 'cashier') return null;
-                                  if (v == null || v <= 0) return 'Please select a branch';
+                                  if (_selectedRole != 'cashier' && _selectedRole != 'rider') return null;
+                                  if (v == null || v <= 0) {
+                                    return 'Please select a branch';
+                                  }
                                   return null;
                                 },
                               ),
@@ -341,7 +482,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 backgroundColor: _brandNavy,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
                               ),
                               child: _isLoading
                                   ? const SizedBox(
@@ -354,9 +497,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     )
                                   : const Text(
                                       'REGISTER',
-                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                      ),
                                     ),
                             ),
+                          ),
+                          const SizedBox(height: 12),
+                          _GoogleAuthButton(
+                            label: 'Continue with Google',
+                            isLoading: _isLoading,
+                            onPressed: _continueWithGoogle,
                           ),
                         ],
                       ),
@@ -388,6 +540,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: _brandNavy, width: 1.5),
+      ),
+    );
+  }
+}
+
+class _GoogleAuthButton extends StatelessWidget {
+  const _GoogleAuthButton({
+    required this.label,
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: isLoading ? null : onPressed,
+        icon: Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: const Text(
+            'G',
+            style: TextStyle(
+              color: Color(0xFF4285F4),
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        label: Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF001460),
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          side: const BorderSide(color: Color(0xFFDCE5FF)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
       ),
     );
   }

@@ -12,6 +12,13 @@ class OpenTicket {
   final List<TicketLine> lines;
   /// When the ticket was first opened (from Odoo date_order).
   final DateTime? openedAt;
+  final String note;
+  final bool isSelfOrder;
+  final int? partnerId;
+  final String partnerName;
+  final String customerPhone;
+  final String deliveryPlaceName;
+  final String deliveryPlaceAddress;
 
   OpenTicket({
     required this.id,
@@ -26,6 +33,13 @@ class OpenTicket {
     this.transferProofUrl = '',
     required this.lines,
     this.openedAt,
+    this.note = '',
+    this.isSelfOrder = false,
+    this.partnerId,
+    this.partnerName = '',
+    this.customerPhone = '',
+    this.deliveryPlaceName = '',
+    this.deliveryPlaceAddress = '',
   });
 
   factory OpenTicket.fromJson(Map<String, dynamic> json) {
@@ -52,6 +66,13 @@ class OpenTicket {
           .map((lineJson) => TicketLine.fromJson(lineJson))
           .toList(),
       openedAt: openedAt,
+      note: (json['note'] ?? '').toString(),
+      isSelfOrder: json['is_self_order'] == true,
+      partnerId: json['partner_id'],
+      partnerName: (json['partner_name'] ?? '').toString(),
+      customerPhone: (json['customer_phone'] ?? '').toString(),
+      deliveryPlaceName: (json['delivery_place_name'] ?? '').toString(),
+      deliveryPlaceAddress: (json['delivery_place_address'] ?? '').toString(),
     );
   }
 }
@@ -62,6 +83,7 @@ class TicketLine {
   final int qty;
   final double priceUnit;
   final List<int> toppingIds;
+  final String note;
 
   TicketLine({
     required this.productId,
@@ -69,6 +91,7 @@ class TicketLine {
     required this.qty,
     required this.priceUnit,
     this.toppingIds = const [],
+    this.note = '',
   });
 
   factory TicketLine.fromJson(Map<String, dynamic> json) {
@@ -81,6 +104,7 @@ class TicketLine {
           .map((id) => int.tryParse(id.toString()) ?? 0)
           .where((id) => id > 0)
           .toList(),
+      note: (json['note'] ?? '').toString(),
     );
   }
 }

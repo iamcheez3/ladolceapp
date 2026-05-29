@@ -14,7 +14,7 @@ class CustomerSupportScreen extends StatelessWidget {
     this.whatsappLink = '',
   });
 
-  static const Color _brandNavy = Color(0xFF0D1565);
+  static const Color _brandNavy = Color(0xFF001460);
   static const Color _brandNavy2 = Color(0xFF142B8C);
 
   Future<void> _openUrl(String? raw) async {

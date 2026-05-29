@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import 'admin_reports_screen.dart';
 import 'customer_self_order_screen.dart';
 import 'pos_screen.dart';
+import 'rider_screen.dart';
 import 'login_screen.dart';
 
 class PinScreen extends StatefulWidget {
@@ -137,6 +138,11 @@ class _PinScreenState extends State<PinScreen> {
         customerName: name,
         userId: userId,
         partnerId: widget.cachedUser['partner_id'],
+      );
+    } else if (role == 'rider') {
+      destination = RiderScreen(
+        riderName: name,
+        riderId: userId,
       );
     } else if (role == 'admin') {
       // Admin lands directly on the reports dashboard — admin role is purely

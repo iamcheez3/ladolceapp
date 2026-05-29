@@ -26,6 +26,8 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSLocationWhenInUseUsageDescription
+		<string>We need your location to center the map when adding a favorite place.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>We save QR payment images to your photo library.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

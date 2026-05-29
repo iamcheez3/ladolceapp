@@ -402,6 +402,13 @@ class _OrderCard extends StatelessWidget {
         (paymentType != 'transfer' && !hasProof);
   }
 
+  bool get _hasDeliveryPlace {
+    return (order['delivery_place_name']?.toString().trim().isNotEmpty ??
+            false) ||
+        (order['delivery_place_address']?.toString().trim().isNotEmpty ??
+            false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final lines = (order['lines'] as List?) ?? [];
@@ -426,6 +433,15 @@ class _OrderCard extends StatelessWidget {
           const Divider(height: 1, color: Color(0xFFE8EDF5)),
           // ── Info row ──────────────────────────────────────────────────────
           _buildInfoSection(context),
+          if (_hasDeliveryPlace) ...[
+            const Divider(height: 1, color: Color(0xFFE8EDF5)),
+            _buildDeliveryPlaceSection(context),
+          ],
+          // ── Note section ──────────────────────────────────────────────────
+          if ((order['note']?.toString() ?? '').trim().isNotEmpty) ...[
+            const Divider(height: 1, color: Color(0xFFE8EDF5)),
+            _buildNoteSection(context),
+          ],
           // ── Items section ─────────────────────────────────────────────────
           if (lines.isNotEmpty) ...[
             const Divider(height: 1, color: Color(0xFFE8EDF5)),
@@ -501,19 +517,26 @@ class _OrderCard extends StatelessWidget {
   }
 
   Widget _buildInfoSection(BuildContext context) {
-    final lines = (order['lines'] as List?) ?? [];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InfoChip(
-            icon: Icons.person_outline_rounded,
-            label: order['customer']?.toString() ?? '-',
+          Expanded(
+            flex: 5,
+            child: _InfoChip(
+              icon: Icons.person_outline_rounded,
+              label: order['customer']?.toString() ?? '-',
+              maxLines: 2,
+            ),
           ),
           const SizedBox(width: 8),
-          _InfoChip(
-            icon: Icons.phone_outlined,
-            label: orderPhoneLine(order),
+          Flexible(
+            flex: 4,
+            child: _InfoChip(
+              icon: Icons.phone_outlined,
+              label: orderPhoneLine(order),
+              maxLines: 1,
             onTap: orderPhoneLine(order) != '—'
                 ? () async {
                     final phone = orderPhoneLine(order).replaceAll(RegExp(r'[^0-9+]'), '');
@@ -542,8 +565,9 @@ class _OrderCard extends StatelessWidget {
                     }
                   }
                 : null,
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           // Total amount
           Text(
             formatKip(order['amount_total'] ?? 0),
@@ -554,6 +578,133 @@ class _OrderCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDeliveryPlaceSection(BuildContext context) {
+    final name = (order['delivery_place_name'] ?? '').toString().trim();
+    final address = (order['delivery_place_address'] ?? '').toString().trim();
+    final mapsUrl = (order['delivery_maps_url'] ?? '').toString().trim();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF6FF),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFBFDBFE)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.place_outlined,
+              color: Color(0xFF1E3A8A),
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Customer place:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E3A8A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (name.isNotEmpty)
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  if (address.isNotEmpty)
+                    Text(
+                      address,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF334155),
+                        height: 1.3,
+                      ),
+                    ),
+                  if (mapsUrl.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          final url = Uri.parse(mapsUrl);
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.map_outlined, size: 16),
+                        label: const Text('Open map'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoteSection(BuildContext context) {
+    final note = (order['note']?.toString() ?? '').trim();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.amber.shade200),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.edit_note_rounded, color: Colors.amber.shade800, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Order Note / Pickup Time:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber.shade900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    note,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: const Color(0xFF451A03),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -887,25 +1038,40 @@ class _Badge extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label, this.onTap});
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.maxLines = 1,
+  });
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
     final body = Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14, color: onTap != null ? const Color(0xFF1E3A8A) : Colors.grey.shade500),
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(icon, size: 14, color: onTap != null ? const Color(0xFF1E3A8A) : Colors.grey.shade500),
+        ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            color: onTap != null ? const Color(0xFF1E3A8A) : Colors.grey.shade700,
-            fontWeight: onTap != null ? FontWeight.bold : FontWeight.normal,
-            decoration: onTap != null ? TextDecoration.underline : null,
+        Expanded(
+          child: Text(
+            label,
+            maxLines: maxLines,
+            overflow: TextOverflow.ellipsis,
+            softWrap: true,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: onTap != null ? const Color(0xFF1E3A8A) : Colors.grey.shade700,
+              fontWeight: onTap != null ? FontWeight.bold : FontWeight.normal,
+              decoration: onTap != null ? TextDecoration.underline : null,
+            ),
           ),
         ),
       ],

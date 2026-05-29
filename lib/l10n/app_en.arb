@@ -15,5 +15,7 @@
   "proofSelected": "Proof Selected",
   "transferProofSelectedMsg": "Transfer proof selected. It will be uploaded when you confirm order.",
   "confirmOrder": "Confirm Order",
-  "runOut": "Run out"
+  "runOut": "Run out",
+  "orderNote": "Order Note / Pickup Time",
+  "orderNoteHint": "e.g., Pickup at 3:00 PM, extra spicy, etc."
 }

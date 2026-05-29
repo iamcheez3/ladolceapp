@@ -317,6 +317,37 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                       const Divider(),
                       const SizedBox(height: 16),
 
+                      // ── Discount ───────────────────────────────────────
+                      if (((data['amount_discount'] as num?)?.toDouble() ?? 0) > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Discount',
+                                  style: TextStyle(fontSize: 16, color: Colors.red),
+                                ),
+                              ),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    '-${data['currency'] ?? 'LAK'} ${(data['amount_discount'] as num).toStringAsFixed(2)}',
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                       // ── Total ─────────────────────────────────────────
                       Row(
                         children: [

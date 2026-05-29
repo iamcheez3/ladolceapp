@@ -22,13 +22,15 @@ class ApiService {
     // NOTE: baseUrl is synchronous; the dev override is loaded via
     // getBaseUrl() below for any code that can await. This getter is kept
     // for backward-compat with all existing synchronous call-sites.
-    String envUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:8069/api';
+    String envUrl =
+        dotenv.env['API_BASE_URL'] ??
+        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
     if (Platform.isAndroid && envUrl.contains('localhost')) {
       return envUrl.replaceAll('localhost', '10.0.2.2');
     }
     return envUrl;
   }
-  
+
   Future<Map<String, dynamic>> fetchMaintenanceStatus() async {
     final base = await getBaseUrl();
     try {
@@ -52,23 +54,27 @@ class ApiService {
       final user = await getCachedUser();
       final userId = (user != null && user['user_id'] != null)
           ? (user['user_id'] is int
-              ? user['user_id'] as int
-              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
           : 0;
 
       if (userId == 0) return;
 
       final url = Uri.parse('$base/pos/heartbeat');
-      final response = await http.post(
-        url,
-        headers: await _authHeaders(json: true),
-        body: jsonEncode({
-          'user_id': userId,
-          if (isNewSession) 'is_login': true,
-        }),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({
+              'user_id': userId,
+              if (isNewSession) 'is_login': true,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
 
-      _d('[HEARTBEAT] Sent for user $userId | New Session: $isNewSession | Status: ${response.statusCode}');
+      _d(
+        '[HEARTBEAT] Sent for user $userId | New Session: $isNewSession | Status: ${response.statusCode}',
+      );
     } catch (e) {
       _d('[HEARTBEAT ERROR] $e');
     }
@@ -78,10 +84,10 @@ class ApiService {
   Future<String> getBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final override = prefs.getString(devBaseUrlKey);
-    if (override != null && override.isNotEmpty) {
-      return override;
+    if (override != null) {
+      return override.isNotEmpty ? override : baseUrl;
     }
-    return baseUrl;
+    return 'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
   }
 
   /// Resolves the Odoo database name:
@@ -105,8 +111,9 @@ class ApiService {
   String resolveMediaUrl(String rawUrl) {
     var normalized = rawUrl.trim();
     if (normalized.isEmpty) return '';
-    final contentMatch =
-        RegExp(r'^/web/content/(\d+)(\?.*)?$').firstMatch(normalized);
+    final contentMatch = RegExp(
+      r'^/web/content/(\d+)(\?.*)?$',
+    ).firstMatch(normalized);
     if (contentMatch != null) {
       normalized = '/web/image/ir.attachment/${contentMatch.group(1)}/datas';
     }
@@ -136,11 +143,24 @@ class ApiService {
       final q = (m['qty'] is int)
           ? (m['qty'] as int)
           : (m['qty'] is num)
-              ? (m['qty'] as num).toInt()
-              : int.tryParse(m['qty']?.toString() ?? '1') ?? 1;
+          ? (m['qty'] as num).toInt()
+          : int.tryParse(m['qty']?.toString() ?? '1') ?? 1;
       sum += pu * q;
     }
     return sum;
+  }
+
+  /// Compute total after applying discount, matching the frontend's [computePosDiscount].
+  double _discountedTotal(double subtotal, String? discountType, double? discountValue) {
+    if (discountType == null || discountValue == null || discountValue <= 0) {
+      return subtotal;
+    }
+    if (discountType == 'percentage') {
+      final pct = discountValue.clamp(0.0, 100.0);
+      return subtotal - (subtotal * pct / 100.0);
+    }
+    final amount = discountValue.clamp(0.0, subtotal);
+    return subtotal - amount;
   }
 
   /// After offline `create` syncs, replace mock id in cache with real Odoo id
@@ -154,9 +174,7 @@ class ApiService {
     final cached = prefs.getString('cached_open_tickets');
     if (cached == null) return;
     final list = List<dynamic>.from(jsonDecode(cached));
-    final idx = list.indexWhere(
-      (e) => e is Map && (e)['id'] == mockId,
-    );
+    final idx = list.indexWhere((e) => e is Map && (e)['id'] == mockId);
     if (idx < 0) return;
     final m = Map<String, dynamic>.from(list[idx] as Map);
     m['id'] = realId;
@@ -170,15 +188,18 @@ class ApiService {
     }
     list[idx] = m;
     await prefs.setString('cached_open_tickets', jsonEncode(list));
-    _d('[OFFLINE SYNC] remapped open ticket in cache: mockId=$mockId -> $realId');
+    _d(
+      '[OFFLINE SYNC] remapped open ticket in cache: mockId=$mockId -> $realId',
+    );
   }
 
   /// Async variant that respects dev base URL override from SharedPreferences.
   Future<String> resolveMediaUrlAsync(String rawUrl) async {
     var normalized = rawUrl.trim();
     if (normalized.isEmpty) return '';
-    final contentMatch =
-        RegExp(r'^/web/content/(\d+)(\?.*)?$').firstMatch(normalized);
+    final contentMatch = RegExp(
+      r'^/web/content/(\d+)(\?.*)?$',
+    ).firstMatch(normalized);
     if (contentMatch != null) {
       normalized = '/web/image/ir.attachment/${contentMatch.group(1)}/datas';
     }
@@ -221,8 +242,12 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString(key);
     // Always create list even if cache doesn't exist yet
-    final list = cached != null ? List<dynamic>.from(jsonDecode(cached)) : <dynamic>[];
-    final index = list.indexWhere((e) => e != null && e is Map && e['id'] == item['id']);
+    final list = cached != null
+        ? List<dynamic>.from(jsonDecode(cached))
+        : <dynamic>[];
+    final index = list.indexWhere(
+      (e) => e != null && e is Map && e['id'] == item['id'],
+    );
     if (index >= 0) {
       list[index] = item;
     } else {
@@ -241,14 +266,19 @@ class ApiService {
     }
   }
 
-  Future<void> _markTableHasOpenOrder(int tableId, {required bool hasOpenOrder}) async {
+  Future<void> _markTableHasOpenOrder(
+    int tableId, {
+    required bool hasOpenOrder,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString('cached_tables');
     if (cached == null) return;
 
     try {
       final list = List<dynamic>.from(jsonDecode(cached));
-      final idx = list.indexWhere((e) => e != null && e is Map && e['id'] == tableId);
+      final idx = list.indexWhere(
+        (e) => e != null && e is Map && e['id'] == tableId,
+      );
       if (idx < 0) return;
 
       final current = Map<String, dynamic>.from(list[idx] as Map);
@@ -260,7 +290,6 @@ class ApiService {
     }
   }
 
-
   /// Returns cached products instantly (null if no cache)
   Future<List<Product>?> getCachedProducts() async {
     final prefs = await SharedPreferences.getInstance();
@@ -270,7 +299,11 @@ class ApiService {
     return data.map((json) => Product.fromJson(json)).toList();
   }
 
-  Future<List<Product>> fetchProducts({int limit = 50, int offset = 0, bool forceRefresh = false}) async {
+  Future<List<Product>> fetchProducts({
+    int limit = 50,
+    int offset = 0,
+    bool forceRefresh = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
       final cachedStr = prefs.getString('cached_products');
@@ -279,41 +312,49 @@ class ApiService {
         return data.map((json) => Product.fromJson(json)).toList();
       }
     }
-    
+
     final base = await getBaseUrl();
 
     try {
       final url = Uri.parse('$base/products?limit=$limit&offset=$offset');
       _d('==============================');
       _d('[API CALL] GET $url');
-      
+
       final response = await http.get(url).timeout(const Duration(seconds: 5));
-      
+
       _d('[API RESP] GET $url | STATUS: ${response.statusCode}');
       _d('[API BODY] ${response.body}');
       _d('==============================');
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        
+
         if (jsonResponse['status'] == 'success') {
           final List<dynamic> data = jsonResponse['data'];
           await prefs.setString('cached_products', jsonEncode(data));
           return data.map((json) => Product.fromJson(json)).toList();
         } else {
-          throw Exception(jsonResponse['message'] ?? 'Failed to load products from server');
+          throw Exception(
+            jsonResponse['message'] ?? 'Failed to load products from server',
+          );
         }
       } else {
-        throw Exception('Failed to connect to Odoo Server (Code: ${response.statusCode})');
+        throw Exception(
+          'Failed to connect to Odoo Server (Code: ${response.statusCode})',
+        );
       }
     } catch (e) {
-      _d('[API OFFLINE] Fetch products failed. Falling back to cache. Error: $e');
+      _d(
+        '[API OFFLINE] Fetch products failed. Falling back to cache. Error: $e',
+      );
       final cachedProducts = prefs.getString('cached_products');
       if (cachedProducts != null) {
         final List<dynamic> data = jsonDecode(cachedProducts);
         return data.map((json) => Product.fromJson(json)).toList();
       }
-      throw Exception('No internet connection and no offline cached products available.');
+      throw Exception(
+        'No internet connection and no offline cached products available.',
+      );
     }
   }
 
@@ -356,7 +397,7 @@ class ApiService {
         return data.map((json) => PosTable.fromJson(json)).toList();
       }
     }
-    
+
     final base = await getBaseUrl();
 
     try {
@@ -395,7 +436,9 @@ class ApiService {
     return data.map((json) => PaymentMethod.fromJson(json)).toList();
   }
 
-  Future<List<PaymentMethod>> fetchPaymentMethods({bool forceRefresh = false}) async {
+  Future<List<PaymentMethod>> fetchPaymentMethods({
+    bool forceRefresh = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
       final cachedStr = prefs.getString('cached_payment_methods');
@@ -404,7 +447,7 @@ class ApiService {
         return data.map((json) => PaymentMethod.fromJson(json)).toList();
       }
     }
-    
+
     final base = await getBaseUrl();
 
     try {
@@ -425,7 +468,7 @@ class ApiService {
         final List<dynamic> data = jsonDecode(cachedStr);
         return data.map((json) => PaymentMethod.fromJson(json)).toList();
       }
-      return []; 
+      return [];
     }
   }
 
@@ -478,11 +521,13 @@ class ApiService {
       if (cachedStr != null) {
         final List<dynamic> data = jsonDecode(cachedStr);
         return data
-            .map((e) => OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map(
+              (e) => OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
             .toList();
       }
     }
-    
+
     final base = await getBaseUrl();
     final prevOpenTickets = prefs.getString('cached_open_tickets');
     try {
@@ -501,8 +546,9 @@ class ApiService {
           final merged = _mergeLocalDraftOpenTickets(data, prevOpenTickets);
           await prefs.setString('cached_open_tickets', jsonEncode(merged));
           return merged
-              .map((e) =>
-                  OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+              .map(
+                (e) => OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
               .toList();
         }
       }
@@ -512,15 +558,18 @@ class ApiService {
       if (cachedStr != null) {
         final List<dynamic> data = jsonDecode(cachedStr) as List<dynamic>;
         return data
-            .map((e) =>
-                OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map(
+              (e) => OpenTicket.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
             .toList();
       }
       return [];
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchReceiptHistory({bool forceRefresh = false}) async {
+  Future<List<Map<String, dynamic>>> fetchReceiptHistory({
+    bool forceRefresh = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
       final cachedStr = prefs.getString('cached_receipt_history');
@@ -528,18 +577,18 @@ class ApiService {
         return List<Map<String, dynamic>>.from(jsonDecode(cachedStr));
       }
     }
-    
+
     final base = await getBaseUrl();
     try {
       final user = await getCachedUser();
       final userId = (user != null && user['user_id'] != null)
           ? (user['user_id'] is int
-              ? user['user_id'] as int
-              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
           : 0;
-      final url = Uri.parse('$base/pos/history').replace(
-        queryParameters: userId > 0 ? {'user_id': '$userId'} : null,
-      );
+      final url = Uri.parse(
+        '$base/pos/history',
+      ).replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
       final response = await http
           .get(url, headers: await _authHeaders(json: true))
           .timeout(const Duration(seconds: 5));
@@ -567,12 +616,12 @@ class ApiService {
       final user = await getCachedUser();
       final userId = (user != null && user['user_id'] != null)
           ? (user['user_id'] is int
-              ? user['user_id'] as int
-              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
           : 0;
-      final url = Uri.parse('$base/pos/order/$orderId/receipt').replace(
-        queryParameters: userId > 0 ? {'user_id': '$userId'} : null,
-      );
+      final url = Uri.parse(
+        '$base/pos/order/$orderId/receipt',
+      ).replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
       final response = await http
           .get(url, headers: await _authHeaders(json: true))
           .timeout(const Duration(seconds: 5));
@@ -588,9 +637,215 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> fetchRiderOrders() async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse(
+        '$base/pos/rider/orders',
+      ).replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse;
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to load rider orders');
+      }
+      throw Exception('Failed to load rider orders');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Fetch list of approved riders for a given branch.
+  Future<List<dynamic>> fetchRiderList({int? branchId}) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final params = <String, String>{};
+      if (userId > 0) params['user_id'] = '$userId';
+      if (branchId != null && branchId > 0) params['branch_id'] = '$branchId';
+      final url = Uri.parse('$base/pos/rider/list')
+          .replace(queryParameters: params.isNotEmpty ? params : null);
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse['data'] ?? [];
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to load riders');
+      }
+      throw Exception('Failed to load riders');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Assign a rider to a paid order.
+  Future<Map<String, dynamic>> assignRider({
+    required int orderId,
+    required int riderId,
+  }) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse('$base/pos/order/$orderId/assign_rider')
+          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final response = await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({'rider_id': riderId}),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse;
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to assign rider');
+      }
+      throw Exception('Failed to assign rider');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Rider marks arrival at customer location.
+  Future<Map<String, dynamic>> riderArrived(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse('$base/pos/order/$orderId/rider_arrived')
+          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final response = await http
+          .post(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse;
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to mark arrived');
+      }
+      throw Exception('Failed to mark arrived');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Rider marks delivery as complete.
+  Future<Map<String, dynamic>> riderComplete(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse('$base/pos/order/$orderId/rider_complete')
+          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final response = await http
+          .post(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          return jsonResponse;
+        }
+        throw Exception(jsonResponse['message'] ?? 'Failed to complete delivery');
+      }
+      throw Exception('Failed to complete delivery');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Rider sends GPS location to backend (called every 5s).
+  Future<void> riderUpdateLocation({
+    required int orderId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final url = Uri.parse('$base/pos/rider/location')
+          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({
+              'order_id': orderId,
+              'latitude': latitude,
+              'longitude': longitude,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Silent fail — location updates are best-effort
+    }
+  }
+
+  /// Fetch the latest rider location for an order.
+  /// GET /api/pos/order/<id>/rider_location
+  Future<Map<String, dynamic>?> fetchRiderLocation(String orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/order/$orderId/rider_location');
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success' && jsonResponse['data'] != null) {
+          return Map<String, dynamic>.from(jsonResponse['data']);
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Fetch the selected/default bill template for printing.
   /// Backend: GET `/api/pos/bill_template?type=bill|receipt|refund`
-  Future<Map<String, dynamic>> fetchBillTemplate({String type = 'receipt', bool forceRefresh = false}) async {
+  Future<Map<String, dynamic>> fetchBillTemplate({
+    String type = 'receipt',
+    bool forceRefresh = false,
+  }) async {
     // Try cache first (fast UI), then network.
     if (!forceRefresh) {
       final cached = await getCachedBillTemplate(type: type);
@@ -600,8 +855,8 @@ class ApiService {
     final user = await getCachedUser();
     final userId = (user != null && user['user_id'] != null)
         ? (user['user_id'] is int
-            ? user['user_id'] as int
-            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+              ? user['user_id'] as int
+              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
         : 0;
     final sid = await getCachedSessionId() ?? '';
     final url = Uri.parse('$base/pos/bill_template').replace(
@@ -631,7 +886,10 @@ class ApiService {
 
   /// List templates for selection in POS.
   /// Backend: GET `/api/pos/bill_templates?type=bill|receipt|refund`
-  Future<List<Map<String, dynamic>>> fetchBillTemplates({String? type, bool forceRefresh = false}) async {
+  Future<List<Map<String, dynamic>>> fetchBillTemplates({
+    String? type,
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh) {
       final cached = await getCachedBillTemplates(type: type ?? '');
       if (cached != null && cached.isNotEmpty) return cached;
@@ -640,8 +898,8 @@ class ApiService {
     final user = await getCachedUser();
     final userId = (user != null && user['user_id'] != null)
         ? (user['user_id'] is int
-            ? user['user_id'] as int
-            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+              ? user['user_id'] as int
+              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
         : 0;
     final sid = await getCachedSessionId() ?? '';
     final qp = <String, String>{
@@ -649,9 +907,9 @@ class ApiService {
       if (userId > 0) 'user_id': '$userId',
       if (sid.isNotEmpty) 'session_id': sid,
     };
-    final url = Uri.parse('$base/pos/bill_templates').replace(
-      queryParameters: qp.isEmpty ? null : qp,
-    );
+    final url = Uri.parse(
+      '$base/pos/bill_templates',
+    ).replace(queryParameters: qp.isEmpty ? null : qp);
     final response = await http
         .get(url, headers: await _authHeaders(json: true))
         .timeout(const Duration(seconds: 6));
@@ -662,7 +920,9 @@ class ApiService {
     if (jsonResponse is Map && jsonResponse['status'] == 'success') {
       final raw = jsonResponse['data'];
       if (raw is List) {
-        final out = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        final out = raw
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
         await _setCachedBillTemplates(type: type ?? '', data: out);
         return out;
       }
@@ -674,10 +934,14 @@ class ApiService {
   // BILL TEMPLATE CACHE (UI speed)
   // ---------------------------------------------------------------------------
 
-  String _billTemplatesKey(String type) => 'cached_bill_templates_${type.trim().toLowerCase()}';
-  String _billTemplateKey(String type) => 'cached_bill_template_${type.trim().toLowerCase()}';
+  String _billTemplatesKey(String type) =>
+      'cached_bill_templates_${type.trim().toLowerCase()}';
+  String _billTemplateKey(String type) =>
+      'cached_bill_template_${type.trim().toLowerCase()}';
 
-  Future<List<Map<String, dynamic>>?> getCachedBillTemplates({required String type}) async {
+  Future<List<Map<String, dynamic>>?> getCachedBillTemplates({
+    required String type,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_billTemplatesKey(type));
     if (raw == null || raw.isEmpty) return null;
@@ -690,7 +954,9 @@ class ApiService {
     return null;
   }
 
-  Future<Map<String, dynamic>?> getCachedBillTemplate({required String type}) async {
+  Future<Map<String, dynamic>?> getCachedBillTemplate({
+    required String type,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_billTemplateKey(type));
     if (raw == null || raw.isEmpty) return null;
@@ -701,12 +967,18 @@ class ApiService {
     return null;
   }
 
-  Future<void> _setCachedBillTemplates({required String type, required List<Map<String, dynamic>> data}) async {
+  Future<void> _setCachedBillTemplates({
+    required String type,
+    required List<Map<String, dynamic>> data,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_billTemplatesKey(type), jsonEncode(data));
   }
 
-  Future<void> _setCachedBillTemplate({required String type, required Map<String, dynamic> data}) async {
+  Future<void> _setCachedBillTemplate({
+    required String type,
+    required Map<String, dynamic> data,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_billTemplateKey(type), jsonEncode(data));
   }
@@ -727,16 +999,18 @@ class ApiService {
     final user = await getCachedUser();
     final userId = (user != null && user['user_id'] != null)
         ? (user['user_id'] is int
-            ? user['user_id'] as int
-            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+              ? user['user_id'] as int
+              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
         : 0;
     final sid = await getCachedSessionId() ?? '';
 
     final payload = <String, dynamic>{
       if (billTemplateId != null) 'bill_template_bill_id': billTemplateId,
-      if (receiptTemplateId != null) 'bill_template_receipt_id': receiptTemplateId,
+      if (receiptTemplateId != null)
+        'bill_template_receipt_id': receiptTemplateId,
       if (refundTemplateId != null) 'bill_template_refund_id': refundTemplateId,
-      if (kitchenTemplateId != null) 'bill_template_kitchen_id': kitchenTemplateId,
+      if (kitchenTemplateId != null)
+        'bill_template_kitchen_id': kitchenTemplateId,
       if (userId > 0) 'user_id': userId,
       if (sid.isNotEmpty) 'session_id': sid,
     };
@@ -748,10 +1022,14 @@ class ApiService {
         )
         .timeout(const Duration(seconds: 8));
     final jsonResponse = jsonDecode(response.body);
-    if (response.statusCode == 200 && jsonResponse is Map && jsonResponse['status'] == 'success') {
+    if (response.statusCode == 200 &&
+        jsonResponse is Map &&
+        jsonResponse['status'] == 'success') {
       return;
     }
-    throw Exception(jsonResponse is Map ? (jsonResponse['message'] ?? 'Failed') : 'Failed');
+    throw Exception(
+      jsonResponse is Map ? (jsonResponse['message'] ?? 'Failed') : 'Failed',
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -774,8 +1052,8 @@ class ApiService {
     final user = await getCachedUser();
     final userId = (user != null && user['user_id'] != null)
         ? (user['user_id'] is int
-            ? user['user_id'] as int
-            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+              ? user['user_id'] as int
+              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
         : 0;
 
     final url = Uri.parse('$base/pos/reports/summary').replace(
@@ -795,7 +1073,9 @@ class ApiService {
     }
     final decoded = jsonDecode(resp.body);
     if (decoded is! Map || decoded['status']?.toString() != 'success') {
-      throw Exception(decoded is Map ? (decoded['message'] ?? 'Failed') : 'Failed');
+      throw Exception(
+        decoded is Map ? (decoded['message'] ?? 'Failed') : 'Failed',
+      );
     }
     return Map<String, dynamic>.from(decoded);
   }
@@ -807,6 +1087,7 @@ class ApiService {
     required String role,
     String? phone,
     int? branchId,
+    String? authProvider,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/register');
@@ -816,7 +1097,10 @@ class ApiService {
       'password': password,
       'role': role,
       if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
-      if (role == 'cashier' && branchId != null && branchId > 0) 'branch_id': branchId,
+      if ((role == 'cashier' || role == 'rider') && branchId != null && branchId > 0)
+        'branch_id': branchId,
+      if (authProvider != null && authProvider.trim().isNotEmpty)
+        'auth_provider': authProvider.trim(),
     };
     _d('==============================');
     _d('[API CALL] POST $url');
@@ -840,7 +1124,11 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> loginUser(String login, String password) async {
+  Future<Map<String, dynamic>> loginUser(
+    String login,
+    String password, {
+    String? authProvider,
+  }) async {
     final base = await getBaseUrl();
     final dbName = await getDatabaseName();
     final url = Uri.parse('$base/pos/login');
@@ -852,6 +1140,12 @@ class ApiService {
       'password': password,
       'device_id': device['device_id'],
       'platform': device['platform'],
+      'device_name': device['device_name'],
+      'model': device['model'],
+      'manufacturer': device['manufacturer'],
+      'brand': device['brand'],
+      if (authProvider != null && authProvider.trim().isNotEmpty)
+        'auth_provider': authProvider.trim(),
     };
 
     _d('==============================');
@@ -872,7 +1166,7 @@ class ApiService {
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
       final data = jsonResponse['data'];
       final sessionId = jsonResponse['session_id'];
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_user_session', sessionId ?? '');
       await prefs.setString('cached_user_data', jsonEncode(data));
@@ -926,7 +1220,7 @@ class ApiService {
           }
         }
       } catch (_) {}
-      
+
       return data;
     } else {
       throw Exception(jsonResponse['message'] ?? 'Login failed');
@@ -979,8 +1273,8 @@ class ApiService {
     final user = await getCachedUser();
     final userId = (user != null && user['user_id'] != null)
         ? (user['user_id'] is int
-            ? user['user_id'] as int
-            : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+              ? user['user_id'] as int
+              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
         : 0;
     final sid = await getCachedSessionId() ?? '';
     final device = await getDeviceInfoForAudit();
@@ -998,6 +1292,7 @@ class ApiService {
     if (response.statusCode == 200) return true;
     return false;
   }
+
   Future<void> setPosPin(String pin, int userId) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/set_pin');
@@ -1006,11 +1301,15 @@ class ApiService {
     _d('[SET PIN] POST $url');
     _d('[SET PIN] user_id: $userId | pin: $pin');
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'}, // ← no session needed now
-      body: jsonEncode({'pin': pin, 'user_id': userId}),
-    ).timeout(const Duration(seconds: 6));
+    final response = await http
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+          }, // ← no session needed now
+          body: jsonEncode({'pin': pin, 'user_id': userId}),
+        )
+        .timeout(const Duration(seconds: 6));
 
     _d('[SET PIN] STATUS: ${response.statusCode}');
     _d('[SET PIN] BODY: ${response.body}');
@@ -1031,7 +1330,6 @@ class ApiService {
     }
   }
 
-  
   Future<Map<String, dynamic>> submitOrder({
     required int userId,
     int? partnerId,
@@ -1043,10 +1341,19 @@ class ApiService {
     int? branchId,
     String? customerName,
     String? customerPhone,
+    String? note,
+    String? deliveryPlaceName,
+    String? deliveryPlaceAddress,
+    String? deliveryPlaceId,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
+    String? deliveryMapsUrl,
+    String? discountType,
+    double? discountValue,
   }) async {
     final base = await getBaseUrl();
     final cn = customerName?.trim() ?? '';
-    final cp = customerPhone?.trim() ?? '';
+    final cp = _cleanOptionalText(customerPhone);
     final payload = {
       'user_id': userId,
       'partner_id': partnerId,
@@ -1058,19 +1365,34 @@ class ApiService {
       if (branchId != null && branchId > 0) 'branch_id': branchId,
       if (cn.isNotEmpty) 'customer_name': cn,
       if (cp.isNotEmpty) 'customer_phone': cp,
+      if (note != null && note.isNotEmpty) 'note': note,
+      if ((deliveryPlaceName ?? '').trim().isNotEmpty)
+        'delivery_place_name': deliveryPlaceName!.trim(),
+      if ((deliveryPlaceAddress ?? '').trim().isNotEmpty)
+        'delivery_place_address': deliveryPlaceAddress!.trim(),
+      if ((deliveryPlaceId ?? '').trim().isNotEmpty)
+        'delivery_place_id': deliveryPlaceId!.trim(),
+      if (deliveryLatitude != null) 'delivery_latitude': deliveryLatitude,
+      if (deliveryLongitude != null) 'delivery_longitude': deliveryLongitude,
+      if ((deliveryMapsUrl ?? '').trim().isNotEmpty)
+        'delivery_maps_url': deliveryMapsUrl!.trim(),
+      if (discountType != null && discountValue != null && discountValue > 0)
+        ...{'discount_type': discountType, 'discount_value': discountValue},
     };
-    
+
     try {
       final url = Uri.parse('$base/pos/order');
       _d('==============================');
       _d('[API CALL] POST $url');
       _d('[API LOAD] $payload');
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 5));
 
       _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
       _d('[API BODY] ${response.body}');
@@ -1079,7 +1401,9 @@ class ApiService {
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
         final raw = jsonResponse['data'];
-        final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+        final data = raw is Map
+            ? Map<String, dynamic>.from(raw)
+            : <String, dynamic>{};
         // Some endpoints return order_id but not id; normalize for Receipt History.
         data['id'] ??= data['order_id'];
         await _updateCacheList('cached_receipt_history', data);
@@ -1088,14 +1412,22 @@ class ApiService {
         throw Exception(jsonResponse['message'] ?? 'Failed to submit order');
       }
     } catch (e) {
-      _d('[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e');
+      _d(
+        '[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e',
+      );
       final mockId = -DateTime.now().millisecondsSinceEpoch;
       await _queueOfflineOrder({
         'action': 'submit',
         'payload': payload,
-        'mock_id': mockId
+        'mock_id': mockId,
       });
       final now = DateTime.now();
+      final rawSubtotal = lines.fold<double>(
+        0.0,
+        (sum, line) => sum + (line['price_unit'] * line['qty']),
+      );
+      final discounted = _discountedTotal(rawSubtotal, discountType, discountValue);
+      final discountAmount = rawSubtotal - discounted;
       final mockReceipt = {
         'offline': true,
         'synced': false,
@@ -1104,13 +1436,28 @@ class ApiService {
         'order_reference': 'OFFLINE-$mockId',
         'date_order': now.toIso8601String(),
         if (isPaid) 'date_paid': now.toIso8601String(),
-        'payment_method': paymentMethodId != null ? 'Method #$paymentMethodId' : 'Offline',
-        'amount_total': lines.fold<double>(0.0, (sum, line) => sum + (line['price_unit'] * line['qty'])),
-        'state': isPaid ? 'paid' : 'draft'
+        'payment_method': paymentMethodId != null
+            ? 'Method #$paymentMethodId'
+            : 'Offline',
+        'amount_total': discounted,
+        'amount_discount': discountAmount,
+        'state': isPaid ? 'paid' : 'draft',
       };
       await _updateCacheList('cached_receipt_history', mockReceipt);
       return mockReceipt;
     }
+  }
+
+  String _cleanOptionalText(String? value) {
+    final text = value?.trim() ?? '';
+    final lower = text.toLowerCase();
+    if (text.isEmpty ||
+        lower == 'false' ||
+        lower == 'null' ||
+        lower == 'none') {
+      return '';
+    }
+    return text;
   }
 
   Future<Map<String, dynamic>> createOrder({
@@ -1120,6 +1467,8 @@ class ApiService {
     String? name,
     int? branchId,
     required List<Map<String, dynamic>> lines,
+    String? discountType,
+    double? discountValue,
   }) async {
     final base = await getBaseUrl();
     // Use explicitly provided branchId, or fall back to cashier's cached branch.
@@ -1131,39 +1480,61 @@ class ApiService {
       if (tableId != null && tableId > 0) 'table_id': tableId,
       if (customerId != null && customerId > 0) 'partner_id': customerId,
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-      if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
+      if (effectiveBranchId != null && effectiveBranchId > 0)
+        'branch_id': effectiveBranchId,
       'lines': lines,
+      if (discountType != null && discountValue != null && discountValue > 0)
+        ...{'discount_type': discountType, 'discount_value': discountValue},
     };
 
     try {
       final url = Uri.parse('$base/pos/order');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 5));
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
         final data = jsonResponse['data'];
-        final total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
+        final subtotal = lines.fold<double>(
+          0.0,
+          (sum, line) =>
+              sum +
+              ((line['price_unit'] as num).toDouble() *
+                  (line['qty'] as num).toInt()),
+        );
         final localTicket = {
-            'id': data['order_id'],
-            'name': data['order_reference'],
-            'table_id': tableId,
-            'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
-            'amount_total': total,
-            'state': 'draft',
-            if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
-            // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
-            'opened_at': DateTime.now().toUtc().toIso8601String(),
-            'lines': lines.map((l) => {
-                 'product_id': l['product_id'],
-                 'product_name': 'Item',
-                 'qty': l['qty'],
-                 'price_unit': l['price_unit'],
-                 'topping_ids': l['topping_ids'] ?? []
-            }).toList()
+          'id': data['order_id'],
+          'name': data['order_reference'],
+          'table_id': tableId,
+          'table_name': tableId != null
+              ? 'Table $tableId'
+              : (name ?? 'Customer'),
+          'amount_total': _discountedTotal(subtotal, discountType, discountValue),
+          'state': 'draft',
+          if (discountType != null && discountValue != null && discountValue > 0)
+            'discount_type': discountType,
+          if (discountType != null && discountValue != null && discountValue > 0)
+            'discount_value': discountValue,
+          if (effectiveBranchId != null && effectiveBranchId > 0)
+            'branch_id': effectiveBranchId,
+          // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
+          'opened_at': DateTime.now().toUtc().toIso8601String(),
+          'lines': lines
+              .map(
+                (l) => {
+                  'product_id': l['product_id'],
+                  'product_name': 'Item',
+                  'qty': l['qty'],
+                  'price_unit': l['price_unit'],
+                  'topping_ids': l['topping_ids'] ?? [],
+                },
+              )
+              .toList(),
         };
         await _updateCacheList('cached_open_tickets', localTicket);
         if (tableId != null) {
@@ -1176,29 +1547,44 @@ class ApiService {
     } catch (e) {
       final mockId = -DateTime.now().millisecondsSinceEpoch;
       await _queueOfflineOrder({
-         'action': 'create',
-         'payload': payload,
-         'mock_id': mockId
+        'action': 'create',
+        'payload': payload,
+        'mock_id': mockId,
       });
-      final total = lines.fold<double>(0.0, (sum, line) => sum + ((line['price_unit'] as num).toDouble() * (line['qty'] as num).toInt()));
+      final subtotal = lines.fold<double>(
+        0.0,
+        (sum, line) =>
+            sum +
+            ((line['price_unit'] as num).toDouble() *
+                (line['qty'] as num).toInt()),
+      );
       final mockTicket = {
-         'id': mockId,
-         'name': 'OFFLINE-MOCK', // Using static or mock name
-         'table_id': tableId,
-         'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
-         'partner_id': customerId, // keeping for record
-         'amount_total': total,
-         'state': 'draft',
-         if (effectiveBranchId != null && effectiveBranchId > 0) 'branch_id': effectiveBranchId,
-         // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
-         'opened_at': DateTime.now().toUtc().toIso8601String(),
-         'lines': lines.map((l) => {
-             'product_id': l['product_id'],
-             'product_name': 'Item',
-             'qty': l['qty'],
-             'price_unit': l['price_unit'],
-             'topping_ids': l['topping_ids'] ?? []
-         }).toList()
+        'id': mockId,
+        'name': 'OFFLINE-MOCK', // Using static or mock name
+        'table_id': tableId,
+        'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
+        'partner_id': customerId, // keeping for record
+        'amount_total': _discountedTotal(subtotal, discountType, discountValue),
+        'state': 'draft',
+        if (discountType != null && discountValue != null && discountValue > 0)
+          'discount_type': discountType,
+        if (discountType != null && discountValue != null && discountValue > 0)
+          'discount_value': discountValue,
+        if (effectiveBranchId != null && effectiveBranchId > 0)
+          'branch_id': effectiveBranchId,
+        // Needed for Open Tickets duration badge (see OpenTicket.openedAt)
+        'opened_at': DateTime.now().toUtc().toIso8601String(),
+        'lines': lines
+            .map(
+              (l) => {
+                'product_id': l['product_id'],
+                'product_name': 'Item',
+                'qty': l['qty'],
+                'price_unit': l['price_unit'],
+                'topping_ids': l['topping_ids'] ?? [],
+              },
+            )
+            .toList(),
       };
       await _updateCacheList('cached_open_tickets', mockTicket);
       if (tableId != null) {
@@ -1214,6 +1600,8 @@ class ApiService {
     int? customerId,
     required List<Map<String, dynamic>> lines,
     bool replaceAll = false,
+    String? discountType,
+    double? discountValue,
   }) async {
     final base = await getBaseUrl();
     final payload = {
@@ -1221,6 +1609,8 @@ class ApiService {
       'partner_id': customerId,
       'lines': lines,
       if (replaceAll) 'replace_all': true,
+      if (discountType != null && discountValue != null && discountValue > 0)
+        ...{'discount_type': discountType, 'discount_value': discountValue},
     };
 
     try {
@@ -1229,11 +1619,13 @@ class ApiService {
       _d('[API CALL] POST $url');
       _d('[API LOAD] $payload');
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 5));
 
       _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
       _d('[API BODY] ${response.body}');
@@ -1245,94 +1637,30 @@ class ApiService {
         final prefs = await SharedPreferences.getInstance();
         final cached = prefs.getString('cached_open_tickets');
         if (cached != null) {
-           final list = List<dynamic>.from(jsonDecode(cached));
-           final index = list.indexWhere((e) => e != null && e is Map && e['id'] == orderId);
-           if (index >= 0) {
-              // Ensure existing cached tickets always keep an opened_at timestamp
-              // so the Open Tickets screen can show the live duration badge.
-              if (list[index] is Map &&
-                  (list[index]['opened_at'] == null ||
-                      (list[index]['opened_at']?.toString().isEmpty ?? true))) {
-                list[index]['opened_at'] = DateTime.now().toUtc().toIso8601String();
-              }
-
-              // If we cleared a ticket completely, remove it from open tickets cache.
-              // This also ensures the associated table is selectable again.
-              if (replaceAll && lines.isEmpty) {
-                list.removeAt(index);
-                await prefs.setString('cached_open_tickets', jsonEncode(list));
-                if (tableId != null) {
-                  await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
-                }
-                return data;
-              }
-
-              if (replaceAll) {
-                list[index]['lines'] = lines
-                    .map(
-                      (l) => {
-                        'product_id': l['product_id'],
-                        'product_name': 'Item',
-                        'qty': l['qty'],
-                        'price_unit': l['price_unit'],
-                        'topping_ids': l['topping_ids'] ?? []
-                      },
-                    )
-                    .toList();
-              } else {
-                final existing = List<dynamic>.from(
-                  list[index]['lines'] ?? const [],
-                );
-                existing.addAll(
-                  lines.map(
-                    (l) => {
-                      'product_id': l['product_id'],
-                      'product_name': 'Item',
-                      'qty': l['qty'],
-                      'price_unit': l['price_unit'],
-                      'topping_ids': l['topping_ids'] ?? []
-                    },
-                  ),
-                );
-                list[index]['lines'] = existing;
-              }
-              // Always total the full ticket, not just this request's new lines
-              // (append mode used to set amount_total to "latest lines only").
-              list[index]['amount_total'] =
-                  _sumCachedOpenTicketLinesAmount(list[index]['lines']);
-              await prefs.setString('cached_open_tickets', jsonEncode(list));
-           }
-        }
-        return data;
-      } else {
-        throw Exception(jsonResponse['message'] ?? 'Failed to update order');
-      }
-    } catch (e) {
-      await _queueOfflineOrder({
-         'action': 'update',
-         'payload': payload,
-         'mock_id': orderId
-      });
-      // Also fetch and update local mock ticket
-      final prefs = await SharedPreferences.getInstance();
-      final cached = prefs.getString('cached_open_tickets');
-      if (cached != null) {
-         final list = List<dynamic>.from(jsonDecode(cached));
-         final index = list.indexWhere((e) => e != null && e is Map && e['id'] == orderId);
-         if (index >= 0) {
+          final list = List<dynamic>.from(jsonDecode(cached));
+          final index = list.indexWhere(
+            (e) => e != null && e is Map && e['id'] == orderId,
+          );
+          if (index >= 0) {
+            // Ensure existing cached tickets always keep an opened_at timestamp
+            // so the Open Tickets screen can show the live duration badge.
             if (list[index] is Map &&
                 (list[index]['opened_at'] == null ||
                     (list[index]['opened_at']?.toString().isEmpty ?? true))) {
-              list[index]['opened_at'] = DateTime.now().toUtc().toIso8601String();
+              list[index]['opened_at'] = DateTime.now()
+                  .toUtc()
+                  .toIso8601String();
             }
 
+            // If we cleared a ticket completely, remove it from open tickets cache.
+            // This also ensures the associated table is selectable again.
             if (replaceAll && lines.isEmpty) {
               list.removeAt(index);
               await prefs.setString('cached_open_tickets', jsonEncode(list));
               if (tableId != null) {
                 await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
               }
-              return {'id': orderId, 'cleared_offline': true};
+              return data;
             }
 
             if (replaceAll) {
@@ -1343,7 +1671,7 @@ class ApiService {
                       'product_name': 'Item',
                       'qty': l['qty'],
                       'price_unit': l['price_unit'],
-                      'topping_ids': l['topping_ids'] ?? []
+                      'topping_ids': l['topping_ids'] ?? [],
                     },
                   )
                   .toList();
@@ -1358,17 +1686,108 @@ class ApiService {
                     'product_name': 'Item',
                     'qty': l['qty'],
                     'price_unit': l['price_unit'],
-                    'topping_ids': l['topping_ids'] ?? []
+                    'topping_ids': l['topping_ids'] ?? [],
                   },
                 ),
               );
               list[index]['lines'] = existing;
             }
-            list[index]['amount_total'] =
-                _sumCachedOpenTicketLinesAmount(list[index]['lines']);
+            // Update discount on cached ticket
+            if (discountType != null && discountValue != null && discountValue > 0) {
+              list[index]['discount_type'] = discountType;
+              list[index]['discount_value'] = discountValue;
+            }
+            // Always total the full ticket, not just this request's new lines
+            // (append mode used to set amount_total to "latest lines only").
+            final rawSubtotal = _sumCachedOpenTicketLinesAmount(
+              list[index]['lines'],
+            );
+            list[index]['amount_total'] = _discountedTotal(
+              rawSubtotal,
+              list[index]['discount_type'] as String?,
+              (list[index]['discount_value'] as num?)?.toDouble(),
+            );
             await prefs.setString('cached_open_tickets', jsonEncode(list));
-            return list[index];
-         }
+          }
+        }
+        return data;
+      } else {
+        throw Exception(jsonResponse['message'] ?? 'Failed to update order');
+      }
+    } catch (e) {
+      await _queueOfflineOrder({
+        'action': 'update',
+        'payload': payload,
+        'mock_id': orderId,
+      });
+      // Also fetch and update local mock ticket
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_open_tickets');
+      if (cached != null) {
+        final list = List<dynamic>.from(jsonDecode(cached));
+        final index = list.indexWhere(
+          (e) => e != null && e is Map && e['id'] == orderId,
+        );
+        if (index >= 0) {
+          if (list[index] is Map &&
+              (list[index]['opened_at'] == null ||
+                  (list[index]['opened_at']?.toString().isEmpty ?? true))) {
+            list[index]['opened_at'] = DateTime.now().toUtc().toIso8601String();
+          }
+
+          if (replaceAll && lines.isEmpty) {
+            list.removeAt(index);
+            await prefs.setString('cached_open_tickets', jsonEncode(list));
+            if (tableId != null) {
+              await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
+            }
+            return {'id': orderId, 'cleared_offline': true};
+          }
+
+          if (replaceAll) {
+            list[index]['lines'] = lines
+                .map(
+                  (l) => {
+                    'product_id': l['product_id'],
+                    'product_name': 'Item',
+                    'qty': l['qty'],
+                    'price_unit': l['price_unit'],
+                    'topping_ids': l['topping_ids'] ?? [],
+                  },
+                )
+                .toList();
+          } else {
+            final existing = List<dynamic>.from(
+              list[index]['lines'] ?? const [],
+            );
+            existing.addAll(
+              lines.map(
+                (l) => {
+                  'product_id': l['product_id'],
+                  'product_name': 'Item',
+                  'qty': l['qty'],
+                  'price_unit': l['price_unit'],
+                  'topping_ids': l['topping_ids'] ?? [],
+                },
+              ),
+            );
+            list[index]['lines'] = existing;
+          }
+          if (discountType != null && discountValue != null && discountValue > 0) {
+            list[index]['discount_type'] = discountType;
+            list[index]['discount_value'] = discountValue;
+          }
+          final rawSubtotal = _sumCachedOpenTicketLinesAmount(
+            list[index]['lines'],
+          );
+          list[index]['amount_total'] = _discountedTotal(
+            rawSubtotal,
+            list[index]['discount_type'] as String?,
+            (list[index]['discount_value'] as num?)?.toDouble(),
+          );
+          await prefs.setString('cached_open_tickets', jsonEncode(list));
+          return list[index];
+        }
       }
       return {'id': orderId, 'offline_update': true};
     }
@@ -1377,11 +1796,15 @@ class ApiService {
   Future<Map<String, dynamic>> payOrder({
     required int orderId,
     int? paymentMethodId,
+    String? discountType,
+    double? discountValue,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/pay');
     final payload = {
       'payment_method_id': paymentMethodId,
+      if (discountType != null && discountValue != null && discountValue > 0)
+        ...{'discount_type': discountType, 'discount_value': discountValue},
     };
 
     _d('==============================');
@@ -1389,16 +1812,20 @@ class ApiService {
     _d('[API LOAD] $payload');
 
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 5));
 
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
         final raw = jsonResponse['data'];
-        final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+        final data = raw is Map
+            ? Map<String, dynamic>.from(raw)
+            : <String, dynamic>{};
         // Some endpoints return order_id but not id; normalize for Receipt History.
         data['id'] ??= data['order_id'] ?? orderId;
         await _removeFromCacheList('cached_open_tickets', orderId);
@@ -1411,9 +1838,9 @@ class ApiService {
       // Offline fallback: queue the pay and immediately move the ticket to Receipt History
       // as "Unsynced", while freeing the table locally.
       await _queueOfflineOrder({
-         'action': 'pay',
-         'payload': payload,
-         'mock_id': orderId
+        'action': 'pay',
+        'payload': payload,
+        'mock_id': orderId,
       });
 
       // Try to extract table + totals from cached_open_tickets so UI looks correct.
@@ -1433,8 +1860,19 @@ class ApiService {
             name = (t['name'] ?? name).toString();
             amountTotal = (t['amount_total'] is num)
                 ? (t['amount_total'] as num).toDouble()
-                : double.tryParse(t['amount_total']?.toString() ?? '') ?? amountTotal;
-            dateOrder = (t['opened_at'] ?? t['date_order'] ?? dateOrder).toString();
+                : double.tryParse(t['amount_total']?.toString() ?? '') ??
+                      amountTotal;
+            // If discount wasn't baked into cached amount_total, apply it now
+            if (discountType != null && discountValue != null && discountValue > 0) {
+              final cachedDiscountType = t['discount_type'] as String?;
+              final cachedDiscountValue = (t['discount_value'] as num?)?.toDouble();
+              if (cachedDiscountType != discountType || cachedDiscountValue != discountValue) {
+                final rawSubtotal = _sumCachedOpenTicketLinesAmount(t['lines']);
+                amountTotal = _discountedTotal(rawSubtotal, discountType, discountValue);
+              }
+            }
+            dateOrder = (t['opened_at'] ?? t['date_order'] ?? dateOrder)
+                .toString();
           }
         }
       } catch (_) {}
@@ -1443,17 +1881,41 @@ class ApiService {
       if (tableId != null) {
         await _markTableHasOpenOrder(tableId, hasOpenOrder: false);
       }
+      // Compute discount amount for offline mock receipt
+      double offlineDiscountAmount = 0.0;
+      if (discountType != null && discountValue != null && discountValue > 0) {
+        double rawSubtotalForDiscount = 0.0;
+        try {
+          final prefs2 = await SharedPreferences.getInstance();
+          final cached2 = prefs2.getString('cached_open_tickets');
+          if (cached2 != null) {
+            final list2 = List<dynamic>.from(jsonDecode(cached2));
+            final idx2 = list2.indexWhere((t) => t is Map && t['id'] == orderId);
+            if (idx2 >= 0) {
+              final t2 = Map<String, dynamic>.from(list2[idx2] as Map);
+              rawSubtotalForDiscount = _sumCachedOpenTicketLinesAmount(t2['lines']);
+            }
+          }
+        } catch (_) {}
+        if (rawSubtotalForDiscount > 0) {
+          final discounted = _discountedTotal(rawSubtotalForDiscount, discountType, discountValue);
+          offlineDiscountAmount = rawSubtotalForDiscount - discounted;
+        }
+      }
       final mockReceipt = {
-         'offline': true,
-         'synced': false,
-         'id': orderId,
-         'name': name,
-         'order_reference': name,
-         'date_order': dateOrder,
-         'date_paid': DateTime.now().toIso8601String(),
-         'payment_method': paymentMethodId != null ? 'Method #$paymentMethodId' : 'Offline',
-         'state': 'paid',
-         'amount_total': amountTotal,
+        'offline': true,
+        'synced': false,
+        'id': orderId,
+        'name': name,
+        'order_reference': name,
+        'date_order': dateOrder,
+        'date_paid': DateTime.now().toIso8601String(),
+        'payment_method': paymentMethodId != null
+            ? 'Method #$paymentMethodId'
+            : 'Offline',
+        'state': 'paid',
+        'amount_total': amountTotal,
+        'amount_discount': offlineDiscountAmount,
       };
       await _updateCacheList('cached_receipt_history', mockReceipt);
       return mockReceipt;
@@ -1467,20 +1929,19 @@ class ApiService {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/delete');
     final audit = await _cashierAuditFields();
-    final payload = {
-      'admin_pin': adminPin,
-      ...audit,
-    };
+    final payload = {'admin_pin': adminPin, ...audit};
 
     _d('==============================');
     _d('[API CALL] POST $url (DELETE ORDER)');
     _d('[API LOAD] $payload');
 
-    final response = await http.post(
-      url,
-      headers: await _authHeaders(json: true),
-      body: jsonEncode(payload),
-    ).timeout(const Duration(seconds: 5));
+    final response = await http
+        .post(
+          url,
+          headers: await _authHeaders(json: true),
+          body: jsonEncode(payload),
+        )
+        .timeout(const Duration(seconds: 5));
 
     _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
     _d('[API BODY] ${response.body}');
@@ -1503,11 +1964,13 @@ class ApiService {
     final audit = await _cashierAuditFields();
     final payload = {'admin_pin': adminPin, ...audit};
 
-    final response = await http.post(
-      url,
-      headers: await _authHeaders(json: true),
-      body: jsonEncode(payload),
-    ).timeout(const Duration(seconds: 8));
+    final response = await http
+        .post(
+          url,
+          headers: await _authHeaders(json: true),
+          body: jsonEncode(payload),
+        )
+        .timeout(const Duration(seconds: 8));
 
     final jsonResponse = jsonDecode(response.body);
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
@@ -1564,9 +2027,9 @@ class ApiService {
   Future<int> syncOfflineOrders() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> offlineQueue = prefs.getStringList('offline_orders') ?? [];
-    
+
     if (offlineQueue.isEmpty) return 0;
-    
+
     int syncedCount = 0;
     final base = await getBaseUrl();
     Map<int, int> mockToRealId = {};
@@ -1581,7 +2044,11 @@ class ApiService {
 
       // Process create/submit first, then others in each pass.
       final decoded = pending.map((t) {
-        try { return jsonDecode(t); } catch (_) { return null; }
+        try {
+          return jsonDecode(t);
+        } catch (_) {
+          return null;
+        }
       }).toList();
       final ordered = <Map<String, dynamic>>[];
       for (final d in decoded) {
@@ -1595,6 +2062,7 @@ class ApiService {
           if (s == 'pay') return 2;
           return 3;
         }
+
         return rank(a['action']).compareTo(rank(b['action']));
       });
 
@@ -1606,11 +2074,13 @@ class ApiService {
         try {
           // Fallback for old format
           if (task['action'] == null) {
-            final response = await http.post(
-              Uri.parse('$base/pos/order'),
-              headers: headers,
-              body: jsonEncode(task),
-            ).timeout(const Duration(seconds: 8));
+            final response = await http
+                .post(
+                  Uri.parse('$base/pos/order'),
+                  headers: headers,
+                  body: jsonEncode(task),
+                )
+                .timeout(const Duration(seconds: 8));
             if (response.statusCode == 200) {
               syncedCount++;
               continue;
@@ -1620,18 +2090,18 @@ class ApiService {
           }
 
           final action = task['action']?.toString();
-          final Map<String, dynamic> payload =
-              Map<String, dynamic>.from(task['payload'] ?? const {});
+          final Map<String, dynamic> payload = Map<String, dynamic>.from(
+            task['payload'] ?? const {},
+          );
 
           final rawMockId = task['mock_id'];
           final int mockId = rawMockId is int
               ? rawMockId
               : (int.tryParse(rawMockId?.toString() ?? '') ?? 0);
 
-          final int targetId =
-              (mockId < 0 && mockToRealId.containsKey(mockId))
-                  ? mockToRealId[mockId]!
-                  : mockId;
+          final int targetId = (mockId < 0 && mockToRealId.containsKey(mockId))
+              ? mockToRealId[mockId]!
+              : mockId;
 
           // If we can't map a mock id yet, defer this task to the next pass.
           if ((action == 'update' || action == 'pay') &&
@@ -1643,11 +2113,13 @@ class ApiService {
           }
 
           if (action == 'create' || action == 'submit') {
-            final response = await http.post(
-              Uri.parse('$base/pos/order'),
-              headers: headers,
-              body: jsonEncode(payload),
-            ).timeout(const Duration(seconds: 8));
+            final response = await http
+                .post(
+                  Uri.parse('$base/pos/order'),
+                  headers: headers,
+                  body: jsonEncode(payload),
+                )
+                .timeout(const Duration(seconds: 8));
             if (response.statusCode == 200) {
               final jsonResp = jsonDecode(response.body);
               if (jsonResp['status'] == 'success') {
@@ -1659,8 +2131,9 @@ class ApiService {
                     if (cand is int) realId = cand;
                     if (cand is String) realId = int.tryParse(cand);
                   }
-                  realId ??=
-                      (jsonResp['order_id'] is int) ? jsonResp['order_id'] : null;
+                  realId ??= (jsonResp['order_id'] is int)
+                      ? jsonResp['order_id']
+                      : null;
                   realId ??= (jsonResp['id'] is int) ? jsonResp['id'] : null;
                 } catch (_) {}
 
@@ -1679,7 +2152,10 @@ class ApiService {
                 if (action == 'submit' && mockId < 0) {
                   try {
                     final data = jsonResp['data'];
-                    await _removeFromCacheList('cached_receipt_history', mockId);
+                    await _removeFromCacheList(
+                      'cached_receipt_history',
+                      mockId,
+                    );
                     if (data is Map<String, dynamic>) {
                       await _updateCacheList('cached_receipt_history', data);
                     } else if (data is Map) {
@@ -1700,11 +2176,13 @@ class ApiService {
           }
 
           if (action == 'update') {
-            final response = await http.post(
-              Uri.parse('$base/pos/order/$targetId/update'),
-              headers: headers,
-              body: jsonEncode(payload),
-            ).timeout(const Duration(seconds: 8));
+            final response = await http
+                .post(
+                  Uri.parse('$base/pos/order/$targetId/update'),
+                  headers: headers,
+                  body: jsonEncode(payload),
+                )
+                .timeout(const Duration(seconds: 8));
             if (response.statusCode == 200) {
               syncedCount++;
               continue;
@@ -1714,11 +2192,13 @@ class ApiService {
           }
 
           if (action == 'pay') {
-            final response = await http.post(
-              Uri.parse('$base/pos/order/$targetId/pay'),
-              headers: headers,
-              body: jsonEncode(payload),
-            ).timeout(const Duration(seconds: 8));
+            final response = await http
+                .post(
+                  Uri.parse('$base/pos/order/$targetId/pay'),
+                  headers: headers,
+                  body: jsonEncode(payload),
+                )
+                .timeout(const Duration(seconds: 8));
             if (response.statusCode == 200) {
               syncedCount++;
               continue;
@@ -1780,12 +2260,14 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/toppings');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': name, 'extra_price': extraPrice}),
-      ).timeout(const Duration(seconds: 5));
-      
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'name': name, 'extra_price': extraPrice}),
+          )
+          .timeout(const Duration(seconds: 5));
+
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
         final data = jsonResp['data'];
@@ -1802,7 +2284,9 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/toppings/$id');
-      final response = await http.delete(url).timeout(const Duration(seconds: 5));
+      final response = await http
+          .delete(url)
+          .timeout(const Duration(seconds: 5));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
         throw Exception(jsonResp['message'] ?? 'Failed to delete topping');
@@ -1851,16 +2335,18 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/categories');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'id': id,
-          'name': name,
-          'pos_show_in_app': showInApp,
-        }),
-      ).timeout(const Duration(seconds: 5));
-      
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'id': id,
+              'name': name,
+              'pos_show_in_app': showInApp,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
         final data = jsonResp['data'];
@@ -1877,7 +2363,9 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/categories/$id');
-      final response = await http.delete(url).timeout(const Duration(seconds: 5));
+      final response = await http
+          .delete(url)
+          .timeout(const Duration(seconds: 5));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
         throw Exception(jsonResp['message'] ?? 'Failed to delete category');
@@ -1900,7 +2388,9 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/customers');
-      final response = await http.get(url, headers: await _authHeaders()).timeout(const Duration(seconds: 5));
+      final response = await http
+          .get(url, headers: await _authHeaders())
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
         if (jsonResp['status'] == 'success') {
@@ -1932,22 +2422,24 @@ class ApiService {
       final url = Uri.parse('$base/pos/customers');
       final dob = dateOfBirth?.trim();
       final img = imageBase64?.trim();
-      final response = await http.post(
-        url,
-        headers: await _authHeaders(json: true),
-        body: jsonEncode({
-          'id': id,
-          'name': name,
-          'phone': phone,
-          'email': email,
-          // DOB field name can differ between Odoo implementations.
-          // Send both keys for compatibility; backend can choose which to persist.
-          if (dob != null && dob.isNotEmpty) 'date_of_birth': dob,
-          if (dob != null && dob.isNotEmpty) 'birthdate': dob,
-          if (img != null && img.isNotEmpty) 'image_base64': img,
-        }),
-      ).timeout(const Duration(seconds: 5));
-      
+      final response = await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({
+              'id': id,
+              'name': name,
+              'phone': phone,
+              'email': email,
+              // DOB field name can differ between Odoo implementations.
+              // Send both keys for compatibility; backend can choose which to persist.
+              if (dob != null && dob.isNotEmpty) 'date_of_birth': dob,
+              if (dob != null && dob.isNotEmpty) 'birthdate': dob,
+              if (img != null && img.isNotEmpty) 'image_base64': img,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
         final data = jsonResp['data'];
@@ -1987,11 +2479,13 @@ class ApiService {
       _d('[API CALL] POST $url');
       _d('[API LOAD] $bodyData');
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(bodyData),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(bodyData),
+          )
+          .timeout(const Duration(seconds: 5));
 
       _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
       _d('[API BODY] ${response.body}');
@@ -2021,7 +2515,9 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/products/$id');
-      final response = await http.delete(url).timeout(const Duration(seconds: 5));
+      final response = await http
+          .delete(url)
+          .timeout(const Duration(seconds: 5));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
         throw Exception(jsonResp['message'] ?? 'Failed to delete product');
@@ -2070,17 +2566,15 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/combos');
-      final bodyData = {
-        'name': name,
-        'price': price,
-        'lines': lines,
-      };
+      final bodyData = {'name': name, 'price': price, 'lines': lines};
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(bodyData),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(bodyData),
+          )
+          .timeout(const Duration(seconds: 5));
 
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
@@ -2098,7 +2592,9 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/combos/$id');
-      final response = await http.delete(url).timeout(const Duration(seconds: 5));
+      final response = await http
+          .delete(url)
+          .timeout(const Duration(seconds: 5));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
         throw Exception(jsonResp['message'] ?? 'Failed to delete combo');
@@ -2124,7 +2620,9 @@ class ApiService {
           return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
         }
       }
-      throw Exception((jsonResp is Map ? jsonResp['message'] : null) ?? 'Bad response');
+      throw Exception(
+        (jsonResp is Map ? jsonResp['message'] : null) ?? 'Bad response',
+      );
     } catch (e) {
       throw Exception('Network error: Cannot load ranking ($e)');
     }
@@ -2173,11 +2671,13 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/order/$orderId/confirm_transfer');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({}),
-      ).timeout(const Duration(seconds: 7));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({}),
+          )
+          .timeout(const Duration(seconds: 7));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
         return;
@@ -2192,11 +2692,13 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/order/$orderId/reject');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({}),
-      ).timeout(const Duration(seconds: 7));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({}),
+          )
+          .timeout(const Duration(seconds: 7));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
         return;
@@ -2221,7 +2723,9 @@ class ApiService {
       }
       request.files.add(await http.MultipartFile.fromPath('proof', imagePath));
 
-      final streamed = await request.send().timeout(const Duration(seconds: 15));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 15),
+      );
       final body = await streamed.stream.bytesToString();
       final jsonResp = jsonDecode(body);
       if (streamed.statusCode == 200 && jsonResp['status'] == 'success') {
@@ -2233,7 +2737,9 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> fetchSelfOrderConfig({bool forceRefresh = false}) async {
+  Future<Map<String, dynamic>> fetchSelfOrderConfig({
+    bool forceRefresh = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
       final cachedStr = prefs.getString('cached_self_order_config');
@@ -2268,7 +2774,9 @@ class ApiService {
   ///   - `points_ratio`      (double)  — spend amount per 1 point
   ///   - `min_points_redeem` (int)     — minimum points required to redeem
   ///   - `points_label`      (String)  — display name for points (e.g. "Points")
-  Future<Map<String, dynamic>> fetchLoyaltyConfig({bool forceRefresh = false}) async {
+  Future<Map<String, dynamic>> fetchLoyaltyConfig({
+    bool forceRefresh = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final defaultData = {
       'points_ratio': 100.0,
@@ -2337,7 +2845,7 @@ class ApiService {
         fetchReceiptHistory(forceRefresh: true),
         fetchCustomers(forceRefresh: true),
         fetchSelfOrderConfig(forceRefresh: true),
-        fetchLoyaltyConfig(forceRefresh: true)
+        fetchLoyaltyConfig(forceRefresh: true),
       ];
       await Future.wait(futures);
       return;
@@ -2356,38 +2864,20 @@ class ApiService {
         'Loading products and prices…',
         () => fetchProducts(limit: 500, forceRefresh: true),
       ),
-      (
-        'Loading tables…',
-        () => fetchTables(forceRefresh: true),
-      ),
+      ('Loading tables…', () => fetchTables(forceRefresh: true)),
       (
         'Loading payment methods…',
         () => fetchPaymentMethods(forceRefresh: true),
       ),
-      (
-        'Loading toppings…',
-        () => fetchToppings(forceRefresh: true),
-      ),
-      (
-        'Loading categories…',
-        () => fetchCategories(forceRefresh: true),
-      ),
-      (
-        'Loading combos…',
-        () => fetchCombos(forceRefresh: true),
-      ),
-      (
-        'Loading open tickets…',
-        () => fetchOpenTickets(forceRefresh: true),
-      ),
+      ('Loading toppings…', () => fetchToppings(forceRefresh: true)),
+      ('Loading categories…', () => fetchCategories(forceRefresh: true)),
+      ('Loading combos…', () => fetchCombos(forceRefresh: true)),
+      ('Loading open tickets…', () => fetchOpenTickets(forceRefresh: true)),
       (
         'Loading receipt history…',
         () => fetchReceiptHistory(forceRefresh: true),
       ),
-      (
-        'Loading customers…',
-        () => fetchCustomers(forceRefresh: true),
-      ),
+      ('Loading customers…', () => fetchCustomers(forceRefresh: true)),
       (
         'Loading self-order settings…',
         () => fetchSelfOrderConfig(forceRefresh: true),
@@ -2413,9 +2903,12 @@ class ApiService {
   static const String _branchIdPrefsKey = 'cached_branch_id';
   static const String _branchNamePrefsKey = 'cached_branch_name';
   static const String _customerBranchIdPrefsKey = 'cached_customer_branch_id';
-  static const String _customerBranchNamePrefsKey = 'cached_customer_branch_name';
-  static const String _pendingDeviceRegPrefsKey = 'pending_pos_device_registration';
-  static const String _posIdentityPromptSessionKey = 'pos_identity_prompt_session';
+  static const String _customerBranchNamePrefsKey =
+      'cached_customer_branch_name';
+  static const String _pendingDeviceRegPrefsKey =
+      'pending_pos_device_registration';
+  static const String _posIdentityPromptSessionKey =
+      'pos_identity_prompt_session';
 
   Future<String?> getCachedSessionId() async {
     final prefs = await SharedPreferences.getInstance();
@@ -2436,7 +2929,9 @@ class ApiService {
     final requiredSid = prefs.getString(_posIdentityPromptSessionKey)?.trim();
     if (requiredSid == null || requiredSid.isEmpty) return false;
     final currentSid = await getCachedSessionId();
-    return currentSid != null && currentSid.isNotEmpty && currentSid == requiredSid;
+    return currentSid != null &&
+        currentSid.isNotEmpty &&
+        currentSid == requiredSid;
   }
 
   Future<String?> getCachedPosName() async {
@@ -2465,7 +2960,10 @@ class ApiService {
     return v;
   }
 
-  Future<void> setCachedBranch({int? branchId, required String branchName}) async {
+  Future<void> setCachedBranch({
+    int? branchId,
+    required String branchName,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     if (branchId != null && branchId > 0) {
       await prefs.setInt(_branchIdPrefsKey, branchId);
@@ -2511,9 +3009,9 @@ class ApiService {
     final url = Uri.parse('$base/pos/branches');
     final headers = await _authHeaders(json: true);
 
-    final resp = await http.get(url, headers: headers).timeout(
-          const Duration(seconds: 8),
-        );
+    final resp = await http
+        .get(url, headers: headers)
+        .timeout(const Duration(seconds: 8));
     if (resp.statusCode != 200) {
       throw Exception('Failed to load branches (${resp.statusCode})');
     }
@@ -2522,8 +3020,15 @@ class ApiService {
       throw Exception('Failed to load branches');
     }
     final data = decoded['data'];
-    if (data is! List) return [];
-    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final list = data is List
+        ? data
+        : (data is Map && data['branches'] is List)
+        ? data['branches'] as List
+        : const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   /// Public branch list (used before login, ex: cashier registration).
@@ -2542,8 +3047,15 @@ class ApiService {
       throw Exception('Failed to load branches');
     }
     final data = decoded['data'];
-    if (data is! List) return [];
-    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final list = data is List
+        ? data
+        : (data is Map && data['branches'] is List)
+        ? data['branches'] as List
+        : const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   Future<Map<String, dynamic>> _collectDeviceInfo() async {
@@ -2551,18 +3063,23 @@ class ApiService {
     final now = DateTime.now().toUtc().toIso8601String();
 
     if (kIsWeb) {
-      return {
-        'platform': 'web',
-        'timestamp_utc': now,
-      };
+      return {'platform': 'web', 'timestamp_utc': now, 'device_name': 'Web', 'device_id': 'web', 'model': 'Web', 'manufacturer': 'Web', 'brand': 'Web'};
     }
 
     try {
       if (Platform.isAndroid) {
         final a = await plugin.androidInfo;
+        final deviceName = _androidDeviceName(
+          manufacturer: a.manufacturer,
+          brand: a.brand,
+          model: a.model,
+          device: a.device,
+          product: a.product,
+        );
         return {
           'platform': 'android',
           'timestamp_utc': now,
+          'device_name': deviceName,
           'manufacturer': a.manufacturer,
           'brand': a.brand,
           'model': a.model,
@@ -2575,9 +3092,11 @@ class ApiService {
       }
       if (Platform.isIOS) {
         final i = await plugin.iosInfo;
+        final deviceName = _iosDeviceName(i.utsname.machine, i.model);
         return {
           'platform': 'ios',
           'timestamp_utc': now,
+          'device_name': deviceName,
           'name': i.name,
           'model': i.model,
           'localized_model': i.localizedModel,
@@ -2585,6 +3104,8 @@ class ApiService {
           'system_version': i.systemVersion,
           'machine': i.utsname.machine,
           'device_id': i.identifierForVendor,
+          'manufacturer': 'Apple',
+          'brand': 'Apple',
         };
       }
       if (Platform.isMacOS) {
@@ -2592,11 +3113,14 @@ class ApiService {
         return {
           'platform': 'macos',
           'timestamp_utc': now,
+          'device_name': m.model.isNotEmpty ? 'macOS ${m.model}' : 'macOS',
           'model': m.model,
           'computer_name': m.computerName,
           'os_release': m.osRelease,
           'kernel_version': m.kernelVersion,
           'device_id': m.systemGUID,
+          'manufacturer': 'Apple',
+          'brand': 'Apple',
         };
       }
       if (Platform.isWindows) {
@@ -2604,10 +3128,16 @@ class ApiService {
         return {
           'platform': 'windows',
           'timestamp_utc': now,
+          'device_name': w.computerName.isNotEmpty
+              ? 'Windows ${w.computerName}'
+              : 'Windows',
           'computer_name': w.computerName,
           'product_name': w.productName,
           'build_number': w.buildNumber,
           'device_id': w.deviceId,
+          'model': w.productName.isNotEmpty ? w.productName : 'Windows',
+          'manufacturer': 'Microsoft',
+          'brand': 'Microsoft',
         };
       }
       if (Platform.isLinux) {
@@ -2615,22 +3145,162 @@ class ApiService {
         return {
           'platform': 'linux',
           'timestamp_utc': now,
+          'device_name': l.prettyName.isNotEmpty ? l.prettyName : 'Linux',
           'name': l.name,
           'version': l.version,
           'pretty_name': l.prettyName,
           'machine_id': l.machineId,
           'device_id': l.machineId,
+          'model': l.prettyName.isNotEmpty ? l.prettyName : 'Linux',
+          'manufacturer': 'Linux',
+          'brand': 'Linux',
         };
       }
-    } catch (_) {
+    } catch (e) {
+      developer.log('DeviceInfo collection error: $e', name: 'ApiService');
       // fallthrough to unknown
     }
 
+    // Fallback: use dart:io Platform info when device_info_plus fails
+    String? os;
+    String? osVer;
+    try {
+      os = Platform.operatingSystem;
+      osVer = Platform.operatingSystemVersion;
+    } catch (_) {}
+    final plat = os ?? 'unknown';
+    final ver = osVer ?? '';
     return {
-      'platform': 'unknown',
+      'platform': plat,
       'timestamp_utc': now,
+      'device_name': ver.isNotEmpty ? '$plat $ver' : plat,
+      'device_id': 'unknown',
+      'model': ver.isNotEmpty ? ver : plat,
+      'manufacturer': plat == 'android'
+          ? 'Generic'
+          : plat == 'ios'
+              ? 'Apple'
+              : 'unknown',
+      'brand': plat == 'android'
+          ? 'Generic'
+          : plat == 'ios'
+              ? 'Apple'
+              : 'unknown',
     };
   }
+
+  String _androidDeviceName({
+    required String manufacturer,
+    required String brand,
+    required String model,
+    required String device,
+    required String product,
+  }) {
+    final maker = manufacturer.trim().isNotEmpty
+        ? manufacturer.trim()
+        : brand.trim();
+    final code = model.trim();
+    final normalizedCode = code.toUpperCase().replaceAll(RegExp(r'[\s_-]'), '');
+    final normalizedDevice = device.toUpperCase().replaceAll(RegExp(r'[\s_-]'), '');
+    final normalizedProduct = product.toUpperCase().replaceAll(RegExp(r'[\s_-]'), '');
+    final lookupKeys = {normalizedCode, normalizedDevice, normalizedProduct};
+    for (final entry in _androidModelNames.entries) {
+      if (lookupKeys.contains(entry.key)) {
+        return 'Android ${entry.value}';
+      }
+    }
+    final cleanMaker = _cleanDevicePart(maker);
+    final cleanModel = _cleanDevicePart(code);
+    if (cleanMaker.isEmpty && cleanModel.isEmpty) return 'Android';
+    if (cleanMaker.isEmpty) return 'Android $cleanModel';
+    if (cleanModel.isEmpty) return 'Android $cleanMaker';
+    if (cleanModel.toLowerCase().startsWith(cleanMaker.toLowerCase())) {
+      return 'Android $cleanModel';
+    }
+    return 'Android $cleanMaker $cleanModel';
+  }
+
+  String _iosDeviceName(String machine, String fallbackModel) {
+    final code = machine.trim();
+    final mapped = _iosMachineNames[code];
+    if (mapped != null) return 'iOS $mapped';
+    final fallback = fallbackModel.trim().isNotEmpty ? fallbackModel.trim() : 'iPhone';
+    return 'iOS $fallback';
+  }
+
+  String _cleanDevicePart(String value) {
+    final cleaned = value
+        .trim()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'(?i)\bandroid\b'), '')
+        .trim();
+    if (cleaned.isEmpty) return '';
+    return cleaned
+        .split(' ')
+        .map((part) => part.isEmpty ? part : part[0].toUpperCase() + part.substring(1))
+        .join(' ');
+  }
+
+  static const Map<String, String> _iosMachineNames = {
+    'iPhone10,3': 'iPhone X',
+    'iPhone10,6': 'iPhone X',
+    'iPhone11,2': 'iPhone XS',
+    'iPhone11,4': 'iPhone XS Max',
+    'iPhone11,6': 'iPhone XS Max',
+    'iPhone11,8': 'iPhone XR',
+    'iPhone12,1': 'iPhone 11',
+    'iPhone12,3': 'iPhone 11 Pro',
+    'iPhone12,5': 'iPhone 11 Pro Max',
+    'iPhone12,8': 'iPhone SE 2',
+    'iPhone13,1': 'iPhone 12 mini',
+    'iPhone13,2': 'iPhone 12',
+    'iPhone13,3': 'iPhone 12 Pro',
+    'iPhone13,4': 'iPhone 12 Pro Max',
+    'iPhone14,4': 'iPhone 13 mini',
+    'iPhone14,5': 'iPhone 13',
+    'iPhone14,2': 'iPhone 13 Pro',
+    'iPhone14,3': 'iPhone 13 Pro Max',
+    'iPhone14,6': 'iPhone SE 3',
+    'iPhone14,7': 'iPhone 14',
+    'iPhone14,8': 'iPhone 14 Plus',
+    'iPhone15,2': 'iPhone 14 Pro',
+    'iPhone15,3': 'iPhone 14 Pro Max',
+    'iPhone15,4': 'iPhone 15',
+    'iPhone15,5': 'iPhone 15 Plus',
+    'iPhone16,1': 'iPhone 15 Pro',
+    'iPhone16,2': 'iPhone 15 Pro Max',
+    'iPhone17,3': 'iPhone 16',
+    'iPhone17,4': 'iPhone 16 Plus',
+    'iPhone17,1': 'iPhone 16 Pro',
+    'iPhone17,2': 'iPhone 16 Pro Max',
+  };
+
+  static const Map<String, String> _androidModelNames = {
+    'SMG991B': 'Samsung Galaxy S21',
+    'SMG991U': 'Samsung Galaxy S21',
+    'SMG991U1': 'Samsung Galaxy S21',
+    'SMG991W': 'Samsung Galaxy S21',
+    'SMG991N': 'Samsung Galaxy S21',
+    'SMG996B': 'Samsung Galaxy S21+',
+    'SMG996U': 'Samsung Galaxy S21+',
+    'SMG996U1': 'Samsung Galaxy S21+',
+    'SMG996W': 'Samsung Galaxy S21+',
+    'SMG996N': 'Samsung Galaxy S21+',
+    'SMG998B': 'Samsung Galaxy S21 Ultra',
+    'SMG998U': 'Samsung Galaxy S21 Ultra',
+    'SMG998U1': 'Samsung Galaxy S21 Ultra',
+    'SMG998W': 'Samsung Galaxy S21 Ultra',
+    'SMG998N': 'Samsung Galaxy S21 Ultra',
+    '2201123G': 'Xiaomi 12',
+    '2201123C': 'Xiaomi 12',
+    '2201122G': 'Xiaomi 12 Pro',
+    '2201122C': 'Xiaomi 12 Pro',
+    '2206123SC': 'Xiaomi 12S',
+    '2206122SC': 'Xiaomi 12S Pro',
+    '2203121C': 'Xiaomi 12S Ultra',
+    '22071212AG': 'Xiaomi 12T',
+    '22081212UG': 'Xiaomi 12T Pro',
+  };
 
   /// Exposed for FCM token registration (best-effort).
   Future<Map<String, dynamic>> getDeviceInfoForAudit() => _collectDeviceInfo();
@@ -2654,7 +3324,8 @@ class ApiService {
       'cashier_name': cashierName,
       'pos_name': posName.trim(),
       if (branchId != null && branchId > 0) 'branch_id': branchId,
-      if ((branchName ?? '').trim().isNotEmpty) 'branch_name': branchName!.trim(),
+      if ((branchName ?? '').trim().isNotEmpty)
+        'branch_name': branchName!.trim(),
       'device': device,
     };
 
@@ -2741,5 +3412,10 @@ class ApiService {
     } catch (_) {
       // ignore; token will re-register on next launch / refresh
     }
+  }
+
+  Future<void> saveSelectedFavoritePlace(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('customer_selected_favorite_place_id', id);
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'topping.dart';
 import 'combo.dart';
 
@@ -112,6 +114,39 @@ class Product {
       colorCode: combo.colorCode,
       blockSelfOrder: false,
     );
+  }
+
+  // Lazy Cached Base64 Decoded Image Bytes
+  Uint8List? _decodedImageBytes;
+  bool _decodedImageBytesInit = false;
+  Uint8List? get decodedImageBytes {
+    if (!_decodedImageBytesInit) {
+      if (imageBase64 != null && imageBase64!.isNotEmpty) {
+        try {
+          _decodedImageBytes = base64Decode(imageBase64!);
+        } catch (_) {
+          _decodedImageBytes = null;
+        }
+      }
+      _decodedImageBytesInit = true;
+    }
+    return _decodedImageBytes;
+  }
+
+  Uint8List? _decodedRecommendedImageBytes;
+  bool _decodedRecommendedImageBytesInit = false;
+  Uint8List? get decodedRecommendedImageBytes {
+    if (!_decodedRecommendedImageBytesInit) {
+      if (recommendedImageBase64 != null && recommendedImageBase64!.isNotEmpty) {
+        try {
+          _decodedRecommendedImageBytes = base64Decode(recommendedImageBase64!);
+        } catch (_) {
+          _decodedRecommendedImageBytes = null;
+        }
+      }
+      _decodedRecommendedImageBytesInit = true;
+    }
+    return _decodedRecommendedImageBytes;
   }
 }
 
