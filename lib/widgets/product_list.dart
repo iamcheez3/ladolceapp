@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'dart:typed_data';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
 
@@ -24,14 +22,7 @@ class ProductList extends StatelessWidget {
         itemBuilder: (context, index) {
           final product = products[index];
           final initial = product.name.trim().isNotEmpty ? product.name.trim()[0].toUpperCase() : '?';
-          Uint8List? imageBytes;
-          if (product.imageBase64 != null && product.imageBase64!.isNotEmpty) {
-            try {
-              imageBytes = base64Decode(product.imageBase64!);
-            } catch (_) {
-              imageBytes = null;
-            }
-          }
+          final imageBytes = product.decodedImageBytes;
 
           return InkWell(
             onTap: () => onProductTap(product),

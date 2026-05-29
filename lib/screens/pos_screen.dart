@@ -210,16 +210,18 @@ class _PosScreenState extends State<PosScreen> {
           children: [
             Icon(icon, size: 22, color: isActive ? _brandNavy : Colors.black54),
             const SizedBox(width: 14),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? _brandNavy : Colors.black87,
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive ? _brandNavy : Colors.black87,
+                ),
               ),
             ),
             if (trailing != null) ...[
-              const Spacer(),
+              const SizedBox(width: 8),
               trailing,
             ],
           ],
@@ -491,7 +493,7 @@ class _PosScreenState extends State<PosScreen> {
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D1565),
+                  backgroundColor: const Color(0xFF001460),
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () {
@@ -1538,7 +1540,7 @@ class _PosScreenState extends State<PosScreen> {
         ],
       ),
       drawer: Drawer(
-        backgroundColor: Colors.white,
+        backgroundColor: _brandSurface,
         child: SafeArea(
           top: false,
           child: Column(
@@ -1548,7 +1550,7 @@ class _PosScreenState extends State<PosScreen> {
                 width: double.infinity,
                 padding: EdgeInsets.fromLTRB(
                   20,
-                  MediaQuery.paddingOf(context).top + 40,
+                  MediaQuery.paddingOf(context).top + 48,
                   20,
                   24,
                 ),
@@ -1562,50 +1564,73 @@ class _PosScreenState extends State<PosScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Initial avatar
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white.withOpacity(0.20),
-                      child: Text(
-                        widget.cashierName.isNotEmpty
-                            ? widget.cashierName[0].toLowerCase()
-                            : '?',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: widget.cashierName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Colors.white.withOpacity(0.18),
+                          child: Text(
+                            widget.cashierName.isNotEmpty
+                                ? widget.cashierName[0].toLowerCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          TextSpan(
-                            text: widget.role == 'admin' ? ' (Admin)' : ' (Cashier)',
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.cashierName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                widget.role == 'admin' ? 'Administrator' : 'Cashier',
+                                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.10),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.terminal_outlined, color: Colors.white70, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              [
+                                if ((_cachedPosName ?? '').trim().isNotEmpty)
+                                  (_cachedPosName ?? '').trim()
+                                else
+                                  'POS Terminal',
+                                if ((_cachedBranchName ?? '').trim().isNotEmpty)
+                                  ' • ${(_cachedBranchName ?? '').trim()}',
+                              ].join(''),
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      [
-                        if ((_cachedPosName ?? '').trim().isNotEmpty)
-                          (_cachedPosName ?? '').trim()
-                        else
-                          'POS Terminal',
-                        if ((_cachedBranchName ?? '').trim().isNotEmpty)
-                          ' • ${(_cachedBranchName ?? '').trim()}',
-                      ].join(''),
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
                 ),
@@ -1613,10 +1638,7 @@ class _PosScreenState extends State<PosScreen> {
               // ── Menu Items ───────────────────────────────────────
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   children: [
                     _drawerItem(
                       icon: Icons.storefront_outlined,
@@ -1642,21 +1664,14 @@ class _PosScreenState extends State<PosScreen> {
                       label: 'Self Orders Review',
                       trailing: _pendingSelfOrdersCount > 0
                           ? Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade600,
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 '$_pendingSelfOrdersCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
                               ),
                             )
                           : null,
@@ -1683,7 +1698,6 @@ class _PosScreenState extends State<PosScreen> {
                         );
                       },
                     ),
-                    const SizedBox(height: 4),
                     _drawerItem(
                       icon: Icons.settings_outlined,
                       label: 'Settings',
@@ -1692,9 +1706,7 @@ class _PosScreenState extends State<PosScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => PosSettingsScreen(
-                              onSyncRequested: _syncAllDataAndRefresh,
-                            ),
+                            builder: (_) => const PosSettingsScreen(),
                           ),
                         ).then((_) {
                           if (mounted) setState(() {});
@@ -1709,7 +1721,7 @@ class _PosScreenState extends State<PosScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm),
                   onTap: () async {
                     final navigator = Navigator.of(context);
                     await _apiService.logout();
@@ -1720,33 +1732,26 @@ class _PosScreenState extends State<PosScreen> {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F3F8),
-                      borderRadius: BorderRadius.circular(14),
+                      color: _brandNavy.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm),
+                      border: Border.all(color: _brandNavy.withOpacity(0.14)),
                     ),
                     child: const Row(
                       children: [
-                        Icon(
-                          Icons.lock_outline_rounded,
-                          color: _brandNavy,
-                          size: 20,
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Lock / Switch User',
-                            style: TextStyle(
-                              color: _brandNavy,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
+                        Icon(Icons.lock_outline_rounded, color: _brandNavy, size: 22),
+                        SizedBox(width: 14),
+                        Text(
+                          'Lock / Switch User',
+                          style: TextStyle(
+                            color: _brandNavy,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                        Spacer(),
+                        Icon(Icons.chevron_right, color: _brandNavy, size: 20),
                       ],
                     ),
                   ),

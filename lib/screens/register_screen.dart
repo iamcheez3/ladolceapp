@@ -14,7 +14,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static const Color _brandNavy = Color(0xFF0D1565);
+  static const Color _brandNavy = Color(0xFF001460);
   static const Color _brandNavy2 = Color(0xFF142B8C);
   static const Color _brandSurface = Color(0xFFF6F7FB);
 
@@ -583,7 +583,7 @@ class _GoogleAuthButton extends StatelessWidget {
         label: Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF0D1565),
+            color: Color(0xFF001460),
             fontSize: 15,
             fontWeight: FontWeight.w800,
           ),

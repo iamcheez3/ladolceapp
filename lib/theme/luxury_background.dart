@@ -9,7 +9,7 @@ class LuxuryPatternBackground extends StatelessWidget {
     super.key,
     required this.child,
     this.backgroundColor = const Color(0xFFF6F7FB),
-    this.patternColor = const Color(0xFF0D1565),
+    this.patternColor = const Color(0xFF001460),
   });
 
   @override

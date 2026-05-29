@@ -29,7 +29,7 @@ class MaintenanceScreen extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0D1565), // Brand navy
+              Color(0xFF001460), // Brand navy
               Color(0xFF1E293B), // Slate 800
             ],
           ),
@@ -85,7 +85,7 @@ class MaintenanceScreen extends StatelessWidget {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF0D1565),
+                    foregroundColor: const Color(0xFF001460),
                     padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),

@@ -14,7 +14,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
     this.onRefresh,
   });
 
-  static const Color _headerNavy = Color(0xFF0D1565);
+  static const Color _headerNavy = Color(0xFF001460);
   static const Color _labelMuted = Color(0xFF526684);
   static const Color _lineMuted = Color(0xFFCBD5E1);
 

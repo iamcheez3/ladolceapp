@@ -23,19 +23,31 @@ class RiderScreen extends StatefulWidget {
 
 class _RiderScreenState extends State<RiderScreen> {
   final ApiService _apiService = ApiService();
+  static const Color _navy = Color(0xFF1E3A8A);
+
   bool _isLoading = true;
-  List<Map<String, dynamic>> _orders = [];
+  List<Map<String, dynamic>> _allOrders = [];
   String? _errorMessage;
   Timer? _locationTimer;
   bool _locationPermissionGranted = false;
   bool _isSendingLocation = false;
+  int _selectedTabIndex = 0;
+
+  List<Map<String, dynamic>> get _currentOrders => _allOrders.where((o) {
+        final s = (o['delivery_status'] ?? '').toString();
+        return s != 'delivered';
+      }).toList();
+
+  List<Map<String, dynamic>> get _historyOrders => _allOrders.where((o) {
+        final s = (o['delivery_status'] ?? '').toString();
+        return s == 'delivered';
+      }).toList();
 
   Map<String, double>? _parseLatLngFromUrl(String url) {
     try {
       final uri = Uri.tryParse(url);
       if (uri == null) return null;
 
-      // Check query parameters like 'q' or 'query'
       String? q = uri.queryParameters['q'] ?? uri.queryParameters['query'];
       if (q != null) {
         final parts = q.split(',');
@@ -48,7 +60,6 @@ class _RiderScreenState extends State<RiderScreen> {
         }
       }
 
-      // Check path for patterns like @18.0123,102.6123
       final match = RegExp(r'@(-?\d+\.\d+),(-?\d+\.\d+)').firstMatch(url);
       if (match != null) {
         final lat = double.tryParse(match.group(1) ?? '');
@@ -60,8 +71,6 @@ class _RiderScreenState extends State<RiderScreen> {
     } catch (_) {}
     return null;
   }
-
-  static const Color _navy = Color(0xFF1E3A8A);
 
   @override
   void initState() {
@@ -102,7 +111,7 @@ class _RiderScreenState extends State<RiderScreen> {
   }
 
   bool _hasActiveOrders() {
-    for (final order in _orders) {
+    for (final order in _currentOrders) {
       final status = (order['delivery_status'] ?? '').toString();
       if (status == 'on_the_way' || status == 'arrived') return true;
     }
@@ -131,7 +140,7 @@ class _RiderScreenState extends State<RiderScreen> {
       }
 
       if (pos != null) {
-        for (final order in _orders) {
+        for (final order in _currentOrders) {
           final status = (order['delivery_status'] ?? '').toString();
           if (status == 'on_the_way' || status == 'arrived') {
             await _apiService.riderUpdateLocation(
@@ -180,7 +189,7 @@ class _RiderScreenState extends State<RiderScreen> {
       final data = await _apiService.fetchRiderOrders();
       if (mounted) {
         setState(() {
-          _orders = List<Map<String, dynamic>>.from(data['data'] ?? []);
+          _allOrders = List<Map<String, dynamic>>.from(data['data'] ?? []);
           _isLoading = false;
         });
         if (_hasActiveOrders()) {
@@ -270,7 +279,7 @@ class _RiderScreenState extends State<RiderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rider Dashboard'),
+        title: Text(_appBarTitle()),
         backgroundColor: _navy,
         foregroundColor: Colors.white,
         actions: [
@@ -301,13 +310,64 @@ class _RiderScreenState extends State<RiderScreen> {
         ],
       ),
       backgroundColor: Colors.grey[100],
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? _buildError()
-              : _orders.isEmpty
-                  ? _buildEmpty()
-                  : _buildOrderList(),
+      body: _buildBody(),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  String _appBarTitle() {
+    switch (_selectedTabIndex) {
+      case 0: return 'Current Orders';
+      case 1: return 'Order History';
+      case 2: return 'Dashboard';
+      default: return 'Rider';
+    }
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_errorMessage != null) return _buildError();
+
+    switch (_selectedTabIndex) {
+      case 0:
+        return _currentOrders.isEmpty
+            ? _buildEmpty('No current orders', 'Active orders will appear here')
+            : _buildOrderList(_currentOrders);
+      case 1:
+        return _historyOrders.isEmpty
+            ? _buildEmpty('No history yet', 'Completed orders will appear here')
+            : _buildOrderList(_historyOrders, isHistory: true);
+      case 2:
+        return _buildDashboard();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildEmpty(String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.delivery_dining, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _fetchOrders,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -332,48 +392,20 @@ class _RiderScreenState extends State<RiderScreen> {
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.delivery_dining, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No delivery orders yet',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Orders will appear here once assigned',
-            style: TextStyle(color: Colors.grey[500]),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _fetchOrders,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrderList() {
+  Widget _buildOrderList(List<Map<String, dynamic>> orders, {bool isHistory = false}) {
     return RefreshIndicator(
       onRefresh: _fetchOrders,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _orders.length,
+        itemCount: orders.length,
         itemBuilder: (context, index) {
-          final order = _orders[index];
-          return _buildOrderCard(order);
+          return _buildOrderCard(orders[index], isHistory: isHistory);
         },
       ),
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order) {
+  Widget _buildOrderCard(Map<String, dynamic> order, {bool isHistory = false}) {
     final lines = List<Map<String, dynamic>>.from(order['lines'] ?? []);
     final total = (order['amount_total'] as num?)?.toDouble() ?? 0.0;
     final ref = order['order_reference'] ?? '';
@@ -496,7 +528,7 @@ class _RiderScreenState extends State<RiderScreen> {
                     Text(address,
                         style: TextStyle(color: Colors.grey[700])),
                   ],
-                  if (hasValidCoordinates && (status == 'on_the_way' || status == 'arrived')) ...[
+                  if (!isHistory && hasValidCoordinates && (status == 'on_the_way' || status == 'arrived')) ...[
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
@@ -598,7 +630,7 @@ class _RiderScreenState extends State<RiderScreen> {
                   ],
                 ),
               )),
-          if (status == 'on_the_way' || status == 'arrived') ...[
+          if (!isHistory && (status == 'on_the_way' || status == 'arrived')) ...[
             const SizedBox(height: 12),
             const Divider(),
             Row(
@@ -638,6 +670,228 @@ class _RiderScreenState extends State<RiderScreen> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboard() {
+    final totalOrders = _allOrders.length;
+    final activeOrders = _currentOrders.length;
+    final completedOrders = _historyOrders.length;
+    final totalRevenue = _allOrders.fold<double>(
+      0, (sum, o) => sum + ((o['amount_total'] as num?)?.toDouble() ?? 0));
+
+    final pendingCount = _allOrders.where((o) => (o['delivery_status'] ?? '').toString() == 'pending').length;
+    final preparingCount = _allOrders.where((o) => (o['delivery_status'] ?? '').toString() == 'preparing').length;
+    final onTheWayCount = _allOrders.where((o) => (o['delivery_status'] ?? '').toString() == 'on_the_way').length;
+    final arrivedCount = _allOrders.where((o) => (o['delivery_status'] ?? '').toString() == 'arrived').length;
+
+    return RefreshIndicator(
+      onRefresh: _fetchOrders,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _dashboardCard(
+            icon: Icons.delivery_dining,
+            title: 'Total Orders',
+            value: '$totalOrders',
+            color: _navy,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _dashboardCard(
+                  icon: Icons.timer,
+                  title: 'Active',
+                  value: '$activeOrders',
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _dashboardCard(
+                  icon: Icons.check_circle,
+                  title: 'Completed',
+                  value: '$completedOrders',
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _dashboardCard(
+            icon: Icons.attach_money,
+            title: 'Total Revenue',
+            value: 'LAK ${totalRevenue.toStringAsFixed(0)}',
+            color: Colors.teal,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Orders by Status',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: _navy,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ..._buildStatusRow(Icons.hourglass_empty, 'Pending', pendingCount, Colors.orange),
+          ..._buildStatusRow(Icons.coffee, 'Preparing', preparingCount, Colors.orange),
+          ..._buildStatusRow(Icons.delivery_dining, 'On The Way', onTheWayCount, Colors.blue),
+          ..._buildStatusRow(Icons.location_on, 'Arrived', arrivedCount, Colors.teal),
+          ..._buildStatusRow(Icons.check_circle, 'Delivered', completedOrders, Colors.green),
+        ],
+      ),
+    );
+  }
+
+  Widget _dashboardCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildStatusRow(IconData icon, String label, int count, Color color) {
+    return [
+      Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: _navy,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildBottomNav() {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        navigationBarTheme: const NavigationBarThemeData(
+          indicatorColor: Colors.transparent,
+          elevation: 0,
+          height: 64,
+          labelTextStyle: WidgetStatePropertyAll(
+            TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+          ),
+        ),
+      ),
+      child: NavigationBar(
+        selectedIndex: _selectedTabIndex,
+        onDestinationSelected: (index) =>
+            setState(() => _selectedTabIndex = index),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: [
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined, color: _navy.withOpacity(0.5)),
+            selectedIcon: const Icon(Icons.receipt_long, color: _navy),
+            label: 'Order',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined, color: _navy.withOpacity(0.5)),
+            selectedIcon: const Icon(Icons.history, color: _navy),
+            label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined, color: _navy.withOpacity(0.5)),
+            selectedIcon: const Icon(Icons.dashboard, color: _navy),
+            label: 'Dashboard',
+          ),
         ],
       ),
     );

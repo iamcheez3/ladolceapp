@@ -5,7 +5,7 @@ import '../models/pos_tax_config.dart';
 import '../utils/pos_discount.dart';
 
 class CartSidebar extends StatelessWidget {
-  static const Color _brandNavy = Color(0xFF0D1565);
+  static const Color _brandNavy = Color(0xFF001460);
   static const Color _brandNavy2 = Color(0xFF142B8C);
 
   final List<CartItem> cartItems;
@@ -452,8 +452,8 @@ class _CartItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = isSaved ? Colors.grey[700]! : Colors.black87;
-    final priceColor = isSaved ? Colors.grey[600]! : const Color(0xFF0D1565);
-    final iconColor = isSaved ? Colors.grey[500]! : const Color(0xFF0D1565);
+    final priceColor = isSaved ? Colors.grey[600]! : const Color(0xFF001460);
+    final iconColor = isSaved ? Colors.grey[500]! : const Color(0xFF001460);
 
     return Material(
       color: isSaved ? const Color(0xFFFAFBFF) : Colors.white,

@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' show sin, cos, sqrt, asin;
@@ -1039,7 +1039,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   Future<void> _deleteFavoritePlace(
     _FavoritePlace place,
-    StateSetter parentSetState,
+    StateSetter? parentSetState,
   ) async {
     setState(() {
       _favoritePlaces = _favoritePlaces.where((p) => p.id != place.id).toList();
@@ -1049,7 +1049,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             : null;
       }
     });
-    parentSetState(() {});
+    parentSetState?.call(() {});
     await _saveFavoritePlaces();
   }
 
@@ -1062,123 +1062,22 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _openFavoritePlacesSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetCtx) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                16,
-                16,
-                16 + _gestureNavBottomPad(sheetCtx),
-              ),
-              child: SizedBox(
-                height: MediaQuery.sizeOf(sheetCtx).height * 0.62,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Favorite places',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: _brandNavy,
-                            ),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () =>
-                              _openAddFavoritePlaceSheet(setSheetState),
-                          icon: const Icon(Icons.add_location_alt_outlined),
-                          label: const Text('Add'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: _favoritePlaces.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No favorite places saved yet.',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            )
-                          : ListView.separated(
-                              itemCount: _favoritePlaces.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final place = _favoritePlaces[index];
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    color: _selectedFavoritePlaceId == place.id
-                                        ? const Color(0xFFEFF6FF)
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color:
-                                          _selectedFavoritePlaceId == place.id
-                                          ? _brandNavy
-                                          : const Color(0xFFE2E8F0),
-                                    ),
-                                  ),
-                                  child: RadioListTile<String>(
-                                    value: place.id,
-                                    groupValue: _selectedFavoritePlaceId,
-                                    activeColor: _brandNavy,
-                                    onChanged: (value) {
-                                      if (value == null) return;
-                                      setState(() {
-                                        _selectedFavoritePlaceId = value;
-                                      });
-                                      setSheetState(() {});
-                                    },
-                                    title: Text(
-                                      place.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      place.address,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    secondary: IconButton(
-                                      icon: const Icon(Icons.delete_outline),
-                                      onPressed: () => _deleteFavoritePlace(
-                                        place,
-                                        setSheetState,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            );
+    Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FavoritePlacesScreen(
+          favoritePlaces: _favoritePlaces,
+          selectedPlaceId: _selectedFavoritePlaceId,
+          onSelectPlace: (id) {
+            setState(() => _selectedFavoritePlaceId = id);
+            _apiService.saveSelectedFavoritePlace(id);
           },
-        );
-      },
-    );
+          onDeletePlace: (place) => _deleteFavoritePlace(place, null),
+        ),
+      ),
+    ).then((changed) {
+      if (changed == true && mounted) setState(() {});
+    });
   }
 
   String get _adSuppressDatePrefsKey =>
@@ -2137,6 +2036,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     _noteController.clear();
     String paymentChoice = 'transfer';
     XFile? proofImage;
+    bool isSelfPickup = false;
     final sheetMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
     showModalBottomSheet(
@@ -2151,7 +2051,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           builder: (context, setSheetState) {
             final bool hasBranch =
                 _selectedBranchId != null && (_selectedBranchId ?? 0) > 0;
-            final bool hasPlace = _selectedFavoritePlace != null;
+            final bool hasPlace =
+                isSelfPickup || _selectedFavoritePlace != null;
             final bool canConfirm =
                 hasBranch &&
                 hasPlace &&
@@ -2282,6 +2183,71 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         ),
                                       ),
                                     const SizedBox(height: 16),
+                                    // ── Fulfillment type ──
+                                    Text(
+                                      'How will you receive your order?',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => setSheetState(() => isSelfPickup = false),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 180),
+                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              decoration: BoxDecoration(
+                                                color: !isSelfPickup ? _brandNavy : Colors.grey.shade100,
+                                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                                                border: Border.all(color: !isSelfPickup ? _brandNavy : Colors.grey.shade300),
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  Icon(Icons.delivery_dining,
+                                                      color: !isSelfPickup ? Colors.white : Colors.grey.shade500, size: 26),
+                                                  const SizedBox(height: 4),
+                                                  Text('Rider delivery',
+                                                      textAlign: TextAlign.center,
+                                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
+                                                          color: !isSelfPickup ? Colors.white : Colors.grey.shade600)),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => setSheetState(() => isSelfPickup = true),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 180),
+                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              decoration: BoxDecoration(
+                                                color: isSelfPickup ? _brandNavy : Colors.grey.shade100,
+                                                borderRadius: const BorderRadius.horizontal(right: Radius.circular(12)),
+                                                border: Border.all(color: isSelfPickup ? _brandNavy : Colors.grey.shade300),
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  Icon(Icons.store_outlined,
+                                                      color: isSelfPickup ? Colors.white : Colors.grey.shade500, size: 26),
+                                                  const SizedBox(height: 4),
+                                                  Text('Come pick up myself',
+                                                      textAlign: TextAlign.center,
+                                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
+                                                          color: isSelfPickup ? Colors.white : Colors.grey.shade600)),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (!isSelfPickup) ...[ 
                                     Row(
                                       children: [
                                         const Expanded(
@@ -2392,6 +2358,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         ),
                                       ),
                                     const SizedBox(height: 12),
+                                    ],
                                     Text(
                                       AppLocalizations.of(context)?.orderNote ??
                                           'Order Note / Pickup Time',
@@ -2661,7 +2628,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                               : null,
                                           branchId: _selectedBranchId,
                                           note: _noteController.text.trim(),
-                                          favoritePlace: _selectedFavoritePlace,
+                                          isSelfPickup: isSelfPickup,
+                                          favoritePlace: isSelfPickup
+                                              ? (_favoritePlaces.isNotEmpty ? _favoritePlaces.first : null)
+                                              : _selectedFavoritePlace,
                                         );
                                       },
                                 style: ElevatedButton.styleFrom(
@@ -2701,6 +2671,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     int? transferBankId,
     int? branchId,
     String? note,
+    bool isSelfPickup = false,
     _FavoritePlace? favoritePlace,
   }) async {
     if (_cartItems.isEmpty || _isPlacingOrder) return;
@@ -2735,7 +2706,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         branchId: branchId,
         customerName: displayName,
         customerPhone: _cleanProfileText(_customerPhone),
-        note: note,
+        note: isSelfPickup
+            ? '[SELF-PICKUP]' 
+            : note,
         deliveryPlaceName: favoritePlace?.name,
         deliveryPlaceAddress: favoritePlace?.address,
         deliveryPlaceId: favoritePlace?.placeId,
@@ -2939,279 +2912,21 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _openEditProfileSheet() {
-    final nameController = TextEditingController(text: _customerName);
-    final phoneController = TextEditingController(
-      text: _cleanProfileText(_customerPhone),
-    );
-    final dobController = TextEditingController(text: _customerDob);
-    String dob = _customerDob;
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.4),
-      builder: (context) => Align(
-        alignment: Alignment.bottomCenter,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 24, left: 20, right: 20),
-            padding: EdgeInsets.only(
-              top: 24,
-              left: 20,
-              right: 20,
-              bottom: 20 + _gestureNavBottomPad(context) - 8,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      const Text(
-                        'Edit profile',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: _brandNavy,
-                        ),
-                      ),
-                      const Spacer(),
-                      InkWell(
-                        onTap: () => Navigator.pop(context),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          child: Icon(
-                            Icons.close,
-                            size: 24,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Input fields
-                  _buildProfileInputField(
-                    label: 'FULL NAME',
-                    controller: nameController,
-                    icon: Icons.person_outline,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildProfileInputField(
-                    label: 'PHONE',
-                    controller: phoneController,
-                    icon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildProfileDateField(
-                    label: 'DATE OF BIRTH',
-                    controller: dobController,
-                    onChanged: (val) => dob = val,
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Save button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _isSavingProfile
-                          ? null
-                          : () async {
-                              _customerName = nameController.text;
-                              _customerPhone = _cleanProfileText(
-                                phoneController.text,
-                              );
-                              _customerDob = dob;
-                              Navigator.pop(context);
-                              await _saveProfile();
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _brandNavy,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: _isSavingProfile
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Save Changes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _ProfileEditScreen(
+          currentName: _customerName,
+          currentPhone: _customerPhone,
+          currentDob: _customerDob,
+          onSave: (name, phone, dob) async {
+            _customerName = name;
+            _customerPhone = _cleanProfileText(phone);
+            _customerDob = dob;
+            await _saveProfile();
+          },
         ),
       ),
-    );
-  }
-
-  Widget _buildProfileInputField({
-    required String label,
-    required TextEditingController controller,
-    required IconData icon,
-    TextInputType? keyboardType,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF6B7280),
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Material(
-          color: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: Icon(icon, size: 20, color: Colors.grey[500]),
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    keyboardType: keyboardType,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
-                      ),
-                      hintText: label,
-                      hintStyle: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 15,
-                      ),
-                    ),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProfileDateField({
-    required String label,
-    required TextEditingController controller,
-    required ValueChanged<String> onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.6,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          readOnly: true,
-          decoration: InputDecoration(
-            hintText: 'YYYY-MM-DD',
-            prefixIcon: const Icon(Icons.cake_outlined, color: _brandNavy),
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.calendar_month_outlined),
-              onPressed: () async {
-                final now = DateTime.now();
-                DateTime initial = DateTime(now.year - 20, 1, 1);
-                try {
-                  final parts = controller.text.split('-');
-                  if (parts.length == 3) {
-                    final y = int.parse(parts[0]);
-                    final m = int.parse(parts[1]);
-                    final d = int.parse(parts[2]);
-                    initial = DateTime(y, m, d);
-                  }
-                } catch (_) {}
-
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: initial,
-                  firstDate: DateTime(1900, 1, 1),
-                  lastDate: DateTime(now.year, now.month, now.day),
-                );
-                if (picked == null) return;
-                final yyyy = picked.year.toString().padLeft(4, '0');
-                final mm = picked.month.toString().padLeft(2, '0');
-                final dd = picked.day.toString().padLeft(2, '0');
-                final iso = '$yyyy-$mm-$dd';
-                controller.text = iso;
-                onChanged(iso);
-              },
-            ),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: _brandNavy, width: 1.6),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -3245,50 +2960,37 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   Widget _profileNotificationTile() {
-    return Material(
-      color: const Color(0xFFF8FAFC),
-      borderRadius: BorderRadius.circular(16),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8ECF4)),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 40, height: 40,
               decoration: BoxDecoration(
                 color: const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFDCE5FF)),
               ),
-              child: const Icon(
-                Icons.notifications_outlined,
-                color: _brandNavy,
-              ),
+              child: const Icon(Icons.notifications_outlined, color: _brandNavy),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Notifications',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: _brandNavy,
-                    ),
-                  ),
+                  const Text('Notifications', style: TextStyle(fontWeight: FontWeight.w900, color: _brandNavy)),
                   const SizedBox(height: 2),
                   Text(
-                    _pushNotificationsEnabled
-                        ? 'Order updates on this device'
-                        : 'Push alerts are turned off',
+                    _pushNotificationsEnabled ? 'Order updates on this device' : 'Push alerts are turned off',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700, fontSize: 12),
                   ),
                 ],
               ),
@@ -3314,9 +3016,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     Widget? trailing,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: const Color(0xFFF8FAFC),
-      borderRadius: BorderRadius.circular(16),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8ECF4)),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -3325,8 +3030,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 40, height: 40,
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(14),
@@ -3339,23 +3043,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: _brandNavy,
-                      ),
-                    ),
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w900, color: _brandNavy)),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
+                      style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700, fontSize: 12),
                     ),
                   ],
                 ),
@@ -3365,10 +3059,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 trailing,
               ] else ...[
                 const SizedBox(width: 10),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF94A3B8),
-                ),
+                const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
               ],
             ],
           ),
@@ -5802,53 +5493,55 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         ),
         const SizedBox(height: 8),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: List.generate(steps.length, (i) {
-            final isCompleted = i <= currentIndex;
+            final isActive = i == currentIndex;
+            final isDone = i < currentIndex;
+            final isPending = i > currentIndex;
             final isLast = i == steps.length - 1;
+            final circleColor = isPending ? const Color(0xFFE2E8F0) : _brandNavy;
             return Expanded(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 10,
-                    backgroundColor: isCompleted
-                        ? const Color(0xFF166534)
-                        : const Color(0xFFE2E8F0),
-                    child: isCompleted
-                        ? const Icon(Icons.check, size: 12, color: Colors.white)
-                        : const SizedBox.shrink(),
-                  ),
-                  if (!isLast)
+              child: Opacity(
+                opacity: isDone ? 0.5 : 1.0,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Expanded(
-                      child: Container(
-                        height: 2,
-                        color: isCompleted
-                            ? const Color(0xFF166534)
-                            : const Color(0xFFE2E8F0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(
+                            radius: 10,
+                            backgroundColor: circleColor,
+                            child: (isActive || isDone)
+                                ? const Icon(Icons.check, size: 12, color: Colors.white)
+                                : const SizedBox.shrink(),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            labels[i],
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: (isActive || isDone) ? FontWeight.w700 : FontWeight.w500,
+                              color: isPending ? const Color(0xFF94A3B8) : _brandNavy,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: List.generate(steps.length, (i) {
-            final isCompleted = i <= currentIndex;
-            return Expanded(
-              child: Text(
-                labels[i],
-                textAlign: i == 0
-                    ? TextAlign.left
-                    : (i == steps.length - 1
-                          ? TextAlign.right
-                          : TextAlign.center),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: isCompleted ? FontWeight.w700 : FontWeight.w500,
-                  color: isCompleted
-                      ? const Color(0xFF166534)
-                      : const Color(0xFF94A3B8),
+                    if (!isLast)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Container(
+                          width: 16,
+                          height: 2,
+                          color: isDone
+                              ? _brandNavy.withValues(alpha: 0.5)
+                              : (isActive ? _brandNavy : const Color(0xFFE2E8F0)),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             );
@@ -6261,6 +5954,323 @@ class _QtyStepper extends StatelessWidget {
   }
 }
 
+class _ProfileEditScreen extends StatefulWidget {
+  final String currentName;
+  final String currentPhone;
+  final String currentDob;
+  final Future<void> Function(String name, String phone, String dob) onSave;
+
+  const _ProfileEditScreen({
+    required this.currentName,
+    required this.currentPhone,
+    required this.currentDob,
+    required this.onSave,
+  });
+
+  @override
+  State<_ProfileEditScreen> createState() => _ProfileEditScreenState();
+}
+
+class _ProfileEditScreenState extends State<_ProfileEditScreen> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _dobCtrl;
+  String _dob = '';
+  bool _isSaving = false;
+
+  static const _navy = Color(0xFF001460);
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.currentName);
+    _phoneCtrl = TextEditingController(
+      text: widget.currentPhone.replaceAll(RegExp(r'[^\d+]'), ''),
+    );
+    _dobCtrl = TextEditingController(text: widget.currentDob);
+    _dob = widget.currentDob;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _dobCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit profile'),
+        backgroundColor: _navy,
+        foregroundColor: Colors.white,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+        children: [
+          _buildField(
+            label: 'FULL NAME',
+            controller: _nameCtrl,
+            icon: Icons.person_outline,
+          ),
+          const SizedBox(height: 20),
+          _buildField(
+            label: 'PHONE',
+            controller: _phoneCtrl,
+            icon: Icons.phone_outlined,
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: 20),
+          _buildDateField(),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _navy,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: _isSaving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    await widget.onSave(_nameCtrl.text, _phoneCtrl.text, _dob);
+    if (mounted) Navigator.pop(context);
+  }
+
+  Widget _buildField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280), letterSpacing: 0.5)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: Icon(icon, size: 20, color: Colors.grey[500]),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  ),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('DATE OF BIRTH', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.6)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _dobCtrl,
+          readOnly: true,
+          decoration: InputDecoration(
+            hintText: 'YYYY-MM-DD',
+            prefixIcon: const Icon(Icons.cake_outlined, color: _navy),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.calendar_month_outlined),
+              onPressed: _pickDate,
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _navy, width: 1.6)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    DateTime initial = DateTime(now.year - 20, 1, 1);
+    try {
+      final parts = _dobCtrl.text.split('-');
+      if (parts.length == 3) {
+        final y = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        final d = int.parse(parts[2]);
+        initial = DateTime(y, m, d);
+      }
+    } catch (_) {}
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900, 1, 1),
+      lastDate: DateTime(now.year, now.month, now.day),
+    );
+    if (picked == null) return;
+    final yyyy = picked.year.toString().padLeft(4, '0');
+    final mm = picked.month.toString().padLeft(2, '0');
+    final dd = picked.day.toString().padLeft(2, '0');
+    final iso = '$yyyy-$mm-$dd';
+    _dobCtrl.text = iso;
+    setState(() => _dob = iso);
+  }
+}
+
+class _FavoritePlacesScreen extends StatefulWidget {
+  final List<_FavoritePlace> favoritePlaces;
+  final String? selectedPlaceId;
+  final void Function(String id) onSelectPlace;
+  final Future<void> Function(_FavoritePlace place) onDeletePlace;
+
+  const _FavoritePlacesScreen({
+    required this.favoritePlaces,
+    required this.selectedPlaceId,
+    required this.onSelectPlace,
+    required this.onDeletePlace,
+  });
+
+  @override
+  State<_FavoritePlacesScreen> createState() => _FavoritePlacesScreenState();
+}
+
+class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
+  late List<_FavoritePlace> _places;
+  late String? _selectedId;
+
+  static const _navy = Color(0xFF001460);
+
+  @override
+  void initState() {
+    super.initState();
+    _places = List.from(widget.favoritePlaces);
+    _selectedId = widget.selectedPlaceId;
+  }
+
+  void _delete(_FavoritePlace place) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete place?'),
+        content: Text('Remove "${place.name}" from your favorites?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() {
+      _places.removeWhere((p) => p.id == place.id);
+      if (_selectedId == place.id) {
+        _selectedId = _places.isNotEmpty ? _places.first.id : null;
+      }
+    });
+    await widget.onDeletePlace(place);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Favorite places'),
+        backgroundColor: _navy,
+        foregroundColor: Colors.white,
+      ),
+      body: _places.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(
+                      color: _navy.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Icon(Icons.place_outlined, size: 36, color: _navy.withValues(alpha: 0.3)),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('No favorite places saved yet.', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                ],
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+              itemCount: _places.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final place = _places[index];
+                final isSelected = _selectedId == place.id;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: isSelected ? _navy : const Color(0xFFE2E8F0)),
+                  ),
+                  child: ListTile(
+                    selected: isSelected,
+                    selectedTileColor: isSelected ? const Color(0xFFEFF6FF) : null,
+                    leading: Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: isSelected ? _navy.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.place_outlined, color: isSelected ? _navy : const Color(0xFF94A3B8)),
+                    ),
+                    title: Text(place.name, style: const TextStyle(fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(place.address, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Color(0xFF94A3B8)),
+                      onPressed: () => _delete(place),
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    onTap: () {
+                      setState(() => _selectedId = place.id);
+                      widget.onSelectPlace(place.id);
+                    },
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
 class _LuxuryPatternPainter extends CustomPainter {
   const _LuxuryPatternPainter();
 

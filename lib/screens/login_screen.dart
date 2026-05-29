@@ -26,8 +26,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const Color _brandNavy = Color(0xFF0D1565);
-  static const Color _brandNavy2 = Color(0xFF142B8C);
+  static const Color _brandNavy = Color(0xFF001460);
   static const Color _brandSurface = Color(0xFFF6F7FB);
 
   final _formKey = GlobalKey<FormState>();
@@ -52,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),
-            backgroundColor: const Color(0xFF0D1565),
+            backgroundColor: const Color(0xFF001460),
           ),
         );
       });
@@ -96,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Icon(
                 Icons.construction_rounded,
                 size: 20,
-                color: Color(0xFF0D1565),
+                color: Color(0xFF001460),
               ),
               SizedBox(width: 8),
               Text(
@@ -128,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     fillColor: const Color(0xFFF6F7FB),
                     prefixIcon: const Icon(
                       Icons.link_rounded,
-                      color: Color(0xFF0D1565),
+                      color: Color(0xFF001460),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -141,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF0D1565),
+                        color: Color(0xFF001460),
                         width: 1.5,
                       ),
                     ),
@@ -158,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     fillColor: const Color(0xFFF6F7FB),
                     prefixIcon: const Icon(
                       Icons.storage_rounded,
-                      color: Color(0xFF0D1565),
+                      color: Color(0xFF001460),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -171,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF0D1565),
+                        color: Color(0xFF001460),
                         width: 1.5,
                       ),
                     ),
@@ -199,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Dev overrides reset to default ngrok URL'),
-                    backgroundColor: Color(0xFF0D1565),
+                    backgroundColor: Color(0xFF001460),
                   ),
                 );
               },
@@ -208,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // Save
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0D1565),
+                backgroundColor: const Color(0xFF001460),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -235,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Saved dev settings'),
-                    backgroundColor: const Color(0xFF0D1565),
+                    backgroundColor: const Color(0xFF001460),
                   ),
                 );
               },
@@ -363,7 +362,7 @@ class _LoginScreenState extends State<LoginScreen> {
       floatingActionButton: kShowDevTools
           ? FloatingActionButton.small(
               onPressed: _showDevSettings,
-              backgroundColor: const Color(0xFF0D1565).withOpacity(0.85),
+              backgroundColor: const Color(0xFF001460).withOpacity(0.85),
               tooltip: 'Dev: API Settings',
               child: Stack(
                 alignment: Alignment.center,
@@ -392,13 +391,7 @@ class _LoginScreenState extends State<LoginScreen> {
             )
           : null,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_brandNavy, _brandNavy2],
-          ),
-        ),
+        color: _brandNavy,
         child: SafeArea(
           child: Stack(
             children: [
@@ -763,7 +756,7 @@ class _GoogleAuthButton extends StatelessWidget {
         label: Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF0D1565),
+            color: Color(0xFF001460),
             fontSize: 15,
             fontWeight: FontWeight.w800,
           ),

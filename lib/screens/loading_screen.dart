@@ -156,9 +156,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
     // from [PinStyleBackground] stay visually consistent.
     return Scaffold(
       backgroundColor: kCoffeeBrandNavy,
-      body: PinStyleBackground(
-        child: SafeArea(
-          child: LayoutBuilder(
+      body: SafeArea(
+        child: LayoutBuilder(
             builder: (context, viewport) {
               final hPad =
                   ResponsiveLayout.pageHorizontalPadding(context).clamp(
@@ -278,7 +277,6 @@ class _LoadingScreenState extends State<LoadingScreen> {
             );
             },
           ),
-        ),
       ),
     );
   }

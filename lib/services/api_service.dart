@@ -3413,4 +3413,9 @@ class ApiService {
       // ignore; token will re-register on next launch / refresh
     }
   }
+
+  Future<void> saveSelectedFavoritePlace(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('customer_selected_favorite_place_id', id);
+  }
 }

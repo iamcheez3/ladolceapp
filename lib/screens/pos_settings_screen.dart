@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'printer_settings_screen.dart';
 import 'bill_template_settings_screen.dart';
+import 'discount_config_screen.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../models/pos_discount_config.dart';
 
 class PosSettingsScreen extends StatefulWidget {
-  final Future<void> Function() onSyncRequested;
-
-  const PosSettingsScreen({
-    super.key,
-    required this.onSyncRequested,
-  });
+  const PosSettingsScreen({super.key});
 
   @override
   State<PosSettingsScreen> createState() => _PosSettingsScreenState();
@@ -80,264 +76,29 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
             },
           ),
           const SizedBox(height: 12),
-          _buildDiscountCard(context),
-          const SizedBox(height: 12),
           _buildMenuCard(
             context,
-            icon: Icons.sync,
-            title: 'Sync All Data',
-            subtitle: 'Manually refresh all local data from Odoo server',
+            icon: Icons.discount_outlined,
+            title: 'Discount Configuration',
+            subtitle: _discountConfig.enabled
+                ? '${_discountConfig.options.length} discount option(s) configured'
+                : 'Not configured',
+            subtitleColor: _discountConfig.enabled ? Colors.green : null,
             onTap: () async {
-              await widget.onSyncRequested();
+              final changed = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DiscountConfigScreen(
+                    initialConfig: _discountConfig,
+                  ),
+                ),
+              );
+              if (changed == true) _loadDiscountConfig();
             },
           ),
         ],
       ),
     );
-  }
-
-  Widget _buildDiscountCard(BuildContext context) {
-    final discountEnabled = _discountConfig.enabled;
-    final subtitle = discountEnabled
-        ? '${_discountConfig.options.length} discount option(s) configured'
-        : 'Not configured';
-    return _buildMenuCard(
-      context,
-      icon: Icons.discount_outlined,
-      title: 'Discount Configuration',
-      subtitle: discountEnabled ? 'Enabled: $subtitle' : subtitle,
-      subtitleColor: discountEnabled ? Colors.green : null,
-      onTap: () => _showDiscountConfigDialog(context),
-    );
-  }
-
-  Future<void> _showAddOptionDialog(
-      BuildContext context, Function(PosDiscountOption) onAdded) async {
-    String optType = 'percentage';
-    double? optValue;
-
-    final nameCtrl = TextEditingController();
-    final valueCtrl = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Discount Option'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Option Name',
-                    hintText: 'e.g. Discount 15%',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Discount Type',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                        value: 'percentage', label: Text('Percentage')),
-                    ButtonSegment(value: 'value', label: Text('Fixed Value')),
-                  ],
-                  selected: {optType},
-                  onSelectionChanged: (sel) =>
-                      setDialogState(() => optType = sel.first),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: valueCtrl,
-                  decoration: InputDecoration(
-                    labelText: optType == 'percentage'
-                        ? 'Percentage (%)'
-                        : 'Amount (₭)',
-                    hintText: 'Leave empty for manual input',
-                    border: const OutlineInputBorder(),
-                    suffixText: optType == 'percentage' ? '%' : null,
-                    prefixText: optType == 'value' ? '₭ ' : null,
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (v) {
-                    optValue = double.tryParse(v);
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameCtrl.text.trim().isEmpty) return;
-                final newOpt = PosDiscountOption(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  type: optType,
-                  value: optValue,
-                  name: nameCtrl.text.trim(),
-                );
-                onAdded(newOpt);
-                Navigator.pop(ctx);
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showDiscountConfigDialog(BuildContext context) async {
-    bool enabled = _discountConfig.enabled;
-    List<PosDiscountOption> options = List.from(_discountConfig.options);
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          title: const Text('Discount Configuration'),
-          content: SizedBox(
-            width: 400,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SwitchListTile(
-                    title: const Text('Enable Discount'),
-                    subtitle: Text(
-                      enabled
-                          ? 'Discount will appear in POS'
-                          : 'Discount hidden',
-                      style: TextStyle(
-                        color: enabled ? Colors.green : Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                    value: enabled,
-                    activeColor: LaDolcePosUi.navy,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: (v) => setDialogState(() => enabled = v),
-                  ),
-                  const SizedBox(height: 12),
-                  if (enabled) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Discount Options',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            _showAddOptionDialog(ctx, (newOpt) {
-                              setDialogState(() {
-                                options.add(newOpt);
-                              });
-                            });
-                          },
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (options.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(
-                          child: Text(
-                            'No discount options added yet.',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                      )
-                    else
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: options.length,
-                        itemBuilder: (context, index) {
-                          final opt = options[index];
-                          String valueText = '';
-                          if (opt.value == null) {
-                            valueText = opt.type == 'percentage'
-                                ? 'Custom %'
-                                : 'Custom ₭';
-                          } else {
-                            valueText = opt.type == 'percentage'
-                                ? '${opt.value!.toStringAsFixed(0)}%'
-                                : '₭${opt.value!.toStringAsFixed(0)}';
-                          }
-
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            child: ListTile(
-                              title: Text(opt.name),
-                              subtitle: Text(
-                                  'Type: ${opt.type} | Value: $valueText'),
-                              trailing: IconButton(
-                                icon:
-                                    const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    options.removeAt(index);
-                                  });
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: LaDolcePosUi.navy,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () async {
-                final newCfg = PosDiscountConfig(
-                  enabled: enabled,
-                  options: options,
-                );
-                await newCfg.save();
-                if (!ctx.mounted) return;
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (result == true) {
-      await _loadDiscountConfig();
-    }
   }
 
   Widget _buildMenuCard(
@@ -359,7 +120,7 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
           border: Border.all(color: LaDolcePosUi.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 14,
               offset: const Offset(0, 8),
             ),
@@ -371,9 +132,9 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: LaDolcePosUi.navy.withOpacity(0.06),
+                color: LaDolcePosUi.navy.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: LaDolcePosUi.navy.withOpacity(0.14)),
+                border: Border.all(color: LaDolcePosUi.navy.withValues(alpha: 0.14)),
               ),
               child: Icon(icon, color: LaDolcePosUi.navy, size: 22),
             ),

@@ -120,14 +120,14 @@ class _PosAppState extends State<PosApp> {
             ? GoogleFonts.notoSansLao().fontFamily
             : 'Inter',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0D1565), // Brand navy
-          primary: const Color(0xFF0D1565),
+          seedColor: const Color(0xFF001460), // Brand navy
+          primary: const Color(0xFF001460),
           secondary: const Color(0xFF3B82F6),
           surface: Colors.white,
         ),
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0D1565),
+          backgroundColor: Color(0xFF001460),
           foregroundColor: Colors.white,
           elevation: 0,
         ),

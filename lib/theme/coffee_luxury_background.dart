@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Brand colors shared with [PinScreen].
-const Color kCoffeeBrandNavy = Color(0xFF0D1565);
+const Color kCoffeeBrandNavy = Color(0xFF001460);
 const Color kCoffeeBrown = Color(0xFF6B4F3A);
 const Color kCoffeeGold = Color(0xFFC6A15B);
 
