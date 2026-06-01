@@ -137,3 +137,4 @@ flutter_native_splash:
   android_12:
     color: "#0D1565"
     image: assets/images/ladolce_bear_logo.png
+    icon_background_color: "#0D1565"

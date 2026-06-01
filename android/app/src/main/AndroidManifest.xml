@@ -13,6 +13,9 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${googleMapsApiKey}" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/brand_navy" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

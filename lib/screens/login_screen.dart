@@ -247,6 +247,174 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ── Login ────────────────────────────────────────────────────────────────
+
+  /// Completes a successful login response: caches data and navigates.
+  Future<void> _onLoginSuccess(Map<String, dynamic> response) async {
+    final navigator = Navigator.of(context);
+    try {
+      await PushNotificationsService.refreshBackendRegistration();
+    } catch (_) {}
+    if (!mounted) return;
+    navigator.pushReplacement(
+      MaterialPageRoute(builder: (_) => LoadingScreen(user: response)),
+    );
+  }
+
+  /// Shows a premium dialog when the backend reports the account is already
+  /// active on another device. Returns `true` if the user chose to continue
+  /// (force takeover), `false` if they cancelled.
+  Future<bool> _showDeviceConflictDialog(Map<String, dynamic> conflict) async {
+    final platform = (conflict['active_platform'] ?? '').toString().toLowerCase();
+    final rawDeviceId = (conflict['active_device_id'] ?? '').toString();
+    final maskedId = rawDeviceId.length > 8
+        ? '${rawDeviceId.substring(0, 6)}…'
+        : rawDeviceId;
+    final platformLabel = platform == 'ios' ? 'iPhone / iPad' : 'Android device';
+    final platformIcon = platform == 'ios' ? '🍎' : '📱';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FF),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFDCE5FF)),
+                ),
+                child: const Icon(
+                  Icons.devices_rounded,
+                  size: 32,
+                  color: _brandNavy,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Already signed in',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: _brandNavy,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your account is currently active on another device.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Device info pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(platformIcon, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          platformLabel,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: _brandNavy,
+                          ),
+                        ),
+                        if (maskedId.isNotEmpty)
+                          Text(
+                            'ID: $maskedId',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[500],
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Continuing will sign out that device.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: const BorderSide(color: Color(0xFFDCE5FF)),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: _brandNavy,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _brandNavy,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Continue',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return confirmed == true;
+  }
+
   void _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -257,17 +425,36 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
+      // Handle single-device conflict: show dialog and optionally force takeover.
+      if (response['status'] == 'conflict') {
+        if (!mounted) return;
+        final shouldContinue = await _showDeviceConflictDialog(response);
+        if (!mounted) return;
+        if (!shouldContinue) return;
+        // Re-submit with force=true to take over the session.
+        setState(() => _isLoading = true);
+        final forced = await _apiService.loginUser(
+          _loginController.text,
+          _passwordController.text,
+          force: true,
+        );
+        final role = forced['role']?.toString();
+        if (role == 'cashier' || role == 'customer' || role == 'admin' || role == 'rider') {
+          if (!mounted) return;
+          await _onLoginSuccess(forced);
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unknown role from server')),
+          );
+        }
+        return;
+      }
+
       final role = response['role']?.toString();
       if (role == 'cashier' || role == 'customer' || role == 'admin' || role == 'rider') {
         if (!mounted) return;
-        final navigator = Navigator.of(context);
-        try {
-          await PushNotificationsService.refreshBackendRegistration();
-        } catch (_) {}
-        if (!mounted) return;
-        navigator.pushReplacement(
-          MaterialPageRoute(builder: (_) => LoadingScreen(user: response)),
-        );
+        await _onLoginSuccess(response);
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -324,17 +511,26 @@ class _LoginScreenState extends State<LoginScreen> {
           authProvider: 'google',
         );
       }
+
+      // Handle single-device conflict.
+      if (response['status'] == 'conflict') {
+        if (!mounted) return;
+        final shouldContinue = await _showDeviceConflictDialog(response);
+        if (!mounted) return;
+        if (!shouldContinue) return;
+        setState(() => _isLoading = true);
+        response = await _apiService.loginUser(
+          googleLogin,
+          uid,
+          authProvider: 'google',
+          force: true,
+        );
+      }
+
       final role = response['role']?.toString();
       if (role == 'cashier' || role == 'customer' || role == 'admin' || role == 'rider') {
         if (!mounted) return;
-        final navigator = Navigator.of(context);
-        try {
-          await PushNotificationsService.refreshBackendRegistration();
-        } catch (_) {}
-        if (!mounted) return;
-        navigator.pushReplacement(
-          MaterialPageRoute(builder: (_) => LoadingScreen(user: response)),
-        );
+        await _onLoginSuccess(response);
       } else {
         throw Exception('Unknown role from server');
       }

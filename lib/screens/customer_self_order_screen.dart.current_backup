@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' show sin, cos, sqrt, asin;
@@ -187,9 +187,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String _supportWhatsappNumber = '';
   String _supportWhatsappLink = '';
   bool _pushNotificationsEnabled = true;
-  // Monotonic counter mirroring PushNotificationsService._syncGeneration so
-  // stale onFailure callbacks from superseded toggles are silently dropped.
-  int _notifSyncToken = 0;
   bool _hasShownAdPopup = false;
   String? _profileImagePath;
   bool _isUploadingProfileImage = false;
@@ -2161,8 +2158,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 child: Text(label),
                                               );
                                             }).toList(),
-                                            onChanged: (v) async {
-                                              if (v == null) return;
+                                            onChanged: (v) {
+                // Update UI immediately for responsive feel
+                setState(() => _pushNotificationsEnabled = v);
+                // Handle FCM operations in background without blocking UI
+                PushNotificationsService.setCustomerPushEnabled(v).catchError((e) {
+                  // Revert on error and show original state
+                  if (mounted) setState(() => _pushNotificationsEnabled = !v);
+                });
+              },
                                               final match = _branches.where((
                                                 b,
                                               ) {
@@ -3002,35 +3006,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               value: _pushNotificationsEnabled,
               activeThumbColor: _brandNavy,
               onChanged: (v) {
-                // ── Optimistic UI update ───────────────────────────────────
-                // Flip the switch immediately so the user sees instant feedback,
-                // regardless of how long the FCM sync takes.
-                final previousValue = _pushNotificationsEnabled;
-                final myToken = ++_notifSyncToken;
+                // Update UI immediately for responsive feel
                 setState(() => _pushNotificationsEnabled = v);
-
-                // ── Background FCM sync ────────────────────────────────────
-                // Fire-and-forget: the service persists locally and syncs FCM
-                // asynchronously. onFailure is called only if THIS toggle is
-                // still the most recent one (myToken == _notifSyncToken).
-                PushNotificationsService.setCustomerPushEnabled(
-                  v,
-                  onFailure: (reason) {
-                    // Discard if the user has toggled again since.
-                    if (!mounted || myToken != _notifSyncToken) return;
-                    // Revert switch to previous state.
-                    setState(() => _pushNotificationsEnabled = previousValue);
-                    // Inform the user.
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Could not update notification settings. Please try again.',
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                );
+                // Handle FCM operations in background without blocking UI
+                PushNotificationsService.setCustomerPushEnabled(v).catchError((e) {
+                  // Revert on error and show original state
+                  if (mounted) setState(() => _pushNotificationsEnabled = !v);
+                });
               },
             ),
           ],

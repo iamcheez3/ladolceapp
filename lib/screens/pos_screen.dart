@@ -8,6 +8,7 @@ import '../models/ticket.dart';
 import '../widgets/product_grid.dart';
 import '../widgets/product_list.dart';
 import '../widgets/cart_sidebar.dart';
+import '../widgets/customer_selection_sheet.dart';
 import '../screens/tickets_screen.dart';
 import '../screens/receipt_history_screen.dart';
 import '../screens/manage_items_screen.dart';
@@ -149,6 +150,7 @@ class _PosScreenState extends State<PosScreen> {
   Future<int> _printOrderItemsToKitchen(
     List<CartItem> items, {
     required bool respectCategoryFilters,
+    int? queueNumber,
   }) async {
     int printedCount = 0;
     Map<String, dynamic>? tpl;
@@ -168,6 +170,7 @@ class _PosScreenState extends State<PosScreen> {
         cashierName: widget.cashierName,
         headerText: headerText,
         footerText: footerText,
+        queueNumber: queueNumber,
       );
       if (ok) printedCount++;
     }
@@ -302,6 +305,7 @@ class _PosScreenState extends State<PosScreen> {
   int? _activeTicketId;
   String? _activeTicketName;
   int? _activeTicketTableId;
+  int _activeTicketQueueNumber = 0;
   String _activeTicketPaymentType = '';
   int? _activeTicketPaymentMethodId;
   String _activeTicketPaymentMethodName = '';
@@ -860,6 +864,7 @@ class _PosScreenState extends State<PosScreen> {
       _activeTicketId = null;
       _activeTicketName = null;
       _activeTicketTableId = null;
+      _activeTicketQueueNumber = 0;
       _activeTicketPaymentType = '';
       _activeTicketPaymentMethodId = null;
       _activeTicketPaymentMethodName = '';
@@ -1110,7 +1115,9 @@ class _PosScreenState extends State<PosScreen> {
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
-        resizeToAvoidBottomInset: true,
+        // Disable resizeToAvoidBottomInset to prevent keyboard animation loops
+        // Each dialog/sheet handles its own keyboard padding via useSafeArea
+        resizeToAvoidBottomInset: false,
       backgroundColor: _brandSurface,
       appBar: AppBar(
         backgroundColor: _brandNavy,
@@ -1128,6 +1135,7 @@ class _PosScreenState extends State<PosScreen> {
                 _cartItems = result.cartItems;
                 _activeTicketId = result.orderId;
                 _activeTicketName = result.orderName;
+                _activeTicketQueueNumber = result.queueNumber;
                 _activeTicketTableId = result.tableId;
                 _activeTicketPaymentType = result.paymentType;
                 _activeTicketPaymentMethodId = result.paymentMethodId;
@@ -1232,6 +1240,7 @@ class _PosScreenState extends State<PosScreen> {
                       headerText: headerText,
                       footerText: footerText,
                       discountAmount: bd.discount.discountAmount,
+                      queueNumber: _activeTicketQueueNumber,
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1279,6 +1288,7 @@ class _PosScreenState extends State<PosScreen> {
                     final reprintCount = await _printOrderItemsToKitchen(
                       _cartItems,
                       respectCategoryFilters: false,
+                      queueNumber: _activeTicketQueueNumber,
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -2009,6 +2019,7 @@ class _PosScreenState extends State<PosScreen> {
                         _cartItems = result.cartItems;
                         _activeTicketId = result.orderId;
                         _activeTicketName = result.orderName;
+                        _activeTicketQueueNumber = result.queueNumber;
                         _activeTicketTableId = result.tableId;
                         _activeTicketPaymentType = result.paymentType;
                         _activeTicketPaymentMethodId = result.paymentMethodId;
@@ -2059,71 +2070,67 @@ class _PosScreenState extends State<PosScreen> {
               context: context,
               isScrollControlled: true,
               useSafeArea: true,
-              builder: (ctx) => StatefulBuilder(
-                builder: (innerCtx, setSheetState) => Padding(
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+              backgroundColor: Colors.transparent,
+              builder: (ctx) => FractionallySizedBox(
+                heightFactor: 0.85,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                   ),
-                  child: FractionallySizedBox(
-                    heightFactor: 0.8,
-                    child: CartSidebar(
-                      cartItems: _cartItems,
-                      onUpdateQuantity: (item, newQty) {
-                        _updateQuantity(item, newQty);
-                        setSheetState(() {});
-                        if (_cartItems.isEmpty) Navigator.pop(ctx);
-                      },
-                      onEditKitchenNote: (item) => _editCartItemKitchenNote(
-                        item,
-                        onUpdated: () => setSheetState(() {}),
-                      ),
-                      onClearCart: () {
-                        _clearCart();
-                        Navigator.pop(ctx);
-                      },
-                      onViewTickets: () async {
-                        Navigator.pop(ctx);
-                        final result = await Navigator.push<ResumedTicket>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                TicketsScreen(cachedProducts: _products),
-                          ),
-                        );
-                        if (result != null) {
-                          setState(() {
-                            _cartItems = result.cartItems;
-                            _activeTicketId = result.orderId;
-                            _activeTicketName = result.orderName;
-                            _activeTicketTableId = result.tableId;
-                            _activeTicketPaymentType = result.paymentType;
-                            _activeTicketPaymentMethodId = result.paymentMethodId;
-                            _activeTicketPaymentMethodName =
-                                result.paymentMethodName;
-                          });
-                        }
-                      },
-                      onSaveTicket: () {
-                        Navigator.pop(ctx);
-                        _saveCurrentTicket(context);
-                      },
-                      onCharge: () {
-                        Navigator.pop(ctx);
-                        _showChargeDialog(context);
-                      },
-                      selectedCustomer: _selectedCustomer,
-                      onAddCustomer: () {
-                        Navigator.pop(ctx);
-                        _showCustomerSelection(context);
-                      },
-                      onClearCustomer: () {
-                        setState(() => _selectedCustomer = null);
-                        setSheetState(() {});
-                      },
-                      taxConfig: _taxConfig,
-                      selectedDiscountOption: _selectedDiscountOption,
-                      discountManualValue: _pendingDiscountManualValue,
-                    ),
+                  child: CartSidebar(
+                    cartItems: _cartItems,
+                    onUpdateQuantity: (item, newQty) {
+                      _updateQuantity(item, newQty);
+                      if (_cartItems.isEmpty) Navigator.pop(ctx);
+                    },
+                    onEditKitchenNote: _editCartItemKitchenNote,
+                    onClearCart: () {
+                      _clearCart();
+                      Navigator.pop(ctx);
+                    },
+                    onViewTickets: () async {
+                      Navigator.pop(ctx);
+                      final result = await Navigator.push<ResumedTicket>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              TicketsScreen(cachedProducts: _products),
+                        ),
+                      );
+                      if (result != null) {
+                        setState(() {
+                          _cartItems = result.cartItems;
+                          _activeTicketId = result.orderId;
+                          _activeTicketName = result.orderName;
+                          _activeTicketQueueNumber = result.queueNumber;
+                          _activeTicketTableId = result.tableId;
+                          _activeTicketPaymentType = result.paymentType;
+                          _activeTicketPaymentMethodId = result.paymentMethodId;
+                          _activeTicketPaymentMethodName =
+                              result.paymentMethodName;
+                        });
+                      }
+                    },
+                    onSaveTicket: () {
+                      Navigator.pop(ctx);
+                      _saveCurrentTicket(context);
+                    },
+                    onCharge: () {
+                      Navigator.pop(ctx);
+                      _showChargeDialog(context);
+                    },
+                    selectedCustomer: _selectedCustomer,
+                    onAddCustomer: () {
+                      Navigator.pop(ctx);
+                      _showCustomerSelection(context);
+                    },
+                    onClearCustomer: () {
+                      setState(() => _selectedCustomer = null);
+                    },
+                    taxConfig: _taxConfig,
+                    selectedDiscountOption: _selectedDiscountOption,
+                    discountManualValue: _pendingDiscountManualValue,
                   ),
                 ),
               ),
@@ -2755,217 +2762,32 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   void _showCustomerSelection(BuildContext context) async {
-    // Show loading state while fetching customers before opening modal (or inside)
-    final rootContext = context; // capture valid context unconditionally
-
-    showModalBottomSheet(
-      context: rootContext,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    final result = await showCustomerSelectionSheet(
+      context: context,
+      onSearchCustomers: (query, limit, offset) => _apiService.searchCustomersPaginated(
+        query: query,
+        limit: limit,
+        offset: offset,
       ),
-      builder: (ctx) {
-        String searchQuery = '';
-        List<dynamic> allCustomers = [];
-        bool isLoading = true;
-
-        // Helper to load
-        void loadData(StateSetter setSheetState) async {
-          try {
-            final data = await _apiService.fetchCustomers();
-            setSheetState(() {
-              allCustomers = data;
-              isLoading = false;
-            });
-          } catch (e) {
-            setSheetState(() => isLoading = false);
-          }
-        }
-
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            if (isLoading && allCustomers.isEmpty) {
-              loadData(setSheetState);
-              return const SizedBox(
-                height: 300,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-
-            final filteredCustomers = allCustomers.where((c) {
-              final name = (c['name']?.toString() ?? '').toLowerCase();
-              final phone = (c['phone']?.toString() ?? '').toLowerCase();
-              final q = searchQuery.toLowerCase();
-              return name.contains(q) || phone.contains(q);
-            }).toList();
-
-            return FractionallySizedBox(
-              heightFactor: 0.85,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: LaDolcePosUi.modalBottomPadding(context),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Select Customer',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextButton.icon(
-                          icon: const Icon(Icons.add),
-                          label: const Text('New'),
-                          onPressed: () {
-                            _showCreateCustomerDialog(ctx, () {
-                              setSheetState(() => isLoading = true);
-                              loadData(setSheetState);
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search by name or phone...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                      ),
-                      onChanged: (val) {
-                        setSheetState(() {
-                          searchQuery = val;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: filteredCustomers.isEmpty
-                          ? const Center(child: Text('No customers found.'))
-                          : ListView.separated(
-                              itemCount: filteredCustomers.length,
-                              separatorBuilder: (_, _) =>
-                                  const Divider(height: 1),
-                              itemBuilder: (ctx, index) {
-                                final c = filteredCustomers[index];
-                                final String cName = c['name'] is String
-                                    ? c['name']
-                                    : (c['name']?.toString() ?? '');
-                                final String cPhone = c['phone'] is String
-                                    ? c['phone']
-                                    : '';
-                                return ListTile(
-                                  leading: const CircleAvatar(
-                                    child: Icon(Icons.person),
-                                  ),
-                                  title: Text(
-                                    cName.isNotEmpty ? cName : 'Unknown',
-                                  ),
-                                  subtitle: cPhone.isNotEmpty
-                                      ? Text(cPhone)
-                                      : null,
-                                  onTap: () {
-                                    // Capture messenger before popping to fix deactivated widget ancestor exception
-                                    final messenger = ScaffoldMessenger.of(
-                                      rootContext,
-                                    );
-                                    setState(() {
-                                      _selectedCustomer = c;
-                                    });
-                                    Navigator.pop(ctx);
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Customer $cName selected!',
-                                        ),
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
+      onCreateCustomer: (name, phone) async {
+        await _apiService.saveCustomer(name: name, phone: phone);
       },
     );
-  }
 
-  void _showCreateCustomerDialog(
-    BuildContext sheetCtx,
-    VoidCallback onCustomerCreated,
-  ) {
-    final nameCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
+    if (result != null && mounted) {
+      setState(() {
+        _selectedCustomer = result;
+      });
 
-    showDialog(
-      context: sheetCtx,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New Customer'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Phone',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-          ],
+      final customerName = result['name']?.toString() ?? 'Unknown';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Customer $customerName selected!'),
+          duration: const Duration(seconds: 2),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty) return;
-              final navigator = Navigator.of(ctx);
-              final messenger = ScaffoldMessenger.of(ctx);
-              try {
-                await _apiService.saveCustomer(
-                  name: nameCtrl.text.trim(),
-                  phone: phoneCtrl.text.trim(),
-                );
-                navigator.pop(); // Close dialog
-                onCustomerCreated(); // Trigger the callback
-              } catch (e) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text(e.toString())),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 
   void _showChargeDialog(BuildContext context) {
@@ -3570,6 +3392,7 @@ class _PosScreenState extends State<PosScreen> {
     final snapshotActiveTicketId = _activeTicketId;
     final snapshotActiveTicketTableId = _activeTicketTableId;
     final snapshotActiveTicketPaymentType = _activeTicketPaymentType;
+    final snapshotActiveTicketQueueNumber = _activeTicketQueueNumber;
     final snapshotDiscountType = _appliedDiscountType;
     final snapshotDiscountValue = _appliedDiscountValue;
     final isCash =
@@ -3642,6 +3465,7 @@ class _PosScreenState extends State<PosScreen> {
             headerText: headerText,
             footerText: footerText,
             discountAmount: bd.discount.discountAmount,
+            queueNumber: snapshotActiveTicketQueueNumber,
           );
         }
         if (isCash) {
@@ -3760,6 +3584,7 @@ class _PosScreenState extends State<PosScreen> {
           final printedCount = await _printOrderItemsToKitchen(
             unprintedNewItems,
             respectCategoryFilters: true,
+            queueNumber: _activeTicketQueueNumber,
           );
           // Only mark as printed when at least one printer succeeded.
           if (printedCount > 0) {
@@ -4146,23 +3971,7 @@ class _PosScreenState extends State<PosScreen> {
       );
     }
 
-    // Print to kitchen in background (fire-and-forget).
-    if (printerService.isConfigured) {
-      _printOrderItemsToKitchen(
-        itemsForKitchen,
-        respectCategoryFilters: true,
-      ).then((count) {
-        if (count > 0) {
-          for (final item in itemsForKitchen) {
-            item.isPrinted = true;
-          }
-        }
-      }).catchError((_) {});
-    }
-
-    // Persist to server in background.
-    // createOrder() handles both online (cache + real ID) and
-    // offline fallback (mock ID + offline queue) internally.
+    // Persist to server in background, then print kitchen with queue number.
     _apiService
         .createOrder(
           userId: cashierId,
@@ -4170,7 +3979,40 @@ class _PosScreenState extends State<PosScreen> {
           customerId: _selectedCustomer?['id'],
           lines: lines,
         )
-        .catchError((_) {});
+        .then((response) {
+          final qn = (response['queue_number'] ?? 0).toInt();
+          if (qn > 0) {
+            _activeTicketQueueNumber = qn;
+          }
+          if (printerService.isConfigured) {
+            _printOrderItemsToKitchen(
+              itemsForKitchen,
+              respectCategoryFilters: true,
+              queueNumber: qn,
+            ).then((count) {
+              if (count > 0) {
+                for (final item in itemsForKitchen) {
+                  item.isPrinted = true;
+                }
+              }
+            }).catchError((_) {});
+          }
+        })
+        .catchError((_) {
+          // Offline fallback: print without queue number
+          if (printerService.isConfigured) {
+            _printOrderItemsToKitchen(
+              itemsForKitchen,
+              respectCategoryFilters: true,
+            ).then((count) {
+              if (count > 0) {
+                for (final item in itemsForKitchen) {
+                  item.isPrinted = true;
+                }
+              }
+            }).catchError((_) {});
+          }
+        });
     // No finally needed — _isOpeningTicket is no longer set because we never
     // show the spinner; the dialog is already dismissed above.
   }
