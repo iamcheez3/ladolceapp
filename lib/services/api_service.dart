@@ -151,7 +151,11 @@ class ApiService {
   }
 
   /// Compute total after applying discount, matching the frontend's [computePosDiscount].
-  double _discountedTotal(double subtotal, String? discountType, double? discountValue) {
+  double _discountedTotal(
+    double subtotal,
+    String? discountType,
+    double? discountValue,
+  ) {
     if (discountType == null || discountValue == null || discountValue <= 0) {
       return subtotal;
     }
@@ -610,6 +614,60 @@ class ApiService {
     }
   }
 
+  /// Paginated receipt history fetch - optimized for large datasets
+  /// Uses LIMIT and OFFSET for efficient database queries
+  Future<ReceiptHistoryResult> fetchReceiptHistoryPaginated({
+    required int limit,
+    required int offset,
+  }) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+
+      final queryParams = <String, String>{
+        'limit': '$limit',
+        'offset': '$offset',
+      };
+      if (userId > 0) {
+        queryParams['user_id'] = '$userId';
+      }
+
+      final url = Uri.parse(
+        '$base/pos/history/paginated',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          final data = jsonResponse['data'];
+          final receipts = List<Map<String, dynamic>>.from(
+            data['receipts'] ?? [],
+          );
+          final hasMore = data['has_more'] == true || data['hasMore'] == true;
+          final totalCount = data['total_count'] ?? data['totalCount'] ?? 0;
+
+          return ReceiptHistoryResult(
+            receipts: receipts,
+            hasMore: hasMore,
+            totalCount: totalCount,
+          );
+        }
+      }
+      throw Exception('Failed to load receipt history');
+    } catch (e) {
+      throw Exception('Failed to load receipt history: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> fetchOrderReceipt(int orderId) async {
     final base = await getBaseUrl();
     try {
@@ -657,7 +715,9 @@ class ApiService {
         if (jsonResponse['status'] == 'success') {
           return jsonResponse;
         }
-        throw Exception(jsonResponse['message'] ?? 'Failed to load rider orders');
+        throw Exception(
+          jsonResponse['message'] ?? 'Failed to load rider orders',
+        );
       }
       throw Exception('Failed to load rider orders');
     } catch (e) {
@@ -678,8 +738,9 @@ class ApiService {
       final params = <String, String>{};
       if (userId > 0) params['user_id'] = '$userId';
       if (branchId != null && branchId > 0) params['branch_id'] = '$branchId';
-      final url = Uri.parse('$base/pos/rider/list')
-          .replace(queryParameters: params.isNotEmpty ? params : null);
+      final url = Uri.parse(
+        '$base/pos/rider/list',
+      ).replace(queryParameters: params.isNotEmpty ? params : null);
       final response = await http
           .get(url, headers: await _authHeaders(json: true))
           .timeout(const Duration(seconds: 10));
@@ -709,8 +770,9 @@ class ApiService {
                 ? user['user_id'] as int
                 : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
           : 0;
-      final url = Uri.parse('$base/pos/order/$orderId/assign_rider')
-          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final url = Uri.parse(
+        '$base/pos/order/$orderId/assign_rider',
+      ).replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
       final response = await http
           .post(
             url,
@@ -741,8 +803,9 @@ class ApiService {
                 ? user['user_id'] as int
                 : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
           : 0;
-      final url = Uri.parse('$base/pos/order/$orderId/rider_arrived')
-          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final url = Uri.parse(
+        '$base/pos/order/$orderId/rider_arrived',
+      ).replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
       final response = await http
           .post(url, headers: await _authHeaders(json: true))
           .timeout(const Duration(seconds: 10));
@@ -769,8 +832,9 @@ class ApiService {
                 ? user['user_id'] as int
                 : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
           : 0;
-      final url = Uri.parse('$base/pos/order/$orderId/rider_complete')
-          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final url = Uri.parse(
+        '$base/pos/order/$orderId/rider_complete',
+      ).replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
       final response = await http
           .post(url, headers: await _authHeaders(json: true))
           .timeout(const Duration(seconds: 10));
@@ -779,7 +843,9 @@ class ApiService {
         if (jsonResponse['status'] == 'success') {
           return jsonResponse;
         }
-        throw Exception(jsonResponse['message'] ?? 'Failed to complete delivery');
+        throw Exception(
+          jsonResponse['message'] ?? 'Failed to complete delivery',
+        );
       }
       throw Exception('Failed to complete delivery');
     } catch (e) {
@@ -801,8 +867,9 @@ class ApiService {
                 ? user['user_id'] as int
                 : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
           : 0;
-      final url = Uri.parse('$base/pos/rider/location')
-          .replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
+      final url = Uri.parse(
+        '$base/pos/rider/location',
+      ).replace(queryParameters: userId > 0 ? {'user_id': '$userId'} : null);
       await http
           .post(
             url,
@@ -830,7 +897,8 @@ class ApiService {
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        if (jsonResponse['status'] == 'success' && jsonResponse['data'] != null) {
+        if (jsonResponse['status'] == 'success' &&
+            jsonResponse['data'] != null) {
           return Map<String, dynamic>.from(jsonResponse['data']);
         }
       }
@@ -1056,6 +1124,8 @@ class ApiService {
               : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
         : 0;
 
+    final tzOffset = DateTime.now().timeZoneOffset.inMinutes / 60.0;
+
     final url = Uri.parse('$base/pos/reports/summary').replace(
       queryParameters: {
         'from': DateFormat('yyyy-MM-dd').format(from),
@@ -1063,6 +1133,7 @@ class ApiService {
         if (branchId != null && branchId > 0) 'branch_id': '$branchId',
         if (userId > 0) 'user_id': '$userId',
         if (sid.isNotEmpty) 'session_id': sid,
+        'tz_offset': '$tzOffset',
       },
     );
     final resp = await http
@@ -1097,7 +1168,9 @@ class ApiService {
       'password': password,
       'role': role,
       if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
-      if ((role == 'cashier' || role == 'rider') && branchId != null && branchId > 0)
+      if ((role == 'cashier' || role == 'rider') &&
+          branchId != null &&
+          branchId > 0)
         'branch_id': branchId,
       if (authProvider != null && authProvider.trim().isNotEmpty)
         'auth_provider': authProvider.trim(),
@@ -1128,6 +1201,7 @@ class ApiService {
     String login,
     String password, {
     String? authProvider,
+    bool force = false,
   }) async {
     final base = await getBaseUrl();
     final dbName = await getDatabaseName();
@@ -1146,6 +1220,7 @@ class ApiService {
       'brand': device['brand'],
       if (authProvider != null && authProvider.trim().isNotEmpty)
         'auth_provider': authProvider.trim(),
+      if (force) 'force': true,
     };
 
     _d('==============================');
@@ -1163,6 +1238,22 @@ class ApiService {
     _d('==============================');
 
     final jsonResponse = jsonDecode(response.body);
+
+    // HTTP 409 → another device has an active session.
+    // Return a structured map so the caller can show a conflict dialog.
+    if (response.statusCode == 409 &&
+        (jsonResponse['status']?.toString() == 'conflict')) {
+      final conflictData =
+          (jsonResponse['data'] is Map)
+              ? Map<String, dynamic>.from(jsonResponse['data'] as Map)
+              : <String, dynamic>{};
+      return {
+        'status': 'conflict',
+        'message': jsonResponse['message']?.toString() ?? 'Session conflict',
+        ...conflictData,
+      };
+    }
+
     if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
       final data = jsonResponse['data'];
       final sessionId = jsonResponse['session_id'];
@@ -1376,8 +1467,12 @@ class ApiService {
       if (deliveryLongitude != null) 'delivery_longitude': deliveryLongitude,
       if ((deliveryMapsUrl ?? '').trim().isNotEmpty)
         'delivery_maps_url': deliveryMapsUrl!.trim(),
-      if (discountType != null && discountValue != null && discountValue > 0)
-        ...{'discount_type': discountType, 'discount_value': discountValue},
+      if (discountType != null &&
+          discountValue != null &&
+          discountValue > 0) ...{
+        'discount_type': discountType,
+        'discount_value': discountValue,
+      },
     };
 
     try {
@@ -1426,7 +1521,11 @@ class ApiService {
         0.0,
         (sum, line) => sum + (line['price_unit'] * line['qty']),
       );
-      final discounted = _discountedTotal(rawSubtotal, discountType, discountValue);
+      final discounted = _discountedTotal(
+        rawSubtotal,
+        discountType,
+        discountValue,
+      );
       final discountAmount = rawSubtotal - discounted;
       final mockReceipt = {
         'offline': true,
@@ -1483,8 +1582,12 @@ class ApiService {
       if (effectiveBranchId != null && effectiveBranchId > 0)
         'branch_id': effectiveBranchId,
       'lines': lines,
-      if (discountType != null && discountValue != null && discountValue > 0)
-        ...{'discount_type': discountType, 'discount_value': discountValue},
+      if (discountType != null &&
+          discountValue != null &&
+          discountValue > 0) ...{
+        'discount_type': discountType,
+        'discount_value': discountValue,
+      },
     };
 
     try {
@@ -1514,11 +1617,19 @@ class ApiService {
           'table_name': tableId != null
               ? 'Table $tableId'
               : (name ?? 'Customer'),
-          'amount_total': _discountedTotal(subtotal, discountType, discountValue),
+          'amount_total': _discountedTotal(
+            subtotal,
+            discountType,
+            discountValue,
+          ),
           'state': 'draft',
-          if (discountType != null && discountValue != null && discountValue > 0)
+          if (discountType != null &&
+              discountValue != null &&
+              discountValue > 0)
             'discount_type': discountType,
-          if (discountType != null && discountValue != null && discountValue > 0)
+          if (discountType != null &&
+              discountValue != null &&
+              discountValue > 0)
             'discount_value': discountValue,
           if (effectiveBranchId != null && effectiveBranchId > 0)
             'branch_id': effectiveBranchId,
@@ -1609,8 +1720,12 @@ class ApiService {
       'partner_id': customerId,
       'lines': lines,
       if (replaceAll) 'replace_all': true,
-      if (discountType != null && discountValue != null && discountValue > 0)
-        ...{'discount_type': discountType, 'discount_value': discountValue},
+      if (discountType != null &&
+          discountValue != null &&
+          discountValue > 0) ...{
+        'discount_type': discountType,
+        'discount_value': discountValue,
+      },
     };
 
     try {
@@ -1693,7 +1808,9 @@ class ApiService {
               list[index]['lines'] = existing;
             }
             // Update discount on cached ticket
-            if (discountType != null && discountValue != null && discountValue > 0) {
+            if (discountType != null &&
+                discountValue != null &&
+                discountValue > 0) {
               list[index]['discount_type'] = discountType;
               list[index]['discount_value'] = discountValue;
             }
@@ -1773,7 +1890,9 @@ class ApiService {
             );
             list[index]['lines'] = existing;
           }
-          if (discountType != null && discountValue != null && discountValue > 0) {
+          if (discountType != null &&
+              discountValue != null &&
+              discountValue > 0) {
             list[index]['discount_type'] = discountType;
             list[index]['discount_value'] = discountValue;
           }
@@ -1803,8 +1922,12 @@ class ApiService {
     final url = Uri.parse('$base/pos/order/$orderId/pay');
     final payload = {
       'payment_method_id': paymentMethodId,
-      if (discountType != null && discountValue != null && discountValue > 0)
-        ...{'discount_type': discountType, 'discount_value': discountValue},
+      if (discountType != null &&
+          discountValue != null &&
+          discountValue > 0) ...{
+        'discount_type': discountType,
+        'discount_value': discountValue,
+      },
     };
 
     _d('==============================');
@@ -1863,12 +1986,20 @@ class ApiService {
                 : double.tryParse(t['amount_total']?.toString() ?? '') ??
                       amountTotal;
             // If discount wasn't baked into cached amount_total, apply it now
-            if (discountType != null && discountValue != null && discountValue > 0) {
+            if (discountType != null &&
+                discountValue != null &&
+                discountValue > 0) {
               final cachedDiscountType = t['discount_type'] as String?;
-              final cachedDiscountValue = (t['discount_value'] as num?)?.toDouble();
-              if (cachedDiscountType != discountType || cachedDiscountValue != discountValue) {
+              final cachedDiscountValue = (t['discount_value'] as num?)
+                  ?.toDouble();
+              if (cachedDiscountType != discountType ||
+                  cachedDiscountValue != discountValue) {
                 final rawSubtotal = _sumCachedOpenTicketLinesAmount(t['lines']);
-                amountTotal = _discountedTotal(rawSubtotal, discountType, discountValue);
+                amountTotal = _discountedTotal(
+                  rawSubtotal,
+                  discountType,
+                  discountValue,
+                );
               }
             }
             dateOrder = (t['opened_at'] ?? t['date_order'] ?? dateOrder)
@@ -1890,15 +2021,23 @@ class ApiService {
           final cached2 = prefs2.getString('cached_open_tickets');
           if (cached2 != null) {
             final list2 = List<dynamic>.from(jsonDecode(cached2));
-            final idx2 = list2.indexWhere((t) => t is Map && t['id'] == orderId);
+            final idx2 = list2.indexWhere(
+              (t) => t is Map && t['id'] == orderId,
+            );
             if (idx2 >= 0) {
               final t2 = Map<String, dynamic>.from(list2[idx2] as Map);
-              rawSubtotalForDiscount = _sumCachedOpenTicketLinesAmount(t2['lines']);
+              rawSubtotalForDiscount = _sumCachedOpenTicketLinesAmount(
+                t2['lines'],
+              );
             }
           }
         } catch (_) {}
         if (rawSubtotalForDiscount > 0) {
-          final discounted = _discountedTotal(rawSubtotalForDiscount, discountType, discountValue);
+          final discounted = _discountedTotal(
+            rawSubtotalForDiscount,
+            discountType,
+            discountValue,
+          );
           offlineDiscountAmount = rawSubtotalForDiscount - discounted;
         }
       }
@@ -2709,6 +2848,27 @@ class ApiService {
     }
   }
 
+  Future<void> notifySelfOrderReady(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/order/$orderId/notify_ready');
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({}),
+          )
+          .timeout(const Duration(seconds: 7));
+      final jsonResp = jsonDecode(response.body);
+      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+        return;
+      }
+      throw Exception(jsonResp['message'] ?? 'Failed to notify customer');
+    } catch (e) {
+      throw Exception('Cannot notify customer: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> uploadTransferProof({
     required int orderId,
     required String imagePath,
@@ -3063,7 +3223,15 @@ class ApiService {
     final now = DateTime.now().toUtc().toIso8601String();
 
     if (kIsWeb) {
-      return {'platform': 'web', 'timestamp_utc': now, 'device_name': 'Web', 'device_id': 'web', 'model': 'Web', 'manufacturer': 'Web', 'brand': 'Web'};
+      return {
+        'platform': 'web',
+        'timestamp_utc': now,
+        'device_name': 'Web',
+        'device_id': 'web',
+        'model': 'Web',
+        'manufacturer': 'Web',
+        'brand': 'Web',
+      };
     }
 
     try {
@@ -3179,13 +3347,13 @@ class ApiService {
       'manufacturer': plat == 'android'
           ? 'Generic'
           : plat == 'ios'
-              ? 'Apple'
-              : 'unknown',
+          ? 'Apple'
+          : 'unknown',
       'brand': plat == 'android'
           ? 'Generic'
           : plat == 'ios'
-              ? 'Apple'
-              : 'unknown',
+          ? 'Apple'
+          : 'unknown',
     };
   }
 
@@ -3201,8 +3369,14 @@ class ApiService {
         : brand.trim();
     final code = model.trim();
     final normalizedCode = code.toUpperCase().replaceAll(RegExp(r'[\s_-]'), '');
-    final normalizedDevice = device.toUpperCase().replaceAll(RegExp(r'[\s_-]'), '');
-    final normalizedProduct = product.toUpperCase().replaceAll(RegExp(r'[\s_-]'), '');
+    final normalizedDevice = device.toUpperCase().replaceAll(
+      RegExp(r'[\s_-]'),
+      '',
+    );
+    final normalizedProduct = product.toUpperCase().replaceAll(
+      RegExp(r'[\s_-]'),
+      '',
+    );
     final lookupKeys = {normalizedCode, normalizedDevice, normalizedProduct};
     for (final entry in _androidModelNames.entries) {
       if (lookupKeys.contains(entry.key)) {
@@ -3224,7 +3398,9 @@ class ApiService {
     final code = machine.trim();
     final mapped = _iosMachineNames[code];
     if (mapped != null) return 'iOS $mapped';
-    final fallback = fallbackModel.trim().isNotEmpty ? fallbackModel.trim() : 'iPhone';
+    final fallback = fallbackModel.trim().isNotEmpty
+        ? fallbackModel.trim()
+        : 'iPhone';
     return 'iOS $fallback';
   }
 
@@ -3237,7 +3413,10 @@ class ApiService {
     if (cleaned.isEmpty) return '';
     return cleaned
         .split(' ')
-        .map((part) => part.isEmpty ? part : part[0].toUpperCase() + part.substring(1))
+        .map(
+          (part) =>
+              part.isEmpty ? part : part[0].toUpperCase() + part.substring(1),
+        )
         .join(' ');
   }
 
@@ -3414,8 +3593,102 @@ class ApiService {
     }
   }
 
+  /// Deregisters the FCM token on the backend when a customer disables
+  /// push notifications. This prevents the server from sending pushes to a
+  /// token that is about to be (or has already been) deleted on-device.
+  Future<void> deregisterFcmToken({required int userId}) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/fcm/deregister');
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({'user_id': userId}),
+          )
+          .timeout(const Duration(seconds: 6));
+      _d('[FCM DEREGISTER] user_id=$userId status=${response.statusCode}');
+    } catch (e) {
+      _d('[FCM DEREGISTER] failed (non-critical): $e');
+      // Non-critical: Firebase deleteToken() already prevents delivery;
+      // backend will auto-clean on next UNREGISTERED error (Option D).
+    }
+  }
+
   Future<void> saveSelectedFavoritePlace(String id) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('customer_selected_favorite_place_id', id);
   }
+
+  /// Paginated customer search - optimized for large datasets
+  /// Uses server-side search with LIMIT and OFFSET
+  Future<CustomerSearchResult> searchCustomersPaginated({
+    required String query,
+    required int limit,
+    required int offset,
+  }) async {
+    final base = await getBaseUrl();
+    try {
+      final queryParams = <String, String>{
+        'q': query,
+        'limit': '$limit',
+        'offset': '$offset',
+      };
+
+      final url = Uri.parse(
+        '$base/pos/customers/search',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          final data = jsonResponse['data'];
+          final customers = List<Map<String, dynamic>>.from(
+            data['customers'] ?? [],
+          );
+          final hasMore = data['has_more'] == true || data['hasMore'] == true;
+          final totalCount = data['total_count'] ?? data['totalCount'] ?? 0;
+
+          return CustomerSearchResult(
+            customers: customers,
+            hasMore: hasMore,
+            totalCount: totalCount,
+          );
+        }
+      }
+      throw Exception('Failed to search customers');
+    } catch (e) {
+      throw Exception('Failed to search customers: $e');
+    }
+  }
+}
+
+/// Result class for paginated receipt fetch
+class ReceiptHistoryResult {
+  final List<Map<String, dynamic>> receipts;
+  final bool hasMore;
+  final int totalCount;
+
+  const ReceiptHistoryResult({
+    required this.receipts,
+    required this.hasMore,
+    this.totalCount = 0,
+  });
+}
+
+/// Result class for paginated customer search
+class CustomerSearchResult {
+  final List<Map<String, dynamic>> customers;
+  final bool hasMore;
+  final int totalCount;
+
+  const CustomerSearchResult({
+    required this.customers,
+    required this.hasMore,
+    this.totalCount = 0,
+  });
 }

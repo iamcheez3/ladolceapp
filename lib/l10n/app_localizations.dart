@@ -211,6 +211,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'e.g., Pickup at 3:00 PM, extra spicy, etc.'**
   String get orderNoteHint;
+
+  /// No description provided for @weatherWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Due to bad weather, your delivery or rider may be delayed.'**
+  String get weatherWarning;
 }
 
 class _AppLocalizationsDelegate

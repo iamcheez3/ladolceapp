@@ -37,6 +37,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   Map<String, dynamic>? _report;
   Map<String, dynamic>? _cachedUser;
+  bool _showHourlyOrders = true; // true = order count, false = revenue
 
   @override
   void initState() {
@@ -204,6 +205,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         (data['sales_by_product'] as List?)?.cast<Map>() ?? const [];
     final byBranch =
         (data['sales_by_branch'] as List?)?.cast<Map>() ?? const [];
+    final salesByHour =
+        (data['sales_by_hour'] as List?)?.cast<Map>() ?? const [];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -214,6 +217,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           title: 'Sales by date',
           child: _salesLineChart(salesByDay),
         ),
+        const SizedBox(height: 12),
+        _hourlyPeakCard(salesByHour),
         const SizedBox(height: 12),
         _chartCard(
           title: 'Sales by payment type',
@@ -745,6 +750,274 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               _money(amt),
               style: style,
               textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hourlyPeakCard(List<Map> rows) {
+    if (rows.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const SizedBox(
+          height: 100,
+          child: Center(
+            child: Text(
+              'No hourly peak data available',
+              style: TextStyle(color: Colors.black54),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Identify maximum value to highlight peak hours (>=85% of max)
+    double maxV = 0.0;
+    for (final r in rows) {
+      final val = _showHourlyOrders
+          ? ((r['order_count'] as num?)?.toDouble() ?? 0.0)
+          : ((r['total'] as num?)?.toDouble() ?? 0.0);
+      if (val > maxV) maxV = val;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Peak order hours',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+              ),
+              // Segmented controls for switching modes
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _toggleButton(
+                      label: 'Orders',
+                      active: _showHourlyOrders,
+                      onTap: () => setState(() => _showHourlyOrders = true),
+                    ),
+                    _toggleButton(
+                      label: 'Revenue',
+                      active: !_showHourlyOrders,
+                      onTap: () => setState(() => _showHourlyOrders = false),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 200,
+            child: BarChart(
+              BarChartData(
+                maxY: maxV <= 0 ? 1 : maxV * 1.15,
+                gridData: const FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                ),
+                borderData: FlBorderData(show: false),
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (group) => _brandNavy,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final h = (rows[groupIndex]['hour'] as num?)?.toInt() ?? 0;
+                      final count = (rows[groupIndex]['order_count'] as num?)?.toInt() ?? 0;
+                      final amt = (rows[groupIndex]['total'] as num?)?.toDouble() ?? 0.0;
+                      final timeStr = '${h.toString().padLeft(2, '0')}:00 - ${(h + 1).toString().padLeft(2, '0')}:00';
+                      final countStr = '$count order${count == 1 ? "" : "s"}';
+                      final amtStr = _money(amt);
+                      return BarTooltipItem(
+                        '$timeStr\n$countStr\n$amtStr',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 44,
+                      interval: _niceInterval(maxV),
+                      getTitlesWidget: (v, meta) => Text(
+                        NumberFormat.compact().format(v),
+                        style: const TextStyle(fontSize: 9, color: Colors.black54, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) {
+                        final h = value.round();
+                        if (h < 0 || h > 23) return const SizedBox.shrink();
+                        // Label every 3 hours to avoid overlap
+                        if (h % 3 != 0) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            '${h.toString().padLeft(2, '0')}:00',
+                            style: const TextStyle(fontSize: 8, color: Colors.black54, fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                barGroups: [
+                  for (var i = 0; i < rows.length; i++)
+                    BarChartGroupData(
+                      x: (rows[i]['hour'] as num?)?.toInt() ?? i,
+                      barRods: [
+                        BarChartRodData(
+                          toY: _showHourlyOrders
+                              ? ((rows[i]['order_count'] as num?)?.toDouble() ?? 0.0)
+                              : ((rows[i]['total'] as num?)?.toDouble() ?? 0.0),
+                          color: maxV > 0 &&
+                                  (_showHourlyOrders
+                                      ? ((rows[i]['order_count'] as num?)?.toDouble() ?? 0.0)
+                                      : ((rows[i]['total'] as num?)?.toDouble() ?? 0.0)) >=
+                                      maxV * 0.85
+                              ? LaDolcePosUi.gold
+                              : LaDolcePosUi.navy2,
+                          width: 8,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _peakStaffingSummary(rows),
+        ],
+      ),
+    );
+  }
+
+  Widget _toggleButton({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  )
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: active ? _brandNavy : Colors.black54,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _peakStaffingSummary(List<Map> rows) {
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    // Sort by order_count descending
+    final sorted = List<Map>.from(rows)
+      ..sort((a, b) {
+        final ac = (a['order_count'] as num?)?.toInt() ?? 0;
+        final bc = (b['order_count'] as num?)?.toInt() ?? 0;
+        return bc.compareTo(ac);
+      });
+
+    final topHours = <int>[];
+    for (var i = 0; i < sorted.length && i < 3; i++) {
+      final count = (sorted[i]['order_count'] as num?)?.toInt() ?? 0;
+      if (count > 0) {
+        topHours.add((sorted[i]['hour'] as num).toInt());
+      }
+    }
+
+    if (topHours.isEmpty) {
+      return const Text(
+        'No order traffic recorded in this range.',
+        style: TextStyle(
+          fontSize: 11,
+          color: Colors.black54,
+          fontStyle: FontStyle.italic,
+        ),
+      );
+    }
+
+    topHours.sort();
+    final hoursStr = topHours.map((h) => '${h.toString().padLeft(2, '0')}:00').join(', ');
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F4FF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD0E0FF)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: _brandNavy,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '💡 Staffing Tip: Peak traffic occurs around $hoursStr. Consider preparing additional staff or scheduling shifts to cover these times.',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF1E293B),
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
             ),
           ),
         ],

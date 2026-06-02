@@ -65,4 +65,8 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get orderNoteHint => 'ຕົວຢ່າງ: ມາຮັບຕອນ 15:00 ໂມງ, ເຜັດຫຼາຍ, ແລະອື່ນໆ';
+
+  @override
+  String get weatherWarning =>
+      'ເນື່ອງຈາກສະພາບອາກາດບໍ່ດີ, ການຈັດສົ່ງ ຫຼື ໄຣເດີຂອງທ່ານອາດຈະຊັກຊ້າ.';
 }

@@ -283,7 +283,7 @@ class PrinterService {
         printer.feed(3);
         printer.cut();
       } finally {
-        printer.disconnect();
+        try { printer.disconnect(); } catch (_) {}
       }
       return true;
     } catch (_) {
@@ -297,6 +297,7 @@ class PrinterService {
     required String cashierName,
     String? headerText,
     String? footerText,
+    int? queueNumber,
   }) async {
     return _printOrderTicketToProfile(
       profile,
@@ -304,6 +305,7 @@ class PrinterService {
       cashierName: cashierName,
       headerText: headerText,
       footerText: footerText,
+      queueNumber: queueNumber,
     );
   }
 
@@ -326,7 +328,7 @@ class PrinterService {
           printer.feed(3);
           printer.cut();
         } finally {
-          printer.disconnect();
+          try { printer.disconnect(); } catch (_) {}
         }
         return true;
       }
@@ -348,6 +350,7 @@ class PrinterService {
     String? headerText,
     String? footerText,
     double discountAmount = 0.0,
+    int? queueNumber,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -371,6 +374,7 @@ class PrinterService {
             headerText: headerText,
             footerText: footerText,
             discountAmount: discountAmount,
+            queueNumber: queueNumber,
           );
           allSuccess = allSuccess && ok;
         }
@@ -410,6 +414,7 @@ class PrinterService {
         headerText: headerText,
         footerText: footerText,
         discountAmount: discountAmount,
+        queueNumber: queueNumber,
       );
     } catch (e) {
       _printerLog('[PRINTER] Print receipt failed: $e');
@@ -426,6 +431,12 @@ class PrinterService {
   }
 
 
+  /// Helper to format queue number as #001
+  String _fmtQueue(int? qn) {
+    if (qn == null || qn <= 0) return '';
+    return '#${qn.toString().padLeft(3, '0')}';
+  }
+
   Future<bool> printBill({
     required List<CartItem> cartItems,
     required double subtotal,
@@ -438,6 +449,7 @@ class PrinterService {
     String? headerText,
     String? footerText,
     double discountAmount = 0.0,
+    int? queueNumber,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -472,6 +484,7 @@ class PrinterService {
         headerText: headerText,
         footerText: footerText,
         discountAmount: discountAmount,
+        queueNumber: queueNumber,
       );
       allSuccess = allSuccess && ok;
     }
@@ -491,6 +504,7 @@ class PrinterService {
   String? headerText,
   String? footerText,
   double discountAmount = 0.0,
+  int? queueNumber,
 }) async {
   final cap = await CapabilityProfile.load();
   final printer = NetworkPrinter(profile.paperSize, cap);
@@ -515,6 +529,10 @@ class PrinterService {
       printer.text(ticketName, styles: const PosStyles(align: PosAlign.center, bold: true));
     }
     printer.hr();
+    if (queueNumber != null && queueNumber > 0) {
+      printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+      printer.hr();
+    }
     printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
     printer.text('Cashier: $cashierName');
     printer.hr();
@@ -579,7 +597,7 @@ class PrinterService {
     _printerLog('[PRINTER] Print bill failed: $e');
     return false;
   } finally {
-    printer.disconnect();
+    try { printer.disconnect(); } catch (_) {}
   }
 }
 
@@ -598,6 +616,7 @@ class PrinterService {
     String? headerText,
     String? footerText,
     double discountAmount = 0.0,
+    int? queueNumber,
   }) => _printReceiptToProfile(
         profile,
         cartItems: cartItems,
@@ -610,6 +629,7 @@ class PrinterService {
         headerText: headerText,
         footerText: footerText,
         discountAmount: discountAmount,
+        queueNumber: queueNumber,
       );
 
   Future<bool> _printReceiptToProfile(
@@ -624,6 +644,7 @@ class PrinterService {
     String? headerText,
     String? footerText,
     double discountAmount = 0.0,
+    int? queueNumber,
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
@@ -646,6 +667,10 @@ class PrinterService {
       }
       printer.text('Printer: ${profile.name}', styles: const PosStyles(align: PosAlign.center));
       printer.hr();
+      if (queueNumber != null && queueNumber > 0) {
+        printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+        printer.hr();
+      }
       printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
       printer.text('Cashier: $cashierName');
       printer.hr();
@@ -697,7 +722,7 @@ class PrinterService {
       _printerLog('[PRINTER] Print receipt failed: $e');
       return false;
     } finally {
-      printer.disconnect();
+      try { printer.disconnect(); } catch (_) {}
     }
   }
 
@@ -707,6 +732,7 @@ class PrinterService {
     required String cashierName,
     String? headerText,
     String? footerText,
+    int? queueNumber,
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
@@ -734,6 +760,11 @@ class PrinterService {
         printer.text('Kitchen / Order Ticket', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2));
       }
       printer.text('Printer: ${profile.name}', styles: const PosStyles(align: PosAlign.center));
+      printer.hr();
+      if (queueNumber != null && queueNumber > 0) {
+        printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+        printer.hr();
+      }
       printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
       printer.text('Cashier: $cashierName');
       printer.hr();
@@ -818,7 +849,7 @@ class PrinterService {
       _printerLog('[PRINTER] Print order ticket failed: $e');
       return false;
     } finally {
-      printer.disconnect();
+      try { printer.disconnect(); } catch (_) {}
     }
   }
   Future<bool> openCashDrawer() async {
@@ -847,7 +878,7 @@ class PrinterService {
       // Pin 5: ESC p 1 25 250
       printer.rawBytes([0x1B, 0x70, 0x00, 0x19, 0xFA]); // pin 2
     } finally {
-      printer.disconnect();
+      try { printer.disconnect(); } catch (_) {}
     }
     return true;
   } catch (e) {
@@ -860,7 +891,7 @@ class PrinterService {
   /// Reprint a historical receipt using raw order data from the API.
   /// [receiptData] is the map returned by fetchOrderReceipt() / the receipt
   /// history detail screen. Lines must contain 'product_name', 'qty', 'subtotal'.
-  Future<bool> printReceiptFromRawData(Map<String, dynamic> receiptData) async {
+  Future<bool> printReceiptFromRawData(Map<String, dynamic> receiptData, {int? queueNumber}) async {
     _printerLog('REPRINT >> START');
     _printerLog('REPRINT >> raw keys = ${receiptData.keys.toList()}');
     await initialize();
@@ -944,6 +975,10 @@ class PrinterService {
         printer.hr();
         currentStep = 'meta';
         _printerLog('REPRINT >> [${++step}] meta lines');
+        if (queueNumber != null && queueNumber > 0) {
+          printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+          printer.hr();
+        }
         printer.text('Order: ${_sanitizeForEscPos(orderRef)}');
         if (dateStr.isNotEmpty) {
           printer.text('Date: ${_sanitizeForEscPos(dateStr.substring(0, dateStr.length > 19 ? 19 : dateStr.length))}');
@@ -1054,6 +1089,7 @@ class PrinterService {
     Map<String, dynamic> receiptData, {
     String? headerText,
     String? footerText,
+    int? queueNumber,
   }) async {
     _printerLog('REFUND >> START');
     _printerLog('REFUND >> raw keys = ${receiptData.keys.toList()}');
@@ -1143,6 +1179,10 @@ class PrinterService {
         printer.hr();
         currentStep = 'meta';
         _printerLog('REFUND >> [${++step}] meta lines');
+        if (queueNumber != null && queueNumber > 0) {
+          printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+          printer.hr();
+        }
         if (orderRef.isNotEmpty) printer.text('Order: ${_sanitizeForEscPos(orderRef)}');
         printer.text('Refund Date: ${DateTime.now().toString().substring(0, 19)}');
         if (cashier.isNotEmpty) printer.text('Cashier: ${_sanitizeForEscPos(cashier)}');

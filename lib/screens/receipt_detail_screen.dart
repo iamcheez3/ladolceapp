@@ -49,8 +49,9 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
     }
     setState(() => _isActionLoading = true);
     try {
+      final qn = (_receiptData?['queue_number'] ?? 0).toInt();
       final ok = await printerService
-          .printReceiptFromRawData(_receiptData!)
+          .printReceiptFromRawData(_receiptData!, queueNumber: qn)
           .timeout(const Duration(seconds: 20), onTimeout: () => false);
       _snack(ok ? '🖨️ Receipt reprinted!' : 'Printer error. Check connection.', ok ? Colors.green : Colors.red);
     } catch (e) {
@@ -145,11 +146,13 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
             final footerText = (tpl?['footer_text'] ?? '').toString();
 
             final latest = await _apiService.fetchOrderReceipt(widget.orderId);
+            final qn = (latest['queue_number'] ?? 0).toInt();
             await printerService
                 .printRefundFromRawData(
                   latest,
                   headerText: headerText,
                   footerText: footerText,
+                  queueNumber: qn,
                 )
                 .timeout(const Duration(seconds: 25), onTimeout: () => false);
           } catch (_) {

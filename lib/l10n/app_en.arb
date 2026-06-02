@@ -17,5 +17,6 @@
   "confirmOrder": "Confirm Order",
   "runOut": "Run out",
   "orderNote": "Order Note / Pickup Time",
-  "orderNoteHint": "e.g., Pickup at 3:00 PM, extra spicy, etc."
+  "orderNoteHint": "e.g., Pickup at 3:00 PM, extra spicy, etc.",
+  "weatherWarning": "Due to bad weather, your delivery or rider may be delayed."
 }

@@ -4,6 +4,7 @@ class OpenTicket {
   final int? tableId;
   final String? tableName;
   final double amountTotal;
+  final int queueNumber;
   final String paymentType;
   final int? paymentMethodId;
   final String paymentMethodName;
@@ -26,6 +27,7 @@ class OpenTicket {
     this.tableId,
     this.tableName,
     required this.amountTotal,
+    this.queueNumber = 0,
     this.paymentType = '',
     this.paymentMethodId,
     this.paymentMethodName = '',
@@ -54,6 +56,7 @@ class OpenTicket {
     return OpenTicket(
       id: json['id'],
       name: json['name'],
+      queueNumber: (json['queue_number'] ?? 0).toInt(),
       tableId: json['table_id'],
       tableName: json['table_name'],
       amountTotal: (json['amount_total'] ?? 0).toDouble(),

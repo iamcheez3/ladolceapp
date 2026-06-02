@@ -22,7 +22,9 @@ class CustomerOrderDetailScreen extends StatelessWidget {
   final ApiService api;
   final Future<void> Function()? onRefresh;
 
-  String _statusLabel(String rawState, String paymentMethod) {
+  String _statusLabel(String rawState, String paymentMethod, {String? deliveryStatus}) {
+    final ds = (deliveryStatus ?? '').toLowerCase().trim();
+    if (ds == 'delivered') return 'DELIVERED';
     if (rawState == 'waiting_transfer_review') {
       return 'Waiting review';
     }
@@ -31,7 +33,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
       return 'Preparing';
     }
     if (rawState == 'draft') return 'Confirmed';
-    if (rawState == 'paid') return 'PAID';
+    if (rawState == 'paid') return 'COMPLETE';
     if (rawState == 'cancelled') return 'CANCELLED';
     return rawState.isEmpty ? '-' : rawState.toUpperCase();
   }
@@ -143,9 +145,14 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                             ),
                           ),
                           _statusPill(
-                            _statusLabel(rawState, payMethod),
+                            _statusLabel(
+                              rawState,
+                              payMethod,
+                              deliveryStatus: item['delivery_status']?.toString(),
+                            ),
                             positive: _isPaidState(rawState) ||
-                                rawState == 'draft',
+                                rawState == 'draft' ||
+                                item['delivery_status']?.toString().toLowerCase().trim() == 'delivered',
                           ),
                         ],
                       ),

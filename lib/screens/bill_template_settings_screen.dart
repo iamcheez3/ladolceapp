@@ -284,6 +284,7 @@ class _ReceiptPreview extends StatelessWidget {
   String get _fontFamily =>
       (template?['font_family'] ?? 'monospace').toString();
   int get _paddingH => ((template?['padding_left'] ?? 12) as num).toInt();
+  bool get _showQueueNumber => template?['show_queue_number'] != false; // default true
 
   TextStyle get _mono => TextStyle(
         fontFamily: _fontFamily,
@@ -378,6 +379,11 @@ class _ReceiptPreview extends StatelessWidget {
     return [
       _line(_center('Kitchen / Order Ticket'), bold: true),
       _line(_hr()),
+      if (_showQueueNumber) ...[
+        _line(_center('Queue:'), small: true, color: Colors.grey[700]),
+        _line(_center('Q42'), bold: true, header: true),
+        _line(_hr()),
+      ],
       _line('Date: 2026-05-28 12:00:00'),
       _line('Cashier: Sample Staff'),
       _line(_hr()),
@@ -392,6 +398,11 @@ class _ReceiptPreview extends StatelessWidget {
 
   List<Widget> _buildItemsAndTotals(String type) {
     final rows = <Widget>[];
+    if (_showQueueNumber) {
+      rows.add(_line(_center('Queue:'), small: true, color: Colors.grey[700]));
+      rows.add(_line(_center('Q42'), bold: true, header: true));
+      rows.add(_line(_hr()));
+    }
     rows.add(_line('Date: 2026-05-28 12:00:00'));
     rows.add(_line('Cashier: Sample Staff'));
     rows.add(_line(_hr()));
