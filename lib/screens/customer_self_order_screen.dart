@@ -204,12 +204,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   bool _isLoadingBranches = true;
   List<Map<String, dynamic>> _branches = const [];
   int? _selectedBranchId;
+  bool _isRaining = false;
 
   final TextEditingController _noteController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    PushNotificationsService.setAppActive(true);
     _customerName = widget.customerName;
     _cartItems.clear();
     _validateSingleDeviceSession();
@@ -220,7 +222,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     _loadSelfOrderConfig();
     _loadProfileImage();
     _loadNotificationPref();
-    _loadFavoritePlaces();
+    _loadFavoritePlaces().then((_) {
+      _checkAndApplyWeatherTheme();
+    });
     _startRiderLocationPolling();
   }
 
@@ -344,6 +348,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   @override
   void dispose() {
+    PushNotificationsService.setAppActive(false);
     _recommendedAutoSlideTimer?.cancel();
     _recommendedPageController?.dispose();
     _noteController.dispose();
@@ -435,6 +440,153 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   String get _googleMapsApiKey =>
       (dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '').trim();
+
+  Future<bool> _checkWeatherIsBad(double lat, double lng) async {
+    final key = _googleMapsApiKey;
+    if (key.isEmpty) return false;
+    try {
+      final uri =
+          Uri.https('weather.googleapis.com', '/v1/currentConditions:lookup', {
+            'key': key,
+            'location.latitude': lat.toString(),
+            'location.longitude': lng.toString(),
+            'unitsSystem': 'METRIC',
+          });
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
+      if (response.statusCode != 200) return false;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return false;
+
+      final weatherCondition = decoded['weatherCondition'];
+      if (weatherCondition is! Map) return false;
+
+      final type = (weatherCondition['type'] ?? '').toString().toUpperCase();
+      final descriptionObj = weatherCondition['description'];
+      final description = descriptionObj is Map
+          ? (descriptionObj['text'] ?? '').toString().toLowerCase()
+          : '';
+
+      final badTypes = {
+        'RAIN',
+        'THUNDERSTORM',
+        'WIND_AND_RAIN',
+        'SNOW',
+        'BLIZZARD',
+        'HAIL',
+        'STORM',
+        'TORNADO',
+        'HURRICANE',
+        'TYPHOON',
+        'CYCLONE',
+        'HEAVY_RAIN',
+        'SHOWER',
+        'DRIZZLE',
+        'FREEZING_RAIN',
+        'ICE_PALLETS',
+        'DUST',
+        'SANDSTORM',
+      };
+
+      if (badTypes.contains(type)) {
+        return true;
+      }
+
+      final badKeywords = [
+        'rain',
+        'storm',
+        'thunder',
+        'snow',
+        'blizzard',
+        'hail',
+        'wind',
+        'shower',
+        'drizzle',
+        'ฝน',
+        'พายุ',
+        'ຝົນ',
+        'ພາຍຸ',
+        'ລົມ',
+      ];
+
+      for (final keyword in badKeywords) {
+        if (description.contains(keyword)) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _checkAndApplyWeatherTheme() async {
+    double lat = 17.9757;
+    double lng = 102.6130;
+
+    // Attempt to use favorite place coordinates if available
+    final selectedPlace = _selectedFavoritePlace;
+    if (selectedPlace != null &&
+        selectedPlace.latitude != null &&
+        selectedPlace.longitude != null) {
+      lat = selectedPlace.latitude!;
+      lng = selectedPlace.longitude!;
+    } else if (_favoritePlaces.isNotEmpty) {
+      final firstPlace = _favoritePlaces.first;
+      if (firstPlace.latitude != null && firstPlace.longitude != null) {
+        lat = firstPlace.latitude!;
+        lng = firstPlace.longitude!;
+      }
+    }
+
+    final isBad = await _checkWeatherIsBad(lat, lng);
+    if (mounted) {
+      setState(() {
+        _isRaining = isBad;
+      });
+      if (isBad) {
+        _showBadWeatherSnackBar();
+      }
+    }
+  }
+
+  void _showBadWeatherSnackBar() {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(
+              Icons.thunderstorm_rounded,
+              color: Color(0xFFFBBF24),
+              size: 26,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                AppLocalizations.of(context)?.weatherWarning ??
+                    'Due to bad weather, your delivery or rider may be delayed.',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        duration: const Duration(seconds: 8),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: const Color(0xFF475569).withOpacity(0.4),
+            width: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<List<Map<String, dynamic>>> _searchGooglePlaces(String query) async {
     final key = _googleMapsApiKey;
@@ -1323,6 +1475,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           'delivery_status': item['delivery_status'] ?? 'none',
           'delivery_latitude': item['delivery_latitude'],
           'delivery_longitude': item['delivery_longitude'],
+          'delivery_maps_url': item['delivery_maps_url'],
           'customer': item['customer'] ?? '',
           'transfer_proof_url': item['transfer_proof_url'],
           'lines': item['lines'] ?? const [],
@@ -1428,6 +1581,35 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
   }
 
+  Map<String, double>? _parseLatLngFromUrl(String url) {
+    try {
+      final uri = Uri.tryParse(url);
+      if (uri == null) return null;
+
+      String? q = uri.queryParameters['q'] ?? uri.queryParameters['query'];
+      if (q != null) {
+        final parts = q.split(',');
+        if (parts.length >= 2) {
+          final lat = double.tryParse(parts[0].trim());
+          final lng = double.tryParse(parts[1].trim());
+          if (lat != null && lng != null) {
+            return {'latitude': lat, 'longitude': lng};
+          }
+        }
+      }
+
+      final match = RegExp(r'@(-?\d+\.\d+),(-?\d+\.\d+)').firstMatch(url);
+      if (match != null) {
+        final lat = double.tryParse(match.group(1) ?? '');
+        final lng = double.tryParse(match.group(2) ?? '');
+        if (lat != null && lng != null) {
+          return {'latitude': lat, 'longitude': lng};
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   void _openRiderMap(String orderId) {
     final order = _historyItems.cast<Map<String, dynamic>?>().firstWhere(
       (o) => (o?['id']?.toString() ?? '') == orderId,
@@ -1438,14 +1620,29 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     if (order != null) {
       final rawLat = order['delivery_latitude'];
       final rawLng = order['delivery_longitude'];
-      if (rawLat != null)
+      if (rawLat != null) {
         destLat = (rawLat is num)
             ? rawLat.toDouble()
             : double.tryParse(rawLat.toString());
-      if (rawLng != null)
+      }
+      if (rawLng != null) {
         destLng = (rawLng is num)
             ? rawLng.toDouble()
             : double.tryParse(rawLng.toString());
+      }
+
+      final mapsUrl = order['delivery_maps_url']?.toString() ?? '';
+      if ((destLat == null ||
+              destLng == null ||
+              destLat == 0.0 ||
+              destLng == 0.0) &&
+          mapsUrl.isNotEmpty) {
+        final parsed = _parseLatLngFromUrl(mapsUrl);
+        if (parsed != null) {
+          destLat = parsed['latitude'];
+          destLng = parsed['longitude'];
+        }
+      }
     }
     showModalBottomSheet<void>(
       context: context,
@@ -2199,24 +2396,55 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       children: [
                                         Expanded(
                                           child: GestureDetector(
-                                            onTap: () => setSheetState(() => isSelfPickup = false),
+                                            onTap: () => setSheetState(
+                                              () => isSelfPickup = false,
+                                            ),
                                             child: AnimatedContainer(
-                                              duration: const Duration(milliseconds: 180),
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              duration: const Duration(
+                                                milliseconds: 180,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 14,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: !isSelfPickup ? _brandNavy : Colors.grey.shade100,
-                                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                                                border: Border.all(color: !isSelfPickup ? _brandNavy : Colors.grey.shade300),
+                                                color: !isSelfPickup
+                                                    ? _brandNavy
+                                                    : Colors.grey.shade100,
+                                                borderRadius:
+                                                    const BorderRadius.horizontal(
+                                                      left: Radius.circular(12),
+                                                    ),
+                                                border: Border.all(
+                                                  color: !isSelfPickup
+                                                      ? _brandNavy
+                                                      : Colors.grey.shade300,
+                                                ),
                                               ),
                                               child: Column(
                                                 children: [
-                                                  Icon(Icons.delivery_dining,
-                                                      color: !isSelfPickup ? Colors.white : Colors.grey.shade500, size: 26),
+                                                  Icon(
+                                                    Icons.delivery_dining,
+                                                    color: !isSelfPickup
+                                                        ? Colors.white
+                                                        : Colors.grey.shade500,
+                                                    size: 26,
+                                                  ),
                                                   const SizedBox(height: 4),
-                                                  Text('Rider delivery',
-                                                      textAlign: TextAlign.center,
-                                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
-                                                          color: !isSelfPickup ? Colors.white : Colors.grey.shade600)),
+                                                  Text(
+                                                    'Rider delivery',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: 13,
+                                                      color: !isSelfPickup
+                                                          ? Colors.white
+                                                          : Colors
+                                                                .grey
+                                                                .shade600,
+                                                    ),
+                                                  ),
                                                 ],
                                               ),
                                             ),
@@ -2224,24 +2452,57 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         ),
                                         Expanded(
                                           child: GestureDetector(
-                                            onTap: () => setSheetState(() => isSelfPickup = true),
+                                            onTap: () => setSheetState(
+                                              () => isSelfPickup = true,
+                                            ),
                                             child: AnimatedContainer(
-                                              duration: const Duration(milliseconds: 180),
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              duration: const Duration(
+                                                milliseconds: 180,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 14,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: isSelfPickup ? _brandNavy : Colors.grey.shade100,
-                                                borderRadius: const BorderRadius.horizontal(right: Radius.circular(12)),
-                                                border: Border.all(color: isSelfPickup ? _brandNavy : Colors.grey.shade300),
+                                                color: isSelfPickup
+                                                    ? _brandNavy
+                                                    : Colors.grey.shade100,
+                                                borderRadius:
+                                                    const BorderRadius.horizontal(
+                                                      right: Radius.circular(
+                                                        12,
+                                                      ),
+                                                    ),
+                                                border: Border.all(
+                                                  color: isSelfPickup
+                                                      ? _brandNavy
+                                                      : Colors.grey.shade300,
+                                                ),
                                               ),
                                               child: Column(
                                                 children: [
-                                                  Icon(Icons.store_outlined,
-                                                      color: isSelfPickup ? Colors.white : Colors.grey.shade500, size: 26),
+                                                  Icon(
+                                                    Icons.store_outlined,
+                                                    color: isSelfPickup
+                                                        ? Colors.white
+                                                        : Colors.grey.shade500,
+                                                    size: 26,
+                                                  ),
                                                   const SizedBox(height: 4),
-                                                  Text('Come pick up myself',
-                                                      textAlign: TextAlign.center,
-                                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
-                                                          color: isSelfPickup ? Colors.white : Colors.grey.shade600)),
+                                                  Text(
+                                                    'Come pick up myself',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: 13,
+                                                      color: isSelfPickup
+                                                          ? Colors.white
+                                                          : Colors
+                                                                .grey
+                                                                .shade600,
+                                                    ),
+                                                  ),
                                                 ],
                                               ),
                                             ),
@@ -2250,117 +2511,120 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 16),
-                                    if (!isSelfPickup) ...[ 
-                                    Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Text(
-                                            'Delivery place',
+                                    if (!isSelfPickup) ...[
+                                      Row(
+                                        children: [
+                                          const Expanded(
+                                            child: Text(
+                                              'Delivery place',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton.icon(
+                                            onPressed: () =>
+                                                _openAddFavoritePlaceSheet(
+                                                  setSheetState,
+                                                ),
+                                            icon: const Icon(
+                                              Icons.add_location_alt_outlined,
+                                            ),
+                                            label: const Text('Add'),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      if (_favoritePlaces.isEmpty)
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.shade50,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.orange.shade200,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Please add a favorite place before confirming the order.',
                                             style: TextStyle(
-                                              fontSize: 16,
+                                              color: Colors.deepOrange,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                        ),
-                                        TextButton.icon(
-                                          onPressed: () =>
-                                              _openAddFavoritePlaceSheet(
-                                                setSheetState,
-                                              ),
-                                          icon: const Icon(
-                                            Icons.add_location_alt_outlined,
+                                        )
+                                      else
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
                                           ),
-                                          label: const Text('Add'),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    if (_favoritePlaces.isEmpty)
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orange.shade50,
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.orange.shade200,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Please add a favorite place before confirming the order.',
-                                          style: TextStyle(
-                                            color: Colors.deepOrange,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: Colors.grey.shade300,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
-                                            value: _selectedFavoritePlaceId,
-                                            isExpanded: true,
-                                            hint: const Text(
-                                              'Select a delivery place',
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.grey.shade300,
                                             ),
-                                            items: _favoritePlaces.map((place) {
-                                              return DropdownMenuItem<String>(
-                                                value: place.id,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      place.name,
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w600,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: _selectedFavoritePlaceId,
+                                              isExpanded: true,
+                                              hint: const Text(
+                                                'Select a delivery place',
+                                              ),
+                                              items: _favoritePlaces.map((
+                                                place,
+                                              ) {
+                                                return DropdownMenuItem<String>(
+                                                  value: place.id,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        place.name,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
                                                       ),
-                                                    ),
-                                                    Text(
-                                                      place.address,
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: Colors
-                                                            .grey
-                                                            .shade600,
+                                                      Text(
+                                                        place.address,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors
+                                                              .grey
+                                                              .shade600,
+                                                        ),
                                                       ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            }).toList(),
-                                            onChanged: (value) {
-                                              if (value == null) return;
-                                              setState(() {
-                                                _selectedFavoritePlaceId =
-                                                    value;
-                                              });
-                                              setSheetState(() {});
-                                            },
+                                                    ],
+                                                  ),
+                                                );
+                                              }).toList(),
+                                              onChanged: (value) {
+                                                if (value == null) return;
+                                                setState(() {
+                                                  _selectedFavoritePlaceId =
+                                                      value;
+                                                });
+                                                setSheetState(() {});
+                                              },
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    const SizedBox(height: 12),
+                                      const SizedBox(height: 12),
                                     ],
                                     Text(
                                       AppLocalizations.of(context)?.orderNote ??
@@ -2633,7 +2897,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           note: _noteController.text.trim(),
                                           isSelfPickup: isSelfPickup,
                                           favoritePlace: isSelfPickup
-                                              ? (_favoritePlaces.isNotEmpty ? _favoritePlaces.first : null)
+                                              ? (_favoritePlaces.isNotEmpty
+                                                    ? _favoritePlaces.first
+                                                    : null)
                                               : _selectedFavoritePlace,
                                         );
                                       },
@@ -2684,6 +2950,17 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
 
     setState(() => _isPlacingOrder = true);
+    bool isBadWeather = _isRaining;
+    if (!isBadWeather &&
+        !isSelfPickup &&
+        favoritePlace != null &&
+        favoritePlace.latitude != null &&
+        favoritePlace.longitude != null) {
+      isBadWeather = await _checkWeatherIsBad(
+        favoritePlace.latitude!,
+        favoritePlace.longitude!,
+      );
+    }
     try {
       final lines = _cartItems
           .map(
@@ -2709,9 +2986,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         branchId: branchId,
         customerName: displayName,
         customerPhone: _cleanProfileText(_customerPhone),
-        note: isSelfPickup
-            ? '[SELF-PICKUP]' 
-            : note,
+        note: isSelfPickup ? '[SELF-PICKUP]' : note,
         deliveryPlaceName: favoritePlace?.name,
         deliveryPlaceAddress: favoritePlace?.address,
         deliveryPlaceId: favoritePlace?.placeId,
@@ -2755,6 +3030,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         'delivery_place_name': favoritePlace?.name,
         'delivery_place_address': favoritePlace?.address,
         'delivery_maps_url': favoritePlace?.mapsUrl,
+        'delivery_latitude': favoritePlace?.latitude,
+        'delivery_longitude': favoritePlace?.longitude,
         'proof_image_path': proofImagePath,
         'transfer_proof_url': uploadedProofUrl,
         'lines': lines.map((e) {
@@ -2796,6 +3073,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           backgroundColor: Colors.green,
         ),
       );
+
+      if (isBadWeather && mounted) {
+        setState(() {
+          _isRaining = true;
+        });
+        _showBadWeatherSnackBar();
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2974,26 +3258,42 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         child: Row(
           children: [
             Container(
-              width: 40, height: 40,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFDCE5FF)),
               ),
-              child: const Icon(Icons.notifications_outlined, color: _brandNavy),
+              child: const Icon(
+                Icons.notifications_outlined,
+                color: _brandNavy,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Notifications', style: TextStyle(fontWeight: FontWeight.w900, color: _brandNavy)),
+                  const Text(
+                    'Notifications',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: _brandNavy,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(
-                    _pushNotificationsEnabled ? 'Order updates on this device' : 'Push alerts are turned off',
+                    _pushNotificationsEnabled
+                        ? 'Order updates on this device'
+                        : 'Push alerts are turned off',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700, fontSize: 12),
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -3060,7 +3360,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           child: Row(
             children: [
               Container(
-                width: 40, height: 40,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(14),
@@ -3073,13 +3374,23 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w900, color: _brandNavy)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: _brandNavy,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700, fontSize: 12),
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -3089,7 +3400,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 trailing,
               ] else ...[
                 const SizedBox(width: 10),
-                const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF94A3B8),
+                ),
               ],
             ],
           ),
@@ -3493,6 +3807,41 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     final isMobile = width < 600;
     final isSmall = width < 360;
 
+    final navDestinations = [
+      NavigationDestination(
+        icon: Icon(Icons.home_outlined, color: _navInactive),
+        selectedIcon: _navSelectedIcon(Icons.home),
+        label: 'Home',
+      ),
+      NavigationDestination(
+        icon: _cartCount > 0
+            ? Badge(
+                label: Text('$_cartCount'),
+                backgroundColor: Colors.red,
+                child: Icon(Icons.shopping_bag_outlined, color: _navInactive),
+              )
+            : Icon(Icons.shopping_bag_outlined, color: _navInactive),
+        selectedIcon: _cartCount > 0
+            ? Badge(
+                label: Text('$_cartCount'),
+                backgroundColor: Colors.red,
+                child: _navSelectedIcon(Icons.shopping_bag),
+              )
+            : _navSelectedIcon(Icons.shopping_bag),
+        label: 'Cart',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.access_time, color: _navInactive),
+        selectedIcon: _navSelectedIcon(Icons.access_time),
+        label: 'History',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.person_outline, color: _navInactive),
+        selectedIcon: _navSelectedIcon(Icons.person),
+        label: 'Profile',
+      ),
+    ];
+
     return Scaffold(
       backgroundColor: _brandNavy,
       appBar: AppBar(
@@ -3560,6 +3909,36 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         color: _brandNavy,
         child: Column(
           children: [
+            if (_isRaining)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                color: const Color(0xFF1E293B),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.thunderstorm_rounded,
+                      color: Color(0xFFFBBF24),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)?.weatherWarning ??
+                            'Due to bad weather, your delivery or rider may be delayed.',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -3611,43 +3990,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined, color: _navInactive),
-              selectedIcon: _navSelectedIcon(Icons.home),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: _cartCount > 0
-                  ? Badge(
-                      label: Text('$_cartCount'),
-                      backgroundColor: Colors.red,
-                      child: Icon(
-                        Icons.shopping_bag_outlined,
-                        color: _navInactive,
-                      ),
-                    )
-                  : Icon(Icons.shopping_bag_outlined, color: _navInactive),
-              selectedIcon: _cartCount > 0
-                  ? Badge(
-                      label: Text('$_cartCount'),
-                      backgroundColor: Colors.red,
-                      child: _navSelectedIcon(Icons.shopping_bag),
-                    )
-                  : _navSelectedIcon(Icons.shopping_bag),
-              label: 'Cart',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.access_time, color: _navInactive),
-              selectedIcon: _navSelectedIcon(Icons.access_time),
-              label: 'History',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline, color: _navInactive),
-              selectedIcon: _navSelectedIcon(Icons.person),
-              label: 'Profile',
-            ),
-          ],
+          destinations: navDestinations,
         ),
       ),
     );
@@ -5242,6 +5585,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         itemBuilder: (context, index) {
           final item = _historyItems[index];
           final deliveryStatus = (item['delivery_status'] ?? '').toString();
+          final isOrderPaid =
+              (item['state']?.toString().toLowerCase().trim() == 'paid');
           final statusText = _friendlyStatus(
             (item['state'] ?? '').toString(),
             (item['payment_method'] ?? '').toString(),
@@ -5320,11 +5665,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                       ],
                     ),
-                    if (deliveryStatus.isNotEmpty &&
-                        deliveryStatus != 'none' &&
-                        deliveryStatus != 'pending') ...[
+                    if (isOrderPaid ||
+                        (deliveryStatus.isNotEmpty &&
+                            deliveryStatus != 'none' &&
+                            deliveryStatus != 'pending')) ...[
                       const SizedBox(height: 12),
-                      _buildDeliveryProgress(deliveryStatus),
+                      _buildDeliveryProgress(
+                        isOrderPaid ? 'delivered' : deliveryStatus,
+                      ),
                     ],
                     if (deliveryStatus == 'on_the_way' ||
                         deliveryStatus == 'arrived') ...[
@@ -5428,7 +5776,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     Color fg = const Color(0xFF1E3A8A);
     String text = friendly;
 
-    if (ds == 'delivered') {
+    if (isPaid) {
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF166534);
+      text = 'Complete';
+    } else if (ds == 'delivered') {
       bg = const Color(0xFFDCFCE7);
       fg = const Color(0xFF166534);
       text = 'Delivered';
@@ -5456,10 +5808,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       bg = const Color(0xFFDCFCE7);
       fg = const Color(0xFF166534);
       text = 'Order confirmed';
-    } else if (isPaid) {
-      bg = const Color(0xFFDCFCE7);
-      fg = const Color(0xFF166534);
-      text = 'Paid';
     }
 
     return Container(
@@ -5480,6 +5828,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     String paymentMethod, {
     String? deliveryStatus,
   }) {
+    if (rawState.toLowerCase().trim() == 'paid') {
+      return 'Complete';
+    }
     final ds = (deliveryStatus ?? '').toLowerCase();
     if (ds == 'delivered') return 'Delivered';
     if (ds == 'arrived') return 'Rider arrived';
@@ -5493,7 +5844,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       return 'Transfer verified, preparing order';
     }
     if (rawState == 'draft') return 'Order confirmed';
-    if (rawState == 'paid') return 'Paid';
+    if (rawState == 'paid') return 'Complete';
     if (rawState == 'cancelled') return 'Cancelled';
     return rawState.isEmpty ? '-' : rawState;
   }
@@ -5529,7 +5880,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             final isDone = i < currentIndex;
             final isPending = i > currentIndex;
             final isLast = i == steps.length - 1;
-            final circleColor = isPending ? const Color(0xFFE2E8F0) : _brandNavy;
+            final circleColor = isPending
+                ? const Color(0xFFE2E8F0)
+                : _brandNavy;
             return Expanded(
               child: Opacity(
                 opacity: isDone ? 0.5 : 1.0,
@@ -5544,7 +5897,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             radius: 10,
                             backgroundColor: circleColor,
                             child: (isActive || isDone)
-                                ? const Icon(Icons.check, size: 12, color: Colors.white)
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 12,
+                                    color: Colors.white,
+                                  )
                                 : const SizedBox.shrink(),
                           ),
                           const SizedBox(height: 4),
@@ -5553,8 +5910,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 10,
-                              fontWeight: (isActive || isDone) ? FontWeight.w700 : FontWeight.w500,
-                              color: isPending ? const Color(0xFF94A3B8) : _brandNavy,
+                              fontWeight: (isActive || isDone)
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isPending
+                                  ? const Color(0xFF94A3B8)
+                                  : _brandNavy,
                             ),
                           ),
                         ],
@@ -5568,7 +5929,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           height: 2,
                           color: isDone
                               ? _brandNavy.withValues(alpha: 0.5)
-                              : (isActive ? _brandNavy : const Color(0xFFE2E8F0)),
+                              : (isActive
+                                    ? _brandNavy
+                                    : const Color(0xFFE2E8F0)),
                         ),
                       ),
                   ],
@@ -6064,11 +6427,26 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                 backgroundColor: _navy,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               child: _isSaving
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Save Changes',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -6091,7 +6469,15 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280), letterSpacing: 0.5)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6B7280),
+            letterSpacing: 0.5,
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
@@ -6111,9 +6497,16 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                   keyboardType: keyboardType,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
                   ),
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
             ],
@@ -6127,7 +6520,15 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('DATE OF BIRTH', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.6)),
+        const Text(
+          'DATE OF BIRTH',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF64748B),
+            letterSpacing: 0.6,
+          ),
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _dobCtrl,
@@ -6141,9 +6542,18 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
             ),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _navy, width: 1.6)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: _navy, width: 1.6),
+            ),
           ),
         ),
       ],
@@ -6215,7 +6625,10 @@ class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
         title: const Text('Delete place?'),
         content: Text('Remove "${place.name}" from your favorites?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -6247,15 +6660,26 @@ class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 72, height: 72,
+                    width: 72,
+                    height: 72,
                     decoration: BoxDecoration(
                       color: _navy.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: Icon(Icons.place_outlined, size: 36, color: _navy.withValues(alpha: 0.3)),
+                    child: Icon(
+                      Icons.place_outlined,
+                      size: 36,
+                      color: _navy.withValues(alpha: 0.3),
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  const Text('No favorite places saved yet.', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                  const Text(
+                    'No favorite places saved yet.',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
                 ],
               ),
             )
@@ -6270,26 +6694,50 @@ class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
                   decoration: BoxDecoration(
                     color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: isSelected ? _navy : const Color(0xFFE2E8F0)),
+                    border: Border.all(
+                      color: isSelected ? _navy : const Color(0xFFE2E8F0),
+                    ),
                   ),
                   child: ListTile(
                     selected: isSelected,
-                    selectedTileColor: isSelected ? const Color(0xFFEFF6FF) : null,
+                    selectedTileColor: isSelected
+                        ? const Color(0xFFEFF6FF)
+                        : null,
                     leading: Container(
-                      width: 44, height: 44,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: isSelected ? _navy.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
+                        color: isSelected
+                            ? _navy.withValues(alpha: 0.1)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(Icons.place_outlined, color: isSelected ? _navy : const Color(0xFF94A3B8)),
+                      child: Icon(
+                        Icons.place_outlined,
+                        color: isSelected ? _navy : const Color(0xFF94A3B8),
+                      ),
                     ),
-                    title: Text(place.name, style: const TextStyle(fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(place.address, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    title: Text(
+                      place.name,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      place.address,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Color(0xFF94A3B8)),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFF94A3B8),
+                      ),
                       onPressed: () => _delete(place),
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     onTap: () {
                       setState(() => _selectedId = place.id);
                       widget.onSelectPlace(place.id);
@@ -6301,6 +6749,7 @@ class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
     );
   }
 }
+
 class _LuxuryPatternPainter extends CustomPainter {
   const _LuxuryPatternPainter();
 
@@ -6526,12 +6975,14 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
         if (_lastRouteFetchedLatLng == null) {
           _fetchRoute();
         } else {
-          final double distanceMoved = _distanceKm(
-            newLat,
-            newLng,
-            _lastRouteFetchedLatLng!.latitude,
-            _lastRouteFetchedLatLng!.longitude,
-          ) * 1000.0;
+          final double distanceMoved =
+              _distanceKm(
+                newLat,
+                newLng,
+                _lastRouteFetchedLatLng!.latitude,
+                _lastRouteFetchedLatLng!.longitude,
+              ) *
+              1000.0;
           if (distanceMoved > 150.0) {
             _fetchRoute();
           }
@@ -6566,15 +7017,12 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
 
     try {
       final currentLatLng = LatLng(_targetLat, _targetLng);
-      final url = Uri.https(
-        'maps.googleapis.com',
-        '/maps/api/directions/json',
-        {
-          'origin': '$_targetLat,$_targetLng',
-          'destination': '$destLat,$destLng',
-          'key': apiKey,
-        },
-      );
+      final url =
+          Uri.https('maps.googleapis.com', '/maps/api/directions/json', {
+            'origin': '$_targetLat,$_targetLng',
+            'destination': '$destLat,$destLng',
+            'key': apiKey,
+          });
 
       final response = await http.get(url).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
@@ -6605,14 +7053,20 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                 _lastRouteFetchedLatLng = currentLatLng;
               });
             }
-            debugPrint("[Customer Tracking] Successfully fetched route from Directions API.");
+            debugPrint(
+              "[Customer Tracking] Successfully fetched route from Directions API.",
+            );
             return;
           }
         } else {
-          debugPrint("[Customer Tracking] Directions API status not OK: ${data['status']}");
+          debugPrint(
+            "[Customer Tracking] Directions API status not OK: ${data['status']}",
+          );
         }
       } else {
-        debugPrint("[Customer Tracking] Directions API HTTP status: ${response.statusCode}");
+        debugPrint(
+          "[Customer Tracking] Directions API HTTP status: ${response.statusCode}",
+        );
       }
     } catch (e) {
       debugPrint("[Customer Tracking] Error fetching Directions API: $e");
@@ -6692,8 +7146,10 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
     final destLng = widget.destinationLng;
     final eta = (_hasLocation && destLat != null && destLng != null)
         ? (_apiDurationText != null
-            ? (_apiDistanceText != null ? '$_apiDurationText ($_apiDistanceText)' : _apiDurationText!)
-            : _formatEta(_distanceKm(_riderLat, _riderLng, destLat, destLng)))
+              ? (_apiDistanceText != null
+                    ? '$_apiDurationText ($_apiDistanceText)'
+                    : _apiDurationText!)
+              : _formatEta(_distanceKm(_riderLat, _riderLng, destLat, destLng)))
         : null;
 
     final markers = <Marker>{};

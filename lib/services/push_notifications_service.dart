@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart';
@@ -14,6 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'api_service.dart';
+import 'maintenance_service.dart';
+import '../screens/self_orders_review_screen.dart';
+import '../screens/customer_order_detail_screen.dart';
 
 const String _kCustomerPushEnabledKey = 'customer_push_notifications_enabled';
 const Color _kBrandNavy = Color(0xFF1E3A8A);
@@ -38,6 +41,80 @@ class PushNotificationsService {
   static bool _alarmRunning = false;
 
   static bool _initialized = false;
+
+  static bool _isAppActive = false;
+  static Map<String, dynamic>? _pendingNotification;
+
+  static void setAppActive(bool active) {
+    _d('setAppActive: $active');
+    _isAppActive = active;
+    if (active && _pendingNotification != null) {
+      final payload = _pendingNotification!;
+      _pendingNotification = null;
+      _d('Executing queued notification payload: $payload');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        handleNotificationClick(payload);
+      });
+    }
+  }
+
+  static Future<void> handleNotificationClick(Map<String, dynamic> data) async {
+    final type = (data['type'] ?? '').toString();
+    _d('handleNotificationClick: type=$type, data=$data');
+
+    if (!_isAppActive) {
+      _d('App is not in an active screen. Queuing notification.');
+      _pendingNotification = data;
+      return;
+    }
+
+    final api = ApiService();
+    final user = await api.getCachedUser();
+    if (user == null) {
+      _d('No cached user found, cannot redirect.');
+      return;
+    }
+
+    final role = (user['role'] ?? '').toString();
+    final navigator = MaintenanceService().navigatorKey.currentState;
+    if (navigator == null) {
+      _d('Navigator state not available.');
+      return;
+    }
+
+    if (role == 'cashier' || role == 'admin') {
+      if (type == 'self_order_new') {
+        _d('Navigating Cashier/Admin to SelfOrdersReviewScreen');
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => const SelfOrdersReviewScreen(),
+          ),
+        );
+      }
+    } else if (role == 'customer') {
+      final rawOrderId = data['order_id'] ?? data['id'];
+      final orderId = (rawOrderId is int)
+          ? rawOrderId
+          : int.tryParse(rawOrderId?.toString() ?? '');
+      if (orderId != null && orderId > 0) {
+        _d('Fetching order $orderId details for Customer redirect');
+        try {
+          final orderDetail = await api.fetchOrderReceipt(orderId);
+          _d('Navigating Customer to CustomerOrderDetailScreen');
+          navigator.push(
+            MaterialPageRoute(
+              builder: (_) => CustomerOrderDetailScreen(
+                item: orderDetail,
+                api: api,
+              ),
+            ),
+          );
+        } catch (e) {
+          _d('Failed to load order receipt: $e');
+        }
+      }
+    }
+  }
 
   // Generation-token deduplication: each new toggle increments this counter.
   // The async FCM closure captures its generation on entry and aborts if
@@ -66,7 +143,33 @@ class PushNotificationsService {
       android: androidInit,
       iOS: iosInit,
     );
-    await _local.initialize(initSettings);
+    await _local.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          try {
+            final data = jsonDecode(payload) as Map<String, dynamic>;
+            handleNotificationClick(data);
+          } catch (_) {}
+        }
+      },
+    );
+
+    // Terminated state launch message check
+    try {
+      final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        _d('Terminated state launch message: ${initialMessage.data}');
+        _pendingNotification = initialMessage.data;
+      }
+    } catch (_) {}
+
+    // Background to foreground click listener
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _d('Background notification click: ${message.data}');
+      handleNotificationClick(message.data);
+    });
 
     final messaging = FirebaseMessaging.instance;
 
@@ -184,22 +287,24 @@ class PushNotificationsService {
             colorized: true,
           );
         } else {
-          androidDetails = AndroidNotificationDetails(
-            'ladolce_pos_alarm_custom_sound',
-            'LaDolce Alerts',
-            channelDescription: 'High priority alerts (custom sound)',
+          androidDetails = const AndroidNotificationDetails(
+            'ladolce_pos_alarm_custom_sound_silent',
+            'LaDolce Foreground Alerts',
+            channelDescription: 'High priority alerts (no system sound to prevent ducking)',
             importance: Importance.max,
             priority: Priority.high,
-            sound: const RawResourceAndroidNotificationSound('notification'),
-            playSound: true,
-            enableVibration: true,
-            vibrationPattern: Int64List.fromList([0, 500, 500, 500, 500]),
+            playSound: false,
+            enableVibration: false,
             color: _kBrandNavy,
             colorized: true,
           );
         }
 
-        const iosDetails = DarwinNotificationDetails(presentSound: true);
+        final iosDetails = DarwinNotificationDetails(
+          presentSound: type != 'self_order_new',
+          presentAlert: true,
+          presentBadge: true,
+        );
         final details =
             NotificationDetails(android: androidDetails, iOS: iosDetails);
 

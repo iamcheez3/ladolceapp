@@ -65,4 +65,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderNoteHint => 'e.g., Pickup at 3:00 PM, extra spicy, etc.';
+
+  @override
+  String get weatherWarning =>
+      'Due to bad weather, your delivery or rider may be delayed.';
 }
