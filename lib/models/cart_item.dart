@@ -31,7 +31,7 @@ class CartItem {
     if (priceUnitFromOrder != null) {
       return priceUnitFromOrder! * quantity;
     }
-    double basePrice = product.price;
+    double basePrice = product.effectivePrice;
     for (var topping in selectedToppings) {
       basePrice += topping.extraPrice;
     }

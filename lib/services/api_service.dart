@@ -12,19 +12,21 @@ import '../models/table.dart';
 import '../models/payment_method.dart';
 import '../models/ticket.dart';
 import '../models/pos_tax_config.dart';
+import 'network_service.dart';
 
 class ApiService {
   /// Key used to store the dev IP override in SharedPreferences.
   static const String devBaseUrlKey = 'dev_base_url_override';
   static const String devDbNameKey = 'dev_db_name_override';
 
+  final NetworkService _network = NetworkService();
+
   String get baseUrl {
-    // NOTE: baseUrl is synchronous; the dev override is loaded via
-    // getBaseUrl() below for any code that can await. This getter is kept
-    // for backward-compat with all existing synchronous call-sites.
-    String envUrl =
-        dotenv.env['API_BASE_URL'] ??
-        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+    // Get from .env file - MUST be configured
+    final envUrl = dotenv.env['API_BASE_URL'];
+    if (envUrl == null || envUrl.isEmpty) {
+      throw Exception('API_BASE_URL not set in .env file');
+    }
     if (Platform.isAndroid && envUrl.contains('localhost')) {
       return envUrl.replaceAll('localhost', '10.0.2.2');
     }
@@ -32,16 +34,15 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> fetchMaintenanceStatus() async {
-    final base = await getBaseUrl();
     try {
-      final url = Uri.parse('$base/pos/maintenance/status');
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        if (jsonResponse['status'] == 'success') {
-          return jsonResponse['data'];
-        }
+      final response = await _network.get('/pos/maintenance/status',
+          requiresAuth: false, timeout: const Duration(seconds: 5));
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse['status'] == 'success') {
+        return jsonResponse['data'];
       }
+    } on NetworkException catch (e) {
+      _d('[API ERROR] Failed to fetch maintenance status: $e');
     } catch (e) {
       _d('[API ERROR] Failed to fetch maintenance status: $e');
     }
@@ -49,7 +50,6 @@ class ApiService {
   }
 
   Future<void> sendHeartbeat({bool isNewSession = false}) async {
-    final base = await getBaseUrl();
     try {
       final user = await getCachedUser();
       final userId = (user != null && user['user_id'] != null)
@@ -60,21 +60,20 @@ class ApiService {
 
       if (userId == 0) return;
 
-      final url = Uri.parse('$base/pos/heartbeat');
-      final response = await http
-          .post(
-            url,
-            headers: await _authHeaders(json: true),
-            body: jsonEncode({
-              'user_id': userId,
-              if (isNewSession) 'is_login': true,
-            }),
-          )
-          .timeout(const Duration(seconds: 5));
+      final response = await _network.post(
+        '/pos/heartbeat',
+        body: {
+          'user_id': userId,
+          if (isNewSession) 'is_login': true,
+        },
+        timeout: const Duration(seconds: 5),
+      );
 
       _d(
         '[HEARTBEAT] Sent for user $userId | New Session: $isNewSession | Status: ${response.statusCode}',
       );
+    } on NetworkException catch (e) {
+      _d('[HEARTBEAT ERROR] $e');
     } catch (e) {
       _d('[HEARTBEAT ERROR] $e');
     }
@@ -82,12 +81,7 @@ class ApiService {
 
   /// Async version that respects the dev IP override saved in prefs.
   Future<String> getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final override = prefs.getString(devBaseUrlKey);
-    if (override != null) {
-      return override.isNotEmpty ? override : baseUrl;
-    }
-    return 'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+    return _network.getBaseUrl();
   }
 
   /// Resolves the Odoo database name:
@@ -575,7 +569,9 @@ class ApiService {
     bool forceRefresh = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      await prefs.remove('cached_receipt_history');
+    } else {
       final cachedStr = prefs.getString('cached_receipt_history');
       if (cachedStr != null) {
         return List<Map<String, dynamic>>.from(jsonDecode(cachedStr));
@@ -887,7 +883,7 @@ class ApiService {
   }
 
   /// Fetch the latest rider location for an order.
-  /// GET /api/pos/order/<id>/rider_location
+  /// GET `/api/pos/order/:id/rider_location`
   Future<Map<String, dynamic>?> fetchRiderLocation(String orderId) async {
     final base = await getBaseUrl();
     try {
@@ -1203,9 +1199,7 @@ class ApiService {
     String? authProvider,
     bool force = false,
   }) async {
-    final base = await getBaseUrl();
     final dbName = await getDatabaseName();
-    final url = Uri.parse('$base/pos/login');
     final normalizedLogin = login.trim().toLowerCase();
     final device = await _collectDeviceInfo();
     final Map<String, dynamic> payload = {
@@ -1223,38 +1217,32 @@ class ApiService {
       if (force) 'force': true,
     };
 
-    _d('==============================');
-    _d('[API CALL] POST $url');
-    _d('[API LOAD] $payload');
+    try {
+      final response = await _network.post(
+        '/pos/login',
+        body: payload,
+        requiresAuth: false,
+        throwOnError: false,
+      );
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    );
+      final jsonResponse = jsonDecode(response.body);
 
-    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    _d('[API BODY] ${response.body}');
-    _d('==============================');
+      // HTTP 409 → another device has an active session.
+      // Return a structured map so the caller can show a conflict dialog.
+      if (response.statusCode == 409 &&
+          (jsonResponse['status']?.toString() == 'conflict')) {
+        final conflictData =
+            (jsonResponse['data'] is Map)
+                ? Map<String, dynamic>.from(jsonResponse['data'] as Map)
+                : <String, dynamic>{};
+        return {
+          'status': 'conflict',
+          'message': jsonResponse['message']?.toString() ?? 'Session conflict',
+          ...conflictData,
+        };
+      }
 
-    final jsonResponse = jsonDecode(response.body);
-
-    // HTTP 409 → another device has an active session.
-    // Return a structured map so the caller can show a conflict dialog.
-    if (response.statusCode == 409 &&
-        (jsonResponse['status']?.toString() == 'conflict')) {
-      final conflictData =
-          (jsonResponse['data'] is Map)
-              ? Map<String, dynamic>.from(jsonResponse['data'] as Map)
-              : <String, dynamic>{};
-      return {
-        'status': 'conflict',
-        'message': jsonResponse['message']?.toString() ?? 'Session conflict',
-        ...conflictData,
-      };
-    }
-
-    if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
+      if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
       final data = jsonResponse['data'];
       final sessionId = jsonResponse['session_id'];
 
@@ -1315,6 +1303,11 @@ class ApiService {
       return data;
     } else {
       throw Exception(jsonResponse['message'] ?? 'Login failed');
+    }
+    } on NetworkException catch (e) {
+      throw Exception('Login failed: ${e.message}');
+    } catch (e) {
+      throw Exception('Login failed: ${e.toString()}');
     }
   }
 
@@ -3408,7 +3401,7 @@ class ApiService {
     final cleaned = value
         .trim()
         .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceAll(RegExp(r'(?i)\bandroid\b'), '')
+        .replaceAll(RegExp(r'\bandroid\b', caseSensitive: false), '')
         .trim();
     if (cleaned.isEmpty) return '';
     return cleaned

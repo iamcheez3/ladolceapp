@@ -64,9 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final dbOverride = prefs.getString(ApiService.devDbNameKey) ?? '';
     if (mounted) {
       setState(() {
-        _currentBaseUrl =
-            override ??
-            'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+        _currentBaseUrl = override ?? '';
         _currentDbName = dbOverride;
       });
     }
@@ -75,9 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
   /// Opens a small dialog to edit / clear the API base URL override.
   void _showDevSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved =
-        prefs.getString(ApiService.devBaseUrlKey) ??
-        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+    final saved = prefs.getString(ApiService.devBaseUrlKey) ?? '';
     final savedDb = prefs.getString(ApiService.devDbNameKey) ?? '';
     final controller = TextEditingController(text: saved);
     final dbController = TextEditingController(text: savedDb);
@@ -121,8 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   autocorrect: false,
                   decoration: InputDecoration(
                     labelText: 'Base URL',
-                    hintText:
-                        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api',
+                    hintText: 'http://your-server:8069/api',
                     filled: true,
                     fillColor: const Color(0xFFF6F7FB),
                     prefixIcon: const Icon(
@@ -189,15 +184,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (!mounted) return;
                 if (mounted) {
                   setState(() {
-                    _currentBaseUrl =
-                        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+                    _currentBaseUrl = '';
                     _currentDbName = '';
                   });
                 }
                 navigator.pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Dev overrides reset to default ngrok URL'),
+                    content: Text('Dev overrides reset to default URL'),
                     backgroundColor: Color(0xFF001460),
                   ),
                 );

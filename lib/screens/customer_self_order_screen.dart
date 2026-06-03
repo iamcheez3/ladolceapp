@@ -1220,7 +1220,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => _FavoritePlacesScreen(
+        builder: (ctx) => _FavoritePlacesScreen(
           favoritePlaces: _favoritePlaces,
           selectedPlaceId: _selectedFavoritePlaceId,
           onSelectPlace: (id) {
@@ -1228,6 +1228,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             _apiService.saveSelectedFavoritePlace(id);
           },
           onDeletePlace: (place) => _deleteFavoritePlace(place, null),
+          onAddPlace: () {
+            Navigator.pop(ctx);
+            _openAddFavoritePlaceSheet(setState);
+          },
         ),
       ),
     ).then((changed) {
@@ -1448,7 +1452,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
   }
 
-  Future<void> _loadHistory() async {
+  Future<void> _loadHistory({bool forceRefresh = false}) async {
     setState(() => _isLoadingHistory = true);
     try {
       final List<Map<String, dynamic>> serverHistory;
@@ -1457,7 +1461,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           widget.partnerId!,
         );
       } else {
-        serverHistory = await _apiService.fetchReceiptHistory();
+        serverHistory = await _apiService.fetchReceiptHistory(
+          forceRefresh: forceRefresh,
+        );
+      }
+      if (forceRefresh) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('customer_self_order_history');
       }
       final localHistory = await _getLocalSelfOrderHistory();
 
@@ -1482,18 +1492,41 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         };
       }).toList();
 
-      // If partner_id is specified, server already scoped orders by that customer.
-      final filteredServer = widget.partnerId != null
-          ? normalizedServer
-          : normalizedServer.where((item) {
-              final c = (item['customer'] ?? '')
-                  .toString()
-                  .trim()
-                  .toLowerCase();
-              final mine = _customerName.trim().toLowerCase();
-              if (mine.isEmpty) return true;
-              return c == mine;
-            }).toList();
+      final List<Map<String, dynamic>> filteredServer = [];
+      final mine = _customerName.trim().toLowerCase();
+      final isGenericName =
+          mine.isEmpty ||
+          mine == 'customer' ||
+          mine == 'guest' ||
+          mine == 'anonymous';
+
+      final localKeys = localHistory.map((item) {
+        final idKey = item['id']?.toString() ?? '';
+        final nameKey = (item['name'] ?? '').toString();
+        return idKey.isNotEmpty && idKey != '0' ? 'id:$idKey' : 'name:$nameKey';
+      }).toSet();
+
+      for (final item in normalizedServer) {
+        final idKey = item['id']?.toString() ?? '';
+        final nameKey = (item['name'] ?? '').toString();
+        final key = idKey.isNotEmpty && idKey != '0'
+            ? 'id:$idKey'
+            : 'name:$nameKey';
+
+        if (localKeys.contains(key)) {
+          filteredServer.add(item);
+          continue;
+        }
+
+        if (widget.partnerId != null) {
+          filteredServer.add(item);
+        } else if (!isGenericName) {
+          final c = (item['customer'] ?? '').toString().trim().toLowerCase();
+          if (c == mine && mine.isNotEmpty) {
+            filteredServer.add(item);
+          }
+        }
+      }
 
       // Prefer server records over local placeholders when they refer to same order.
       final byKey = <String, Map<String, dynamic>>{};
@@ -2160,7 +2193,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   double _previewTotal(Product product, int qty, List<Topping> toppings) {
     final extra = toppings.fold<double>(0.0, (sum, t) => sum + t.extraPrice);
-    return (product.price + extra) * qty;
+    return (product.effectivePrice + extra) * qty;
   }
 
   void _showSelfOrderBlockedMessage() {
@@ -2967,7 +3000,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             (item) => {
               'product_id': item.product.id,
               'qty': item.quantity,
-              'price_unit': item.product.price,
+              'price_unit': item.product.effectivePrice,
               'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
             },
           )
@@ -3058,7 +3091,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             2; // History tab (Home=0, Cart=1, History=2, Profile=3)
       });
       // Refresh both history (to show the new order) and profile (to update reward points)
-      await Future.wait([_loadHistory(), _loadProfile()]);
+      await Future.wait([_loadHistory(forceRefresh: true), _loadProfile()]);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3166,7 +3199,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             _rewardRank;
       });
 
-      await _loadHistory();
+      await _loadHistory(forceRefresh: true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -3429,7 +3462,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final totalPrice =
-                (product.price +
+                (product.effectivePrice +
                     selectedToppings.fold(
                       0.0,
                       (sum, t) => sum + t.extraPrice,
@@ -4005,7 +4038,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     await Future.wait([
       _loadCatalog(),
       _loadProfile(),
-      _loadHistory(),
+      _loadHistory(forceRefresh: true),
       _loadSelfOrderConfig(),
       _loadBranches(),
     ]);
@@ -4475,13 +4508,27 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        '₭${product.price.toStringAsFixed(0)}',
-                                        style: TextStyle(
-                                          fontSize: isSmall ? 12 : 13,
-                                          fontWeight: FontWeight.w800,
-                                          color: _brandNavy,
-                                        ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (product.promotionPrice != null)
+                                            Text(
+                                              '₭${product.price.toStringAsFixed(0)}',
+                                              style: TextStyle(
+                                                fontSize: isSmall ? 9 : 10,
+                                                color: Colors.grey.shade400,
+                                                decoration: TextDecoration.lineThrough,
+                                              ),
+                                            ),
+                                          Text(
+                                            '₭${product.effectivePrice.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: isSmall ? 12 : 13,
+                                              fontWeight: FontWeight.w800,
+                                              color: product.promotionPrice != null ? Colors.red : _brandNavy,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       if (!blocked)
                                         GestureDetector(
@@ -4662,6 +4709,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     required bool isSmall,
   }) {
     final blocked = product.blockSelfOrder;
+    final isBestSelling = _popularProducts.any((p) => p.id == product.id);
     return InkWell(
       onTap: () {
         if (blocked) {
@@ -4677,7 +4725,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       borderRadius: BorderRadius.circular(14),
       child: Opacity(
         opacity: blocked ? 0.55 : 1,
-        child: Container(
+        child: Stack(
+          children: [
+            Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
@@ -4772,15 +4822,29 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Expanded(
-                            child: Text(
-                              '₭${product.price.toStringAsFixed(0)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: blocked ? Colors.grey : _brandNavy,
-                                fontSize: isSmall ? 14 : 16,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (product.promotionPrice != null)
+                                  Text(
+                                    '₭${product.price.toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                      decoration: TextDecoration.lineThrough,
+                                      color: Colors.grey.shade400,
+                                      fontSize: isSmall ? 11 : 12,
+                                    ),
+                                  ),
+                                Text(
+                                  '₭${product.effectivePrice.toStringAsFixed(0)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: product.promotionPrice != null ? Colors.red : (blocked ? Colors.grey : _brandNavy),
+                                    fontSize: isSmall ? 14 : 16,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           if (!blocked) ...[
@@ -4833,7 +4897,75 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             ],
           ),
         ),
-      ),
+        if (isBestSelling)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(14),
+                  bottomLeft: Radius.circular(10),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x40EF4444),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_fire_department, color: Colors.white, size: 12),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Best Seller',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isSmall ? 9 : 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (product.promotionPrice != null)
+          Positioned(
+            top: 0,
+            left: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: const BoxDecoration(
+                color: Color(0xFFEF4444),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(14),
+                  bottomRight: Radius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'PROMO',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  ),
     );
   }
 
@@ -5376,12 +5508,27 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             ),
                           ],
                           const SizedBox(height: 8),
-                          Text(
-                            '₭${item.product.price.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _brandNavy,
-                            ),
+                          Row(
+                            children: [
+                              if (item.product.promotionPrice != null) ...[
+                                Text(
+                                  '₭${item.product.price.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    decoration: TextDecoration.lineThrough,
+                                    color: Colors.grey.shade400,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text(
+                                '₭${item.product.effectivePrice.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: item.product.promotionPrice != null ? Colors.red : _brandNavy,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -5950,7 +6097,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         builder: (ctx) => CustomerOrderDetailScreen(
           item: item,
           api: _apiService,
-          onRefresh: _loadHistory,
+          onRefresh: () => _loadHistory(forceRefresh: true),
         ),
       ),
     );
@@ -6593,12 +6740,14 @@ class _FavoritePlacesScreen extends StatefulWidget {
   final String? selectedPlaceId;
   final void Function(String id) onSelectPlace;
   final Future<void> Function(_FavoritePlace place) onDeletePlace;
+  final VoidCallback? onAddPlace;
 
   const _FavoritePlacesScreen({
     required this.favoritePlaces,
     required this.selectedPlaceId,
     required this.onSelectPlace,
     required this.onDeletePlace,
+    this.onAddPlace,
   });
 
   @override
@@ -6653,6 +6802,9 @@ class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
         title: const Text('Favorite places'),
         backgroundColor: _navy,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(icon: const Icon(Icons.add), onPressed: widget.onAddPlace),
+        ],
       ),
       body: _places.isEmpty
           ? Center(

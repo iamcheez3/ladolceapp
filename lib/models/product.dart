@@ -13,6 +13,9 @@ class Product {
   final double? qtyAvailable;
   final String? defaultCode;
   final List<Topping> toppings;
+  final double? promotionPrice;
+  
+  double get effectivePrice => promotionPrice ?? price;
   
   // Custom Combo Support
   final bool isCombo;
@@ -60,6 +63,7 @@ class Product {
     this.blockSelfOrder = false,
     this.isRecommended = false,
     this.recommendedImageBase64,
+    this.promotionPrice,
   });
 
   static bool _parseBool(dynamic v) {
@@ -99,6 +103,7 @@ class Product {
       ),
       isRecommended: _parseBool(json['is_recommended_self_order']),
       recommendedImageBase64: json['recommended_image_base64'] is String ? json['recommended_image_base64'] : null,
+      promotionPrice: json['promotion_price'] != null ? (json['promotion_price'] as num).toDouble() : null,
     );
   }
 

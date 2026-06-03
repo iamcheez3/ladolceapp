@@ -155,6 +155,7 @@ class PushNotificationsService {
         }
       },
     );
+    await _ensureAndroidNotificationChannels();
 
     // Terminated state launch message check
     try {
@@ -369,6 +370,34 @@ class PushNotificationsService {
     try {
       await Permission.notification.request();
     } catch (_) {}
+  }
+
+  static Future<void> _ensureAndroidNotificationChannels() async {
+    if (!Platform.isAndroid) return;
+    final android = _local.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return;
+
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'ladolce_pos_general_default_sound',
+        'LaDolce Notifications',
+        description: 'General notifications (system sound)',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      ),
+    );
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'ladolce_pos_alarm_custom_sound_silent',
+        'LaDolce Foreground Alerts',
+        description: 'High priority alerts (app alarm sound)',
+        importance: Importance.max,
+        playSound: false,
+        enableVibration: false,
+      ),
+    );
   }
 
   /// Customer self-order: in-app preference (default on). When off, FCM token is removed

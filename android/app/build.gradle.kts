@@ -42,14 +42,26 @@ android {
         manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 
     packaging {
-        resources { 
+        resources {
             excludes += listOf(
                 "META-INF/**",
                 "META-INF/versions/**"
