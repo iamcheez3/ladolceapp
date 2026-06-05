@@ -2141,66 +2141,75 @@ class _PosScreenState extends State<PosScreen> {
             isScrollControlled: true,
             useSafeArea: true,
             backgroundColor: Colors.transparent,
-            builder: (ctx) => FractionallySizedBox(
-              heightFactor: 0.85,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: CartSidebar(
-                  cartItems: _cartItems,
-                  onUpdateQuantity: (item, newQty) {
-                    _updateQuantity(item, newQty);
-                    if (_cartItems.isEmpty) Navigator.pop(ctx);
-                  },
-                  onEditKitchenNote: _editCartItemKitchenNote,
-                  onClearCart: () {
-                    _clearCart();
-                    Navigator.pop(ctx);
-                  },
-                  onViewTickets: () async {
-                    Navigator.pop(ctx);
-                    final result = await Navigator.push<ResumedTicket>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            TicketsScreen(cachedProducts: _products),
-                      ),
-                    );
-                    if (result != null) {
-                      setState(() {
-                        _cartItems = result.cartItems;
-                        _activeTicketId = result.orderId;
-                        _activeTicketName = result.orderName;
-                        _activeTicketQueueNumber = result.queueNumber;
-                        _activeTicketTableId = result.tableId;
-                        _activeTicketPaymentType = result.paymentType;
-                        _activeTicketPaymentMethodId = result.paymentMethodId;
-                        _activeTicketPaymentMethodName =
-                            result.paymentMethodName;
-                      });
-                    }
-                  },
-                  onSaveTicket: () {
-                    Navigator.pop(ctx);
-                    _saveCurrentTicket(context);
-                  },
-                  onCharge: () {
-                    Navigator.pop(ctx);
-                    _showChargeDialog(context);
-                  },
-                  selectedCustomer: _selectedCustomer,
-                  onAddCustomer: () {
-                    Navigator.pop(ctx);
-                    _showCustomerSelection(context);
-                  },
-                  onClearCustomer: () {
-                    setState(() => _selectedCustomer = null);
-                  },
-                  taxConfig: _taxConfig,
-                  selectedDiscountOption: _selectedDiscountOption,
-                  discountManualValue: _pendingDiscountManualValue,
+            builder: (ctx) => StatefulBuilder(
+              builder: (ctx, setSheetState) => FractionallySizedBox(
+                heightFactor: 0.85,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: CartSidebar(
+                    cartItems: _cartItems,
+                    onUpdateQuantity: (item, newQty) {
+                      _updateQuantity(item, newQty);
+                      setSheetState(() {});
+                      if (_cartItems.isEmpty) Navigator.pop(ctx);
+                    },
+                    onEditKitchenNote: (item) async {
+                      await _editCartItemKitchenNote(item);
+                      setSheetState(() {});
+                    },
+                    onClearCart: () {
+                      _clearCart();
+                      Navigator.pop(ctx);
+                    },
+                    onViewTickets: () async {
+                      Navigator.pop(ctx);
+                      final result = await Navigator.push<ResumedTicket>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              TicketsScreen(cachedProducts: _products),
+                        ),
+                      );
+                      if (result != null) {
+                        setState(() {
+                          _cartItems = result.cartItems;
+                          _activeTicketId = result.orderId;
+                          _activeTicketName = result.orderName;
+                          _activeTicketQueueNumber = result.queueNumber;
+                          _activeTicketTableId = result.tableId;
+                          _activeTicketPaymentType = result.paymentType;
+                          _activeTicketPaymentMethodId = result.paymentMethodId;
+                          _activeTicketPaymentMethodName =
+                              result.paymentMethodName;
+                        });
+                      }
+                    },
+                    onSaveTicket: () {
+                      Navigator.pop(ctx);
+                      _saveCurrentTicket(context);
+                    },
+                    onCharge: () {
+                      Navigator.pop(ctx);
+                      _showChargeDialog(context);
+                    },
+                    selectedCustomer: _selectedCustomer,
+                    onAddCustomer: () async {
+                      await _showCustomerSelection(context);
+                      setSheetState(() {});
+                    },
+                    onClearCustomer: () {
+                      setState(() => _selectedCustomer = null);
+                      setSheetState(() {});
+                    },
+                    taxConfig: _taxConfig,
+                    selectedDiscountOption: _selectedDiscountOption,
+                    discountManualValue: _pendingDiscountManualValue,
+                  ),
                 ),
               ),
             ),
@@ -2835,7 +2844,7 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
-  void _showCustomerSelection(BuildContext context) async {
+  Future<void> _showCustomerSelection(BuildContext context) async {
     final result = await showCustomerSelectionSheet(
       context: context,
       onSearchCustomers: (query, limit, offset) => _apiService

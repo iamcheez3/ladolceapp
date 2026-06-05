@@ -79,6 +79,34 @@ class ApiService {
     }
   }
 
+  Future<void> setAppActiveStatus({required bool isActive}) async {
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+
+      if (userId == 0) return;
+
+      final response = await _network.post(
+        '/pos/app_active',
+        body: {
+          'user_id': userId,
+          'is_active': isActive,
+        },
+        timeout: const Duration(seconds: 5),
+      );
+
+      _d('[APP ACTIVE] Status $isActive sent for user $userId | API Status: ${response.statusCode}');
+    } on NetworkException catch (e) {
+      _d('[APP ACTIVE ERROR] $e');
+    } catch (e) {
+      _d('[APP ACTIVE ERROR] $e');
+    }
+  }
+
   /// Async version that respects the dev IP override saved in prefs.
   Future<String> getBaseUrl() async {
     return _network.getBaseUrl();
@@ -2661,6 +2689,9 @@ class ApiService {
   }
 
   Future<List<dynamic>> fetchCombos({bool forceRefresh = false}) async {
+    // Combos are hidden per user request
+    return [];
+    /*
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
       final cachedStr = prefs.getString('cached_combos');
@@ -2686,8 +2717,9 @@ class ApiService {
       if (cachedStr != null) {
         return jsonDecode(cachedStr);
       }
-      return [];
+      throw Exception('Network error: Cannot fetch combos');
     }
+    */
   }
 
   Future<dynamic> saveCombo({

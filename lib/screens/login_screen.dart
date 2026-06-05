@@ -35,6 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _devUnlocked = false;
+  int _logoTapCount = 0;
 
   // ── Dev tools state ──────────────────────────────────────────────────────
   String _currentBaseUrl = '';
@@ -67,6 +69,22 @@ class _LoginScreenState extends State<LoginScreen> {
         _currentBaseUrl = override ?? '';
         _currentDbName = dbOverride;
       });
+    }
+  }
+
+  void _onLogoTap() {
+    _logoTapCount++;
+    if (_logoTapCount >= 10) {
+      _logoTapCount = 0;
+      setState(() => _devUnlocked = !_devUnlocked);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_devUnlocked ? '🔓 Staff mode unlocked' : '🔒 Staff mode hidden'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF001460),
+        ),
+      );
+      if (_devUnlocked && kShowDevTools) _loadCurrentUrl();
     }
   }
 
@@ -549,7 +567,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       // ── Dev wrench button (bottom-right) ─────────────────────────────────
-      floatingActionButton: kShowDevTools
+      floatingActionButton: (_devUnlocked && kShowDevTools)
           ? FloatingActionButton.small(
               onPressed: _showDevSettings,
               backgroundColor: const Color(0xFF001460).withOpacity(0.85),
@@ -628,26 +646,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                                 alignment: Alignment.center,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(18),
-                                  child: Image.asset(
-                                    'assets/images/ladolce_bear_logo.png',
-                                    width:
-                                        MediaQuery.of(context).size.width < 360
-                                        ? 64
-                                        : 88,
-                                    height:
-                                        MediaQuery.of(context).size.width < 360
-                                        ? 64
-                                        : 88,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) {
-                                      return const Icon(
-                                        Icons.pets_rounded,
-                                        size: 52,
-                                        color: Colors.white,
-                                      );
-                                    },
+                                child: GestureDetector(
+                                  onTap: _onLogoTap,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: Image.asset(
+                                      'assets/images/ladolce_bear_logo.png',
+                                      width:
+                                          MediaQuery.of(context).size.width < 360
+                                          ? 64
+                                          : 88,
+                                      height:
+                                          MediaQuery.of(context).size.width < 360
+                                          ? 64
+                                          : 88,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) {
+                                        return const Icon(
+                                          Icons.pets_rounded,
+                                          size: 52,
+                                          color: Colors.white,
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
@@ -844,11 +865,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                 onPressed: _continueWithGoogle,
                               ),
                               const SizedBox(height: 8),
+                              if (_devUnlocked) ...[              
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const RegisterScreen(showStaffRoles: true),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Register Staff Account',
+                                    style: TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               TextButton(
                                 onPressed: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) => const RegisterScreen(),
+                                      builder: (_) => const RegisterScreen(showStaffRoles: false),
                                     ),
                                   );
                                 },

@@ -271,42 +271,33 @@ class PushNotificationsService {
           }
         }
 
-        // Android notification channel sound is "sticky" once created.
-        // Use separate channel IDs so customer "confirmed" uses system default sound
-        // while cashier "new order" can keep the custom alert sound.
-        final AndroidNotificationDetails androidDetails;
-        if (type == 'self_order_confirmed') {
-          androidDetails = const AndroidNotificationDetails(
-            'ladolce_pos_general_default_sound',
-            'LaDolce Notifications',
-            channelDescription: 'General notifications (system sound)',
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true, // default system sound (no custom sound)
-            enableVibration: true,
-            color: _kBrandNavy,
-            colorized: true,
-          );
-        } else {
-          androidDetails = const AndroidNotificationDetails(
-            'ladolce_pos_alarm_custom_sound_silent',
-            'LaDolce Foreground Alerts',
-            channelDescription: 'High priority alerts (no system sound to prevent ducking)',
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: false,
-            enableVibration: false,
-            color: _kBrandNavy,
-            colorized: true,
-          );
-        }
+        // All notification types use the same custom-sound channel so both
+        // the foreground local notification banner AND the OS background/lock-
+        // screen notification play notification.mp3 + vibrate.
+        // For self_order_new the audioplayer alarm is ALSO started above so the
+        // sound loops while the app is open; the local notification banner just
+        // provides the visual + a single system-sound hit.
+        const androidDetails = AndroidNotificationDetails(
+          'ladolce_pos_custom_sound',
+          'LaDolce Alerts',
+          channelDescription: 'Order alerts with custom sound and vibration',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('notification'),
+          enableVibration: true,
+          color: _kBrandNavy,
+          colorized: true,
+        );
 
-        final iosDetails = DarwinNotificationDetails(
-          presentSound: type != 'self_order_new',
+        // iOS: always play the bundled custom sound for every notification type.
+        const iosDetails = DarwinNotificationDetails(
+          presentSound: true,
+          sound: 'notification.mp3',
           presentAlert: true,
           presentBadge: true,
         );
-        final details =
+        const details =
             NotificationDetails(android: androidDetails, iOS: iosDetails);
 
         await _local.show(
@@ -378,6 +369,7 @@ class PushNotificationsService {
         AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
+    // Legacy general channel (kept so old installs don't break)
     await android.createNotificationChannel(
       const AndroidNotificationChannel(
         'ladolce_pos_general_default_sound',
@@ -388,6 +380,8 @@ class PushNotificationsService {
         enableVibration: true,
       ),
     );
+
+    // Legacy foreground-alert silent channel (kept for backwards compat)
     await android.createNotificationChannel(
       const AndroidNotificationChannel(
         'ladolce_pos_alarm_custom_sound_silent',
@@ -396,6 +390,24 @@ class PushNotificationsService {
         importance: Importance.max,
         playSound: false,
         enableVibration: false,
+      ),
+    );
+
+    // Primary channel: custom notification.mp3 + vibration pattern.
+    // Used for ALL notification types (foreground local + background/terminated OS).
+    // Note: Android caches channel properties on first creation, so this channel
+    // MUST be created before any notification is shown. Uninstall the app to
+    // reset if you previously created this channel without a custom sound.
+    await android.createNotificationChannel(
+      AndroidNotificationChannel(
+        'ladolce_pos_custom_sound',
+        'LaDolce Alerts',
+        description: 'Order alerts with custom sound and vibration',
+        importance: Importance.max,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('notification'),
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 500, 300, 500, 300, 500]),
       ),
     );
   }

@@ -7,7 +7,8 @@ import '../utils/responsive_layout.dart';
 import 'loading_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  final bool showStaffRoles;
+  const RegisterScreen({super.key, this.showStaffRoles = false});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -296,13 +297,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               _phoneE164 = phone.completeNumber;
                             },
                             validator: (phone) {
-                              if (_selectedRole == 'customer') {
-                                final v = phone?.completeNumber.trim() ?? '';
-                                if (v.isEmpty) {
-                                  return 'Phone number is required for customers';
-                                }
-                                if (!v.startsWith('+')) {
-                                  return 'Phone number must start with +';
+                              final v = phone?.completeNumber.trim() ?? '';
+                              if (_selectedRole == 'customer' && v.isEmpty) {
+                                return 'Phone number is required for customers';
+                              }
+                              if (v.isNotEmpty) {
+                                final numberOnly = phone?.number ?? '';
+                                if (numberOnly.length != 10 || !numberOnly.startsWith('20')) {
+                                  return 'Phone must be 10 digits starting with 20';
                                 }
                               }
                               return null;
@@ -345,6 +347,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 value!.isEmpty ? 'Please enter password' : null,
                           ),
                           const SizedBox(height: 16),
+                          if (widget.showStaffRoles) ...[
                           const Text(
                             'Role',
                             style: TextStyle(
@@ -413,6 +416,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ],
                           ),
+                          ], // end showStaffRoles
                           if (_selectedRole == 'cashier' || _selectedRole == 'rider') ...[
                             const SizedBox(height: 14),
                             const Text(

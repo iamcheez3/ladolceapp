@@ -20,7 +20,7 @@
             android:resource="@color/brand_navy" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="ladolce_pos_general_default_sound" />
+            android:value="ladolce_pos_custom_sound" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
