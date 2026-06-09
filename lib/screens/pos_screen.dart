@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../models/product.dart';
 import '../models/cart_item.dart';
@@ -316,6 +319,7 @@ class _PosScreenState extends State<PosScreen> {
   @override
   void initState() {
     super.initState();
+    _loadPromotionPriceSetting();
     PushNotificationsService.setAppActive(true);
     printerService.initialize();
     _loadPosProfileLabels();
@@ -327,6 +331,16 @@ class _PosScreenState extends State<PosScreen> {
       const Duration(seconds: 12),
       (_) => _refreshPendingSelfOrders(),
     );
+  }
+
+  Future<void> _loadPromotionPriceSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    final usePromotion = prefs.getBool('pos_use_promotion_price') ?? true;
+    if (mounted) {
+      setState(() {
+        Product.disablePromotionPrice = !usePromotion;
+      });
+    }
   }
 
   Future<void> _loadPosProfileLabels() async {
@@ -881,13 +895,50 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
+  void _applyResumedTicket(ResumedTicket result) {
+    setState(() {
+      _cartItems = result.cartItems;
+      _activeTicketId = result.orderId;
+      _activeTicketName = result.orderName;
+      _activeTicketQueueNumber = result.queueNumber;
+      _activeTicketTableId = result.tableId;
+      _activeTicketPaymentType = result.paymentType;
+      _activeTicketPaymentMethodId = result.paymentMethodId;
+      _activeTicketPaymentMethodName = result.paymentMethodName;
+      _activeTicketIsSelfOrder = result.isSelfOrder;
+      _activeTicketPartnerName = result.partnerName;
+      _activeTicketDeliveryPlaceName = result.deliveryPlaceName;
+      _activeTicketDeliveryPlaceAddress = result.deliveryPlaceAddress;
+
+      if (result.discountType.isNotEmpty) {
+        if (result.discountType == 'percentage') {
+          _selectedDiscountOption = _discountConfig.options.firstWhere(
+            (o) => o.type == 'percentage' && o.value == result.discountValue,
+            orElse: () => PosDiscountOption(id: 'custom_perc', type: 'percentage', value: result.discountValue, name: '${result.discountValue.toStringAsFixed(0)}% Off'),
+          );
+          _pendingDiscountManualValue = null;
+        } else {
+          _selectedDiscountOption = _discountConfig.options.firstWhere(
+            (o) => o.type == 'value' && o.isManual,
+            orElse: () => PosDiscountOption(id: 'custom_val', type: 'value', value: null, name: 'Discount (Value)'),
+          );
+          _pendingDiscountManualValue = result.discountValue > 0 ? result.discountValue : result.discountAmount;
+        }
+      } else {
+        _selectedDiscountOption = null;
+        _pendingDiscountManualValue = null;
+      }
+    });
+    _recomputeDiscount(manualValue: _pendingDiscountManualValue);
+  }
+
   /// Per-unit line price for API payloads (base + topping extras).
   /// Matches [CartItem.totalPrice] / qty so offline cached totals are consistent.
   double _lineUnitPrice(CartItem item) {
     if (item.priceUnitFromOrder != null) {
       return item.priceUnitFromOrder!;
     }
-    double unit = item.product.price;
+    double unit = item.product.effectivePrice;
     for (final t in item.selectedToppings) {
       unit += t.extraPrice;
     }
@@ -1140,21 +1191,7 @@ class _PosScreenState extends State<PosScreen> {
                 ),
               );
               if (result != null) {
-                setState(() {
-                  _cartItems = result.cartItems;
-                  _activeTicketId = result.orderId;
-                  _activeTicketName = result.orderName;
-                  _activeTicketQueueNumber = result.queueNumber;
-                  _activeTicketTableId = result.tableId;
-                  _activeTicketPaymentType = result.paymentType;
-                  _activeTicketPaymentMethodId = result.paymentMethodId;
-                  _activeTicketPaymentMethodName = result.paymentMethodName;
-                  _activeTicketIsSelfOrder = result.isSelfOrder;
-                  _activeTicketPartnerName = result.partnerName;
-                  _activeTicketDeliveryPlaceName = result.deliveryPlaceName;
-                  _activeTicketDeliveryPlaceAddress =
-                      result.deliveryPlaceAddress;
-                });
+                _applyResumedTicket(result);
               }
             },
             borderRadius: BorderRadius.circular(8),
@@ -1182,6 +1219,16 @@ class _PosScreenState extends State<PosScreen> {
             ),
           ),
           actions: [
+            // Scanner Icon
+            IconButton(
+              onPressed: () {
+                _openScannerDialog();
+              },
+              icon: const Icon(Icons.qr_code_scanner),
+              tooltip: 'Scan Voucher',
+            ),
+            const SizedBox(width: 8),
+
             // View toggle (Grid / List)
             IconButton(
               onPressed: () {
@@ -1761,7 +1808,7 @@ class _PosScreenState extends State<PosScreen> {
                               builder: (_) => const PosSettingsScreen(),
                             ),
                           ).then((_) {
-                            if (mounted) setState(() {});
+                            _loadPromotionPriceSetting();
                           });
                         },
                       ),
@@ -2085,17 +2132,7 @@ class _PosScreenState extends State<PosScreen> {
                         ),
                       );
                       if (result != null) {
-                        setState(() {
-                          _cartItems = result.cartItems;
-                          _activeTicketId = result.orderId;
-                          _activeTicketName = result.orderName;
-                          _activeTicketQueueNumber = result.queueNumber;
-                          _activeTicketTableId = result.tableId;
-                          _activeTicketPaymentType = result.paymentType;
-                          _activeTicketPaymentMethodId = result.paymentMethodId;
-                          _activeTicketPaymentMethodName =
-                              result.paymentMethodName;
-                        });
+                        _applyResumedTicket(result);
                       }
                     },
                     onSaveTicket: () {
@@ -2176,17 +2213,7 @@ class _PosScreenState extends State<PosScreen> {
                         ),
                       );
                       if (result != null) {
-                        setState(() {
-                          _cartItems = result.cartItems;
-                          _activeTicketId = result.orderId;
-                          _activeTicketName = result.orderName;
-                          _activeTicketQueueNumber = result.queueNumber;
-                          _activeTicketTableId = result.tableId;
-                          _activeTicketPaymentType = result.paymentType;
-                          _activeTicketPaymentMethodId = result.paymentMethodId;
-                          _activeTicketPaymentMethodName =
-                              result.paymentMethodName;
-                        });
+                        _applyResumedTicket(result);
                       }
                     },
                     onSaveTicket: () {
@@ -4169,4 +4196,178 @@ class _PosScreenState extends State<PosScreen> {
     // No finally needed — _isOpeningTicket is no longer set because we never
     // show the spinner; the dialog is already dismissed above.
   }
+
+  void _openScannerDialog() {
+    final codeController = TextEditingController();
+    final MobileScannerController scannerController = MobileScannerController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        bool isClaiming = false;
+        bool isScanning = false;
+        Map<String, dynamic>? claimedData;
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            if (claimedData != null) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                title: const Text('Reward Claimed!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                    const SizedBox(height: 16),
+                    Text('Customer: ${claimedData!['customer_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text('Product: ${claimedData!['product_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    const Text('Please give this item to the customer.'),
+                  ],
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Done'),
+                  )
+                ],
+              );
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Claim Reward Voucher', style: TextStyle(fontWeight: FontWeight.w900)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isScanning)
+                    SizedBox(
+                      height: 250,
+                      width: 250,
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: MobileScanner(
+                              controller: scannerController,
+                              onDetect: (capture) {
+                                final List<Barcode> barcodes = capture.barcodes;
+                                if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                                  final code = barcodes.first.rawValue!;
+                                  setDialogState(() {
+                                    codeController.text = code;
+                                    isScanning = false;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                              onPressed: () {
+                                setDialogState(() => isScanning = false);
+                              },
+                            ),
+                          )
+                        ],
+                      ),
+                    )
+                  else ...[
+                    const Text('Enter or scan the customer\'s reward voucher code:'),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: codeController,
+                      decoration: InputDecoration(
+                        labelText: 'Voucher Code',
+                        errorText: errorText,
+                        border: const OutlineInputBorder(),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+                              onPressed: () {
+                                setDialogState(() {
+                                  isScanning = true;
+                                  errorText = null;
+                                });
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () => codeController.clear(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      textCapitalization: TextCapitalization.characters,
+                      onSubmitted: (val) async {
+                        if (val.trim().isEmpty) return;
+                        setDialogState(() {
+                          isClaiming = true;
+                          errorText = null;
+                        });
+                        try {
+                          final res = await _apiService.claimVoucher(val.trim());
+                          setDialogState(() {
+                            claimedData = res;
+                            isClaiming = false;
+                          });
+                        } catch (e) {
+                          setDialogState(() {
+                            errorText = e.toString().replaceAll('Exception:', '').trim();
+                            isClaiming = false;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isClaiming ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                if (!isScanning)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _brandNavy, foregroundColor: Colors.white),
+                    onPressed: isClaiming ? null : () async {
+                      if (codeController.text.trim().isEmpty) return;
+                      setDialogState(() {
+                        isClaiming = true;
+                        errorText = null;
+                      });
+                      try {
+                        final res = await _apiService.claimVoucher(codeController.text.trim());
+                        setDialogState(() {
+                          claimedData = res;
+                          isClaiming = false;
+                        });
+                      } catch (e) {
+                        setDialogState(() {
+                          errorText = e.toString().replaceAll('Exception:', '').trim();
+                          isClaiming = false;
+                        });
+                      }
+                    },
+                    child: isClaiming ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Claim'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      scannerController.dispose();
+    });
+  }
 }
+
+

@@ -1183,6 +1183,7 @@ class ApiService {
     String? phone,
     int? branchId,
     String? authProvider,
+    String? otpCode,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/register');
@@ -1198,6 +1199,8 @@ class ApiService {
         'branch_id': branchId,
       if (authProvider != null && authProvider.trim().isNotEmpty)
         'auth_provider': authProvider.trim(),
+      if (otpCode != null && otpCode.trim().isNotEmpty)
+        'otp_code': otpCode.trim(),
     };
     _d('==============================');
     _d('[API CALL] POST $url');
@@ -1219,6 +1222,73 @@ class ApiService {
     } else {
       throw Exception(jsonResponse['message'] ?? 'Registration failed');
     }
+  }
+
+  Future<Map<String, dynamic>> sendOtp(String phone) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/otp/send');
+    final payload = {
+      'phone': phone.trim(),
+    };
+
+    _d('==============================');
+    _d('[API CALL] POST $url');
+    _d('[API LOAD] $payload');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
+
+    try {
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse is Map) {
+        return Map<String, dynamic>.from(jsonResponse);
+      }
+    } catch (_) {}
+    return {
+      'status': 'error',
+      'message': 'Failed to send OTP (${response.statusCode})',
+    };
+  }
+
+  Future<Map<String, dynamic>> verifyOtp(String phone, String otpCode) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/otp/verify');
+    final payload = {
+      'phone': phone.trim(),
+      'otp_code': otpCode.trim(),
+    };
+
+    _d('==============================');
+    _d('[API CALL] POST $url');
+    _d('[API LOAD] $payload');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
+
+    try {
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse is Map) {
+        return Map<String, dynamic>.from(jsonResponse);
+      }
+    } catch (_) {}
+    return {
+      'status': 'error',
+      'message': 'Failed to verify OTP (${response.statusCode})',
+    };
   }
 
   Future<Map<String, dynamic>> loginUser(
@@ -1462,6 +1532,8 @@ class ApiService {
     String? deliveryMapsUrl,
     String? discountType,
     double? discountValue,
+    String? couponCode,
+    double? deliveryFee,
   }) async {
     final base = await getBaseUrl();
     final cn = customerName?.trim() ?? '';
@@ -1478,6 +1550,7 @@ class ApiService {
       if (cn.isNotEmpty) 'customer_name': cn,
       if (cp.isNotEmpty) 'customer_phone': cp,
       if (note != null && note.isNotEmpty) 'note': note,
+      if (couponCode != null && couponCode.trim().isNotEmpty) 'coupon_code': couponCode.trim(),
       if ((deliveryPlaceName ?? '').trim().isNotEmpty)
         'delivery_place_name': deliveryPlaceName!.trim(),
       if ((deliveryPlaceAddress ?? '').trim().isNotEmpty)
@@ -1494,6 +1567,7 @@ class ApiService {
         'discount_type': discountType,
         'discount_value': discountValue,
       },
+      if (deliveryFee != null && deliveryFee > 0) 'delivery_fee': deliveryFee,
     };
 
     try {
@@ -3688,6 +3762,84 @@ class ApiService {
       throw Exception('Failed to search customers');
     } catch (e) {
       throw Exception('Failed to search customers: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> validateCoupon(String code, {int? partnerId}) async {
+    try {
+      final base = await getBaseUrl();
+      final response = await http.post(
+        Uri.parse('$base/pos/validate_coupon'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'coupon_code': code,
+          if (partnerId != null) 'partner_id': partnerId,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return data['data'];
+      }
+      throw Exception(data['message'] ?? 'Failed to validate coupon');
+    } catch (e) {
+      throw Exception('Failed to validate coupon: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> redeemVoucher(int partnerId, int productId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/customer/redeem_voucher');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'partner_id': partnerId, 'product_id': productId}),
+      ).timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return data;
+      }
+      throw Exception(data['message'] ?? 'Failed to redeem voucher');
+    } catch (e) {
+      throw Exception('Failed to redeem voucher: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMyVouchers(int partnerId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/customer/my_vouchers?partner_id=$partnerId');
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return List<Map<String, dynamic>>.from(data['vouchers'] ?? []);
+      }
+      throw Exception(data['error'] ?? 'Failed to fetch vouchers');
+    } catch (e) {
+      throw Exception('Failed to fetch vouchers: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> claimVoucher(String code) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/claim_voucher');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'code': code}),
+      ).timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return data;
+      }
+      throw Exception(data['message'] ?? 'Failed to claim voucher');
+    } catch (e) {
+      throw Exception('Failed to claim voucher: $e');
     }
   }
 }

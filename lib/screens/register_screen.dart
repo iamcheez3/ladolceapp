@@ -6,6 +6,7 @@ import '../services/push_notifications_service.dart';
 import '../utils/responsive_layout.dart';
 import 'loading_screen.dart';
 
+
 class RegisterScreen extends StatefulWidget {
   final bool showStaffRoles;
   const RegisterScreen({super.key, this.showStaffRoles = false});
@@ -33,6 +34,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoadingBranches = false;
   List<Map<String, dynamic>> _branches = const [];
   int? _selectedBranchId;
+
+  bool _isSendingOtp = false;
+  bool _isVerifyingOtp = false;
+  String _otpError = '';
 
   @override
   void initState() {
@@ -63,11 +68,283 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  void _register() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<bool> _sendOtp(String phone) async {
+    try {
+      final res = await _apiService.sendOtp(phone);
+      if (res['status'] == 'success') {
+        return true;
+      }
+      
+      String errorMsg = res['message'] ?? 'Failed to send OTP';
+      if (res['wait_seconds'] != null) {
+        final totalSeconds = (res['wait_seconds'] as num).toInt();
+        final duration = Duration(seconds: totalSeconds);
+        final hours = duration.inHours;
+        final minutes = duration.inMinutes % 60;
+        final seconds = duration.inSeconds % 60;
+        String timeStr = '';
+        if (hours > 0) timeStr += '${hours}h ';
+        if (minutes > 0 || hours > 0) timeStr += '${minutes}m ';
+        timeStr += '${seconds}s';
+        errorMsg = 'Too many OTP requests. Please wait $timeStr before resending.';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return false;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to send OTP: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+  }
 
+  void _showOtpDialog(String telbizPhone) {
+    final otpController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              backgroundColor: _brandSurface,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'OTP Verification',
+                          style: TextStyle(
+                            color: _brandNavy,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                          onPressed: _isVerifyingOtp || _isSendingOtp
+                              ? null
+                              : () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'We have sent a 6-digit OTP to your phone number:\n+856 $telbizPhone',
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: otpController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8,
+                        color: _brandNavy,
+                      ),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        hintText: '000000',
+                        hintStyle: TextStyle(
+                          color: const Color(0xFF64748B).withOpacity(0.3),
+                          letterSpacing: 8,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: _brandNavy, width: 1.5),
+                        ),
+                      ),
+                      onChanged: (val) {
+                        if (val.length == 6) {
+                          setDialogState(() {
+                            _otpError = '';
+                          });
+                        }
+                      },
+                    ),
+                    if (_otpError.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _otpError,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 52,
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isVerifyingOtp || _isSendingOtp
+                            ? null
+                            : () async {
+                                final enteredCode = otpController.text.trim();
+                                if (enteredCode.length != 6) {
+                                  setDialogState(() {
+                                    _otpError = 'Please enter a 6-digit code';
+                                  });
+                                  return;
+                                }
+                                
+                                setDialogState(() {
+                                  _isVerifyingOtp = true;
+                                  _otpError = '';
+                                });
+                                
+                                try {
+                                  final response = await _apiService.registerUser(
+                                    name: _nameController.text,
+                                    login: _loginController.text,
+                                    password: _passwordController.text,
+                                    role: _selectedRole,
+                                    phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
+                                    branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider') ? _selectedBranchId : null,
+                                    otpCode: enteredCode,
+                                  );
+                                  
+                                  if (!mounted) return;
+                                  
+                                  Navigator.pop(context); // Close OTP Dialog
+                                  
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(response['message'] ?? 'Registration successful'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  Navigator.pop(context); // Pop back to login screen
+                                } catch (e) {
+                                  setDialogState(() {
+                                    _otpError = 'Registration Failed: ${e.toString()}';
+                                  });
+                                } finally {
+                                  setDialogState(() {
+                                    _isVerifyingOtp = false;
+                                  });
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _brandNavy,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: _isVerifyingOtp
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.2,
+                                ),
+                              )
+                            : const Text(
+                                'VERIFY & REGISTER',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: TextButton(
+                        onPressed: _isVerifyingOtp || _isSendingOtp
+                            ? null
+                            : () async {
+                                setDialogState(() {
+                                  _isSendingOtp = true;
+                                  _otpError = '';
+                                });
+                                final ok = await _sendOtp(telbizPhone);
+                                setDialogState(() {
+                                  _isSendingOtp = false;
+                                  if (ok) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('OTP code resent successfully!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                });
+                              },
+                        child: _isSendingOtp
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: _brandNavy,
+                                ),
+                              )
+                            : const Text(
+                                'Resend Code',
+                                style: TextStyle(
+                                  color: _brandNavy,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      _otpError = '';
+      _isSendingOtp = false;
+      _isVerifyingOtp = false;
+    });
+  }
+
+  void _registerDirect() async {
     setState(() => _isLoading = true);
-
     try {
       final response = await _apiService.registerUser(
         name: _nameController.text,
@@ -80,7 +357,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
-      // Show success and pop back to login
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(response['message'] ?? 'Registration successful'),
@@ -99,6 +375,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Extract national phone number without country code
+    String telbizPhone = _phoneE164;
+    if (telbizPhone.startsWith('+856')) {
+      telbizPhone = telbizPhone.substring(4);
+    } else if (telbizPhone.startsWith('856')) {
+      telbizPhone = telbizPhone.substring(3);
+    }
+    telbizPhone = telbizPhone.trim();
+
+    // Enforce OTP for customer registration or when a valid Lao mobile number is provided
+    if (_selectedRole == 'customer' || telbizPhone.startsWith('20') || telbizPhone.startsWith('30')) {
+      setState(() => _isLoading = true);
+      final ok = await _sendOtp(telbizPhone);
+      setState(() => _isLoading = false);
+      
+      if (ok) {
+        _showOtpDialog(telbizPhone);
+      }
+    } else {
+      _registerDirect();
     }
   }
 

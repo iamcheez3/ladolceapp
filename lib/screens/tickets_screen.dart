@@ -23,6 +23,9 @@ class ResumedTicket {
   final String partnerName;
   final String deliveryPlaceName;
   final String deliveryPlaceAddress;
+  final String discountType;
+  final double discountValue;
+  final double discountAmount;
 
   ResumedTicket({
     this.orderId,
@@ -39,6 +42,9 @@ class ResumedTicket {
     this.partnerName = '',
     this.deliveryPlaceName = '',
     this.deliveryPlaceAddress = '',
+    this.discountType = '',
+    this.discountValue = 0.0,
+    this.discountAmount = 0.0,
   });
 }
 
@@ -64,6 +70,9 @@ class _DisplayTicket {
   final String partnerName;
   final String deliveryPlaceName;
   final String deliveryPlaceAddress;
+  final String discountType;
+  final double discountValue;
+  final double discountAmount;
 
   _DisplayTicket({
     this.id,
@@ -84,6 +93,9 @@ class _DisplayTicket {
     this.partnerName = '',
     this.deliveryPlaceName = '',
     this.deliveryPlaceAddress = '',
+    this.discountType = '',
+    this.discountValue = 0.0,
+    this.discountAmount = 0.0,
   });
 }
 
@@ -222,6 +234,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
             partnerName: t.partnerName,
             deliveryPlaceName: t.deliveryPlaceName,
             deliveryPlaceAddress: t.deliveryPlaceAddress,
+            discountType: t.discountType,
+            discountValue: t.discountValue,
+            discountAmount: t.discountAmount,
           ),
         );
       }
@@ -281,6 +296,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
             partnerName: t.partnerName,
             deliveryPlaceName: t.deliveryPlaceName,
             deliveryPlaceAddress: t.deliveryPlaceAddress,
+            discountType: t.discountType,
+            discountValue: t.discountValue,
+            discountAmount: t.discountAmount,
           ),
         );
       }
@@ -312,7 +330,23 @@ class _TicketsScreenState extends State<TicketsScreen> {
           ),
         );
       } else {
-        debugPrint('Product ${line.productId} not found in catalog');
+        debugPrint('Product ${line.productId} not found in catalog. Creating dummy product for line.');
+        final dummyProduct = Product(
+          id: line.productId,
+          name: line.productName.isNotEmpty ? line.productName : 'Discount / Custom Item',
+          price: line.priceUnit,
+          category: 'System',
+        );
+        cartItems.add(
+          CartItem(
+            product: dummyProduct,
+            quantity: line.qty,
+            isSaved: true,
+            isPrinted: true,
+            priceUnitFromOrder: line.priceUnit,
+            kitchenNote: line.note,
+          ),
+        );
       }
     }
 
@@ -345,6 +379,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
         partnerName: ticket.partnerName,
         deliveryPlaceName: ticket.deliveryPlaceName,
         deliveryPlaceAddress: ticket.deliveryPlaceAddress,
+        discountType: ticket.discountType,
+        discountValue: ticket.discountValue,
+        discountAmount: ticket.discountAmount,
       ),
     );
   }

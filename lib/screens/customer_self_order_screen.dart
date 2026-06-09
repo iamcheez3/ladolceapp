@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' show sin, cos, sqrt, asin;
+import 'dart:math' show sin, cos, sqrt, asin, pi;
 import 'dart:ui' as ui;
 import 'customer_support_screen.dart';
 import 'ranking_screen.dart';
@@ -11,7 +11,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' show Factory;
 import 'package:flutter/gestures.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -20,7 +23,6 @@ import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
@@ -140,6 +142,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String? _catalogError;
   int _selectedTabIndex = 0;
 
+  String? _appliedCouponCode;
+  double _couponDiscount = 0.0;
+  bool _isApplyingCoupon = false;
+  final TextEditingController _couponController = TextEditingController();
+
   List<Product> _products = [];
   List<Product> _recommendedProducts = [];
   List<Product> _popularProducts = [];
@@ -165,6 +172,144 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     return _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
   }
 
+  // Delivery Fee Calculation
+  double _deliveryFee = 0.0;
+  bool _isFreeDeliveryTipApplicable = false;
+  double _amountNeededForFreeDelivery = 0.0;
+  double _currentDeliveryDistanceKm = 0.0;
+
+  double _calculateHaversineDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const double R = 6371; // Earth radius in km
+    final dLat = _degreesToRadians(lat2 - lat1);
+    final dLon = _degreesToRadians(lon2 - lon1);
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degreesToRadians(lat1)) *
+            cos(_degreesToRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    final c = 2 * asin(sqrt(a));
+    return R * c;
+  }
+
+  double _degreesToRadians(double degree) {
+    return degree * pi / 180;
+  }
+
+  void _calculateDeliveryFee(bool isSelfPickup) {
+    if (isSelfPickup) {
+      _deliveryFee = 0.0;
+      _isFreeDeliveryTipApplicable = false;
+      _amountNeededForFreeDelivery = 0.0;
+      _currentDeliveryDistanceKm = 0.0;
+      return;
+    }
+
+    if (_selectedBranchId == null || _selectedFavoritePlaceId == null) {
+      _deliveryFee = 0.0;
+      _isFreeDeliveryTipApplicable = false;
+      _amountNeededForFreeDelivery = 0.0;
+      _currentDeliveryDistanceKm = 0.0;
+      return;
+    }
+
+    // Find branch
+    final branchMatches = _branches.where(
+      (b) => _branchIdFromMap(b) == _selectedBranchId,
+    );
+    if (branchMatches.isEmpty) return;
+    final branch = branchMatches.first;
+
+    // Find favorite place
+    final placeMatches = _favoritePlaces.where(
+      (p) => p.id == _selectedFavoritePlaceId,
+    );
+    if (placeMatches.isEmpty) return;
+    final place = placeMatches.first;
+
+    final double bLat = (branch['latitude'] as num?)?.toDouble() ?? 0.0;
+    final double bLon = (branch['longitude'] as num?)?.toDouble() ?? 0.0;
+    final double pLat = place.latitude ?? 0.0;
+    final double pLon = place.longitude ?? 0.0;
+
+    if (bLat == 0.0 || bLon == 0.0 || pLat == 0.0 || pLon == 0.0) {
+      _deliveryFee = 0.0;
+      _isFreeDeliveryTipApplicable = false;
+      _amountNeededForFreeDelivery = 0.0;
+      _currentDeliveryDistanceKm = 0.0;
+      return;
+    }
+
+    final double distanceKm = _calculateHaversineDistance(
+      bLat,
+      bLon,
+      pLat,
+      pLon,
+    );
+    _currentDeliveryDistanceKm = distanceKm;
+    final double freeRadius =
+        (branch['free_delivery_radius_km'] as num?)?.toDouble() ?? 0.0;
+    final double minOrderAmount =
+        (branch['min_order_amount_for_free_delivery'] as num?)?.toDouble() ??
+        0.0;
+    final double baseFee =
+        (branch['base_rider_fee'] as num?)?.toDouble() ?? 0.0;
+
+    final cartTotal = _cartTotal - _couponDiscount;
+
+    _isFreeDeliveryTipApplicable = false;
+    _amountNeededForFreeDelivery = 0.0;
+
+    // Check free delivery radius
+    if (freeRadius > 0 && distanceKm <= freeRadius) {
+      if (cartTotal >= minOrderAmount) {
+        _deliveryFee = 0.0;
+        return;
+      } else {
+        _deliveryFee = baseFee;
+        _isFreeDeliveryTipApplicable = true;
+        _amountNeededForFreeDelivery = minOrderAmount - cartTotal;
+        return;
+      }
+    }
+
+    // Outside free radius (or no free radius), use tiered rules
+    final rulesRaw = branch['rider_fee_rules'] as List<dynamic>? ?? [];
+    double calculatedFee = baseFee; // default if no rules match or exist
+
+    if (rulesRaw.isNotEmpty) {
+      // Sort rules by distance_km ascending
+      final rules = rulesRaw.map((r) => r as Map<String, dynamic>).toList();
+      rules.sort((a, b) {
+        final da = (a['distance_km'] as num?)?.toDouble() ?? 0.0;
+        final db = (b['distance_km'] as num?)?.toDouble() ?? 0.0;
+        return da.compareTo(db);
+      });
+
+      bool ruleMatched = false;
+      for (var r in rules) {
+        final ruleDist = (r['distance_km'] as num?)?.toDouble() ?? 0.0;
+        if (distanceKm <= ruleDist) {
+          calculatedFee = (r['fee_amount'] as num?)?.toDouble() ?? 0.0;
+          ruleMatched = true;
+          break;
+        }
+      }
+
+      // If distance is beyond all rules, apply the maximum rule's fee
+      if (!ruleMatched) {
+        calculatedFee = (rules.last['fee_amount'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+
+    _deliveryFee = calculatedFee;
+  }
+
   Product? _previewProduct;
   int _previewQty = 1;
   List<Topping> _previewToppings = [];
@@ -174,6 +319,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String _customerPhone = '';
   String _customerEmail = '';
   String _customerDob = '';
+  String _clientId = '';
   int _rewardPoints = 0;
   int _rewardRank = 0;
   String? _customerImageBase64;
@@ -211,6 +357,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   @override
   void initState() {
     super.initState();
+    Product.isCustomerMode = true;
     PushNotificationsService.setAppActive(true);
     _customerName = widget.customerName;
     _cartItems.clear();
@@ -348,6 +495,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   @override
   void dispose() {
+    Product.isCustomerMode = false;
     PushNotificationsService.setAppActive(false);
     _recommendedAutoSlideTimer?.cancel();
     _recommendedPageController?.dispose();
@@ -1401,14 +1549,39 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
   }
 
+  void _updateProfileState(Map<String, dynamic> matched) {
+    if (!mounted) return;
+    setState(() {
+      _customerId = matched['id'] as int?;
+      final matchedName = _cleanProfileText(matched['name']);
+      _customerName = matchedName.isNotEmpty
+          ? matchedName
+          : widget.customerName;
+      _customerPhone = _cleanProfileText(matched['phone']);
+      _customerEmail = _cleanProfileText(matched['email']);
+      _clientId = _cleanProfileText(matched['client_id']);
+      final matchedDob = _cleanProfileText(matched['date_of_birth']);
+      _customerDob = matchedDob.isNotEmpty
+          ? matchedDob
+          : _cleanProfileText(matched['birthdate']);
+      _rewardPoints =
+          int.tryParse((matched['reward_points'] ?? 0).toString()) ?? 0;
+      _rewardRank = int.tryParse((matched['reward_rank'] ?? 0).toString()) ?? 0;
+      _customerImageBase64 = matched['image_base64']?.toString();
+    });
+  }
+
   Future<void> _loadProfile() async {
     setState(() => _isLoadingProfile = true);
     try {
-      final customers = await _apiService.fetchCustomers();
+      // 1. Try reading from cache first (no network request, instant load)
+      final cachedCustomers = await _apiService.fetchCustomers(
+        forceRefresh: false,
+      );
       Map<String, dynamic>? matched;
 
       if (widget.partnerId != null) {
-        for (final c in customers) {
+        for (final c in cachedCustomers) {
           if (c is Map<String, dynamic> && c['id'] == widget.partnerId) {
             matched = c;
             break;
@@ -1416,36 +1589,39 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         }
       }
 
-      matched ??= {
-        'id': widget.partnerId,
-        'name': widget.customerName,
-        'phone': '',
-        'email': '',
-        'date_of_birth': '',
-        'birthdate': '',
-        'reward_points': 0,
-      };
+      if (matched != null) {
+        _updateProfileState(matched);
+      }
 
-      if (!mounted) return;
-      setState(() {
-        _customerId = matched?['id'] as int?;
-        final matchedName = _cleanProfileText(matched?['name']);
-        _customerName = matchedName.isNotEmpty
-            ? matchedName
-            : widget.customerName;
-        _customerPhone = _cleanProfileText(matched?['phone']);
-        _customerEmail = _cleanProfileText(matched?['email']);
-        final matchedDob = _cleanProfileText(matched?['date_of_birth']);
-        _customerDob = matchedDob.isNotEmpty
-            ? matchedDob
-            : _cleanProfileText(matched?['birthdate']);
-        _rewardPoints =
-            int.tryParse((matched?['reward_points'] ?? 0).toString()) ?? 0;
-        _rewardRank =
-            int.tryParse((matched?['reward_rank'] ?? 0).toString()) ?? 0;
-        _customerImageBase64 = matched?['image_base64']?.toString();
-        _isLoadingProfile = false;
-      });
+      // 2. Fetch fresh data from the server and update cache & UI
+      final freshCustomers = await _apiService.fetchCustomers(
+        forceRefresh: true,
+      );
+      Map<String, dynamic>? freshMatched;
+      if (widget.partnerId != null) {
+        for (final c in freshCustomers) {
+          if (c is Map<String, dynamic> && c['id'] == widget.partnerId) {
+            freshMatched = c;
+            break;
+          }
+        }
+      }
+
+      if (freshMatched != null) {
+        _updateProfileState(freshMatched);
+      } else if (matched == null) {
+        // Fallback if not found anywhere yet
+        _updateProfileState({
+          'id': widget.partnerId,
+          'name': widget.customerName,
+          'phone': '',
+          'email': '',
+          'date_of_birth': '',
+          'birthdate': '',
+          'reward_points': 0,
+        });
+      }
+      setState(() => _isLoadingProfile = false);
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoadingProfile = false);
@@ -2222,11 +2398,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     Product product, {
     int quantity = 1,
     List<Topping> selectedToppings = const [],
+    bool isRedeemed = false,
   }) {
     if (product.blockSelfOrder) return;
     final selectedIds = selectedToppings.map((t) => t.id).toSet();
     final index = _cartItems.indexWhere((item) {
       if (item.product.id != product.id) return false;
+      if (item.isRedeemed != isRedeemed) return false;
       if (item.selectedToppings.length != selectedToppings.length) return false;
       final itemIds = item.selectedToppings.map((t) => t.id).toSet();
       return selectedIds.containsAll(itemIds) &&
@@ -2241,6 +2419,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             product: product,
             quantity: quantity,
             selectedToppings: selectedToppings,
+            isRedeemed: isRedeemed,
+            pointPrice: isRedeemed ? product.pointPrice : 0,
           ),
         );
       }
@@ -2263,13 +2443,92 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     });
   }
 
+  Future<void> _applyCoupon() async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() => _isApplyingCoupon = true);
+    try {
+      final res = await _apiService.validateCoupon(
+        code,
+        partnerId: widget.partnerId,
+      );
+      setState(() {
+        _appliedCouponCode = code;
+        _couponDiscount =
+            double.tryParse((res['discount_amount'] ?? 0).toString()) ?? 0.0;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Coupon applied successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _appliedCouponCode = null;
+        _couponDiscount = 0.0;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception:', '').trim()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isApplyingCoupon = false);
+      }
+    }
+  }
+
+  void _removeCoupon() {
+    setState(() {
+      _appliedCouponCode = null;
+      _couponDiscount = 0.0;
+      _couponController.clear();
+    });
+  }
+
   void _showCheckoutOptions() {
     if (_cartItems.isEmpty || _isPlacingOrder) return;
+
+    if (_customerPhone.trim().isEmpty) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Phone Number Required'),
+          content: const Text(
+            'A verified phone number is required before placing an order. Please update your profile.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _openEditProfileSheet();
+              },
+              child: const Text('Update Profile'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     _noteController.clear();
     String paymentChoice = 'transfer';
     XFile? proofImage;
     bool isSelfPickup = false;
+    _calculateDeliveryFee(isSelfPickup);
     final sheetMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
     showModalBottomSheet(
@@ -2405,6 +2664,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   : '';
                                               setSheetState(() {
                                                 _selectedBranchId = v;
+                                                _calculateDeliveryFee(
+                                                  isSelfPickup,
+                                                );
                                               });
                                               await _apiService
                                                   .setCachedCustomerBranch(
@@ -2429,9 +2691,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       children: [
                                         Expanded(
                                           child: GestureDetector(
-                                            onTap: () => setSheetState(
-                                              () => isSelfPickup = false,
-                                            ),
+                                            onTap: () => setSheetState(() {
+                                              isSelfPickup = false;
+                                              _calculateDeliveryFee(
+                                                isSelfPickup,
+                                              );
+                                            }),
                                             child: AnimatedContainer(
                                               duration: const Duration(
                                                 milliseconds: 180,
@@ -2485,9 +2750,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         ),
                                         Expanded(
                                           child: GestureDetector(
-                                            onTap: () => setSheetState(
-                                              () => isSelfPickup = true,
-                                            ),
+                                            onTap: () => setSheetState(() {
+                                              isSelfPickup = true;
+                                              _calculateDeliveryFee(
+                                                isSelfPickup,
+                                              );
+                                            }),
                                             child: AnimatedContainer(
                                               duration: const Duration(
                                                 milliseconds: 180,
@@ -2652,13 +2920,221 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   _selectedFavoritePlaceId =
                                                       value;
                                                 });
-                                                setSheetState(() {});
+                                                setSheetState(() {
+                                                  _calculateDeliveryFee(
+                                                    isSelfPickup,
+                                                  );
+                                                });
                                               },
                                             ),
                                           ),
                                         ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 16),
                                     ],
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      margin: const EdgeInsets.only(bottom: 24),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.grey.shade200,
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x0A000000),
+                                            blurRadius: 10,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          const Text(
+                                            'Payment Breakdown',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                'Subtotal',
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              Text(
+                                                '₭${_cartTotal.toStringAsFixed(0)}',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (_couponDiscount > 0) ...[
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'Discount',
+                                                  style: TextStyle(
+                                                    color: Colors.red.shade600,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '-₭${_couponDiscount.toStringAsFixed(0)}',
+                                                  style: TextStyle(
+                                                    color: Colors.red.shade600,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                          if (_cartItems.fold<int>(
+                                                0,
+                                                (sum, item) =>
+                                                    sum + item.totalPoints,
+                                              ) >
+                                              0) ...[
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'Points Required',
+                                                  style: TextStyle(
+                                                    color:
+                                                        Colors.orange.shade700,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '${_cartItems.fold<int>(0, (sum, item) => sum + item.totalPoints)} Pts',
+                                                  style: TextStyle(
+                                                    color:
+                                                        Colors.orange.shade700,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                          if (!isSelfPickup) ...[
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'Delivery Fee (${_currentDeliveryDistanceKm.toStringAsFixed(1)} km)',
+                                                  style: TextStyle(
+                                                    color: Colors.grey.shade700,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '₭${_deliveryFee.toStringAsFixed(0)}',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              vertical: 16,
+                                            ),
+                                            child: Divider(height: 1),
+                                          ),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Total Payment',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              Text(
+                                                '₭${(_cartTotal - _couponDiscount + _deliveryFee).toStringAsFixed(0)}',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 20,
+                                                  color: Color(0xFF001460),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (!isSelfPickup &&
+                                              _isFreeDeliveryTipApplicable) ...[
+                                            const SizedBox(height: 16),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 10,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color: Colors.green.shade200,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.info_outline,
+                                                    color: Colors.green,
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Add ₭${_amountNeededForFreeDelivery.toStringAsFixed(0)} more to get free delivery!',
+                                                      style: const TextStyle(
+                                                        color: Colors.green,
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
                                     Text(
                                       AppLocalizations.of(context)?.orderNote ??
                                           'Order Note / Pickup Time',
@@ -2944,7 +3420,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                 ),
                                 child: Text(
-                                  '${AppLocalizations.of(context)?.confirmOrder ?? 'Confirm Order'} (₭${_cartTotal.toStringAsFixed(2)})',
+                                  '${AppLocalizations.of(context)?.confirmOrder ?? 'Confirm Order'} (₭${(_cartTotal - _couponDiscount + _deliveryFee).toStringAsFixed(2)})',
                                 ),
                               ),
                             ),
@@ -2995,13 +3471,30 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       );
     }
     try {
+      final int totalPointsNeeded = _cartItems.fold(
+        0,
+        (sum, item) => sum + item.totalPoints,
+      );
+      if (totalPointsNeeded > _rewardPoints) {
+        setState(() => _isPlacingOrder = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Not enough points to redeem these items.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final lines = _cartItems
           .map(
             (item) => {
               'product_id': item.product.id,
               'qty': item.quantity,
-              'price_unit': item.product.effectivePrice,
+              'price_unit': item.isRedeemed ? 0.0 : item.product.effectivePrice,
               'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
+              'is_redeemed': item.isRedeemed,
+              'point_cost': item.isRedeemed ? item.pointPrice : 0,
             },
           )
           .toList();
@@ -3026,6 +3519,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         deliveryLatitude: favoritePlace?.latitude,
         deliveryLongitude: favoritePlace?.longitude,
         deliveryMapsUrl: favoritePlace?.mapsUrl,
+        couponCode: _appliedCouponCode,
+        deliveryFee: _deliveryFee,
       );
 
       String? uploadedProofUrl;
@@ -3051,7 +3546,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         'source': 'local',
         'id': result['order_id'] ?? 0,
         'name': result['order_reference'] ?? 'Order',
-        'amount_total': _cartTotal,
+        'amount_total': _cartTotal - _couponDiscount + _deliveryFee,
         'date_order': nowIso,
         'payment_method': paymentChoice == 'transfer'
             ? 'Transfer'
@@ -3183,6 +3678,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         if (savedName.isNotEmpty) _customerName = savedName;
         _customerPhone = _cleanProfileText(saved['phone']);
         _customerEmail = _cleanProfileText(saved['email']);
+        _clientId = _cleanProfileText(saved['client_id']);
         final savedDob = _cleanProfileText(saved['date_of_birth']);
         _customerDob = savedDob.isNotEmpty
             ? savedDob
@@ -3228,6 +3724,413 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
+    );
+  }
+
+  void _openRewardsCatalog() {
+    final redeemableProducts = _products.where((p) {
+      if (!p.isRedeemable) return false;
+      final now = DateTime.now();
+      if (p.redeemStartDate != null && now.isBefore(p.redeemStartDate!)) return false;
+      if (p.redeemEndDate != null && now.isAfter(p.redeemEndDate!)) return false;
+      return true;
+    }).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          height: MediaQuery.of(ctx).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Rewards Catalog',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Text(
+                        '$_rewardPoints Pts',
+                        style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              Expanded(
+                child: redeemableProducts.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No rewards available at the moment.',
+                          style: TextStyle(color: Colors.grey.shade500),
+                        ),
+                      )
+                    : GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 180,
+                          childAspectRatio: 0.75,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                        itemCount: redeemableProducts.length,
+                        itemBuilder: (context, index) {
+                          final product = redeemableProducts[index];
+                          final canAfford = _rewardPoints >= product.pointPrice;
+                          return GestureDetector(
+                            onTap: canAfford ? () {
+                              _confirmRedeem(product);
+                            } : () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Not enough points!')),
+                              );
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.grey.shade200),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                      child: _buildProductImage(product),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            product.name,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: canAfford ? _brandNavy : Colors.grey.shade200,
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              '${product.pointPrice} Pts',
+                                              style: TextStyle(
+                                                color: canAfford ? Colors.white : Colors.grey.shade600,
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmRedeem(Product product) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        bool isRedeeming = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Redeem Reward?', style: TextStyle(fontWeight: FontWeight.w900)),
+              content: Text('Do you want to convert ${product.pointPrice} points into a voucher for ${product.name}?'),
+              actions: [
+                TextButton(
+                  onPressed: isRedeeming ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: _brandNavy, foregroundColor: Colors.white),
+                  onPressed: isRedeeming ? null : () async {
+                    setDialogState(() => isRedeeming = true);
+                    try {
+                      // Note: We need the customer's partner ID.
+                      // Since self order screen doesn't directly expose partner ID except via matching _customerPhone,
+                      // we can just pass widget.partnerId if available, or try to get it.
+                      if (widget.partnerId == null) {
+                        throw Exception('Customer not logged in properly.');
+                      }
+                      final res = await _apiService.redeemVoucher(widget.partnerId!, product.id);
+                      if (mounted) {
+                        Navigator.pop(ctx); // Close dialog
+                        Navigator.pop(context); // Close Catalog
+                        setState(() {
+                          _rewardPoints -= product.pointPrice;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Voucher created successfully!'), backgroundColor: Colors.green),
+                        );
+                        _openMyVouchers(); // Automatically open vouchers list
+                      }
+                    } catch (e) {
+                      setDialogState(() => isRedeeming = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                      );
+                    }
+                  },
+                  child: isRedeeming ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Redeem'),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
+
+  void _showVoucherQrDialog(Map<String, dynamic> voucher) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(
+          voucher['product_name'] ?? 'Voucher',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Scan this QR code at the counter to claim your reward.', textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            Center(
+              child: SizedBox(
+                width: 200,
+                height: 200,
+                child: QrImageView(
+                  data: voucher['code'] ?? '',
+                  version: QrVersions.auto,
+                  size: 200.0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              voucher['code'] ?? '',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 4,
+                color: _brandNavy,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openMyVouchers() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              height: MediaQuery.of(ctx).size.height * 0.75,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'My Vouchers',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: widget.partnerId == null 
+                        ? const Center(child: Text('Not logged in.'))
+                        : FutureBuilder<List<Map<String, dynamic>>>(
+                            future: _apiService.fetchMyVouchers(widget.partnerId!),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(child: CircularProgressIndicator());
+                              }
+                              if (snapshot.hasError) {
+                                return Center(child: Text('Error: ${snapshot.error}'));
+                              }
+                              final vouchers = snapshot.data ?? [];
+                              if (vouchers.isEmpty) {
+                                return Center(
+                                  child: Text(
+                                    "You don't have any vouchers yet.",
+                                    style: TextStyle(color: Colors.grey.shade500),
+                                  ),
+                                );
+                              }
+                              return ListView.separated(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: vouchers.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final v = vouchers[index];
+                                  final bool isClaimed = v['state'] == 'claimed';
+                                  return GestureDetector(
+                                    onTap: isClaimed ? null : () => _showVoucherQrDialog(v),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: isClaimed ? Colors.grey.shade100 : Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isClaimed ? Colors.grey.shade300 : Colors.blue.shade200,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Icon(
+                                            isClaimed ? Icons.check_circle_outline : Icons.qr_code_2,
+                                            size: 32,
+                                            color: isClaimed ? Colors.grey : _brandNavy,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                v['product_name'] ?? 'Unknown',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 16,
+                                                  color: isClaimed ? Colors.grey.shade600 : Colors.black87,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Code: ${v['code']}',
+                                                style: TextStyle(
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isClaimed ? Colors.grey.shade500 : _brandNavy,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (!isClaimed)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: _brandNavy,
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: const Text('ACTIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                          )
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          }
+        );
+      }
     );
   }
 
@@ -3280,94 +4183,117 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   Widget _profileNotificationTile() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8ECF4)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFDCE5FF)),
-              ),
-              child: const Icon(
-                Icons.notifications_outlined,
-                color: _brandNavy,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Notifications',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: _brandNavy,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _pushNotificationsEnabled
-                        ? 'Order updates on this device'
-                        : 'Push alerts are turned off',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Switch(
-              value: _pushNotificationsEnabled,
-              activeThumbColor: _brandNavy,
-              onChanged: (v) {
-                // ── Optimistic UI update ───────────────────────────────────
-                // Flip the switch immediately so the user sees instant feedback,
-                // regardless of how long the FCM sync takes.
-                final previousValue = _pushNotificationsEnabled;
-                final myToken = ++_notifSyncToken;
-                setState(() => _pushNotificationsEnabled = v);
+    return InkWell(
+      onTap: () {
+        final v = !_pushNotificationsEnabled;
+        // ── Optimistic UI update ───────────────────────────────────
+        final previousValue = _pushNotificationsEnabled;
+        final myToken = ++_notifSyncToken;
+        setState(() => _pushNotificationsEnabled = v);
 
-                // ── Background FCM sync ────────────────────────────────────
-                // Fire-and-forget: the service persists locally and syncs FCM
-                // asynchronously. onFailure is called only if THIS toggle is
-                // still the most recent one (myToken == _notifSyncToken).
-                PushNotificationsService.setCustomerPushEnabled(
-                  v,
-                  onFailure: (reason) {
-                    // Discard if the user has toggled again since.
-                    if (!mounted || myToken != _notifSyncToken) return;
-                    // Revert switch to previous state.
-                    setState(() => _pushNotificationsEnabled = previousValue);
-                    // Inform the user.
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Could not update notification settings. Please try again.',
+        // ── Background FCM sync ────────────────────────────────────
+        PushNotificationsService.setCustomerPushEnabled(
+          v,
+          onFailure: (reason) {
+            if (!mounted || myToken != _notifSyncToken) return;
+            setState(() => _pushNotificationsEnabled = previousValue);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Could not update notification settings. Please try again.',
+                ),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+        );
+      },
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: _brandNavy,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Notifications',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: _textPrimaryDark,
+                          fontSize: 16,
                         ),
-                        behavior: SnackBarBehavior.floating,
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _pushNotificationsEnabled
+                            ? 'Order updates on this device'
+                            : 'Push alerts are turned off',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _labelGray,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _pushNotificationsEnabled,
+                  activeThumbColor: Colors.white,
+                  activeColor: _brandNavy,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: const Color(0xFFCBD5E1),
+                  onChanged: (v) {
+                    final previousValue = _pushNotificationsEnabled;
+                    final myToken = ++_notifSyncToken;
+                    setState(() => _pushNotificationsEnabled = v);
+
+                    PushNotificationsService.setCustomerPushEnabled(
+                      v,
+                      onFailure: (reason) {
+                        if (!mounted || myToken != _notifSyncToken) return;
+                        setState(
+                          () => _pushNotificationsEnabled = previousValue,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Could not update notification settings. Please try again.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 76, right: 16),
+            child: Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+          ),
+        ],
       ),
     );
   }
@@ -3378,69 +4304,71 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     required IconData icon,
     Widget? trailing,
     required VoidCallback onTap,
+    bool isLast = false,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8ECF4)),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFDCE5FF)),
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: _brandNavy, size: 22),
                 ),
-                child: Icon(icon, color: _brandNavy),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: _brandNavy,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: _textPrimaryDark,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _labelGray,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 10),
-                trailing,
-              ] else ...[
-                const SizedBox(width: 10),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF94A3B8),
-                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 12),
+                  trailing,
+                ] else ...[
+                  const SizedBox(width: 12),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFFCBD5E1),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
+          if (!isLast)
+            const Padding(
+              padding: EdgeInsets.only(left: 76, right: 16),
+              child: Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+            ),
+        ],
       ),
     );
   }
@@ -3778,6 +4706,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       product,
                                       quantity: qty,
                                       selectedToppings: selectedToppings,
+                                      isRedeemed:
+                                          false,
                                     );
                                     Navigator.pop(ctx);
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -4334,6 +5264,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         product,
                                         quantity: 1,
                                         selectedToppings: [],
+                                        isRedeemed:
+                                            _selectedCategory ==
+                                            'Redeem points',
                                       );
                                       ScaffoldMessenger.of(
                                         context,
@@ -4509,25 +5442,43 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          if (product.promotionPrice != null)
+                                          if (_selectedCategory ==
+                                              'Redeem points')
                                             Text(
-                                              '₭${product.price.toStringAsFixed(0)}',
+                                              '${product.pointPrice} Pts',
                                               style: TextStyle(
-                                                fontSize: isSmall ? 9 : 10,
-                                                color: Colors.grey.shade400,
-                                                decoration: TextDecoration.lineThrough,
+                                                fontSize: isSmall ? 12 : 13,
+                                                fontWeight: FontWeight.w800,
+                                                color: _brandNavy,
+                                              ),
+                                            )
+                                          else ...[
+                                            if (product.promotionPrice != null)
+                                              Text(
+                                                '₭${product.price.toStringAsFixed(0)}',
+                                                style: TextStyle(
+                                                  fontSize: isSmall ? 9 : 10,
+                                                  color: Colors.grey.shade400,
+                                                  decoration: TextDecoration
+                                                      .lineThrough,
+                                                ),
+                                              ),
+                                            Text(
+                                              '₭${product.effectivePrice.toStringAsFixed(0)}',
+                                              style: TextStyle(
+                                                fontSize: isSmall ? 12 : 13,
+                                                fontWeight: FontWeight.w800,
+                                                color:
+                                                    product.promotionPrice !=
+                                                        null
+                                                    ? Colors.red
+                                                    : _brandNavy,
                                               ),
                                             ),
-                                          Text(
-                                            '₭${product.effectivePrice.toStringAsFixed(0)}',
-                                            style: TextStyle(
-                                              fontSize: isSmall ? 12 : 13,
-                                              fontWeight: FontWeight.w800,
-                                              color: product.promotionPrice != null ? Colors.red : _brandNavy,
-                                            ),
-                                          ),
+                                          ],
                                         ],
                                       ),
                                       if (!blocked)
@@ -4537,6 +5488,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                               product,
                                               quantity: 1,
                                               selectedToppings: [],
+                                              isRedeemed:
+                                                  _selectedCategory ==
+                                                  'Redeem points',
                                             );
                                             ScaffoldMessenger.of(
                                               context,
@@ -4728,244 +5682,278 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         child: Stack(
           children: [
             Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE8E8E8)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE8E8E8)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: SizedBox(
-                        width: isWide ? 104 : 90,
-                        height: isWide ? 104 : 90,
-                        child: _buildProductImage(product),
-                      ),
-                    ),
-                    if (blocked)
-                      Positioned.fill(
-                        child: ClipRRect(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: ColoredBox(
-                            color: Colors.white.withOpacity(0.45),
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black87,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  AppLocalizations.of(context)?.runOut ??
-                                      'Run out',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: isSmall ? 10 : 11,
+                          child: SizedBox(
+                            width: isWide ? 104 : 90,
+                            height: isWide ? 104 : 90,
+                            child: _buildProductImage(product),
+                          ),
+                        ),
+                        if (blocked)
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: ColoredBox(
+                                color: Colors.white.withOpacity(0.45),
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black87,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      AppLocalizations.of(context)?.runOut ??
+                                          'Run out',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: isSmall ? 10 : 11,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product.name,
-                        maxLines: isWide ? 2 : 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                          fontSize: isSmall ? 13 : 14,
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        product.category,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: isSmall ? 10 : 11,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (product.promotionPrice != null)
-                                  Text(
-                                    '₭${product.price.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      decoration: TextDecoration.lineThrough,
-                                      color: Colors.grey.shade400,
-                                      fontSize: isSmall ? 11 : 12,
+                          Text(
+                            product.name,
+                            maxLines: isWide ? 2 : 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                              fontSize: isSmall ? 13 : 14,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            product.category,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: isSmall ? 10 : 11,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (false)
+                                      Text(
+                                        '${product.pointPrice} Pts',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: blocked
+                                              ? Colors.grey
+                                              : _brandNavy,
+                                          fontSize: isSmall ? 14 : 16,
+                                        ),
+                                      )
+                                    else ...[
+                                      if (product.promotionPrice != null)
+                                        Text(
+                                          '₭${product.price.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                            color: Colors.grey.shade400,
+                                            fontSize: isSmall ? 11 : 12,
+                                          ),
+                                        ),
+                                      Text(
+                                        '₭${product.effectivePrice.toStringAsFixed(0)}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: product.promotionPrice != null
+                                              ? Colors.red
+                                              : (blocked
+                                                    ? Colors.grey
+                                                    : _brandNavy),
+                                          fontSize: isSmall ? 14 : 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (!blocked) ...[
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () {
+                                    _addToCart(
+                                      product,
+                                      quantity: 1,
+                                      selectedToppings: [],
+                                      isRedeemed:
+                                          false,
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          '${product.name} added to cart',
+                                        ),
+                                        backgroundColor: _brandNavy,
+                                        duration: const Duration(
+                                          milliseconds: 900,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: _brandNavy,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: _brandNavy.withOpacity(0.2),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                Text(
-                                  '₭${product.effectivePrice.toStringAsFixed(0)}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: product.promotionPrice != null ? Colors.red : (blocked ? Colors.grey : _brandNavy),
-                                    fontSize: isSmall ? 14 : 16,
+                                    child: const Icon(
+                                      Icons.add,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
                                   ),
                                 ),
                               ],
-                            ),
+                            ],
                           ),
-                          if (!blocked) ...[
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: () {
-                                _addToCart(
-                                  product,
-                                  quantity: 1,
-                                  selectedToppings: [],
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${product.name} added to cart',
-                                    ),
-                                    backgroundColor: _brandNavy,
-                                    duration: const Duration(milliseconds: 900),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: _brandNavy,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _brandNavy.withOpacity(0.2),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.add,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isBestSelling)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(14),
+                      bottomLeft: Radius.circular(10),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x40EF4444),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Best Seller',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSmall ? 9 : 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-        if (isBestSelling)
-          Positioned(
-            top: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(14),
-                  bottomLeft: Radius.circular(10),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x40EF4444),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
+            if (product.promotionPrice != null)
+              Positioned(
+                top: 0,
+                left: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.local_fire_department, color: Colors.white, size: 12),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Best Seller',
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEF4444),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(14),
+                      bottomRight: Radius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'PROMO',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: isSmall ? 9 : 10,
+                      fontSize: 10,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.5,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-        if (product.promotionPrice != null)
-          Positioned(
-            top: 0,
-            left: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: const BoxDecoration(
-                color: Color(0xFFEF4444),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(14),
-                  bottomRight: Radius.circular(10),
                 ),
               ),
-              child: const Text(
-                'PROMO',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-  ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -5244,6 +6232,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               product,
                               quantity: _previewQty,
                               selectedToppings: _previewToppings,
+                              isRedeemed: false,
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -5525,7 +6514,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 '₭${item.product.effectivePrice.toStringAsFixed(0)}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: item.product.promotionPrice != null ? Colors.red : _brandNavy,
+                                  color: item.product.promotionPrice != null
+                                      ? Colors.red
+                                      : _brandNavy,
                                 ),
                               ),
                             ],
@@ -5602,6 +6593,103 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Coupon Section
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _couponController,
+                      enabled: _appliedCouponCode == null,
+                      decoration: InputDecoration(
+                        hintText: 'Enter coupon code',
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        suffixIcon: _appliedCouponCode != null
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.red,
+                                ),
+                                onPressed: _removeCoupon,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _isApplyingCoupon || _appliedCouponCode != null
+                        ? null
+                        : _applyCoupon,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _brandNavy,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _isApplyingCoupon
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _appliedCouponCode != null ? 'Applied' : 'Apply',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ],
+              ),
+              if (_couponDiscount > 0) ...[
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Discount ($_appliedCouponCode)',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '- ₭${_couponDiscount.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Divider(color: Color(0xFFE2E8F0), height: 1),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -5609,8 +6697,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     'Total',
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
+
                   Text(
-                    '₭${_cartTotal.toStringAsFixed(0)}',
+                    '₭${(_cartTotal - _couponDiscount > 0 ? _cartTotal - _couponDiscount : 0).toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -6142,293 +7231,355 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         final cameraIconSize = isSmall ? 16.0 : (isCompactHeight ? 20.0 : 22.0);
         final detailsTopGap = isCompactHeight ? 4.0 : 8.0;
 
-        return SizedBox(
-          height: constraints.maxHeight,
-          child: Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [_brandNavy, _brandNavy2],
+        return Stack(
+          children: [
+            Positioned.fill(child: Container(color: Colors.white)),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: constraints.maxHeight * 0.5,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_brandNavy, _brandNavy2],
+                  ),
+                ),
+                child: const CustomPaint(painter: _LuxuryPatternPainter()),
               ),
             ),
-            child: CustomPaint(
-              painter: const _LuxuryPatternPainter(),
+            SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        isSmall ? 12 : 16,
-                        12,
-                        isSmall ? 12 : 16,
-                        8,
-                      ),
-                      child: Column(
-                        children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              GestureDetector(
-                                onTap: _pickProfileImage,
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: isSmall ? 24 : 32,
+                      bottom: 24,
+                    ),
+                    child: Column(
+                      children: [
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: _pickProfileImage,
+                              child: CircleAvatar(
+                                radius: avatarOuterRadius,
+                                backgroundColor: Colors.white,
                                 child: CircleAvatar(
-                                  radius: avatarOuterRadius,
-                                  backgroundColor: Colors.white,
-                                  child: CircleAvatar(
-                                    radius: avatarInnerRadius,
-                                    backgroundColor: const Color(0xFFF2F5FF),
-                                    backgroundImage:
-                                        (_profileImagePath != null &&
-                                            File(
-                                              _profileImagePath!,
-                                            ).existsSync())
-                                        ? FileImage(File(_profileImagePath!))
-                                        : (customerMemoryImage != null)
-                                        ? customerMemoryImage
-                                        : null,
-                                    child:
-                                        (_profileImagePath == null ||
-                                                !File(
-                                                  _profileImagePath!,
-                                                ).existsSync()) &&
-                                            (_customerImageBase64 == null ||
-                                                _customerImageBase64!.isEmpty)
-                                        ? Text(
-                                            _customerName.isEmpty
-                                                ? 'C'
-                                                : _customerName
-                                                      .substring(0, 1)
-                                                      .toUpperCase(),
-                                            style: TextStyle(
-                                              fontSize: initialsFontSize,
-                                              fontWeight: FontWeight.w900,
-                                              color: _brandNavy,
-                                            ),
-                                          )
-                                        : null,
+                                  radius: avatarInnerRadius,
+                                  backgroundColor: const Color(0xFFF2F5FF),
+                                  backgroundImage:
+                                      (_profileImagePath != null &&
+                                          File(_profileImagePath!).existsSync())
+                                      ? FileImage(File(_profileImagePath!))
+                                      : (customerMemoryImage != null)
+                                      ? customerMemoryImage
+                                      : null,
+                                  child:
+                                      (_profileImagePath == null ||
+                                              !File(
+                                                _profileImagePath!,
+                                              ).existsSync()) &&
+                                          (_customerImageBase64 == null ||
+                                              _customerImageBase64!.isEmpty)
+                                      ? Text(
+                                          _customerName.isEmpty
+                                              ? 'C'
+                                              : _customerName
+                                                    .substring(0, 1)
+                                                    .toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: initialsFontSize,
+                                            fontWeight: FontWeight.w900,
+                                            color: _brandNavy,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: isSmall ? 10 : 14,
+                              bottom: isSmall ? 10 : 14,
+                              child: Container(
+                                width: statusDotSize,
+                                height: statusDotSize,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF22C55E),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
                                   ),
                                 ),
                               ),
-                              Positioned(
-                                left: isSmall ? 10 : 14,
-                                bottom: isSmall ? 10 : 14,
+                            ),
+                            Positioned(
+                              right: isSmall ? 6 : 10,
+                              bottom: isSmall ? 6 : 10,
+                              child: InkWell(
+                                onTap: _pickProfileImage,
+                                borderRadius: BorderRadius.circular(999),
                                 child: Container(
-                                  width: statusDotSize,
-                                  height: statusDotSize,
+                                  width: cameraButtonSize,
+                                  height: cameraButtonSize,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF22C55E),
+                                    color: _brandNavy,
                                     borderRadius: BorderRadius.circular(999),
                                     border: Border.all(
                                       color: Colors.white,
                                       width: 2,
                                     ),
                                   ),
+                                  child: Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: cameraIconSize,
+                                  ),
                                 ),
                               ),
-                              Positioned(
-                                right: isSmall ? 6 : 10,
-                                bottom: isSmall ? 6 : 10,
-                                child: InkWell(
-                                  onTap: _pickProfileImage,
-                                  borderRadius: BorderRadius.circular(999),
-                                  child: Container(
-                                    width: cameraButtonSize,
-                                    height: cameraButtonSize,
-                                    decoration: BoxDecoration(
-                                      color: _brandNavy,
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _customerName.isEmpty ? 'Customer' : _customerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: isSmall ? 18 : 22,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _customerDob.isEmpty ? ' ' : 'DOB: $_customerDob',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFE2E8F0),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (_clientId.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: _clientId));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Client ID copied to clipboard!',
+                                  ),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Client ID: $_clientId',
+                                  style: const TextStyle(
+                                    color: Color(0xFFE2E8F0),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.copy,
+                                  size: 14,
+                                  color: Color(0xFFE2E8F0),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight * 0.5,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(32),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            top: 40,
+                            bottom: _gestureNavBottomPad(context) + 24,
+                          ),
+                          child: Column(
+                            children: [
+                              _profileMenuTile(
+                                title: 'Profile',
+                                subtitle:
+                                    '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
+                                icon: Icons.person_outline,
+                                onTap: _openEditProfileSheet,
+                              ),
+                              _profileMenuTile(
+                                title: 'Rewards Catalog',
+                                subtitle: 'Convert your points into free items',
+                                icon: Icons.card_giftcard_outlined,
+                                onTap: () {
+                                  _openRewardsCatalog();
+                                },
+                              ),
+                              _profileMenuTile(
+                                title: 'My Vouchers',
+                                subtitle: 'View and claim your saved vouchers',
+                                icon: Icons.qr_code_scanner_outlined,
+                                onTap: () {
+                                  _openMyVouchers();
+                                },
+                              ),
+                              _profileMenuTile(
+                                title: 'Favorite places',
+                                subtitle: _favoritePlacesSubtitle,
+                                icon: Icons.place_outlined,
+                                onTap: _openFavoritePlacesSheet,
+                              ),
+                              _profileNotificationTile(),
+                              _profileMenuTile(
+                                title: 'Ranking',
+                                subtitle: 'See Top 50 rewards leaderboard',
+                                icon: Icons.emoji_events_outlined,
+                                trailing: _rewardRank > 0
+                                    ? _rankPill(_rewardRank)
+                                    : null,
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => RankingScreen(
+                                        myRank: _rewardRank <= 0
+                                            ? null
+                                            : _rewardRank,
+                                        myPoints: _rewardPoints,
+                                        myName: _customerName,
+                                        myImageBase64: _customerImageBase64,
                                       ),
                                     ),
-                                    child: Icon(
-                                      Icons.camera_alt,
-                                      color: Colors.white,
-                                      size: cameraIconSize,
+                                  );
+                                },
+                              ),
+                              _profileMenuTile(
+                                title: 'Customer support',
+                                subtitle:
+                                    'Facebook & WhatsApp (from store settings)',
+                                icon: Icons.support_agent_outlined,
+                                isLast: true,
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => CustomerSupportScreen(
+                                        facebookUrl: _supportFacebookUrl,
+                                        whatsappNumber: _supportWhatsappNumber,
+                                        whatsappLink: _supportWhatsappLink,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 32),
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmall ? 16 : 24,
+                                ),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _isLoggingOut ? null : _logout,
+                                    icon: const Icon(Icons.logout),
+                                    label: _isLoggingOut
+                                        ? const Text('Logging out...')
+                                        : const Text('Logout'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.redAccent,
+                                      side: const BorderSide(
+                                        color: Color(0x55FF5252),
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: isSmall ? 12 : 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _customerName.isEmpty ? 'Customer' : _customerName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: isSmall ? 16 : 18,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _customerDob.isEmpty ? ' ' : 'DOB: $_customerDob',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFE2E8F0),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
+                        ),
+                      ),
+                      Positioned(
+                        top: -20,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Container(
                             padding: EdgeInsets.symmetric(
-                              horizontal: isSmall ? 12 : 14,
-                              vertical: 7,
+                              horizontal: isSmall ? 16 : 20,
+                              vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF2F5FF),
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: const Color(0xFFDCE5FF),
-                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x1A000000),
+                                  blurRadius: 16,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              'Reward points: $_rewardPoints',
-                              style: TextStyle(
-                                color: _brandNavy,
-                                fontWeight: FontWeight.w800,
-                                fontSize: isSmall ? 12 : 14,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: detailsTopGap),
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isSmall ? 12 : 16,
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: _brandDivider),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x12000000),
-                                    blurRadius: 14,
-                                    offset: Offset(0, 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.stars_rounded,
+                                  color: Color(0xFFF59E0B),
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Reward points: $_rewardPoints',
+                                  style: TextStyle(
+                                    color: _textPrimaryDark,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: isSmall ? 14 : 16,
                                   ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                  isSmall ? 12 : 14,
-                                  12,
-                                  isSmall ? 12 : 14,
-                                  10,
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _profileMenuTile(
-                                      title: 'Profile',
-                                      subtitle:
-                                          '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
-                                      icon: Icons.person_outline,
-                                      onTap: _openEditProfileSheet,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _profileMenuTile(
-                                      title: 'Favorite places',
-                                      subtitle: _favoritePlacesSubtitle,
-                                      icon: Icons.place_outlined,
-                                      onTap: _openFavoritePlacesSheet,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _profileNotificationTile(),
-                                    const SizedBox(height: 10),
-                                    _profileMenuTile(
-                                      title: 'Ranking',
-                                      subtitle:
-                                          'See Top 50 rewards leaderboard',
-                                      icon: Icons.emoji_events_outlined,
-                                      trailing: _rewardRank > 0
-                                          ? _rankPill(_rewardRank)
-                                          : null,
-                                      onTap: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => RankingScreen(
-                                              myRank: _rewardRank <= 0
-                                                  ? null
-                                                  : _rewardRank,
-                                              myPoints: _rewardPoints,
-                                              myName: _customerName,
-                                              myImageBase64:
-                                                  _customerImageBase64,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _profileMenuTile(
-                                      title: 'Customer support',
-                                      subtitle:
-                                          'Facebook & WhatsApp (from store settings)',
-                                      icon: Icons.support_agent_outlined,
-                                      onTap: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                CustomerSupportScreen(
-                                                  facebookUrl:
-                                                      _supportFacebookUrl,
-                                                  whatsappNumber:
-                                                      _supportWhatsappNumber,
-                                                  whatsappLink:
-                                                      _supportWhatsappLink,
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      isSmall ? 12 : 16,
-                      4,
-                      isSmall ? 12 : 16,
-                      _gestureNavBottomPad(context),
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _isLoggingOut ? null : _logout,
-                        icon: const Icon(Icons.logout),
-                        label: _isLoggingOut
-                            ? const Text('Logging out...')
-                            : const Text('Logout'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Color(0x55FFFFFF)),
-                          padding: EdgeInsets.symmetric(
-                            vertical: isSmall ? 10 : 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
+          ],
         );
       },
     );
@@ -6517,6 +7668,9 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
   late final TextEditingController _dobCtrl;
   String _dob = '';
   bool _isSaving = false;
+  bool _isVerifyingOtp = false;
+  bool _isSendingOtp = false;
+  String _otpError = '';
 
   static const _navy = Color(0xFF001460);
 
@@ -6554,6 +7708,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
             label: 'FULL NAME',
             controller: _nameCtrl,
             icon: Icons.person_outline,
+            hintText: 'Your Full Name',
           ),
           const SizedBox(height: 20),
           _buildField(
@@ -6561,6 +7716,8 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
             controller: _phoneCtrl,
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
+            hintText: 'e.g. 20XXXXXXXX',
+            prefixText: '+856 ',
           ),
           const SizedBox(height: 20),
           _buildDateField(),
@@ -6601,10 +7758,375 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
     );
   }
 
+  void _showOtpVerifyDialog(String telbizPhone) {
+    final otpController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              backgroundColor: const Color(0xFFF6F7FB),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'OTP Verification',
+                          style: TextStyle(
+                            color: _navy,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: Color(0xFF64748B),
+                          ),
+                          onPressed: _isVerifyingOtp || _isSendingOtp
+                              ? null
+                              : () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'We have sent a 6-digit OTP to your phone number:\n+856 $telbizPhone',
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: otpController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8,
+                        color: _navy,
+                      ),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        hintText: '000000',
+                        hintStyle: TextStyle(
+                          color: const Color(0xFF64748B).withOpacity(0.3),
+                          letterSpacing: 8,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFDCE5FF),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFDCE5FF),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: _navy,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      onChanged: (val) {
+                        if (val.length == 6) {
+                          setDialogState(() {
+                            _otpError = '';
+                          });
+                        }
+                      },
+                    ),
+                    if (_otpError.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _otpError,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 52,
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isVerifyingOtp || _isSendingOtp
+                            ? null
+                            : () async {
+                                final enteredCode = otpController.text.trim();
+                                if (enteredCode.length != 6) {
+                                  setDialogState(() {
+                                    _otpError = 'Please enter a 6-digit code';
+                                  });
+                                  return;
+                                }
+
+                                setDialogState(() {
+                                  _isVerifyingOtp = true;
+                                  _otpError = '';
+                                });
+
+                                try {
+                                  final response = await ApiService().verifyOtp(
+                                    telbizPhone,
+                                    enteredCode,
+                                  );
+
+                                  if (response['status'] != 'success') {
+                                    throw Exception(
+                                      response['message'] ??
+                                          'OTP verification failed',
+                                    );
+                                  }
+
+                                  // Close OTP dialog
+                                  if (!mounted) return;
+                                  Navigator.pop(context);
+
+                                  // Set parent state loading
+                                  setState(() => _isSaving = true);
+
+                                  // Save profile
+                                  await widget.onSave(
+                                    _nameCtrl.text,
+                                    '+856$telbizPhone',
+                                    _dob,
+                                  );
+
+                                  if (mounted) {
+                                    Navigator.pop(
+                                      this.context,
+                                    ); // Close ProfileEdit screen
+                                  }
+                                } catch (e) {
+                                  setDialogState(() {
+                                    _otpError = e.toString().replaceAll(
+                                      'Exception: ',
+                                      '',
+                                    );
+                                    _isVerifyingOtp = false;
+                                  });
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _navy,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: _isVerifyingOtp
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.2,
+                                ),
+                              )
+                            : const Text(
+                                'VERIFY & SAVE',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: TextButton(
+                        onPressed: _isVerifyingOtp || _isSendingOtp
+                            ? null
+                            : () async {
+                                setDialogState(() {
+                                  _isSendingOtp = true;
+                                  _otpError = '';
+                                });
+                                try {
+                                  final okRes = await ApiService().sendOtp(
+                                    telbizPhone,
+                                  );
+                                  if (okRes['status'] != 'success') {
+                                    throw Exception(
+                                      okRes['message'] ??
+                                          'Failed to resend OTP',
+                                    );
+                                  }
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'OTP code resent successfully!',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  setDialogState(() {
+                                    _otpError = e.toString().replaceAll(
+                                      'Exception: ',
+                                      '',
+                                    );
+                                  });
+                                } finally {
+                                  setDialogState(() {
+                                    _isSendingOtp = false;
+                                  });
+                                }
+                              },
+                        child: _isSendingOtp
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: _navy,
+                                ),
+                              )
+                            : const Text(
+                                'Resend Code',
+                                style: TextStyle(
+                                  color: _navy,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _save() async {
+    final inputPhone = _phoneCtrl.text.trim();
+    String cleaned = inputPhone.replaceAll(RegExp(r'[^\d+]'), '');
+    String telbizPhone = cleaned;
+    if (telbizPhone.startsWith('+856')) {
+      telbizPhone = telbizPhone.substring(4);
+    } else if (telbizPhone.startsWith('856')) {
+      telbizPhone = telbizPhone.substring(3);
+    } else if (telbizPhone.startsWith('020')) {
+      telbizPhone = telbizPhone.substring(1);
+    } else if (telbizPhone.startsWith('030')) {
+      telbizPhone = telbizPhone.substring(1);
+    }
+    telbizPhone = telbizPhone.trim();
+
+    if (telbizPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone number is required'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!telbizPhone.startsWith('20') || telbizPhone.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Phone number must start with 20 and be exactly 10 digits long (e.g. 20XXXXXXXX)',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    String currentCleaned = widget.currentPhone.replaceAll(
+      RegExp(r'[^\d+]'),
+      '',
+    );
+    String currentTelbiz = currentCleaned;
+    if (currentTelbiz.startsWith('+856')) {
+      currentTelbiz = currentTelbiz.substring(4);
+    } else if (currentTelbiz.startsWith('856')) {
+      currentTelbiz = currentTelbiz.substring(3);
+    } else if (currentTelbiz.startsWith('020')) {
+      currentTelbiz = currentTelbiz.substring(1);
+    } else if (currentTelbiz.startsWith('030')) {
+      currentTelbiz = currentTelbiz.substring(1);
+    }
+    currentTelbiz = currentTelbiz.trim();
+
+    // If phone number has NOT changed, just save directly
+    if (telbizPhone == currentTelbiz) {
+      setState(() => _isSaving = true);
+      try {
+        await widget.onSave(_nameCtrl.text, widget.currentPhone, _dob);
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save profile: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+      return;
+    }
+
+    // Phone number HAS changed. Send OTP first.
     setState(() => _isSaving = true);
-    await widget.onSave(_nameCtrl.text, _phoneCtrl.text, _dob);
-    if (mounted) Navigator.pop(context);
+    try {
+      final res = await ApiService().sendOtp(telbizPhone);
+      if (res['status'] != 'success') {
+        throw Exception(res['message'] ?? 'Failed to send OTP');
+      }
+
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+
+      // Open OTP Dialog
+      _showOtpVerifyDialog(telbizPhone);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildField({
@@ -6612,6 +8134,8 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
     required TextEditingController controller,
     required IconData icon,
     TextInputType? keyboardType,
+    String? hintText,
+    String? prefixText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -6642,9 +8166,21 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                 child: TextField(
                   controller: controller,
                   keyboardType: keyboardType,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
+                    hintText: hintText,
+                    prefixText: prefixText,
+                    prefixStyle: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    hintStyle: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 14,
+                      fontWeight: FontWeight.normal,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 14,
                     ),

@@ -853,6 +853,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  mobile_scanner:
+    dependency: "direct main"
+    description:
+      name: mobile_scanner
+      sha256: c92c26bf2231695b6d3477c8dcf435f51e28f87b1745966b1fe4c47a286171ce
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.2.0"
   native_toolchain_c:
     dependency: transitive
     description:
@@ -1170,6 +1178,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.4.0"
+  telbiz:
+    dependency: "direct main"
+    description:
+      name: telbiz
+      sha256: "86c3dff056634fe8c4b5c401ecfc736d8b75041cbe591250c0815f32e3ff8a93"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.5"
   term_glyph:
     dependency: transitive
     description:
