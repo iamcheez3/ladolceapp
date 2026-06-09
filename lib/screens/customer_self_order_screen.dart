@@ -3731,8 +3731,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     final redeemableProducts = _products.where((p) {
       if (!p.isRedeemable) return false;
       final now = DateTime.now();
-      if (p.redeemStartDate != null && now.isBefore(p.redeemStartDate!)) return false;
-      if (p.redeemEndDate != null && now.isAfter(p.redeemEndDate!)) return false;
+      if (p.redeemStartDate != null && now.isBefore(p.redeemStartDate!))
+        return false;
+      if (p.redeemEndDate != null && now.isAfter(p.redeemEndDate!))
+        return false;
       return true;
     }).toList();
 
@@ -3766,10 +3768,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   children: [
                     const Text(
                       'Rewards Catalog',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(16),
@@ -3798,24 +3806,29 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       )
                     : GridView.builder(
                         padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 180,
-                          childAspectRatio: 0.75,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 180,
+                              childAspectRatio: 0.75,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
                         itemCount: redeemableProducts.length,
                         itemBuilder: (context, index) {
                           final product = redeemableProducts[index];
                           final canAfford = _rewardPoints >= product.pointPrice;
                           return GestureDetector(
-                            onTap: canAfford ? () {
-                              _confirmRedeem(product);
-                            } : () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Not enough points!')),
-                              );
-                            },
+                            onTap: canAfford
+                                ? () {
+                                    _confirmRedeem(product);
+                                  }
+                                : () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Not enough points!'),
+                                      ),
+                                    );
+                                  },
                             child: Container(
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -3835,7 +3848,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   Expanded(
                                     flex: 3,
                                     child: ClipRRect(
-                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(16),
+                                      ),
                                       child: _buildProductImage(product),
                                     ),
                                   ),
@@ -3844,25 +3859,38 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     child: Padding(
                                       padding: const EdgeInsets.all(12),
                                       child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             product.name,
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13,
+                                            ),
                                           ),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
                                             decoration: BoxDecoration(
-                                              color: canAfford ? _brandNavy : Colors.grey.shade200,
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: canAfford
+                                                  ? _brandNavy
+                                                  : Colors.grey.shade200,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               '${product.pointPrice} Pts',
                                               style: TextStyle(
-                                                color: canAfford ? Colors.white : Colors.grey.shade600,
+                                                color: canAfford
+                                                    ? Colors.white
+                                                    : Colors.grey.shade600,
                                                 fontWeight: FontWeight.w900,
                                                 fontSize: 12,
                                               ),
@@ -3894,51 +3922,88 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Redeem Reward?', style: TextStyle(fontWeight: FontWeight.w900)),
-              content: Text('Do you want to convert ${product.pointPrice} points into a voucher for ${product.name}?'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                'Redeem Reward?',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              content: Text(
+                'Do you want to convert ${product.pointPrice} points into a voucher for ${product.name}?',
+              ),
               actions: [
                 TextButton(
                   onPressed: isRedeeming ? null : () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: _brandNavy, foregroundColor: Colors.white),
-                  onPressed: isRedeeming ? null : () async {
-                    setDialogState(() => isRedeeming = true);
-                    try {
-                      // Note: We need the customer's partner ID.
-                      // Since self order screen doesn't directly expose partner ID except via matching _customerPhone,
-                      // we can just pass widget.partnerId if available, or try to get it.
-                      if (widget.partnerId == null) {
-                        throw Exception('Customer not logged in properly.');
-                      }
-                      final res = await _apiService.redeemVoucher(widget.partnerId!, product.id);
-                      if (mounted) {
-                        Navigator.pop(ctx); // Close dialog
-                        Navigator.pop(context); // Close Catalog
-                        setState(() {
-                          _rewardPoints -= product.pointPrice;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Voucher created successfully!'), backgroundColor: Colors.green),
-                        );
-                        _openMyVouchers(); // Automatically open vouchers list
-                      }
-                    } catch (e) {
-                      setDialogState(() => isRedeeming = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-                      );
-                    }
-                  },
-                  child: isRedeeming ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Redeem'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _brandNavy,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: isRedeeming
+                      ? null
+                      : () async {
+                          setDialogState(() => isRedeeming = true);
+                          try {
+                            // Note: We need the customer's partner ID.
+                            // Since self order screen doesn't directly expose partner ID except via matching _customerPhone,
+                            // we can just pass widget.partnerId if available, or try to get it.
+                            if (widget.partnerId == null) {
+                              throw Exception(
+                                'Customer not logged in properly.',
+                              );
+                            }
+                            final res = await _apiService.redeemVoucher(
+                              widget.partnerId!,
+                              product.id,
+                            );
+                            if (mounted) {
+                              Navigator.pop(ctx); // Close dialog
+                              Navigator.pop(context); // Close Catalog
+                              setState(() {
+                                _rewardPoints -= product.pointPrice;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Voucher created successfully!',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              _openMyVouchers(); // Automatically open vouchers list
+                            }
+                          } catch (e) {
+                            setDialogState(() => isRedeeming = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(e.toString()),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: isRedeeming
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Redeem'),
                 ),
               ],
             );
-          }
+          },
         );
-      }
+      },
     );
   }
 
@@ -3955,7 +4020,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Scan this QR code at the counter to claim your reward.', textAlign: TextAlign.center),
+            const Text(
+              'Scan this QR code at the counter to claim your reward.',
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             Center(
               child: SizedBox(
@@ -4022,105 +4090,148 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'My Vouchers',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   const Divider(height: 1),
                   Expanded(
-                    child: widget.partnerId == null 
+                    child: widget.partnerId == null
                         ? const Center(child: Text('Not logged in.'))
                         : FutureBuilder<List<Map<String, dynamic>>>(
-                            future: _apiService.fetchMyVouchers(widget.partnerId!),
+                            future: _apiService.fetchMyVouchers(
+                              widget.partnerId!,
+                            ),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return const Center(child: CircularProgressIndicator());
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
                               }
                               if (snapshot.hasError) {
-                                return Center(child: Text('Error: ${snapshot.error}'));
+                                return Center(
+                                  child: Text('Error: ${snapshot.error}'),
+                                );
                               }
                               final vouchers = snapshot.data ?? [];
                               if (vouchers.isEmpty) {
                                 return Center(
                                   child: Text(
                                     "You don't have any vouchers yet.",
-                                    style: TextStyle(color: Colors.grey.shade500),
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                    ),
                                   ),
                                 );
                               }
                               return ListView.separated(
                                 padding: const EdgeInsets.all(16),
                                 itemCount: vouchers.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final v = vouchers[index];
-                                  final bool isClaimed = v['state'] == 'claimed';
+                                  final bool isClaimed =
+                                      v['state'] == 'claimed';
                                   return GestureDetector(
-                                    onTap: isClaimed ? null : () => _showVoucherQrDialog(v),
+                                    onTap: isClaimed
+                                        ? null
+                                        : () => _showVoucherQrDialog(v),
                                     child: Container(
                                       padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: isClaimed ? Colors.grey.shade100 : Colors.blue.shade50,
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: isClaimed ? Colors.grey.shade300 : Colors.blue.shade200,
+                                      decoration: BoxDecoration(
+                                        color: isClaimed
+                                            ? Colors.grey.shade100
+                                            : Colors.blue.shade50,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: isClaimed
+                                              ? Colors.grey.shade300
+                                              : Colors.blue.shade200,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Icon(
+                                              isClaimed
+                                                  ? Icons.check_circle_outline
+                                                  : Icons.qr_code_2,
+                                              size: 32,
+                                              color: isClaimed
+                                                  ? Colors.grey
+                                                  : _brandNavy,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  v['product_name'] ??
+                                                      'Unknown',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 16,
+                                                    color: isClaimed
+                                                        ? Colors.grey.shade600
+                                                        : Colors.black87,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Code: ${v['code']}',
+                                                  style: TextStyle(
+                                                    fontFamily: 'monospace',
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isClaimed
+                                                        ? Colors.grey.shade500
+                                                        : _brandNavy,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (!isClaimed)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: _brandNavy,
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: const Text(
+                                                'ACTIVE',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Icon(
-                                            isClaimed ? Icons.check_circle_outline : Icons.qr_code_2,
-                                            size: 32,
-                                            color: isClaimed ? Colors.grey : _brandNavy,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                v['product_name'] ?? 'Unknown',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w900,
-                                                  fontSize: 16,
-                                                  color: isClaimed ? Colors.grey.shade600 : Colors.black87,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Code: ${v['code']}',
-                                                style: TextStyle(
-                                                  fontFamily: 'monospace',
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isClaimed ? Colors.grey.shade500 : _brandNavy,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        if (!isClaimed)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: _brandNavy,
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            child: const Text('ACTIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                          )
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
+                                  );
+                                },
                               );
                             },
                           ),
@@ -4128,9 +4239,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 ],
               ),
             );
-          }
+          },
         );
-      }
+      },
     );
   }
 
@@ -4706,8 +4817,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       product,
                                       quantity: qty,
                                       selectedToppings: selectedToppings,
-                                      isRedeemed:
-                                          false,
+                                      isRedeemed: false,
                                     );
                                     Navigator.pop(ctx);
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -5829,8 +5939,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       product,
                                       quantity: 1,
                                       selectedToppings: [],
-                                      isRedeemed:
-                                          false,
+                                      isRedeemed: false,
                                     );
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
