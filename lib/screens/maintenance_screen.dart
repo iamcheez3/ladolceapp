@@ -61,9 +61,7 @@ class MaintenanceScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.2)),
                   ),
                   child: Text(
                     message,
@@ -80,13 +78,18 @@ class MaintenanceScreen extends StatelessWidget {
                   onPressed: () async {
                     await ApiService().logout();
                     if (context.mounted) {
-                      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                      Navigator.of(
+                        context,
+                      ).pushNamedAndRemoveUntil('/login', (route) => false);
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF001460),
-                    padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 48,
+                      vertical: 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

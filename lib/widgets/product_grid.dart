@@ -144,13 +144,30 @@ class ProductGrid extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    Text(
-                                      '₭${product.price.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        color: LaDolcePosUi.navy,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: priceSize,
-                                      ),
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        if (product.promotionPrice != null && !Product.disablePromotionPrice)
+                                          Text(
+                                            '₭${product.price.toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontSize: priceSize - 2,
+                                              color: Colors.grey.shade400,
+                                              decoration: TextDecoration.lineThrough,
+                                            ),
+                                          ),
+                                        Text(
+                                          '₭${product.effectivePrice.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            color: (product.promotionPrice != null && !Product.disablePromotionPrice)
+                                                ? Colors.red
+                                                : LaDolcePosUi.navy,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: priceSize,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

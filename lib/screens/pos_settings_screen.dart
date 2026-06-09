@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'printer_settings_screen.dart';
 import 'bill_template_settings_screen.dart';
 import 'discount_config_screen.dart';
@@ -6,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../models/pos_discount_config.dart';
+import '../models/product.dart';
 
 class PosSettingsScreen extends StatefulWidget {
   const PosSettingsScreen({super.key});
@@ -17,16 +19,38 @@ class PosSettingsScreen extends StatefulWidget {
 class _PosSettingsScreenState extends State<PosSettingsScreen> {
   final ApiService _apiService = ApiService();
   PosDiscountConfig _discountConfig = PosDiscountConfig.disabled;
+  bool _usePromotionPrice = true;
 
   @override
   void initState() {
     super.initState();
     _loadDiscountConfig();
+    _loadPromotionPriceSetting();
   }
 
   Future<void> _loadDiscountConfig() async {
     final cfg = await PosDiscountConfig.load();
     if (mounted) setState(() => _discountConfig = cfg);
+  }
+
+  Future<void> _loadPromotionPriceSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _usePromotionPrice = prefs.getBool('pos_use_promotion_price') ?? true;
+      });
+    }
+  }
+
+  Future<void> _setPromotionPriceSetting(bool val) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('pos_use_promotion_price', val);
+    Product.disablePromotionPrice = !val;
+    if (mounted) {
+      setState(() {
+        _usePromotionPrice = val;
+      });
+    }
   }
 
   @override
@@ -95,6 +119,85 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
               );
               if (changed == true) _loadDiscountConfig();
             },
+          ),
+          const SizedBox(height: 12),
+          _buildToggleCard(
+            icon: Icons.campaign_outlined,
+            title: 'Use Promotion Price in POS',
+            subtitle: _usePromotionPrice
+                ? 'Promotional prices will be applied'
+                : 'Normal base prices will be applied',
+            value: _usePromotionPrice,
+            onChanged: _setPromotionPriceSetting,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: LaDolcePosUi.card,
+        borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
+        border: Border.all(color: LaDolcePosUi.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: LaDolcePosUi.navy.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: LaDolcePosUi.navy.withValues(alpha: 0.14)),
+            ),
+            child: Icon(icon, color: LaDolcePosUi.navy, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                    color: LaDolcePosUi.text,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: LaDolcePosUi.mutedText,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: LaDolcePosUi.navy,
           ),
         ],
       ),

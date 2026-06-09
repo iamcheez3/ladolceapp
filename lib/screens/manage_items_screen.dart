@@ -38,16 +38,17 @@ class ManageItemsScreen extends StatelessWidget {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageCategoriesScreen()));
             },
           ),
-          const SizedBox(height: 12),
-          _buildMenuCard(
-            context,
-            icon: Icons.auto_awesome_mosaic_outlined,
-            title: 'Combos',
-            subtitle: 'Create special combination deals',
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageCombosScreen()));
-            },
-          ),
+          // Hiding Combos feature per user request
+          // const SizedBox(height: 12),
+          // _buildMenuCard(
+          //   context,
+          //   icon: Icons.auto_awesome_mosaic_outlined,
+          //   title: 'Combos',
+          //   subtitle: 'Create special combination deals',
+          //   onTap: () {
+          //     Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageCombosScreen()));
+          //   },
+          // ),
           const SizedBox(height: 12),
           _buildMenuCard(
             context,

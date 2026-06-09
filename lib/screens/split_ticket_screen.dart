@@ -30,7 +30,7 @@ class _SplitLine {
   });
 
   double get unitPrice {
-    double base = product.price;
+    double base = product.effectivePrice;
     for (final t in selectedToppings) {
       base += t.extraPrice;
     }

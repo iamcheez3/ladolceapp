@@ -35,6 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _devUnlocked = false;
+  int _logoTapCount = 0;
 
   // ── Dev tools state ──────────────────────────────────────────────────────
   String _currentBaseUrl = '';
@@ -64,20 +66,32 @@ class _LoginScreenState extends State<LoginScreen> {
     final dbOverride = prefs.getString(ApiService.devDbNameKey) ?? '';
     if (mounted) {
       setState(() {
-        _currentBaseUrl =
-            override ??
-            'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+        _currentBaseUrl = override ?? '';
         _currentDbName = dbOverride;
       });
+    }
+  }
+
+  void _onLogoTap() {
+    _logoTapCount++;
+    if (_logoTapCount >= 10) {
+      _logoTapCount = 0;
+      setState(() => _devUnlocked = !_devUnlocked);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_devUnlocked ? '🔓 Staff mode unlocked' : '🔒 Staff mode hidden'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF001460),
+        ),
+      );
+      if (_devUnlocked && kShowDevTools) _loadCurrentUrl();
     }
   }
 
   /// Opens a small dialog to edit / clear the API base URL override.
   void _showDevSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved =
-        prefs.getString(ApiService.devBaseUrlKey) ??
-        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+    final saved = prefs.getString(ApiService.devBaseUrlKey) ?? '';
     final savedDb = prefs.getString(ApiService.devDbNameKey) ?? '';
     final controller = TextEditingController(text: saved);
     final dbController = TextEditingController(text: savedDb);
@@ -121,8 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   autocorrect: false,
                   decoration: InputDecoration(
                     labelText: 'Base URL',
-                    hintText:
-                        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api',
+                    hintText: 'http://your-server:8069/api',
                     filled: true,
                     fillColor: const Color(0xFFF6F7FB),
                     prefixIcon: const Icon(
@@ -189,15 +202,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (!mounted) return;
                 if (mounted) {
                   setState(() {
-                    _currentBaseUrl =
-                        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+                    _currentBaseUrl = '';
                     _currentDbName = '';
                   });
                 }
                 navigator.pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Dev overrides reset to default ngrok URL'),
+                    content: Text('Dev overrides reset to default URL'),
                     backgroundColor: Color(0xFF001460),
                   ),
                 );
@@ -555,7 +567,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       // ── Dev wrench button (bottom-right) ─────────────────────────────────
-      floatingActionButton: kShowDevTools
+      floatingActionButton: (_devUnlocked && kShowDevTools)
           ? FloatingActionButton.small(
               onPressed: _showDevSettings,
               backgroundColor: const Color(0xFF001460).withOpacity(0.85),
@@ -634,26 +646,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                                 alignment: Alignment.center,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(18),
-                                  child: Image.asset(
-                                    'assets/images/ladolce_bear_logo.png',
-                                    width:
-                                        MediaQuery.of(context).size.width < 360
-                                        ? 64
-                                        : 88,
-                                    height:
-                                        MediaQuery.of(context).size.width < 360
-                                        ? 64
-                                        : 88,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) {
-                                      return const Icon(
-                                        Icons.pets_rounded,
-                                        size: 52,
-                                        color: Colors.white,
-                                      );
-                                    },
+                                child: GestureDetector(
+                                  onTap: _onLogoTap,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: Image.asset(
+                                      'assets/images/ladolce_bear_logo.png',
+                                      width:
+                                          MediaQuery.of(context).size.width < 360
+                                          ? 64
+                                          : 88,
+                                      height:
+                                          MediaQuery.of(context).size.width < 360
+                                          ? 64
+                                          : 88,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) {
+                                        return const Icon(
+                                          Icons.pets_rounded,
+                                          size: 52,
+                                          color: Colors.white,
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
@@ -850,11 +865,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                 onPressed: _continueWithGoogle,
                               ),
                               const SizedBox(height: 8),
+                              if (_devUnlocked) ...[              
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const RegisterScreen(showStaffRoles: true),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Register Staff Account',
+                                    style: TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               TextButton(
                                 onPressed: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) => const RegisterScreen(),
+                                      builder: (_) => const RegisterScreen(showStaffRoles: false),
                                     ),
                                   );
                                 },

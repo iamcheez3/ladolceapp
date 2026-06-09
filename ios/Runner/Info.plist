@@ -49,10 +49,16 @@
 						<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
 						<key>UISceneStoryboardFile</key>
 						<string>Main</string>
-					</dict>
+						<key>NSCameraUsageDescription</key>
+	<string>This app requires access to the camera to scan reward QR codes.</string>
+</dict>
 				</array>
-			</dict>
-		</dict>
+				<key>NSCameraUsageDescription</key>
+	<string>This app requires access to the camera to scan reward QR codes.</string>
+</dict>
+			<key>NSCameraUsageDescription</key>
+	<string>This app requires access to the camera to scan reward QR codes.</string>
+</dict>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UILaunchStoryboardName</key>
@@ -74,5 +80,8 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
-	</dict>
+		<key>NSCameraUsageDescription</key>
+	<string>This app requires access to the camera to scan reward QR codes.</string>
+</dict>
 </plist>
+

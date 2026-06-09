@@ -12,19 +12,21 @@ import '../models/table.dart';
 import '../models/payment_method.dart';
 import '../models/ticket.dart';
 import '../models/pos_tax_config.dart';
+import 'network_service.dart';
 
 class ApiService {
   /// Key used to store the dev IP override in SharedPreferences.
   static const String devBaseUrlKey = 'dev_base_url_override';
   static const String devDbNameKey = 'dev_db_name_override';
 
+  final NetworkService _network = NetworkService();
+
   String get baseUrl {
-    // NOTE: baseUrl is synchronous; the dev override is loaded via
-    // getBaseUrl() below for any code that can await. This getter is kept
-    // for backward-compat with all existing synchronous call-sites.
-    String envUrl =
-        dotenv.env['API_BASE_URL'] ??
-        'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+    // Get from .env file - MUST be configured
+    final envUrl = dotenv.env['API_BASE_URL'];
+    if (envUrl == null || envUrl.isEmpty) {
+      throw Exception('API_BASE_URL not set in .env file');
+    }
     if (Platform.isAndroid && envUrl.contains('localhost')) {
       return envUrl.replaceAll('localhost', '10.0.2.2');
     }
@@ -32,16 +34,15 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> fetchMaintenanceStatus() async {
-    final base = await getBaseUrl();
     try {
-      final url = Uri.parse('$base/pos/maintenance/status');
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        if (jsonResponse['status'] == 'success') {
-          return jsonResponse['data'];
-        }
+      final response = await _network.get('/pos/maintenance/status',
+          requiresAuth: false, timeout: const Duration(seconds: 5));
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse['status'] == 'success') {
+        return jsonResponse['data'];
       }
+    } on NetworkException catch (e) {
+      _d('[API ERROR] Failed to fetch maintenance status: $e');
     } catch (e) {
       _d('[API ERROR] Failed to fetch maintenance status: $e');
     }
@@ -49,7 +50,6 @@ class ApiService {
   }
 
   Future<void> sendHeartbeat({bool isNewSession = false}) async {
-    final base = await getBaseUrl();
     try {
       final user = await getCachedUser();
       final userId = (user != null && user['user_id'] != null)
@@ -60,34 +60,56 @@ class ApiService {
 
       if (userId == 0) return;
 
-      final url = Uri.parse('$base/pos/heartbeat');
-      final response = await http
-          .post(
-            url,
-            headers: await _authHeaders(json: true),
-            body: jsonEncode({
-              'user_id': userId,
-              if (isNewSession) 'is_login': true,
-            }),
-          )
-          .timeout(const Duration(seconds: 5));
+      final response = await _network.post(
+        '/pos/heartbeat',
+        body: {
+          'user_id': userId,
+          if (isNewSession) 'is_login': true,
+        },
+        timeout: const Duration(seconds: 5),
+      );
 
       _d(
         '[HEARTBEAT] Sent for user $userId | New Session: $isNewSession | Status: ${response.statusCode}',
       );
+    } on NetworkException catch (e) {
+      _d('[HEARTBEAT ERROR] $e');
     } catch (e) {
       _d('[HEARTBEAT ERROR] $e');
     }
   }
 
+  Future<void> setAppActiveStatus({required bool isActive}) async {
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+
+      if (userId == 0) return;
+
+      final response = await _network.post(
+        '/pos/app_active',
+        body: {
+          'user_id': userId,
+          'is_active': isActive,
+        },
+        timeout: const Duration(seconds: 5),
+      );
+
+      _d('[APP ACTIVE] Status $isActive sent for user $userId | API Status: ${response.statusCode}');
+    } on NetworkException catch (e) {
+      _d('[APP ACTIVE ERROR] $e');
+    } catch (e) {
+      _d('[APP ACTIVE ERROR] $e');
+    }
+  }
+
   /// Async version that respects the dev IP override saved in prefs.
   Future<String> getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final override = prefs.getString(devBaseUrlKey);
-    if (override != null) {
-      return override.isNotEmpty ? override : baseUrl;
-    }
-    return 'https://posteruptive-ungreasy-alethia.ngrok-free.dev/api';
+    return _network.getBaseUrl();
   }
 
   /// Resolves the Odoo database name:
@@ -575,7 +597,9 @@ class ApiService {
     bool forceRefresh = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      await prefs.remove('cached_receipt_history');
+    } else {
       final cachedStr = prefs.getString('cached_receipt_history');
       if (cachedStr != null) {
         return List<Map<String, dynamic>>.from(jsonDecode(cachedStr));
@@ -887,7 +911,7 @@ class ApiService {
   }
 
   /// Fetch the latest rider location for an order.
-  /// GET /api/pos/order/<id>/rider_location
+  /// GET `/api/pos/order/:id/rider_location`
   Future<Map<String, dynamic>?> fetchRiderLocation(String orderId) async {
     final base = await getBaseUrl();
     try {
@@ -1159,6 +1183,7 @@ class ApiService {
     String? phone,
     int? branchId,
     String? authProvider,
+    String? otpCode,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/register');
@@ -1174,6 +1199,8 @@ class ApiService {
         'branch_id': branchId,
       if (authProvider != null && authProvider.trim().isNotEmpty)
         'auth_provider': authProvider.trim(),
+      if (otpCode != null && otpCode.trim().isNotEmpty)
+        'otp_code': otpCode.trim(),
     };
     _d('==============================');
     _d('[API CALL] POST $url');
@@ -1197,15 +1224,80 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> sendOtp(String phone) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/otp/send');
+    final payload = {
+      'phone': phone.trim(),
+    };
+
+    _d('==============================');
+    _d('[API CALL] POST $url');
+    _d('[API LOAD] $payload');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
+
+    try {
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse is Map) {
+        return Map<String, dynamic>.from(jsonResponse);
+      }
+    } catch (_) {}
+    return {
+      'status': 'error',
+      'message': 'Failed to send OTP (${response.statusCode})',
+    };
+  }
+
+  Future<Map<String, dynamic>> verifyOtp(String phone, String otpCode) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/otp/verify');
+    final payload = {
+      'phone': phone.trim(),
+      'otp_code': otpCode.trim(),
+    };
+
+    _d('==============================');
+    _d('[API CALL] POST $url');
+    _d('[API LOAD] $payload');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
+    _d('[API BODY] ${response.body}');
+    _d('==============================');
+
+    try {
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse is Map) {
+        return Map<String, dynamic>.from(jsonResponse);
+      }
+    } catch (_) {}
+    return {
+      'status': 'error',
+      'message': 'Failed to verify OTP (${response.statusCode})',
+    };
+  }
+
   Future<Map<String, dynamic>> loginUser(
     String login,
     String password, {
     String? authProvider,
     bool force = false,
   }) async {
-    final base = await getBaseUrl();
     final dbName = await getDatabaseName();
-    final url = Uri.parse('$base/pos/login');
     final normalizedLogin = login.trim().toLowerCase();
     final device = await _collectDeviceInfo();
     final Map<String, dynamic> payload = {
@@ -1223,38 +1315,32 @@ class ApiService {
       if (force) 'force': true,
     };
 
-    _d('==============================');
-    _d('[API CALL] POST $url');
-    _d('[API LOAD] $payload');
+    try {
+      final response = await _network.post(
+        '/pos/login',
+        body: payload,
+        requiresAuth: false,
+        throwOnError: false,
+      );
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    );
+      final jsonResponse = jsonDecode(response.body);
 
-    _d('[API RESP] POST $url | STATUS: ${response.statusCode}');
-    _d('[API BODY] ${response.body}');
-    _d('==============================');
+      // HTTP 409 → another device has an active session.
+      // Return a structured map so the caller can show a conflict dialog.
+      if (response.statusCode == 409 &&
+          (jsonResponse['status']?.toString() == 'conflict')) {
+        final conflictData =
+            (jsonResponse['data'] is Map)
+                ? Map<String, dynamic>.from(jsonResponse['data'] as Map)
+                : <String, dynamic>{};
+        return {
+          'status': 'conflict',
+          'message': jsonResponse['message']?.toString() ?? 'Session conflict',
+          ...conflictData,
+        };
+      }
 
-    final jsonResponse = jsonDecode(response.body);
-
-    // HTTP 409 → another device has an active session.
-    // Return a structured map so the caller can show a conflict dialog.
-    if (response.statusCode == 409 &&
-        (jsonResponse['status']?.toString() == 'conflict')) {
-      final conflictData =
-          (jsonResponse['data'] is Map)
-              ? Map<String, dynamic>.from(jsonResponse['data'] as Map)
-              : <String, dynamic>{};
-      return {
-        'status': 'conflict',
-        'message': jsonResponse['message']?.toString() ?? 'Session conflict',
-        ...conflictData,
-      };
-    }
-
-    if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
+      if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
       final data = jsonResponse['data'];
       final sessionId = jsonResponse['session_id'];
 
@@ -1315,6 +1401,11 @@ class ApiService {
       return data;
     } else {
       throw Exception(jsonResponse['message'] ?? 'Login failed');
+    }
+    } on NetworkException catch (e) {
+      throw Exception('Login failed: ${e.message}');
+    } catch (e) {
+      throw Exception('Login failed: ${e.toString()}');
     }
   }
 
@@ -1441,6 +1532,8 @@ class ApiService {
     String? deliveryMapsUrl,
     String? discountType,
     double? discountValue,
+    String? couponCode,
+    double? deliveryFee,
   }) async {
     final base = await getBaseUrl();
     final cn = customerName?.trim() ?? '';
@@ -1457,6 +1550,7 @@ class ApiService {
       if (cn.isNotEmpty) 'customer_name': cn,
       if (cp.isNotEmpty) 'customer_phone': cp,
       if (note != null && note.isNotEmpty) 'note': note,
+      if (couponCode != null && couponCode.trim().isNotEmpty) 'coupon_code': couponCode.trim(),
       if ((deliveryPlaceName ?? '').trim().isNotEmpty)
         'delivery_place_name': deliveryPlaceName!.trim(),
       if ((deliveryPlaceAddress ?? '').trim().isNotEmpty)
@@ -1473,6 +1567,7 @@ class ApiService {
         'discount_type': discountType,
         'discount_value': discountValue,
       },
+      if (deliveryFee != null && deliveryFee > 0) 'delivery_fee': deliveryFee,
     };
 
     try {
@@ -2668,6 +2763,9 @@ class ApiService {
   }
 
   Future<List<dynamic>> fetchCombos({bool forceRefresh = false}) async {
+    // Combos are hidden per user request
+    return [];
+    /*
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
       final cachedStr = prefs.getString('cached_combos');
@@ -2693,8 +2791,9 @@ class ApiService {
       if (cachedStr != null) {
         return jsonDecode(cachedStr);
       }
-      return [];
+      throw Exception('Network error: Cannot fetch combos');
     }
+    */
   }
 
   Future<dynamic> saveCombo({
@@ -3408,7 +3507,7 @@ class ApiService {
     final cleaned = value
         .trim()
         .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceAll(RegExp(r'(?i)\bandroid\b'), '')
+        .replaceAll(RegExp(r'\bandroid\b', caseSensitive: false), '')
         .trim();
     if (cleaned.isEmpty) return '';
     return cleaned
@@ -3663,6 +3762,84 @@ class ApiService {
       throw Exception('Failed to search customers');
     } catch (e) {
       throw Exception('Failed to search customers: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> validateCoupon(String code, {int? partnerId}) async {
+    try {
+      final base = await getBaseUrl();
+      final response = await http.post(
+        Uri.parse('$base/pos/validate_coupon'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'coupon_code': code,
+          if (partnerId != null) 'partner_id': partnerId,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return data['data'];
+      }
+      throw Exception(data['message'] ?? 'Failed to validate coupon');
+    } catch (e) {
+      throw Exception('Failed to validate coupon: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> redeemVoucher(int partnerId, int productId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/customer/redeem_voucher');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'partner_id': partnerId, 'product_id': productId}),
+      ).timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return data;
+      }
+      throw Exception(data['message'] ?? 'Failed to redeem voucher');
+    } catch (e) {
+      throw Exception('Failed to redeem voucher: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMyVouchers(int partnerId) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/customer/my_vouchers?partner_id=$partnerId');
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return List<Map<String, dynamic>>.from(data['vouchers'] ?? []);
+      }
+      throw Exception(data['error'] ?? 'Failed to fetch vouchers');
+    } catch (e) {
+      throw Exception('Failed to fetch vouchers: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> claimVoucher(String code) async {
+    final base = await getBaseUrl();
+    try {
+      final url = Uri.parse('$base/pos/claim_voucher');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'code': code}),
+      ).timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return data;
+      }
+      throw Exception(data['message'] ?? 'Failed to claim voucher');
+    } catch (e) {
+      throw Exception('Failed to claim voucher: $e');
     }
   }
 }

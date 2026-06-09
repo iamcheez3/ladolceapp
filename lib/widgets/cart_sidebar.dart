@@ -535,7 +535,7 @@ class _CartItemRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '₭${item.product.price.toStringAsFixed(2)} each',
+                    '₭${item.product.effectivePrice.toStringAsFixed(2)} each',
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
                   if (item.selectedToppings.isNotEmpty) ...[

@@ -13,6 +13,17 @@ class Product {
   final double? qtyAvailable;
   final String? defaultCode;
   final List<Topping> toppings;
+  final double? promotionPrice;
+
+  static bool disablePromotionPrice = false;
+  static bool isCustomerMode = false;
+
+  double get effectivePrice {
+    if (isCustomerMode) {
+      return promotionPrice ?? price;
+    }
+    return (disablePromotionPrice ? null : promotionPrice) ?? price;
+  }
   
   // Custom Combo Support
   final bool isCombo;
@@ -26,6 +37,12 @@ class Product {
 
   final bool isRecommended;
   final String? recommendedImageBase64;
+
+  // Point Redeem Feature
+  final bool isRedeemable;
+  final int pointPrice;
+  final DateTime? redeemStartDate;
+  final DateTime? redeemEndDate;
 
   /// Odoo often sends [category] as a path like "All / Saleable / Office Furniture".
   /// POS and customer UIs only need the leaf name for tabs and labels.
@@ -60,6 +77,11 @@ class Product {
     this.blockSelfOrder = false,
     this.isRecommended = false,
     this.recommendedImageBase64,
+    this.promotionPrice,
+    this.isRedeemable = false,
+    this.pointPrice = 0,
+    this.redeemStartDate,
+    this.redeemEndDate,
   });
 
   static bool _parseBool(dynamic v) {
@@ -92,13 +114,14 @@ class Product {
       defaultCode: json['default_code'] is String ? json['default_code'] : null,
       toppings: parsedToppings,
       isCombo: false,
-      blockSelfOrder: _parseBool(
-        json['block_self_order'] ??
-            json['self_order_blocked'] ??
-            json['blocked_for_self_order'],
-      ),
+      blockSelfOrder: _parseBool(json['block_self_order']),
       isRecommended: _parseBool(json['is_recommended_self_order']),
       recommendedImageBase64: json['recommended_image_base64'] is String ? json['recommended_image_base64'] : null,
+      promotionPrice: json['promotion_price'] != null ? (json['promotion_price'] as num).toDouble() : null,
+      isRedeemable: _parseBool(json['is_redeemable']),
+      pointPrice: json['point_price'] != null ? (json['point_price'] as num).toInt() : 0,
+      redeemStartDate: json['redeem_start_date'] != null ? DateTime.tryParse(json['redeem_start_date'].toString()) : null,
+      redeemEndDate: json['redeem_end_date'] != null ? DateTime.tryParse(json['redeem_end_date'].toString()) : null,
     );
   }
 
