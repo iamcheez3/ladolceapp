@@ -2,14 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>33195432980-89hbug0smj4tppv77td1g84e0ha0mjtv.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.33195432980-89hbug0smj4tppv77td1g84e0ha0mjtv</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>33195432980-h6nabb16n5dt2krmkvluv8ile8s3biiv.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
-	<string>AIzaSyDqMEtE867Ku1zNRF1kmjjLxEa6rycZT18</string>
+	<string>AIzaSyDLDlgjpcBN6bESqx8_aadLWqrWkjkXKXg</string>
 	<key>GCM_SENDER_ID</key>
 	<string>33195432980</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.ladolce</string>
+	<string>com.ladolce.app</string>
 	<key>PROJECT_ID</key>
 	<string>ladolceapp-d5152</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:33195432980:ios:5c81bdd927f34102e55b01</string>
+	<string>1:33195432980:ios:b4046d19f1324fdee55b01</string>
 </dict>
 </plist>
