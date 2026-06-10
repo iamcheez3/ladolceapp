@@ -4008,54 +4008,115 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _showVoucherQrDialog(Map<String, dynamic> voucher) {
+    Timer? _pollTimer;
+    bool _isClaimed = false;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text(
-          voucher['product_name'] ?? 'Voucher',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Scan this QR code at the counter to claim your reward.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            Center(
-              child: SizedBox(
-                width: 200,
-                height: 200,
-                child: QrImageView(
-                  data: voucher['code'] ?? '',
-                  version: QrVersions.auto,
-                  size: 200.0,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // Start polling when dialog opens
+            if (_pollTimer == null && !_isClaimed) {
+              _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+                try {
+                  if (widget.partnerId == null) return;
+                  final vouchers = await _apiService.fetchMyVouchers(widget.partnerId!);
+                  final updatedVoucher = vouchers.firstWhere(
+                    (v) => v['code'] == voucher['code'],
+                    orElse: () => <String, dynamic>{},
+                  );
+                  if (updatedVoucher.isNotEmpty && updatedVoucher['state'] == 'claimed') {
+                    timer.cancel();
+                    if (mounted) {
+                      setState(() {
+                        _isClaimed = true;
+                      });
+                      // Auto-refresh the My Vouchers list after 2 seconds
+                      Future.delayed(const Duration(seconds: 2), () {
+                        if (Navigator.canPop(ctx)) {
+                          Navigator.pop(ctx);
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context); // Close the My Vouchers sheet
+                            _openMyVouchers(); // Re-open to refresh state
+                          }
+                        }
+                      });
+                    }
+                  }
+                } catch (e) {
+                  // Ignore polling errors
+                }
+              });
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Text(
+                _isClaimed ? 'Claimed Successfully!' : (voucher['product_name'] ?? 'Voucher'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: _isClaimed ? Colors.green : Colors.black,
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              voucher['code'] ?? '',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 4,
-                color: _brandNavy,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _isClaimed 
+                      ? 'Your reward has been claimed. Enjoy!'
+                      : 'Scan this QR code at the counter to claim your reward.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  if (_isClaimed)
+                    const Center(
+                      child: Icon(Icons.check_circle, color: Colors.green, size: 120),
+                    )
+                  else
+                    Center(
+                      child: SizedBox(
+                        width: 200,
+                        height: 200,
+                        child: QrImageView(
+                          data: voucher['code'] ?? '',
+                          version: QrVersions.auto,
+                          size: 200.0,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  Text(
+                    voucher['code'] ?? '',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 4,
+                      color: _isClaimed ? Colors.green : _brandNavy,
+                      decoration: _isClaimed ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    _pollTimer?.cancel();
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      // Ensure timer is cancelled when dialog is dismissed
+      _pollTimer?.cancel();
+    });
   }
 
   void _openMyVouchers() {

@@ -7,12 +7,25 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:33195432980:android:3fa321264c0a7b80e55b01",
+        "mobilesdk_app_id": "1:33195432980:android:f57ce47f2074b00de55b01",
         "android_client_info": {
-          "package_name": "com.example.ladolce"
+          "package_name": "com.ladolce.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "33195432980-h6nabb16n5dt2krmkvluv8ile8s3biiv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ladolce.app",
+            "certificate_hash": "f5088727ea925f4453373dac782aa48c346ef030"
+          }
+        },
+        {
+          "client_id": "33195432980-rh0us0t1rjvh4m4s30gtbc07d890tcds.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBZprYfglseEjEF6PWASe5GkFJ6crRBdp8"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "33195432980-rh0us0t1rjvh4m4s30gtbc07d890tcds.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "33195432980-89hbug0smj4tppv77td1g84e0ha0mjtv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ladolce.app"
+              }
+            }
+          ]
         }
       }
     }

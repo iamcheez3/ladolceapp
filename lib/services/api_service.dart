@@ -49,6 +49,17 @@ class ApiService {
     return {'is_active': false};
   }
 
+  Future<Map<String, dynamic>> fetchPrivacyPolicy() async {
+    try {
+      final response = await _network.get('/privacy-policy',
+          requiresAuth: false, timeout: const Duration(seconds: 10));
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      _d('[API ERROR] Failed to fetch privacy policy: $e');
+      rethrow;
+    }
+  }
+
   Future<void> sendHeartbeat({bool isNewSession = false}) async {
     try {
       final user = await getCachedUser();

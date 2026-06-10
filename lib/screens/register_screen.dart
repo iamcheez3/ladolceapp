@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import '../services/api_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/push_notifications_service.dart';
 import '../utils/responsive_layout.dart';
 import 'loading_screen.dart';
-
+import 'privacy_policy_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final bool showStaffRoles;
@@ -25,6 +26,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   String _phoneE164 = '';
+  bool _isAccepted = false;
+  late TapGestureRecognizer _privacyPolicyRecognizer;
 
   String _selectedRole = 'customer'; // Default role
   final ApiService _apiService = ApiService();
@@ -43,6 +46,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void initState() {
     super.initState();
     _maybeLoadBranches();
+    _privacyPolicyRecognizer = TapGestureRecognizer()
+      ..onTap = _openPrivacyPolicy;
   }
 
   Future<void> _maybeLoadBranches() async {
@@ -74,7 +79,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (res['status'] == 'success') {
         return true;
       }
-      
+
       String errorMsg = res['message'] ?? 'Failed to send OTP';
       if (res['wait_seconds'] != null) {
         final totalSeconds = (res['wait_seconds'] as num).toInt();
@@ -86,14 +91,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (hours > 0) timeStr += '${hours}h ';
         if (minutes > 0 || hours > 0) timeStr += '${minutes}m ';
         timeStr += '${seconds}s';
-        errorMsg = 'Too many OTP requests. Please wait $timeStr before resending.';
+        errorMsg =
+            'Too many OTP requests. Please wait $timeStr before resending.';
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMsg),
-          backgroundColor: Colors.orange,
-        ),
+        SnackBar(content: Text(errorMsg), backgroundColor: Colors.orange),
       );
       return false;
     } catch (e) {
@@ -138,7 +141,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                          icon: const Icon(
+                            Icons.close,
+                            color: Color(0xFF64748B),
+                          ),
                           onPressed: _isVerifyingOtp || _isSendingOtp
                               ? null
                               : () => Navigator.pop(context),
@@ -177,15 +183,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFDCE5FF),
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFDCE5FF),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: _brandNavy, width: 1.5),
+                          borderSide: const BorderSide(
+                            color: _brandNavy,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                       onChanged: (val) {
@@ -223,37 +236,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   });
                                   return;
                                 }
-                                
+
                                 setDialogState(() {
                                   _isVerifyingOtp = true;
                                   _otpError = '';
                                 });
-                                
+
                                 try {
-                                  final response = await _apiService.registerUser(
-                                    name: _nameController.text,
-                                    login: _loginController.text,
-                                    password: _passwordController.text,
-                                    role: _selectedRole,
-                                    phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
-                                    branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider') ? _selectedBranchId : null,
-                                    otpCode: enteredCode,
-                                  );
-                                  
+                                  final response = await _apiService
+                                      .registerUser(
+                                        name: _nameController.text,
+                                        login: _loginController.text,
+                                        password: _passwordController.text,
+                                        role: _selectedRole,
+                                        phone: _phoneE164.trim().isNotEmpty
+                                            ? _phoneE164.trim()
+                                            : null,
+                                        branchId:
+                                            (_selectedRole == 'cashier' ||
+                                                _selectedRole == 'rider')
+                                            ? _selectedBranchId
+                                            : null,
+                                        otpCode: enteredCode,
+                                      );
+
                                   if (!mounted) return;
-                                  
+
                                   Navigator.pop(context); // Close OTP Dialog
-                                  
+
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(response['message'] ?? 'Registration successful'),
+                                      content: Text(
+                                        response['message'] ??
+                                            'Registration successful',
+                                      ),
                                       backgroundColor: Colors.green,
                                     ),
                                   );
-                                  Navigator.pop(context); // Pop back to login screen
+                                  Navigator.pop(
+                                    context,
+                                  ); // Pop back to login screen
                                 } catch (e) {
                                   setDialogState(() {
-                                    _otpError = 'Registration Failed: ${e.toString()}';
+                                    _otpError =
+                                        'Registration Failed: ${e.toString()}';
                                   });
                                 } finally {
                                   setDialogState(() {
@@ -303,7 +329,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   if (ok) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('OTP code resent successfully!'),
+                                        content: Text(
+                                          'OTP code resent successfully!',
+                                        ),
                                         backgroundColor: Colors.green,
                                       ),
                                     );
@@ -352,7 +380,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
         role: _selectedRole,
         phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
-        branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider') ? _selectedBranchId : null,
+        branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider')
+            ? _selectedBranchId
+            : null,
       );
 
       if (!mounted) return;
@@ -391,17 +421,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     telbizPhone = telbizPhone.trim();
 
     // Enforce OTP for customer registration or when a valid Lao mobile number is provided
-    if (_selectedRole == 'customer' || telbizPhone.startsWith('20') || telbizPhone.startsWith('30')) {
+    if (_selectedRole == 'customer' ||
+        telbizPhone.startsWith('20') ||
+        telbizPhone.startsWith('30')) {
       setState(() => _isLoading = true);
       final ok = await _sendOtp(telbizPhone);
       setState(() => _isLoading = false);
-      
+
       if (ok) {
         _showOtpDialog(telbizPhone);
       }
     } else {
       _registerDirect();
     }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _loginController.dispose();
+    _passwordController.dispose();
+    _privacyPolicyRecognizer.dispose();
+    super.dispose();
+  }
+
+  void _openPrivacyPolicy() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+    );
   }
 
   void _continueWithGoogle() async {
@@ -436,7 +484,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: uid,
         role: _selectedRole,
         phone: _phoneE164.trim().isNotEmpty ? _phoneE164.trim() : null,
-        branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider') ? _selectedBranchId : null,
+        branchId: (_selectedRole == 'cashier' || _selectedRole == 'rider')
+            ? _selectedBranchId
+            : null,
         authProvider: 'google',
       );
 
@@ -446,7 +496,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         authProvider: 'google',
       );
       final role = response['role']?.toString();
-      if (role == 'cashier' || role == 'customer' || role == 'admin' || role == 'rider') {
+      if (role == 'cashier' ||
+          role == 'customer' ||
+          role == 'admin' ||
+          role == 'rider') {
         if (!mounted) return;
         final navigator = Navigator.of(context);
         try {
@@ -605,7 +658,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               }
                               if (v.isNotEmpty) {
                                 final numberOnly = phone?.number ?? '';
-                                if (numberOnly.length != 10 || !numberOnly.startsWith('20')) {
+                                if (numberOnly.length != 10 ||
+                                    !numberOnly.startsWith('20')) {
                                   return 'Phone must be 10 digits starting with 20';
                                 }
                               }
@@ -650,76 +704,77 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 16),
                           if (widget.showStaffRoles) ...[
-                          const Text(
-                            'Role',
-                            style: TextStyle(
-                              color: _brandNavy,
-                              fontWeight: FontWeight.w800,
+                            const Text(
+                              'Role',
+                              style: TextStyle(
+                                color: _brandNavy,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 10,
-                            children: [
-                              ChoiceChip(
-                                label: const Text('Customer'),
-                                selected: _selectedRole == 'customer',
-                                selectedColor: _brandNavy,
-                                labelStyle: TextStyle(
-                                  color: _selectedRole == 'customer'
-                                      ? Colors.white
-                                      : _brandNavy,
-                                  fontWeight: FontWeight.w700,
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 10,
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('Customer'),
+                                  selected: _selectedRole == 'customer',
+                                  selectedColor: _brandNavy,
+                                  labelStyle: TextStyle(
+                                    color: _selectedRole == 'customer'
+                                        ? Colors.white
+                                        : _brandNavy,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  side: const BorderSide(
+                                    color: Color(0xFFDCE5FF),
+                                  ),
+                                  onSelected: (_) => setState(() {
+                                    _selectedRole = 'customer';
+                                    _branches = const [];
+                                    _selectedBranchId = null;
+                                  }),
                                 ),
-                                side: const BorderSide(
-                                  color: Color(0xFFDCE5FF),
+                                ChoiceChip(
+                                  label: const Text('Cashier'),
+                                  selected: _selectedRole == 'cashier',
+                                  selectedColor: _brandNavy,
+                                  labelStyle: TextStyle(
+                                    color: _selectedRole == 'cashier'
+                                        ? Colors.white
+                                        : _brandNavy,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  side: const BorderSide(
+                                    color: Color(0xFFDCE5FF),
+                                  ),
+                                  onSelected: (_) async {
+                                    setState(() => _selectedRole = 'cashier');
+                                    await _maybeLoadBranches();
+                                  },
                                 ),
-                                onSelected: (_) => setState(() {
-                                  _selectedRole = 'customer';
-                                  _branches = const [];
-                                  _selectedBranchId = null;
-                                }),
-                              ),
-                              ChoiceChip(
-                                label: const Text('Cashier'),
-                                selected: _selectedRole == 'cashier',
-                                selectedColor: _brandNavy,
-                                labelStyle: TextStyle(
-                                  color: _selectedRole == 'cashier'
-                                      ? Colors.white
-                                      : _brandNavy,
-                                  fontWeight: FontWeight.w700,
+                                ChoiceChip(
+                                  label: const Text('Rider'),
+                                  selected: _selectedRole == 'rider',
+                                  selectedColor: _brandNavy,
+                                  labelStyle: TextStyle(
+                                    color: _selectedRole == 'rider'
+                                        ? Colors.white
+                                        : _brandNavy,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  side: const BorderSide(
+                                    color: Color(0xFFDCE5FF),
+                                  ),
+                                  onSelected: (_) async {
+                                    setState(() => _selectedRole = 'rider');
+                                    await _maybeLoadBranches();
+                                  },
                                 ),
-                                side: const BorderSide(
-                                  color: Color(0xFFDCE5FF),
-                                ),
-                                onSelected: (_) async {
-                                  setState(() => _selectedRole = 'cashier');
-                                  await _maybeLoadBranches();
-                                },
-                              ),
-                              ChoiceChip(
-                                label: const Text('Rider'),
-                                selected: _selectedRole == 'rider',
-                                selectedColor: _brandNavy,
-                                labelStyle: TextStyle(
-                                  color: _selectedRole == 'rider'
-                                      ? Colors.white
-                                      : _brandNavy,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                side: const BorderSide(
-                                  color: Color(0xFFDCE5FF),
-                                ),
-                                onSelected: (_) async {
-                                  setState(() => _selectedRole = 'rider');
-                                  await _maybeLoadBranches();
-                                },
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
                           ], // end showStaffRoles
-                          if (_selectedRole == 'cashier' || _selectedRole == 'rider') ...[
+                          if (_selectedRole == 'cashier' ||
+                              _selectedRole == 'rider') ...[
                             const SizedBox(height: 14),
                             const Text(
                               'Branch',
@@ -770,7 +825,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   Icons.account_tree_outlined,
                                 ),
                                 validator: (v) {
-                                  if (_selectedRole != 'cashier' && _selectedRole != 'rider') return null;
+                                  if (_selectedRole != 'cashier' &&
+                                      _selectedRole != 'rider')
+                                    return null;
                                   if (v == null || v <= 0) {
                                     return 'Please select a branch';
                                   }
@@ -778,12 +835,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 },
                               ),
                           ],
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 14),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Checkbox(
+                                value: _isAccepted,
+                                activeColor: _brandNavy,
+                                checkColor: Colors.white,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _isAccepted = value ?? false;
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: const Color(0xFF64748B),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                    children: [
+                                      const TextSpan(
+                                        text:
+                                            'I agree to the Terms of Service and ',
+                                      ),
+                                      TextSpan(
+                                        text: 'Privacy Policy',
+                                        style: const TextStyle(
+                                          color: _brandNavy,
+                                          fontWeight: FontWeight.bold,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        recognizer: _privacyPolicyRecognizer,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
                             height: 52,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _register,
+                              onPressed: (_isLoading || !_isAccepted)
+                                  ? null
+                                  : _register,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _brandNavy,
                                 foregroundColor: Colors.white,
