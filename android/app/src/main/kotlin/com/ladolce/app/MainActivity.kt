@@ -1,4 +1,4 @@
-package com.example.ladolce
+package com.ladolce.app
 
 import io.flutter.embedding.android.FlutterActivity
 

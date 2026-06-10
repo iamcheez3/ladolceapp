@@ -101,13 +101,30 @@ class ProductList extends StatelessWidget {
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerRight,
-                      child: Text(
-                        '₭${product.price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                          color: LaDolcePosUi.navy,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (product.promotionPrice != null && !Product.disablePromotionPrice)
+                            Text(
+                              '₭${product.price.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade400,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          Text(
+                            '₭${product.effectivePrice.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              color: (product.promotionPrice != null && !Product.disablePromotionPrice)
+                                  ? Colors.red
+                                  : LaDolcePosUi.navy,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

@@ -20,6 +20,9 @@ class OpenTicket {
   final String customerPhone;
   final String deliveryPlaceName;
   final String deliveryPlaceAddress;
+  final String discountType;
+  final double discountValue;
+  final double discountAmount;
 
   OpenTicket({
     required this.id,
@@ -42,6 +45,9 @@ class OpenTicket {
     this.customerPhone = '',
     this.deliveryPlaceName = '',
     this.deliveryPlaceAddress = '',
+    this.discountType = '',
+    this.discountValue = 0.0,
+    this.discountAmount = 0.0,
   });
 
   factory OpenTicket.fromJson(Map<String, dynamic> json) {
@@ -76,6 +82,9 @@ class OpenTicket {
       customerPhone: (json['customer_phone'] ?? '').toString(),
       deliveryPlaceName: (json['delivery_place_name'] ?? '').toString(),
       deliveryPlaceAddress: (json['delivery_place_address'] ?? '').toString(),
+      discountType: (json['discount_type'] ?? '').toString(),
+      discountValue: (json['discount_value'] ?? 0).toDouble(),
+      discountAmount: (json['discount_amount'] ?? 0).toDouble(),
     );
   }
 }

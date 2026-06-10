@@ -112,7 +112,9 @@ class _PosAppState extends State<PosApp> {
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => _OrientationLocker(
         child: ResponsiveLayout.withClampedTextScaling(
-          child: UpgradeAlert(child: child ?? const SizedBox.shrink()),
+          child: UpgradeAlert(
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
       theme: ThemeData(

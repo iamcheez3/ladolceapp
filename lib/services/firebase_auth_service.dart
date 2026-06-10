@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class FirebaseAuthService {
@@ -7,8 +8,8 @@ class FirebaseAuthService {
 
   static final FirebaseAuthService instance = FirebaseAuthService._();
 
-  static const String _serverClientId =
-      '883890977471-bto2o0qi9gh2aglrpj4a499mvgo9btvp.apps.googleusercontent.com';
+  String get _serverClientId =>
+      dotenv.env['GOOGLE_SERVER_CLIENT_ID']?.trim() ?? '';
 
   bool _googleInitialized = false;
 

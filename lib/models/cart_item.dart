@@ -17,6 +17,10 @@ class CartItem {
   /// for [totalPrice] instead of [product] + [selectedToppings].
   final double? priceUnitFromOrder;
 
+  // Point Redeem Feature
+  bool isRedeemed;
+  int pointPrice;
+
   CartItem({
     required this.product,
     this.quantity = 1,
@@ -25,16 +29,24 @@ class CartItem {
     this.selectedToppings = const [],
     this.kitchenNote = '',
     this.priceUnitFromOrder,
+    this.isRedeemed = false,
+    this.pointPrice = 0,
   });
 
   double get totalPrice {
+    if (isRedeemed) return 0.0;
     if (priceUnitFromOrder != null) {
       return priceUnitFromOrder! * quantity;
     }
-    double basePrice = product.price;
+    double basePrice = product.effectivePrice;
     for (var topping in selectedToppings) {
       basePrice += topping.extraPrice;
     }
     return basePrice * quantity;
+  }
+
+  int get totalPoints {
+    if (!isRedeemed) return 0;
+    return pointPrice * quantity;
   }
 }
