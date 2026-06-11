@@ -18,7 +18,9 @@ void main() {
     UserActivityService().stopTracking();
   });
 
-  testWidgets('App boots to login when no cached user', (WidgetTester tester) async {
+  testWidgets('App boots to login when no cached user', (
+    WidgetTester tester,
+  ) async {
     await tester.runAsync(() async {
       await tester.pumpWidget(const PosApp(initialUser: null));
       await tester.pump();

@@ -6,19 +6,17 @@ import 'dart:ui' as ui;
 import 'customer_support_screen.dart';
 import 'ranking_screen.dart';
 import '../services/push_notifications_service.dart';
-import 'dart:typed_data';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' show Factory;
 import 'package:flutter/gestures.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:http/http.dart' as http;
+import '../services/http_client_wrapper.dart' as http;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -33,6 +31,7 @@ import '../models/combo.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
 import '../services/api_service.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'login_screen.dart';
 
 class _FavoritePlace {
@@ -894,7 +893,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 setSheetState(() => predictions = result);
               } catch (e) {
                 if (!context.mounted) return;
-                setSheetState(() => error = 'Cannot search places: $e');
+                setSheetState(() => error = 'Could not search for places. Please check your connection.');
               } finally {
                 if (context.mounted) {
                   setSheetState(() => isSearching = false);
@@ -929,7 +928,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 setSheetState(() => selectedPlace = place);
               } catch (e) {
                 if (!sheetCtx.mounted || token != cameraResolveToken) return;
-                setSheetState(() => error = 'Cannot read this address: $e');
+                setSheetState(() => error = 'Could not read the selected address. Please try again.');
               } finally {
                 if (sheetCtx.mounted && token == cameraResolveToken) {
                   setSheetState(() => isResolvingMapTap = false);
@@ -1200,11 +1199,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             17,
                                           ),
                                         );
-                                      } catch (e) {
+                                      } catch (_) {
                                         if (sheetCtx.mounted) {
                                           setSheetState(
                                             () => error =
-                                                'Could not get current location: $e',
+                                                'Could not get current location. Please allow location access and try again.',
                                           );
                                         }
                                       }
@@ -1444,11 +1443,21 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       } finally {
         if (mounted) setState(() => _isUploadingProfileImage = false);
       }
-    } catch (e) {
+    } on PlatformException catch (e) {
+      // Silently ignore 'already_active' — user tapped the picker button twice.
+      if (e.code == 'already_active') return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cannot pick image: $e'),
+        const SnackBar(
+          content: Text('Could not open the image picker. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open the image picker. Please try again.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -2257,8 +2266,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       debugPrint('_downloadQrCode error: $e');
       if (!mounted) return;
       showSnack(
-        SnackBar(
-          content: Text('Failed to download QR: $e'),
+        const SnackBar(
+          content: Text('Could not save QR code. Please try again.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -2321,7 +2330,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       debugPrint('_saveQrToDownloads error: $e');
       if (!mounted) return;
       showSnack(
-        SnackBar(content: Text('Save failed: $e'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Could not save QR to Downloads. Please try again.'), backgroundColor: Colors.red),
       );
     }
   }
@@ -3609,10 +3618,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _showBadWeatherSnackBar();
       }
     } catch (e) {
+      debugPrint('[Order] Failed to place order: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to place order: $e'),
+        const SnackBar(
+          content: Text('Failed to place order. Please check your connection and try again.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -3704,10 +3714,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         ),
       );
     } catch (e) {
+      debugPrint('[Profile] Cannot save profile: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cannot save profile: $e'),
+        const SnackBar(
+          content: Text('Could not save profile. Please check your connection and try again.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -3958,7 +3969,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 'Customer not logged in properly.',
                               );
                             }
-                            final res = await _apiService.redeemVoucher(
+                            await _apiService.redeemVoucher(
                               widget.partnerId!,
                               product.id,
                             );
@@ -5151,7 +5162,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     bool isMobile = false,
   }) {
     if (_isLoadingCatalog) {
-      return const Center(child: CircularProgressIndicator());
+      return CustomerSelfOrderSkeleton(
+        isWide: isWide,
+        isMobile: isMobile,
+        isSmall: isSmall,
+      );
     }
 
     if (_catalogError != null) {
@@ -5950,20 +5965,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (false)
-                                      Text(
-                                        '${product.pointPrice} Pts',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: blocked
-                                              ? Colors.grey
-                                              : _brandNavy,
-                                          fontSize: isSmall ? 14 : 16,
-                                        ),
-                                      )
-                                    else ...[
                                       if (product.promotionPrice != null)
                                         Text(
                                           '₭${product.price.toStringAsFixed(0)}',
@@ -5988,7 +5989,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           fontSize: isSmall ? 14 : 16,
                                         ),
                                       ),
-                                    ],
                                   ],
                                 ),
                               ),
@@ -7399,7 +7399,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             ? 32.0
             : (isCompactHeight ? 40.0 : 46.0);
         final cameraIconSize = isSmall ? 16.0 : (isCompactHeight ? 20.0 : 22.0);
-        final detailsTopGap = isCompactHeight ? 4.0 : 8.0;
 
         return Stack(
           children: [
@@ -8259,10 +8258,11 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
         await widget.onSave(_nameCtrl.text, widget.currentPhone, _dob);
         if (mounted) Navigator.pop(context);
       } catch (e) {
+        debugPrint('[Profile] Failed to save profile: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to save profile: $e'),
+            const SnackBar(
+              content: Text('Could not save profile. Please try again.'),
               backgroundColor: Colors.red,
             ),
           );

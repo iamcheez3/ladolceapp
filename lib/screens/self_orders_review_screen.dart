@@ -19,10 +19,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
   final Set<dynamic> _expandedOrders = {};
 
   static const _navy = Color(0xFF1E3A8A);
-  static const _navyLight = Color(0xFF2D55C0);
   static const _surface = Color(0xFFF8FAFF);
-  static const _cardBg = Colors.white;
-  static const _divider = Color(0xFFE8EDF5);
 
   @override
   void initState() {
@@ -43,9 +40,10 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      debugPrint('[SelfOrders] load failed: $e');
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = 'Could not load orders. Please check your connection and try again.';
         _isLoading = false;
       });
     }
@@ -65,9 +63,10 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       );
       await _load();
     } catch (e) {
+      debugPrint('[SelfOrders] confirm failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Confirm failed: $e'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Could not confirm order. Please try again.'), backgroundColor: Colors.red),
       );
     }
   }
@@ -108,9 +107,10 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       );
       await _load();
     } catch (e) {
+      debugPrint('[SelfOrders] reject failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reject failed: $e'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Could not reject order. Please try again.'), backgroundColor: Colors.red),
       );
     }
   }
@@ -344,7 +344,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
   Widget _buildList() => ListView.separated(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
         itemCount: _orders.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final order = _orders[index];
           return _OrderCard(
@@ -392,7 +392,6 @@ class _OrderCard extends StatelessWidget {
   final VoidCallback onViewProof;
 
   static const _navy = Color(0xFF1E3A8A);
-  static const _divider = Color(0xFFE8EDF5);
 
   bool get _isPayAtStore {
     final paymentType = (order['payment_type'] ?? '').toString();

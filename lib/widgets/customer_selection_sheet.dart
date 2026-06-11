@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 
 /// A paginated, optimized customer selection bottom sheet with server-side search.
@@ -132,16 +131,15 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
       });
     } catch (e) {
       if (!mounted) return;
-      
+      debugPrint('[CustomerSearch] search failed: $e');
       setState(() {
         _isLoading = false;
       });
-      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to search: $e'),
+        const SnackBar(
+          content: Text('Search failed. Please try again.'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
         ),
       );
     } finally {
@@ -170,16 +168,15 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
       });
     } catch (e) {
       if (!mounted) return;
-      
+      debugPrint('[CustomerSearch] loadMore failed: $e');
       setState(() {
         _isLoadingMore = false;
       });
-      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load more: $e'),
+        const SnackBar(
+          content: Text('Could not load more. Please try again.'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
         ),
       );
     } finally {
@@ -288,10 +285,10 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
         }
       } catch (e) {
         if (!mounted) return;
-        
+        debugPrint('[CustomerSheet] create customer failed: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create customer: $e'),
+          const SnackBar(
+            content: Text('Could not create customer. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );

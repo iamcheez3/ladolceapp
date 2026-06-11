@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
@@ -12,14 +11,13 @@ import '../widgets/product_grid.dart';
 import '../widgets/product_list.dart';
 import '../widgets/cart_sidebar.dart';
 import '../widgets/customer_selection_sheet.dart';
+import '../widgets/skeleton_loaders.dart';
 import '../screens/tickets_screen.dart';
 import '../screens/receipt_history_screen.dart';
 import '../screens/manage_items_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/split_ticket_screen.dart';
 import '../screens/self_orders_review_screen.dart';
-import '../screens/printer_settings_screen.dart';
-import '../screens/bill_template_settings_screen.dart';
 import '../screens/pos_settings_screen.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
@@ -30,7 +28,6 @@ import '../theme/ladolce_pos_ui.dart';
 import 'package:intl/intl.dart';
 import '../models/pos_tax_config.dart';
 import '../models/pos_discount_config.dart';
-import '../utils/pos_tax.dart';
 import '../utils/pos_discount.dart';
 import '../utils/responsive_layout.dart';
 
@@ -313,6 +310,7 @@ class _PosScreenState extends State<PosScreen> {
   bool _activeTicketIsSelfOrder = false;
   String _activeTicketPartnerName = '';
   String _activeTicketDeliveryPlaceName = '';
+  // ignore: unused_field
   String _activeTicketDeliveryPlaceAddress = '';
   Map<String, dynamic>? _selectedCustomer;
 
@@ -381,6 +379,7 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
+  // ignore: unused_element
   void _showApplyDiscountDialog() {
     final linesSum = _cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
     if (linesSum <= 0) return;
@@ -1882,7 +1881,7 @@ class _PosScreenState extends State<PosScreen> {
               Expanded(
                 flex: 5,
                 child: _categories.isEmpty && _isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? PosProductSkeleton(isGridView: _isGridView)
                     : _categories.isEmpty && _errorMessage != null
                     ? Center(
                         child: Column(
@@ -2007,9 +2006,7 @@ class _PosScreenState extends State<PosScreen> {
                             // Products TabBarView (Grid/List)
                             Expanded(
                               child: _isLoading
-                                  ? const Center(
-                                      child: CircularProgressIndicator(),
-                                    )
+                                  ? PosProductSkeleton(isGridView: _isGridView)
                                   : _errorMessage != null
                                   ? Center(
                                       child: Column(

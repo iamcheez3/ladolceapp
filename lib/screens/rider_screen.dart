@@ -205,10 +205,11 @@ class _RiderScreenState extends State<RiderScreen> {
         }
       }
     } catch (e) {
+      debugPrint('[Rider] fetchOrders failed: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = 'Could not load orders. Please check your connection and try again.';
         });
       }
     }
@@ -234,10 +235,11 @@ class _RiderScreenState extends State<RiderScreen> {
       }
       await _fetchOrders();
     } catch (e) {
+      debugPrint('[Rider] handleAction failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed: $e'),
+          const SnackBar(
+            content: Text('Action failed. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
