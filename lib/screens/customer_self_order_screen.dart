@@ -427,6 +427,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           branchName: selectedName,
         );
       }
+      _loadSelfOrderConfig();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -446,6 +447,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         }
         _isLoadingBranches = false;
       });
+      _loadSelfOrderConfig();
     }
   }
 
@@ -464,6 +466,25 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (name.isNotEmpty) return name;
     }
     return 'Branch';
+  }
+
+  bool _isBranchClosed(Map<String, dynamic> branch) {
+    final open = (branch['open_time'] as num?)?.toDouble() ?? 0.0;
+    final close = (branch['close_time'] as num?)?.toDouble() ?? 0.0;
+    if (open == 0.0 && close == 0.0) {
+      return false; // Not configured or always open
+    }
+
+    final nowLao = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final currentTime = nowLao.hour + (nowLao.minute / 60.0);
+
+    if (open < close) {
+      // Normal hours, e.g., 08:00 to 22:00
+      return currentTime < open || currentTime > close;
+    } else {
+      // Overnight hours, e.g., 22:00 to 04:00 (next day)
+      return currentTime < open && currentTime > close;
+    }
   }
 
   Future<void> _loadNotificationPref() async {
@@ -1496,6 +1517,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       // Always hit the network for self-order: local `cached_products` is shared
       // with POS and stays stale, so `block_self_order` would never update otherwise.
       final products = await _apiService.fetchProducts(
+        branchId: _selectedBranchId,
         limit: 200,
         forceRefresh: true,
       );
@@ -1511,7 +1533,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         ...categorySet.map((name) => Category(id: name, name: name)),
       ];
 
-      final highlights = await _apiService.fetchProductHighlights();
+      final highlights = await _apiService.fetchProductHighlights(branchId: _selectedBranchId);
       final recIds = highlights['recommended'] ?? [];
       final popIds = highlights['popular'] ?? [];
 
@@ -1880,9 +1902,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   Future<void> _loadSelfOrderConfig() async {
-    setState(() => _isLoadingSelfOrderConfig = true);
+    if (mounted) {
+      setState(() => _isLoadingSelfOrderConfig = true);
+    }
     try {
-      final config = await _apiService.fetchSelfOrderConfig();
+      final config = await _apiService.fetchSelfOrderConfig(
+        branchId: _selectedBranchId,
+        forceRefresh: true,
+      );
       if (!mounted) return;
       setState(() {
         final rawBanks = (config['banks'] as List?) ?? const [];
@@ -2550,8 +2577,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final selectedBranchMap = _branches.firstWhere(
+              (b) => _branchIdFromMap(b) == _selectedBranchId,
+              orElse: () => const <String, dynamic>{},
+            );
+            final bool isClosed = selectedBranchMap.isNotEmpty && _isBranchClosed(selectedBranchMap);
             final bool hasBranch =
-                _selectedBranchId != null && (_selectedBranchId ?? 0) > 0;
+                _selectedBranchId != null && (_selectedBranchId ?? 0) > 0 && !isClosed;
             final bool hasPlace =
                 isSelfPickup || _selectedFavoritePlace != null;
             final bool canConfirm =
@@ -2651,12 +2683,19 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                               final code = (b['code'] ?? '')
                                                   .toString()
                                                   .trim();
+                                              final closed = _isBranchClosed(b);
                                               final label = code.isNotEmpty
-                                                  ? '$name ($code)'
-                                                  : name;
+                                                  ? '$name ($code)${closed ? " - [CLOSED]" : ""}'
+                                                  : '$name${closed ? " - [CLOSED]" : ""}';
                                               return DropdownMenuItem<int>(
                                                 value: id,
-                                                child: Text(label),
+                                                child: Text(
+                                                  label,
+                                                  style: TextStyle(
+                                                    color: closed ? Colors.red : null,
+                                                    fontWeight: closed ? FontWeight.bold : null,
+                                                  ),
+                                                ),
                                               );
                                             }).toList(),
                                             onChanged: (v) async {
@@ -2682,10 +2721,46 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                     branchId: v,
                                                     branchName: name,
                                                   );
+                                              setSheetState(() {
+                                                _isLoadingSelfOrderConfig = true;
+                                              });
+                                              await _loadSelfOrderConfig();
+                                              _loadCatalog(); 
+                                              if (mounted) {
+                                                setSheetState(() {});
+                                              }
                                             },
                                           ),
                                         ),
                                       ),
+                                    if (isClosed) ...[
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.shade50,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: Colors.red.shade200),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.error_outline, color: Colors.red),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'This branch is currently closed. Please choose another branch or order later.',
+                                                style: TextStyle(
+                                                  color: Colors.red.shade800,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 16),
                                     // ── Fulfillment type ──
                                     Text(

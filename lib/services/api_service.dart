@@ -328,22 +328,25 @@ class ApiService {
   }
 
   /// Returns cached products instantly (null if no cache)
-  Future<List<Product>?> getCachedProducts() async {
+  Future<List<Product>?> getCachedProducts({int? branchId}) async {
     final prefs = await SharedPreferences.getInstance();
-    final cached = prefs.getString('cached_products');
+    final cacheKey = branchId != null ? 'cached_products_$branchId' : 'cached_products';
+    final cached = prefs.getString(cacheKey);
     if (cached == null) return null;
     final List<dynamic> data = jsonDecode(cached);
     return data.map((json) => Product.fromJson(json)).toList();
   }
 
   Future<List<Product>> fetchProducts({
+    int? branchId,
     int limit = 50,
     int offset = 0,
     bool forceRefresh = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final cacheKey = branchId != null ? 'cached_products_$branchId' : 'cached_products';
     if (!forceRefresh) {
-      final cachedStr = prefs.getString('cached_products');
+      final cachedStr = prefs.getString(cacheKey);
       if (cachedStr != null) {
         final List<dynamic> data = jsonDecode(cachedStr);
         return data.map((json) => Product.fromJson(json)).toList();
@@ -353,7 +356,8 @@ class ApiService {
     final base = await getBaseUrl();
 
     try {
-      final url = Uri.parse('$base/products?limit=$limit&offset=$offset');
+      final queryParams = branchId != null ? '&branch_id=$branchId' : '';
+      final url = Uri.parse('$base/products?limit=$limit&offset=$offset$queryParams');
       _d('==============================');
       _d('[API CALL] GET $url');
 
@@ -368,7 +372,7 @@ class ApiService {
 
         if (jsonResponse['status'] == 'success') {
           final List<dynamic> data = jsonResponse['data'];
-          await prefs.setString('cached_products', jsonEncode(data));
+          await prefs.setString(cacheKey, jsonEncode(data));
           return data.map((json) => Product.fromJson(json)).toList();
         } else {
           throw Exception(
@@ -384,7 +388,7 @@ class ApiService {
       _d(
         '[API OFFLINE] Fetch products failed. Falling back to cache. Error: $e',
       );
-      final cachedProducts = prefs.getString('cached_products');
+      final cachedProducts = prefs.getString(cacheKey);
       if (cachedProducts != null) {
         final List<dynamic> data = jsonDecode(cachedProducts);
         return data.map((json) => Product.fromJson(json)).toList();
@@ -395,10 +399,11 @@ class ApiService {
     }
   }
 
-  Future<Map<String, List<int>>> fetchProductHighlights() async {
+  Future<Map<String, List<int>>> fetchProductHighlights({int? branchId}) async {
     final base = await getBaseUrl();
     try {
-      final url = Uri.parse('$base/pos/products/highlights');
+      final queryParams = branchId != null ? '?branch_id=$branchId' : '';
+      final url = Uri.parse('$base/pos/products/highlights$queryParams');
       final response = await http.get(url).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
@@ -3008,30 +3013,33 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> fetchSelfOrderConfig({
+    int? branchId,
     bool forceRefresh = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final cacheKey = branchId != null ? 'cached_self_order_config_$branchId' : 'cached_self_order_config';
     if (!forceRefresh) {
-      final cachedStr = prefs.getString('cached_self_order_config');
+      final cachedStr = prefs.getString(cacheKey);
       if (cachedStr != null) {
         return Map<String, dynamic>.from(jsonDecode(cachedStr));
       }
     }
     final base = await getBaseUrl();
     try {
-      final url = Uri.parse('$base/pos/self_order_config');
+      final queryParams = branchId != null && branchId > 0 ? '?branch_id=$branchId' : '';
+      final url = Uri.parse('$base/pos/self_order_config$queryParams');
       final response = await http.get(url).timeout(const Duration(seconds: 7));
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
         if (jsonResp['status'] == 'success') {
           final data = Map<String, dynamic>.from(jsonResp['data']);
-          await prefs.setString('cached_self_order_config', jsonEncode(data));
+          await prefs.setString(cacheKey, jsonEncode(data));
           return data;
         }
       }
       throw Exception('Failed to load self-order config');
     } catch (e) {
-      final cachedStr = prefs.getString('cached_self_order_config');
+      final cachedStr = prefs.getString(cacheKey);
       if (cachedStr != null) {
         return Map<String, dynamic>.from(jsonDecode(cachedStr));
       }
