@@ -554,9 +554,10 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _fetchOdooProducts({bool backgroundRefresh = false}) async {
+    final branchId = await _apiService.getCachedBranchId();
     // ── Step 1: Load from cache instantly if available ────────────────────────
     if (!backgroundRefresh) {
-      final cachedProducts = await _apiService.getCachedProducts();
+      final cachedProducts = await _apiService.getCachedProducts(branchId: branchId);
       final cachedTables = await _apiService.getCachedTables();
       final cachedMethods = await _apiService.getCachedPaymentMethods();
 
@@ -605,7 +606,7 @@ class _PosScreenState extends State<PosScreen> {
         }
       });
 
-      final products = await _apiService.fetchProducts(limit: 100);
+      final products = await _apiService.fetchProducts(branchId: branchId, limit: 100);
       final rawCombos = await _apiService.fetchCombos();
       final combos = rawCombos
           .map((c) => Product.fromCombo(Combo.fromJson(c)))
