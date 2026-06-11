@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:http/http.dart' as http;
+import '../services/http_client_wrapper.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/api_service.dart';
 
@@ -90,7 +90,9 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         ),
       );
     } catch (e) {
-      debugPrint("[Rider Nav] Initial getCurrentPosition failed: $e. Trying last known position...");
+      debugPrint(
+        "[Rider Nav] Initial getCurrentPosition failed: $e. Trying last known position...",
+      );
       try {
         initPos = await Geolocator.getLastKnownPosition();
       } catch (err) {
@@ -118,42 +120,41 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
       distanceFilter: 3, // Update when moving 3+ meters
     );
 
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen(
-      (Position position) {
-        if (!mounted) return;
-        final lat = position.latitude;
-        final lng = position.longitude;
-        setState(() {
-          _riderLat = lat;
-          _riderLng = lng;
-          _hasRiderLocation = true;
-          _calculateDistance();
-        });
-        _sendLocationUpdate(lat, lng);
+    _positionSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position position) {
+            if (!mounted) return;
+            final lat = position.latitude;
+            final lng = position.longitude;
+            setState(() {
+              _riderLat = lat;
+              _riderLng = lng;
+              _hasRiderLocation = true;
+              _calculateDistance();
+            });
+            _sendLocationUpdate(lat, lng);
 
-        // Smart route fetch: if we haven't fetched yet, or if we moved > 150 meters
-        if (_lastRouteFetchedLatLng == null) {
-          _fetchRoute();
-        } else {
-          final double distanceMoved = Geolocator.distanceBetween(
-            lat,
-            lng,
-            _lastRouteFetchedLatLng!.latitude,
-            _lastRouteFetchedLatLng!.longitude,
-          );
-          if (distanceMoved > 150.0) {
-            _fetchRoute();
-          }
-        }
+            // Smart route fetch: if we haven't fetched yet, or if we moved > 150 meters
+            if (_lastRouteFetchedLatLng == null) {
+              _fetchRoute();
+            } else {
+              final double distanceMoved = Geolocator.distanceBetween(
+                lat,
+                lng,
+                _lastRouteFetchedLatLng!.latitude,
+                _lastRouteFetchedLatLng!.longitude,
+              );
+              if (distanceMoved > 150.0) {
+                _fetchRoute();
+              }
+            }
 
-        _animateCameraToRider();
-      },
-      onError: (e) {
-        debugPrint("[Rider Nav] Location stream error: $e");
-      },
-    );
+            _animateCameraToRider();
+          },
+          onError: (e) {
+            debugPrint("[Rider Nav] Location stream error: $e");
+          },
+        );
 
     // 3. Heartbeat update (every 8 seconds) to guarantee posting location even if stationary
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 8), (_) {
@@ -180,7 +181,9 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
 
     final apiKey = (dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '').trim();
     if (apiKey.isEmpty) {
-      debugPrint("[Rider Nav] GOOGLE_MAPS_API_KEY is empty. Skipping Directions fetch.");
+      debugPrint(
+        "[Rider Nav] GOOGLE_MAPS_API_KEY is empty. Skipping Directions fetch.",
+      );
       return;
     }
 
@@ -188,15 +191,12 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
 
     try {
       final currentLatLng = LatLng(_riderLat, _riderLng);
-      final url = Uri.https(
-        'maps.googleapis.com',
-        '/maps/api/directions/json',
-        {
-          'origin': '$_riderLat,$_riderLng',
-          'destination': '${widget.destinationLat},${widget.destinationLng}',
-          'key': apiKey,
-        },
-      );
+      final url =
+          Uri.https('maps.googleapis.com', '/maps/api/directions/json', {
+            'origin': '$_riderLat,$_riderLng',
+            'destination': '${widget.destinationLat},${widget.destinationLng}',
+            'key': apiKey,
+          });
 
       final response = await http.get(url).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
@@ -227,14 +227,20 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                 _lastRouteFetchedLatLng = currentLatLng;
               });
             }
-            debugPrint("[Rider Nav] Successfully fetched route from Directions API.");
+            debugPrint(
+              "[Rider Nav] Successfully fetched route from Directions API.",
+            );
             return;
           }
         } else {
-          debugPrint("[Rider Nav] Directions API status not OK: ${data['status']}");
+          debugPrint(
+            "[Rider Nav] Directions API status not OK: ${data['status']}",
+          );
         }
       } else {
-        debugPrint("[Rider Nav] Directions API HTTP status: ${response.statusCode}");
+        debugPrint(
+          "[Rider Nav] Directions API HTTP status: ${response.statusCode}",
+        );
       }
     } catch (e) {
       debugPrint("[Rider Nav] Error fetching Directions API: $e");
@@ -311,12 +317,20 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
     // Bounds containing both rider and target
     final bounds = LatLngBounds(
       southwest: LatLng(
-        riderLatLng.latitude < destLatLng.latitude ? riderLatLng.latitude : destLatLng.latitude,
-        riderLatLng.longitude < destLatLng.longitude ? riderLatLng.longitude : destLatLng.longitude,
+        riderLatLng.latitude < destLatLng.latitude
+            ? riderLatLng.latitude
+            : destLatLng.latitude,
+        riderLatLng.longitude < destLatLng.longitude
+            ? riderLatLng.longitude
+            : destLatLng.longitude,
       ),
       northeast: LatLng(
-        riderLatLng.latitude > destLatLng.latitude ? riderLatLng.latitude : destLatLng.latitude,
-        riderLatLng.longitude > destLatLng.longitude ? riderLatLng.longitude : destLatLng.longitude,
+        riderLatLng.latitude > destLatLng.latitude
+            ? riderLatLng.latitude
+            : destLatLng.latitude,
+        riderLatLng.longitude > destLatLng.longitude
+            ? riderLatLng.longitude
+            : destLatLng.longitude,
       ),
     );
 
@@ -327,17 +341,14 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
 
   Future<void> _makePhoneCall() async {
     if (widget.customerPhone.isEmpty) return;
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: widget.customerPhone,
-    );
+    final Uri launchUri = Uri(scheme: 'tel', path: widget.customerPhone);
     try {
       await launchUrl(launchUri);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not launch dialer')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not launch dialer')));
     }
   }
 
@@ -350,7 +361,9 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch external maps application')),
+          const SnackBar(
+            content: Text('Could not launch external maps application'),
+          ),
         );
       }
     }
@@ -364,14 +377,20 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         if (!mounted) return;
         setState(() => _currentStatus = 'arrived');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Status updated to Arrived'), backgroundColor: Colors.teal),
+          const SnackBar(
+            content: Text('Status updated to Arrived'),
+            backgroundColor: Colors.teal,
+          ),
         );
       } else if (action == 'complete') {
         await _apiService.riderComplete(widget.orderId);
         if (!mounted) return;
         setState(() => _currentStatus = 'delivered');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Status updated to Complete / Delivered'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Status updated to Complete / Delivered'),
+            backgroundColor: Colors.green,
+          ),
         );
         // Automatically pop screen once complete
         Future.delayed(const Duration(seconds: 1), () {
@@ -381,7 +400,10 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Failed to update status: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
@@ -408,10 +430,12 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         position: destLatLng,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         infoWindow: InfoWindow(
-          title: widget.deliveryPlace.isNotEmpty ? widget.deliveryPlace : 'Delivery Target',
+          title: widget.deliveryPlace.isNotEmpty
+              ? widget.deliveryPlace
+              : 'Delivery Target',
           snippet: widget.deliveryAddress,
         ),
-      )
+      ),
     };
 
     if (_hasRiderLocation) {
@@ -471,16 +495,15 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         children: [
           // Google Map Widget
           GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: destLatLng,
-              zoom: 15,
-            ),
+            initialCameraPosition: CameraPosition(target: destLatLng, zoom: 15),
             markers: markers,
             polylines: polylines,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             gestureRecognizers: {
-              Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+              Factory<OneSequenceGestureRecognizer>(
+                () => EagerGestureRecognizer(),
+              ),
             },
             onMapCreated: (controller) {
               _mapController = controller;
@@ -514,10 +537,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
             ),
 
           // Navigation bottom panel
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: _buildBottomPanel(),
-          ),
+          Align(alignment: Alignment.bottomCenter, child: _buildBottomPanel()),
         ],
       ),
     );
@@ -546,7 +566,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
             color: Colors.black26,
             blurRadius: 10,
             offset: Offset(0, -3),
-          )
+          ),
         ],
       ),
       child: SafeArea(
@@ -561,7 +581,10 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(8),
@@ -569,18 +592,28 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.access_time, size: 16, color: _accentBlue),
+                        const Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: _accentBlue,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           etaText,
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: _accentBlue),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _accentBlue,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(8),
@@ -588,11 +621,18 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.navigation_outlined, size: 16, color: Colors.grey),
+                        const Icon(
+                          Icons.navigation_outlined,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           distanceText,
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[800]),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
                         ),
                       ],
                     ),
@@ -600,29 +640,32 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                   const Spacer(),
                   // Active Status pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _currentStatus == 'arrived'
                           ? Colors.teal.withOpacity(0.15)
                           : _currentStatus == 'delivered'
-                              ? Colors.green.withOpacity(0.15)
-                              : Colors.blue.withOpacity(0.15),
+                          ? Colors.green.withOpacity(0.15)
+                          : Colors.blue.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       _currentStatus == 'arrived'
                           ? 'Arrived'
                           : _currentStatus == 'delivered'
-                              ? 'Delivered'
-                              : 'On The Way',
+                          ? 'Delivered'
+                          : 'On The Way',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: _currentStatus == 'arrived'
                             ? Colors.teal
                             : _currentStatus == 'delivered'
-                                ? Colors.green
-                                : Colors.blue,
+                            ? Colors.green
+                            : Colors.blue,
                       ),
                     ),
                   ),
@@ -633,13 +676,19 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
               // Customer name & Delivery Details
               Text(
                 widget.customerName,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               if (widget.deliveryPlace.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   widget.deliveryPlace,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[900]),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[900],
+                  ),
                 ),
               ],
               const SizedBox(height: 4),
@@ -657,11 +706,16 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                   // Call button
                   if (widget.customerPhone.isNotEmpty) ...[
                     IconButton(
-                      icon: const Icon(Icons.phone_in_talk, color: Colors.white),
+                      icon: const Icon(
+                        Icons.phone_in_talk,
+                        color: Colors.white,
+                      ),
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.green,
                         padding: const EdgeInsets.all(12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: _makePhoneCall,
                       tooltip: 'Call Customer',
@@ -676,7 +730,9 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.orange,
                         padding: const EdgeInsets.all(12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: _openExternalMaps,
                       tooltip: 'Open in External Google Maps app',
@@ -697,13 +753,19 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.teal,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           ),
-                        if (_currentStatus == 'on_the_way') const SizedBox(width: 10),
-                        if (_currentStatus == 'on_the_way' || _currentStatus == 'arrived')
+                        if (_currentStatus == 'on_the_way')
+                          const SizedBox(width: 10),
+                        if (_currentStatus == 'on_the_way' ||
+                            _currentStatus == 'arrived')
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () => _handleStatusAction('complete'),
@@ -712,8 +774,12 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           ),

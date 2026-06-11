@@ -64,9 +64,10 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
       }
     } catch (e) {
       setState(() => _isSaving = false);
+      debugPrint('[ToppingEdit] save failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Could not save topping. Please try again.'), backgroundColor: Colors.red),
         );
       }
     }

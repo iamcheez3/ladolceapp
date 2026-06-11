@@ -241,9 +241,10 @@ class _TicketsScreenState extends State<TicketsScreen> {
         );
       }
     } catch (e) {
+      debugPrint('[Tickets] fetchOpenTickets failed: $e');
       if (combined.isEmpty) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = 'Could not load tickets. Please check your connection and try again.';
           _isLoading = false;
         });
         return;
@@ -401,10 +402,11 @@ class _TicketsScreenState extends State<TicketsScreen> {
         ),
       );
     } catch (e) {
+      debugPrint('[Tickets] notifyReady failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Notify failed: $e'),
+        const SnackBar(
+          content: Text('Could not send notification. Please try again.'),
           backgroundColor: Colors.red,
         ),
       );

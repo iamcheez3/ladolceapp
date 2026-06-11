@@ -205,10 +205,11 @@ class _RiderScreenState extends State<RiderScreen> {
         }
       }
     } catch (e) {
+      debugPrint('[Rider] fetchOrders failed: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = 'Could not load orders. Please check your connection and try again.';
         });
       }
     }
@@ -234,10 +235,11 @@ class _RiderScreenState extends State<RiderScreen> {
       }
       await _fetchOrders();
     } catch (e) {
+      debugPrint('[Rider] handleAction failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed: $e'),
+          const SnackBar(
+            content: Text('Action failed. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -418,6 +420,7 @@ class _RiderScreenState extends State<RiderScreen> {
     final address = order['delivery_place_address'] ?? '';
     final status = order['delivery_status']?.toString() ?? 'none';
     final mapsUrl = order['delivery_maps_url']?.toString() ?? '';
+    final orderNote = order['note']?.toString() ?? '';
 
     final rawLat = order['delivery_latitude'];
     final rawLng = order['delivery_longitude'];
@@ -500,6 +503,34 @@ class _RiderScreenState extends State<RiderScreen> {
                   const Icon(Icons.phone, size: 16, color: Colors.grey),
                   const SizedBox(width: 6),
                   Text(phone, style: TextStyle(color: Colors.grey[700])),
+                ],
+              ),
+            ),
+          if (orderNote.isNotEmpty)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.edit_note, size: 20, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Customer Note:\n$orderNote',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -613,26 +644,42 @@ class _RiderScreenState extends State<RiderScreen> {
             const SizedBox(height: 12),
           ],
           const Divider(),
-          ...lines.map((line) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Expanded(
+          ...lines.map((line) {
+            final lineNote = line['note']?.toString() ?? '';
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          line['product_name'] ?? 'Item',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      Text('x${line['qty']}',
+                          style: TextStyle(color: Colors.grey[700])),
+                      const SizedBox(width: 12),
+                      Text(
+                        'LAK ${(line['subtotal'] as num?)?.toDouble().toStringAsFixed(0) ?? '0'}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  if (lineNote.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, left: 8),
                       child: Text(
-                        line['product_name'] ?? 'Item',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+                        '- $lineNote',
+                        style: const TextStyle(fontSize: 12, color: Colors.redAccent, fontStyle: FontStyle.italic),
                       ),
                     ),
-                    Text('x${line['qty']}',
-                        style: TextStyle(color: Colors.grey[700])),
-                    const SizedBox(width: 12),
-                    Text(
-                      'LAK ${(line['subtotal'] as num?)?.toDouble().toStringAsFixed(0) ?? '0'}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              )),
+                ],
+              ),
+            );
+          }),
           if (!isHistory && (status == 'on_the_way' || status == 'arrived')) ...[
             const SizedBox(height: 12),
             const Divider(),

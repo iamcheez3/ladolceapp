@@ -99,6 +99,11 @@ class NetworkService {
       if (isJson) 'Content-Type': 'application/json',
     };
 
+    final apiKey = dotenv.env['API_KEY'];
+    if (apiKey != null && apiKey.isNotEmpty) {
+      headers['X-API-Key'] = apiKey;
+    }
+
     if (requiresAuth) {
       final token = await _getAuthToken();
       if (token != null && token.isNotEmpty) {

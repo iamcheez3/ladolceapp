@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
-import 'package:http/http.dart' as http;
+import 'http_client_wrapper.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
@@ -47,6 +47,17 @@ class ApiService {
       _d('[API ERROR] Failed to fetch maintenance status: $e');
     }
     return {'is_active': false};
+  }
+
+  Future<Map<String, dynamic>> fetchPrivacyPolicy() async {
+    try {
+      final response = await _network.get('/privacy-policy',
+          requiresAuth: false, timeout: const Duration(seconds: 10));
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      _d('[API ERROR] Failed to fetch privacy policy: $e');
+      rethrow;
+    }
   }
 
   Future<void> sendHeartbeat({bool isNewSession = false}) async {

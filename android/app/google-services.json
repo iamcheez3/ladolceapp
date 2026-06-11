@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "33195432980-h6nabb16n5dt2krmkvluv8ile8s3biiv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ladolce.app",
+            "certificate_hash": "f5088727ea925f4453373dac782aa48c346ef030"
+          }
+        },
+        {
           "client_id": "33195432980-rh0us0t1rjvh4m4s30gtbc07d890tcds.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -31,7 +39,7 @@
               "client_type": 3
             },
             {
-              "client_id": "33195432980-jagq3hahps9m7r8ihv5cvvvqakccq8hl.apps.googleusercontent.com",
+              "client_id": "33195432980-89hbug0smj4tppv77td1g84e0ha0mjtv.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
                 "bundle_id": "com.ladolce.app"
