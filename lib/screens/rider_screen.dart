@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/push_notifications_service.dart';
 import 'login_screen.dart';
 import 'rider_navigation_screen.dart';
+import 'order_chat_screen.dart';
 
 class RiderScreen extends StatefulWidget {
   final String riderName;
@@ -680,6 +681,37 @@ class _RiderScreenState extends State<RiderScreen> {
               ),
             );
           }),
+          if (order['id'] != null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                label: Text(isHistory ? 'View Chat History' : 'Chat with Customer'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _navy,
+                  side: const BorderSide(color: _navy),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrderChatScreen(
+                        orderId: order['id'] as int,
+                        orderRef: order['order_reference']?.toString() ?? '',
+                        currentRole: 'rider',
+                        otherPartyName: order['customer_name']?.toString() ?? 'Customer',
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
           if (!isHistory && (status == 'on_the_way' || status == 'arrived')) ...[
             const SizedBox(height: 12),
             const Divider(),

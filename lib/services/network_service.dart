@@ -89,6 +89,12 @@ class NetworkService {
     return prefs.getString(_authTokenKey);
   }
 
+  /// Get Odoo session id from SharedPreferences (stored by ApiService on login).
+  Future<String?> _getSessionId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('cached_user_session');
+  }
+
   /// Build request headers with optional auth and content type
   Future<Map<String, String>> _buildHeaders({
     bool requiresAuth = true,
@@ -105,9 +111,11 @@ class NetworkService {
     }
 
     if (requiresAuth) {
-      final token = await _getAuthToken();
-      if (token != null && token.isNotEmpty) {
-        headers['Authorization'] = 'Bearer $token';
+      // Send Odoo session cookie so require_session() can authenticate the request.
+      final sessionId = await _getSessionId();
+      if (sessionId != null && sessionId.isNotEmpty) {
+        headers['Cookie'] = 'session_id=$sessionId;';
+        headers['X-Openerp-Session-Id'] = sessionId;
       }
     }
 
