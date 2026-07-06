@@ -33,6 +33,7 @@ import '../models/topping.dart';
 import '../services/api_service.dart';
 import '../widgets/skeleton_loaders.dart';
 import 'login_screen.dart';
+import 'order_chat_screen.dart';
 
 class _FavoritePlace {
   final String id;
@@ -890,6 +891,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       });
       parentSetState(() {
         _selectedFavoritePlaceId = place.id;
+        _calculateDeliveryFee(false);
       });
     }
 
@@ -7173,6 +7175,47 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
+                        ),
+                      ),
+                    ],
+                    if ((deliveryStatus == 'preparing' ||
+                        deliveryStatus == 'on_the_way' ||
+                        deliveryStatus == 'arrived' ||
+                        deliveryStatus == 'completed') &&
+                        item['id'] != null) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                          label: Text(deliveryStatus == 'completed'
+                              ? 'View Chat History'
+                              : 'Chat with Rider'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1E3A8A),
+                            side: const BorderSide(color: Color(0xFF1E3A8A)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          onPressed: () {
+                            final orderId = item['id'];
+                            final orderRef = (item['name'] ?? '').toString();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderChatScreen(
+                                  orderId: orderId is int
+                                      ? orderId
+                                      : int.tryParse(orderId.toString()) ?? 0,
+                                  orderRef: orderRef,
+                                  currentRole: 'customer',
+                                  otherPartyName: 'Rider',
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],

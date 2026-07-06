@@ -12,6 +12,7 @@ import '../models/table.dart';
 import '../models/payment_method.dart';
 import '../models/ticket.dart';
 import '../models/pos_tax_config.dart';
+import '../models/chat_message.dart';
 import 'network_service.dart';
 
 class ApiService {
@@ -3859,6 +3860,174 @@ class ApiService {
       throw Exception(data['message'] ?? 'Failed to claim voucher');
     } catch (e) {
       throw Exception('Failed to claim voucher: $e');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Order Chat
+  // ---------------------------------------------------------------------------
+
+  /// Fetch all chat messages for an order.
+  /// GET `/api/pos/order/<id>/chat`
+  Future<Map<String, dynamic>> fetchOrderChat(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final sid = await getCachedSessionId() ?? '';
+      final url = Uri.parse('$base/pos/order/$orderId/chat').replace(
+        queryParameters: {
+          if (userId > 0) 'user_id': '$userId',
+          if (sid.isNotEmpty) 'session_id': sid,
+        },
+      );
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 10));
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      if (json['status'] == 'success') {
+        return Map<String, dynamic>.from(json['data'] ?? {});
+      }
+      throw Exception(json['message'] ?? 'Failed to fetch chat');
+    } catch (e) {
+      throw Exception('Failed to fetch order chat: $e');
+    }
+  }
+
+  /// Send a chat message for an order.
+  /// POST `/api/pos/order/<id>/chat`
+  Future<ChatMessage> sendOrderChatMessage(int orderId, String message) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final sid = await getCachedSessionId() ?? '';
+      final url = Uri.parse('$base/pos/order/$orderId/chat').replace(
+        queryParameters: {
+          if (userId > 0) 'user_id': '$userId',
+          if (sid.isNotEmpty) 'session_id': sid,
+        },
+      );
+      final response = await http
+          .post(
+            url,
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({'message': message}),
+          )
+          .timeout(const Duration(seconds: 10));
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      if (json['status'] == 'success') {
+        return ChatMessage.fromJson(json['data'] as Map<String, dynamic>);
+      }
+      throw Exception(json['message'] ?? 'Failed to send message');
+    } catch (e) {
+      throw Exception('Failed to send chat message: $e');
+    }
+  }
+
+  /// Mark all incoming chat messages as read.
+  /// POST `/api/pos/order/<id>/chat/read`
+  Future<void> markOrderChatRead(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final sid = await getCachedSessionId() ?? '';
+      final url = Uri.parse('$base/pos/order/$orderId/chat/read').replace(
+        queryParameters: {
+          if (userId > 0) 'user_id': '$userId',
+          if (sid.isNotEmpty) 'session_id': sid,
+        },
+      );
+      await http
+          .post(url, headers: await _authHeaders(json: true), body: '{}')
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // best-effort
+    }
+  }
+
+  /// Upload an image to the chat for an order.
+  /// POST `/api/pos/order/<id>/chat/image` — multipart/form-data field "image", optional "caption".
+  Future<ChatMessage> sendOrderChatImage(
+    int orderId,
+    String imagePath, {
+    String caption = '',
+  }) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final sid = await getCachedSessionId() ?? '';
+      final url = Uri.parse('$base/pos/order/$orderId/chat/image').replace(
+        queryParameters: {
+          if (userId > 0) 'user_id': '$userId',
+          if (sid.isNotEmpty) 'session_id': sid,
+        },
+      );
+      final authHdrs = await _authHeaders(json: false);
+      final request = http.MultipartRequest('POST', url);
+      authHdrs.forEach((k, v) => request.headers[k] = v);
+      request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+      if (caption.isNotEmpty) request.fields['caption'] = caption;
+      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      final body = await streamed.stream.bytesToString();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      if (json['status'] == 'success') {
+        return ChatMessage.fromJson(json['data'] as Map<String, dynamic>);
+      }
+      throw Exception(json['message'] ?? 'Failed to upload image');
+    } catch (e) {
+      throw Exception('Failed to send chat image: $e');
+    }
+  }
+
+  /// Fetch the unread message count for a chat badge.
+  /// GET `/api/pos/order/<id>/chat/unread`
+  Future<int> fetchOrderChatUnreadCount(int orderId) async {
+    final base = await getBaseUrl();
+    try {
+      final user = await getCachedUser();
+      final userId = (user != null && user['user_id'] != null)
+          ? (user['user_id'] is int
+                ? user['user_id'] as int
+                : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+          : 0;
+      final sid = await getCachedSessionId() ?? '';
+      final url = Uri.parse('$base/pos/order/$orderId/chat/unread').replace(
+        queryParameters: {
+          if (userId > 0) 'user_id': '$userId',
+          if (sid.isNotEmpty) 'session_id': sid,
+        },
+      );
+      final response = await http
+          .get(url, headers: await _authHeaders(json: true))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        if (json['status'] == 'success') {
+          return (json['data']?['unread_count'] as num?)?.toInt() ?? 0;
+        }
+      }
+      return 0;
+    } catch (_) {
+      return 0;
     }
   }
 }
