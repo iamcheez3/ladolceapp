@@ -1417,10 +1417,19 @@ class ApiService {
 
       return data;
     } else {
-      throw Exception(jsonResponse['message'] ?? 'Login failed');
+      final rawMsg = (jsonResponse['message'] ?? '').toString();
+      // Odoo answers "Access Denied" for bad credentials — show a friendly
+      // message instead of the raw (often nested) exception string.
+      if (response.statusCode == 401 ||
+          rawMsg.toLowerCase().contains('access denied')) {
+        throw Exception('Incorrect email or password');
+      }
+      throw Exception(rawMsg.isNotEmpty ? rawMsg : 'Login failed');
     }
     } on NetworkException catch (e) {
       throw Exception('Login failed: ${e.message}');
+    } on Exception {
+      rethrow; // already a clean, intentional message — don't re-wrap
     } catch (e) {
       throw Exception('Login failed: ${e.toString()}');
     }
@@ -1461,6 +1470,39 @@ class ApiService {
     await prefs.remove('cached_user_session');
     await prefs.remove('cached_user_data');
     await prefs.remove(_posIdentityPromptSessionKey);
+  }
+
+  /// Permanently delete the current user's account.
+  /// Backend endpoint: POST `/api/pos/account/delete`
+  /// Returns the parsed JSON response; caller must branch on `status`.
+  Future<Map<String, dynamic>> deleteAccount() async {
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+              ? user['user_id'] as int
+              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+
+    try {
+      final response = await _network.post(
+        '/pos/account/delete',
+        body: {'user_id': userId, 'session_id': sid, 'confirm': true},
+        throwOnError: false,
+      );
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse is Map) {
+        return Map<String, dynamic>.from(jsonResponse);
+      }
+      return {
+        'status': 'error',
+        'message': 'Failed to delete account (${response.statusCode})',
+      };
+    } on NetworkException catch (e) {
+      return {'status': 'error', 'message': e.message};
+    } catch (e) {
+      return {'status': 'error', 'message': e.toString()};
+    }
   }
 
   /// Customer: validate that current session is still active.

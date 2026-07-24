@@ -475,11 +475,11 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      // Strip the "Exception: " prefix so users see a clean message
+      // (e.g. "Incorrect email or password").
+      final msg = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -858,12 +858,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              _GoogleAuthButton(
-                                label: 'Continue with Google',
-                                isLoading: _isLoading,
-                                onPressed: _continueWithGoogle,
-                              ),
+                              if (FirebaseAuthService
+                                  .isGoogleAuthAvailable) ...[
+                                const SizedBox(height: 12),
+                                _GoogleAuthButton(
+                                  label: 'Continue with Google',
+                                  isLoading: _isLoading,
+                                  onPressed: _continueWithGoogle,
+                                ),
+                              ],
                               const SizedBox(height: 8),
                               if (_devUnlocked) ...[              
                                 TextButton(

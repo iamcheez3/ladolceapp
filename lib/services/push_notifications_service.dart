@@ -290,10 +290,10 @@ class PushNotificationsService {
           colorized: true,
         );
 
-        // iOS: always play the bundled custom sound for every notification type.
+        // iOS: custom notification sounds must use a bundled, supported format.
         const iosDetails = DarwinNotificationDetails(
           presentSound: true,
-          sound: 'notification.mp3',
+          sound: 'notification.caf',
           presentAlert: true,
           presentBadge: true,
         );
@@ -638,6 +638,7 @@ class PushNotificationsService {
         device: device,
       );
       _d('FCM token registered for user_id=$userId');
+      _d('FCM TOKEN >>> $token');
     } catch (e) {
       _d('FCM token register failed: $e');
       rethrow; // Re-throw to allow proper error handling upstream

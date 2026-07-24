@@ -918,12 +918,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          _GoogleAuthButton(
-                            label: 'Continue with Google',
-                            isLoading: _isLoading,
-                            onPressed: _continueWithGoogle,
-                          ),
+                          if (FirebaseAuthService.isGoogleAuthAvailable) ...[
+                            const SizedBox(height: 12),
+                            _GoogleAuthButton(
+                              label: 'Continue with Google',
+                              isLoading: _isLoading,
+                              onPressed: _continueWithGoogle,
+                            ),
+                          ],
                         ],
                       ),
                     ),

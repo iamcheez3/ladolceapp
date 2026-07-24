@@ -31,6 +31,7 @@ import '../models/combo.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
 import '../services/api_service.dart';
+import '../services/firebase_auth_service.dart';
 import '../widgets/skeleton_loaders.dart';
 import 'login_screen.dart';
 import 'order_chat_screen.dart';
@@ -136,6 +137,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   bool _isPlacingOrder = false;
   bool _isSavingProfile = false;
   bool _isLoggingOut = false;
+  bool _isDeletingAccount = false;
   bool _isLoadingSelfOrderConfig = true;
 
   String _selectedCategory = 'All Items';
@@ -3813,6 +3815,86 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    if (_isDeletingAccount) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Delete account?',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: const Text(
+          'This will permanently delete your account, including your reward '
+          'points, vouchers and order history. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text(
+              'Delete',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _deleteAccount();
+  }
+
+  Future<void> _deleteAccount() async {
+    if (_isDeletingAccount) return;
+    setState(() => _isDeletingAccount = true);
+    try {
+      final result = await _apiService.deleteAccount();
+      if (result['status'] == 'success') {
+        // Best-effort: delete the Firebase user record too, so all personal
+        // data is removed and a future Google re-register gets a fresh UID.
+        // May fail with requires-recent-login — non-fatal, just skip.
+        try {
+          await FirebaseAuthService.instance.deleteCurrentUser();
+        } catch (_) {}
+        // Best-effort: clear Google/Firebase session so the next
+        // Google sign-in doesn't silently reuse the deleted account.
+        try {
+          await FirebaseAuthService.instance.signOut();
+        } catch (_) {}
+        await _apiService.logout();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your account has been deleted.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['message']?.toString() ??
+                  'Could not delete account. Please try again.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDeletingAccount = false);
+    }
   }
 
   void _openRewardsCatalog() {
@@ -7812,6 +7894,24 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       ),
                                     ),
                                   ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: _isDeletingAccount
+                                    ? null
+                                    : _confirmDeleteAccount,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xAAFF5252),
+                                  textStyle: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                child: Text(
+                                  _isDeletingAccount
+                                      ? 'Deleting account...'
+                                      : 'Delete account',
                                 ),
                               ),
                             ],

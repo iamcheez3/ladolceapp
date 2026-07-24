@@ -22,10 +22,24 @@
 		<string>$(FLUTTER_BUILD_NAME)</string>
 		<key>CFBundleSignature</key>
 		<string>????</string>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<!-- REVERSED_CLIENT_ID from GoogleService-Info.plist (Google Sign-In callback) -->
+					<string>com.googleusercontent.apps.33195432980-89hbug0smj4tppv77td1g84e0ha0mjtv</string>
+				</array>
+			</dict>
+		</array>
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSCameraUsageDescription</key>
+		<string>This app requires access to the camera to scan reward QR codes.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>We need your location to center the map when adding a favorite place.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
@@ -49,18 +63,16 @@
 						<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
 						<key>UISceneStoryboardFile</key>
 						<string>Main</string>
-						<key>NSCameraUsageDescription</key>
-	<string>This app requires access to the camera to scan reward QR codes.</string>
-</dict>
+					</dict>
 				</array>
-				<key>NSCameraUsageDescription</key>
-	<string>This app requires access to the camera to scan reward QR codes.</string>
-</dict>
-			<key>NSCameraUsageDescription</key>
-	<string>This app requires access to the camera to scan reward QR codes.</string>
-</dict>
+			</dict>
+		</dict>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 		<key>UILaunchStoryboardName</key>
 		<string>LaunchScreen</string>
 		<key>UIMainStoryboardFile</key>
@@ -80,8 +92,5 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
-		<key>NSCameraUsageDescription</key>
-	<string>This app requires access to the camera to scan reward QR codes.</string>
-</dict>
+	</dict>
 </plist>
-
