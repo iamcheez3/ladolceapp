@@ -2435,3 +2435,728 @@ Priority/decision rules:
 - Quick verification:
   - Resume a ticket, add one or more new items, save: CHARGE and Open Tickets **amount_total** should reflect **all** lines (old + new).
   - Create ticket offline, reconnect and sync: Open Tickets should show **one** row per order (no parallel OFFLINE-MOCK with same table/total as a POS/… id).
+
+==================================================
+58) LATEST IMPLEMENTED UPDATE (BRANCH MASTER DATA + COMPANY LINK)
+==================================================
+- Request:
+  - App should be ready to scale with Odoo 18 multi-company.
+  - Add a "Branch" form in Odoo and connect it to standard Odoo company (`res.company`) inside `pos_backend`.
+- Implementation:
+  - Added new model `pos_backend.branch` with:
+    - `name`, `code`, `active`
+    - `company_id` (Many2one `res.company`, required; default current company)
+    - SQL constraint: unique `(code, company_id)` for safety.
+  - Added UI:
+    - list/form/search views
+    - menu `Custom POS > Configuration > Branches` (admin only).
+  - Added security:
+    - access rights for admin (full CRUD) and cashier (read-only)
+    - multi-company record rule so users only see branches in their allowed companies.
+- Files changed:
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/pos_branch.py` (New)
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/__init__.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/views/pos_branch_views.xml` (New)
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/security/security.xml`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/security/ir.model.access.csv`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/__manifest__.py`
+- Commands / ops needed:
+  - Restart Odoo service and upgrade module `pos_backend`.
+  - Hard refresh Odoo web client (`Ctrl+F5`) after upgrade.
+- Quick verification:
+  - In Odoo, open `Custom POS > Configuration > Branches`.
+  - Create a branch for company "Ladolce" (ex: name "Ladolce - Main", code "LD-MAIN").
+  - Switch company (if multi-company enabled) and confirm branches list is filtered to allowed companies.
+
+==================================================
+59) LATEST IMPLEMENTED UPDATE (BRANCH FORM FIX: REMOVE INVALID check_company)
+==================================================
+- Request:
+  - Fix Odoo error when upgrading/loading `pos_backend` after adding Branches.
+- Root cause:
+  - `pos_backend.branch.company_id` pointed to `res.company` with `check_company=True`.
+  - Odoo's generated `check_company` domain assumes the comodel has a `company_id` field, but `res.company` does not, so view validation failed.
+- Implementation:
+  - Removed `check_company=True` from `pos_backend.branch.company_id`.
+- Files changed:
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/pos_branch.py`
+- Commands / ops needed:
+  - Restart Odoo service and upgrade module `pos_backend`.
+  - Hard refresh Odoo web client (`Ctrl+F5`) after upgrade.
+- Quick verification:
+  - Upgrade `pos_backend` succeeds.
+  - Open `Custom POS > Configuration > Branches` and create/edit a branch without errors.
+
+==================================================
+60) LATEST IMPLEMENTED UPDATE (POS PROFILE: POS NAME + BRANCH REQUIRED)
+==================================================
+- Request:
+  - Cashier register/login must select Branch too.
+  - Fix POS profile display so drawer header uses the real POS name (not hardcoded "POS Terminal #1") and shows branch.
+- Implementation:
+  - Flutter:
+    - Added Branch caching keys:
+      - `cached_branch_id`, `cached_branch_name`
+    - Added `ApiService.fetchBranches()` (GET `/api/pos/branches`) to load available branches from backend using session headers.
+    - Updated `PosIdentityScreen`:
+      - now prompts for Branch + POS name ("POS Profile")
+      - branch dropdown when backend is reachable
+      - offline fallback: if branches cannot load, cashier can type a branch name (still required) and continue; it will be included in device audit payload and retried later.
+    - Updated `PosScreen` drawer header:
+      - replaces hardcoded "POS Terminal #1" with cached POS name and branch (`POS_NAME • BRANCH`).
+  - Backend (Odoo `pos_backend` in `/home/sith/odoo/pos/custom_addonsUAT`):
+    - Added endpoint GET `/api/pos/branches` to return active branches (filtered by user allowed companies).
+    - Extended `/api/pos/device/register` + POS Device Log to record branch (`branch_id` when known, otherwise `branch_name`).
+    - Updated POS Device Log list/search to include `branch_name`.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `lib/screens/pos_identity_screen.dart`
+  - `lib/screens/pos_screen.dart`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_branch_api.py` (New)
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/__init__.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_device_api.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/pos_device_log.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/views/pos_device_log_views.xml`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade module `pos_backend`.
+  - Flutter: hot restart app.
+- Quick verification:
+  - Odoo: create 2+ branches under `Custom POS > Configuration > Branches`.
+  - Flutter: cashier login → POS Profile screen shows Branch dropdown + POS name; select both → Continue.
+  - After continue: POS drawer header displays `<POS NAME> • <BRANCH>`.
+  - Odoo: `Custom POS > Configuration > Logs > POS Device Log` shows new row with `pos_name` and `branch_name`.
+
+==================================================
+61) LATEST IMPLEMENTED UPDATE (CASHIER BRANCH ON REGISTER + ORDERS TAGGED)
+==================================================
+- Request:
+  - Branch must be selected when cashier registers (not during POS name prompt).
+  - Store branch on cashier `res.users`, and automatically save branch onto orders so Odoo can filter POS Orders by branch.
+- Implementation:
+  - Backend (Odoo `pos_backend` in `/home/sith/odoo/pos/custom_addonsUAT`):
+    - Added `res.users.pos_branch_id` (Many2one `pos_backend.branch`) and showed it in Users form when role=cashier.
+    - Updated `/api/pos/register`:
+      - when `role == 'cashier'`, it now requires `branch_id` and saves it to `pos_branch_id`.
+    - Updated `/api/pos/login` response to include `branch_id` + `branch_name` for caching on Flutter.
+    - Added public branch list endpoint for registration (no session yet):
+      - GET `/api/pos/branches/public`
+    - Added `pos_backend.order.branch_id` and auto-populates from cashier profile on create.
+    - Updated POS Order UI to show `branch_id` in list + form.
+  - Flutter:
+    - `RegisterScreen`: when Role=Cashier, shows Branch dropdown (loaded from `/api/pos/branches/public`) and requires it.
+    - `ApiService.registerUser()` now sends `branch_id` for cashier registration.
+    - `ApiService.loginUser()` caches branch from login response (`cached_branch_id`, `cached_branch_name`).
+    - `PosIdentityScreen` restored to POS-name-only prompt (branch no longer required there).
+- Files changed:
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/res_users.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/views/res_users_views.xml`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/auth_api.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_branch_api.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/models/pos_order.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_order_api.py`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/views/pos_order_views.xml`
+  - `lib/services/api_service.dart`
+  - `lib/screens/register_screen.dart`
+  - `lib/screens/pos_identity_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade module `pos_backend`.
+  - Flutter: hot restart.
+- Quick verification:
+  - Flutter: Register → Role=Cashier → must select Branch → register succeeds.
+  - Odoo: open that cashier in Users → `Custom POS App Settings` shows Branch.
+  - Flutter: Cashier login → POS name prompt shows (no branch prompt).
+  - Odoo: create an order from cashier → POS Orders list shows Branch column populated; filter/group by Branch works.
+
+==================================================
+62) LATEST IMPLEMENTED UPDATE (BRANCH-SCOPED RECEIPTS + CUSTOMER BRANCH SELECT)
+==================================================
+- Request:
+  - POS receipt history must show only receipts for the cashier's branch.
+  - Customer self-order must select a branch; cashier notifications must alert only that branch.
+  - Same app is used but separated by branch.
+- Implementation:
+  - Backend (Odoo `pos_backend`):
+    - `/api/pos/history` now filters paid receipts by the logged-in cashier/admin branch (`res.users.pos_branch_id`).
+    - `/api/pos/order/<id>/receipt` blocks cross-branch access for cashier/admin (403) and includes `branch` name in receipt payload.
+    - `/api/pos/order` (self-order) now requires `branch_id` when `partner_id` is present and saves it to `pos_backend.order.branch_id`.
+    - Self-order FCM notification now targets only cashiers/admins with matching `pos_branch_id`.
+  - Flutter (Customer self-order):
+    - Loads branches via `GET /api/pos/branches/public`.
+    - Requires branch selection inside the checkout bottom sheet before confirming order.
+    - Sends `branch_id` in `submitOrder()` payload.
+    - Caches customer branch separately (`cached_customer_branch_id`, `cached_customer_branch_name`).
+- Files changed:
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_order_api.py`
+  - `lib/services/api_service.dart`
+  - `lib/screens/customer_self_order_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade module `pos_backend`.
+  - Flutter: hot restart app.
+- Quick verification:
+  - Cashier (Branch A) opens Receipts History: only Branch A receipts appear.
+  - Customer checkout requires Branch selection; confirm order succeeds.
+  - Only Branch-selected cashiers receive the "New customer order" notification.
+
+==================================================
+63) LATEST IMPLEMENTED UPDATE (RECEIPT HISTORY BRANCH FILTER FIX: AUTH HEADERS)
+==================================================
+- Request:
+  - Cashier receipts history still shows all receipts even though backend filters by branch.
+- Root cause:
+  - Flutter `GET /api/pos/history` and receipt detail requests were not sending session headers, so backend couldn't detect `request.session.uid` and returned unfiltered data.
+- Implementation:
+  - Flutter:
+    - `fetchReceiptHistory()` now uses session auth headers and also passes `user_id` as a query param fallback.
+    - `fetchOrderReceipt()` now uses session auth headers and also passes `user_id` as a query param fallback.
+  - Backend:
+    - `/api/pos/history` and `/api/pos/order/<id>/receipt` now fall back to `?user_id=` when session uid is missing (ngrok/cookie-flaky clients).
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/pos_order_api.py`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Odoo: restart service and upgrade module `pos_backend`.
+  - Flutter: hot restart app.
+- Quick verification:
+  - Login as cashier `cash1` (Branch "Nam phou") → open Receipts History → list contains only Nam phou receipts.
+
+==================================================
+64) LATEST IMPLEMENTED UPDATE (MOVE TICKET UI: SHOW TABLE NAME)
+==================================================
+- Request:
+  - In Move Ticket dialog, show the table (not the order/ticket name) to make selection easier.
+- Implementation:
+  - Updated the Move Ticket source and destination dropdown items to display:
+    - Primary label: table name (or `Table <id>` fallback)
+    - Secondary label: ticket reference + item count
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart app.
+- Quick verification:
+  - Open POS → Move Ticket.
+  - Source/Destination dropdowns show table names (ex: `T1`, `T2`) instead of only `POS/2026/...`.
+
+==================================================
+65) LATEST IMPLEMENTED UPDATE (ADMIN REPORTS ACCESS: ADMIN-ONLY)
+==================================================
+- Request:
+  - Admin reports screen must be accessible only for `role == admin`.
+  - Admin users are created only in Odoo backend; app must not allow registering as admin.
+- Implementation:
+  - Backend:
+    - Reports endpoint `/api/pos/reports/summary` already enforces admin session (`pos_role == 'admin'`).
+  - Flutter:
+    - `LoadingScreen` now allows `role == 'admin'` to proceed into PIN flow (previously fell back to Login).
+    - `PinScreen` passes role into `PosScreen` so UI can render admin-specific items.
+    - `PosScreen` shows new drawer item `Admin Reports` only when role is admin.
+    - `AdminReportsScreen` also checks cached user role and shows "Forbidden (admin only)" if opened by non-admin.
+    - Register screen still only supports Customer/Cashier (no Admin option).
+- Files changed:
+  - `lib/screens/loading_screen.dart`
+  - `lib/screens/pin_screen.dart`
+  - `lib/screens/pos_screen.dart`
+  - `lib/screens/admin_reports_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: `flutter pub get`, then hot restart.
+- Quick verification:
+  - Login as admin (created in Odoo): drawer shows `Admin Reports` and screen loads.
+  - Login as cashier/customer: `Admin Reports` is not visible and cannot be opened.
+
+==================================================
+66) LATEST IMPLEMENTED UPDATE (BUILD FIX: ADD intl DateFormat IMPORT)
+==================================================
+- Request:
+  - Fix Flutter build error: `DateFormat` not defined in `ApiService`.
+- Root cause:
+  - `fetchAdminReportSummary()` uses `DateFormat(...)` but `api_service.dart` did not import `package:intl/intl.dart`.
+- Implementation:
+  - Added missing import `package:intl/intl.dart` in `lib/services/api_service.dart`.
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart / rebuild.
+- Quick verification:
+  - `flutter run` builds successfully (no `DateFormat` compile error).
+
+==================================================
+67) LATEST IMPLEMENTED UPDATE (ADMIN LOGIN: ACCEPT ROLE=admin IN APP)
+==================================================
+- Request:
+  - Cannot login as admin; app says "Unknown role from server".
+- Root cause:
+  - `LoginScreen` only accepted roles `cashier` and `customer`; it rejected valid `admin` returned by backend.
+- Implementation:
+  - Updated `lib/screens/login_screen.dart` to accept `role == 'admin'` and route into `LoadingScreen` like other roles.
+- Files changed:
+  - `lib/screens/login_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart app.
+- Quick verification:
+  - Login with admin user (created in Odoo) succeeds and opens the POS flow; drawer shows `Admin Reports`.
+
+==================================================
+68) LATEST IMPLEMENTED UPDATE (ADMIN REPORTS FIX: BRANCH LIST USES PUBLIC ENDPOINT)
+==================================================
+- Request:
+  - Admin Reports screen fails with `GET /api/pos/branches` 401.
+- Root cause:
+  - `/api/pos/branches` requires a valid Odoo session; some clients can be cookie/session flaky.
+  - Admin Reports only needs a branch list for filtering and can use a public list safely.
+- Implementation:
+  - `AdminReportsScreen` now loads branches using `GET /api/pos/branches/public` (no auth).
+  - Reports data endpoint remains admin-only (`/api/pos/reports/summary`).
+- Files changed:
+  - `lib/screens/admin_reports_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart.
+- Quick verification:
+  - Login as admin → open Admin Reports → branch dropdown loads and report data loads.
+
+==================================================
+69) HANDOFF TODO (ADMIN REPORTS: /reports/summary STILL 401)
+==================================================
+- Current behavior:
+  - Admin can login successfully and open `Admin Reports` screen.
+  - Branch dropdown loads via `GET /api/pos/branches/public` (200 OK).
+  - BUT report endpoint returns 401:
+    - `GET /api/pos/reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` → 401
+    - Odoo log shows the request arrives without a detected session uid.
+- Most likely root cause:
+  - Session headers (`Cookie: session_id=...` + `X-Openerp-Session-Id`) are not being received by Odoo for this GET,
+    so `request.session.uid` is empty and backend rejects.
+- Where code is:
+  - Backend endpoint: `/home/sith/odoo/pos/custom_addonsUAT/pos_backend/controllers/report_api.py`
+    - `PosReportsApi._require_admin()` checks `request.session.uid` and `pos_role == 'admin'`.
+  - Flutter call: `lib/services/api_service.dart` → `fetchAdminReportSummary()` uses `_authHeaders(json:true)`.
+  - UI: `lib/screens/admin_reports_screen.dart` calls `fetchAdminReportSummary()`.
+- Next steps to fix (recommended):
+  - Step A (debug): add temporary log in `report_api.py`:
+    - log `request.session.uid`, `request.session.sid`, and incoming headers `Cookie` and `X-Openerp-Session-Id`.
+    - This will confirm whether Flutter is actually sending them or Odoo is dropping them.
+  - Step B (Flutter): if headers are missing, force them:
+    - ensure `cached_user_session` is present after admin login
+    - ensure `fetchAdminReportSummary()` uses `await _authHeaders(json:true)` (already does)
+    - if still missing on device, try sending BOTH:
+      - `Cookie: session_id=<sid>;` (include trailing semicolon)
+      - `X-Openerp-Session-Id: <sid>`
+  - Step C (backend hardening, optional):
+    - If some environments remain cookie-flaky, add a secure fallback:
+      - accept `user_id` only when `X-Openerp-Session-Id` is present AND matches an active session for that user,
+        or require an admin API token in config.
+    - Do NOT accept `user_id` alone for admin reports (security risk).
+- Commands / ops:
+  - Restart Odoo and upgrade `pos_backend` after backend changes.
+
+==================================================
+70) LATEST IMPLEMENTED UPDATE (ADMIN REPORTS 401: COOKIE HEADER HARDENING + DART PAYLOAD FIX)
+==================================================
+- Issue(s) fixed:
+  - `lib/services/api_service.dart` contained invalid Dart map entries (`'db': ?dbName`, `'phone': ?phone`, `'name': ?name`)
+    which can break compilation and/or cause payloads to be wrong.
+  - Admin report calls can be session/cookie flaky in some environments; some servers are strict about cookie formatting.
+- Implementation:
+  - `ApiService._authHeaders()` and `buildImageHeaders()` now send cookie as:
+    - `Cookie: session_id=<sid>;` (with trailing semicolon)
+    - plus `X-Openerp-Session-Id: <sid>`
+  - `registerUser()`, `loginUser()`, and `createOrder()` now use proper conditional map entries:
+    - `if (dbName != null && not empty) 'db': dbName`
+    - `if (phone != null && not empty) 'phone': phone`
+    - `if (name != null && not empty) 'name': name`
+- Files changed:
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart / rebuild.
+- Quick verification:
+  - App builds (no syntax errors in `api_service.dart`).
+  - Login as admin → Admin Reports → request to `/api/pos/reports/summary` now includes `Cookie` and `X-Openerp-Session-Id`.
+
+==================================================
+71) LATEST IMPLEMENTED UPDATE (ADMIN ROLE SPLIT INTO ITS OWN HOME SCREEN)
+==================================================
+- Request:
+  - The app should have 3 main role-based landing screens:
+    1) cashier  → POS screen
+    2) customer → Customer Self-Order screen
+    3) admin    → dedicated Admin home screen (NOT the cashier POS)
+- Root cause / before:
+  - `PinScreen._goNext()` routed BOTH cashier and admin into `PosScreen` (with `role: 'admin'`),
+    showing the same cashier UI for admins with just an extra "Admin Reports" drawer item.
+- Implementation:
+  - Added new screen: `lib/screens/admin_home_screen.dart` (`AdminHomeScreen`).
+    - Navy gradient header with admin name + cached POS / branch label.
+    - Tile sections:
+      - Overview: Reports & Analytics, Self Orders Review, Receipt History
+      - Catalog & Users: Manage Catalog, Register New User
+      - Operations: Open POS Terminal (admin can still operate POS), Printer Settings,
+        Sync All Data
+    - Bottom "Lock / Switch User" button → `ApiService.logout()` + back to `LoginScreen`.
+  - Updated `lib/screens/pin_screen.dart`:
+    - `_goNext()` now routes:
+      - `customer` → `CustomerSelfOrderScreen`
+      - `admin`    → `AdminHomeScreen(adminName, adminId)`
+      - default (cashier) → `PosScreen(role: 'cashier')`
+  - `lib/screens/loading_screen.dart` was already correct:
+    - cashier → POS-identity prompt → `PinScreen` → `PosScreen`
+    - admin   → straight to `PinScreen` (no POS-identity prompt) → `AdminHomeScreen`
+    - customer → `CustomerSelfOrderScreen`
+  - `lib/screens/pos_screen.dart`:
+    - Kept the in-drawer "Admin Reports" link guarded by `widget.role == 'admin'` so that
+      if an admin chooses "Open POS Terminal" from `AdminHomeScreen`, they can still reach reports.
+- Files changed:
+  - `lib/screens/admin_home_screen.dart` (new)
+  - `lib/screens/pin_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart / rebuild.
+- Quick verification:
+  - Login as `cashier`  → POS-identity prompt → PIN → POS screen (unchanged).
+  - Login as `customer` → loading → Customer Self-Order screen (unchanged).
+  - Login as `admin`    → loading → PIN → AdminHomeScreen (NEW).
+    - Tiles open: Reports, Self Orders Review, Receipt History, Manage Catalog,
+      Register, POS Terminal (with role='admin'), Printer Settings, Sync.
+    - "Lock / Switch User" returns to LoginScreen.
+
+==================================================
+72) LATEST IMPLEMENTED UPDATE (ADMIN: REPORTS-ONLY LANDING + 401 ROOT-CAUSE FIX)
+==================================================
+- Request:
+  - Admin role's main function is REPORTS ONLY:
+    - sales graph by date
+    - sales by payment type
+    - sales by product
+    - branch ranking
+    - all reports filterable by branch (no branch = "All branches")
+  - Remove other tiles ("Open POS Terminal", "Printer Settings", "Sync All Data",
+    "Manage Catalog", "Register New User", "Self Orders Review", "Receipt History")
+    from the admin landing screen.
+  - Fix persistent `GET /api/pos/reports/summary 401 UNAUTHORIZED`.
+
+- Root cause of the 401:
+  - `pos_backend/controllers/report_api.py::_require_admin()` only checked
+    `request.session.uid` (cookie path). Some clients drop the session cookie
+    on cross-origin / tunnel setups (ngrok, split tunnels, strict CORS), so
+    `uid` was `None` and every admin call returned 401.
+  - This is the same problem already solved for customers via
+    `validate_customer_session` (which accepts `user_id + session_id` body).
+
+- Backend implementation (in `/home/sith/odoo/pos/custom_addonsUAT/pos_backend`):
+  1) `models/res_users.py`:
+     - Added field `pos_admin_active_sid` (Char, indexed) — analogous to
+       `pos_customer_active_sid`.
+  2) `controllers/auth_api.py::login_user`:
+     - When `user.pos_role == 'admin'`, store `request.session.sid` into
+       `pos_admin_active_sid` so it can be used as a fallback authenticator.
+  3) `controllers/report_api.py::_require_admin`:
+     - 1st: try cookie/session path (`request.session.uid`).
+     - 2nd: if missing, accept `user_id` + `session_id` from query string OR
+       JSON body. Authenticate the call ONLY if:
+         - user exists, AND
+         - `user.pos_role == 'admin'`, AND
+         - `user.pos_admin_active_sid == session_id` provided by Flutter.
+     - On total failure return 401 `Missing or invalid admin session`.
+
+- Flutter implementation (`lib/services/api_service.dart`):
+  - `fetchAdminReportSummary(...)` now also appends to the URL:
+      `?...&user_id=<uid>&session_id=<cached_user_session>`
+    in addition to the `Cookie` / `X-Openerp-Session-Id` headers.
+  - The branch list endpoint is already public (`/api/pos/branches/public`).
+
+- Flutter UI changes:
+  - REVERTED earlier "AdminHomeScreen with tiles". Admin now lands DIRECTLY on
+    `AdminReportsScreen` per request — admin role is purely analytical.
+  - `lib/screens/admin_reports_screen.dart`:
+    - New constructor flag `asAdminHome` (default false).
+      - When true: hides back button, adds AppBar action "Lock / Switch User"
+        which calls `ApiService.logout()` and pushes back to `LoginScreen`.
+  - `lib/screens/pin_screen.dart`:
+    - `admin` role now routes to `AdminReportsScreen(asAdminHome: true)`.
+  - `lib/screens/pos_screen.dart`:
+    - Removed the admin-only "Admin Reports" drawer item AND the import
+      (admin no longer enters POS).
+  - Deleted: `lib/screens/admin_home_screen.dart` (no longer used).
+
+- Files changed:
+  - Backend:
+    - `pos_backend/models/res_users.py`
+    - `pos_backend/controllers/auth_api.py`
+    - `pos_backend/controllers/report_api.py`
+  - Flutter:
+    - `lib/services/api_service.dart`
+    - `lib/screens/admin_reports_screen.dart`
+    - `lib/screens/pin_screen.dart`
+    - `lib/screens/pos_screen.dart`
+    - `lib/screens/admin_home_screen.dart` (DELETED)
+  - `AI_HANDOFF_PROMPT.txt`
+
+- Commands / ops needed:
+  1) Restart Odoo and upgrade `pos_backend` module so the new
+     `pos_admin_active_sid` field is created.
+  2) Re-login as admin once after upgrade (login writes the field).
+  3) Flutter: hot restart / rebuild.
+
+- Quick verification:
+  - Login as admin → loading → PIN → `AdminReportsScreen` opens directly.
+  - Tap refresh: `GET /api/pos/reports/summary?from=…&to=…&user_id=…&session_id=…`
+    returns 200 with `data.sales_by_day / sales_by_payment_method /
+    sales_by_product / sales_by_branch / grand_total`.
+  - Branch dropdown filters all charts; "All branches" = no branch_id.
+  - "Lock / Switch User" AppBar action signs out and returns to `LoginScreen`.
+  - Cashier and customer flows are unchanged.
+
+==================================================
+73) TEMP DEBUG (ADMIN REPORTS SHOWS 0): SERVER-SIDE DOMAIN + COUNT LOGS
+==================================================
+- Symptom:
+  - Admin Reports UI loads but charts show 0 / empty.
+- Added TEMP debug logs (backend):
+  - File: `pos_backend/controllers/report_api.py`
+  - When `/api/pos/reports/summary` runs, it logs:
+    - received `from`, `to`, `branch_id`
+    - computed domain (state/date/branch)
+    - `pos_backend.order.search_count(domain)`
+  - When auth cookie is missing (`request.session.uid` empty), it logs received:
+    - query params `user_id`, `session_id` (truncated)
+    - `Cookie` header (truncated)
+    - `X-Openerp-Session-Id` header (truncated)
+- Ops:
+  - Restart Odoo service.
+  - Re-run admin report refresh and check Odoo logs for:
+    - `[REPORTS DEBUG] ... domain=... count=...`
+    - `[REPORTS AUTH DEBUG] ...` (only if cookie path missing)
+- How to interpret:
+  - If `count=0`:
+    - either no `pos_backend.order` records in that date range/state,
+    - or the domain fields don't match your data (wrong `state`, wrong `branch_id`, wrong dates).
+  - If `count>0` but charts still empty:
+    - investigate `read_group` results vs expected aggregates (possible timezone/date grouping issue).
+
+==================================================
+74) FIX (ADMIN REPORTS TOTALS 0): USE ORDER LINES SUBTOTAL FOR AGGREGATES
+==================================================
+- Symptom:
+  - `/api/pos/reports/summary` returns many paid orders in date range, but all totals are `0.0`.
+  - Root cause: some environments have stale/zero stored `amount_total` on `pos_backend.order`,
+    so `Order.read_group(... amount_total:sum ...)` returns `0` even when orders exist.
+- Backend fix:
+  - File: `pos_backend/controllers/report_api.py`
+  - All report aggregates now sum `pos_backend.order_line.subtotal` instead of `pos_backend.order.amount_total`:
+    - sales_by_day: group by `order_id.date_order:day`, sum `subtotal`
+    - sales_by_payment_method: group by `order_id.payment_method_id`, sum `subtotal`
+    - sales_by_branch: group by `order_id.branch_id`, sum `subtotal`
+    - grand_total: sum of by_payment totals
+  - Enhanced debug now logs:
+    - `lines=` and `lineSubtotalSum=` for the same window, to confirm line totals are non-zero.
+- Ops:
+  - Restart Odoo service (required for controller code changes).
+  - Refresh Admin Reports.
+
+==================================================
+75) FIX (ADMIN REPORTS: PAYMENT TRANSACTIONS + PRODUCT TOTALS)
+==================================================
+- Symptom:
+  - UI "Transactions" column showed `0` / `—`.
+  - "Sales by product (top)" chart showed all zeros.
+- Root cause:
+  - Backend `sales_by_payment_method` did not include a transaction count.
+  - Product totals relied on ORM `read_group` and/or stored subtotals; in some environments
+    these aggregates can return zeros.
+- Backend fix (report_api.py):
+  - Aggregates are computed with SQL using `SUM(qty * price_unit)` as a stable source of truth.
+  - `sales_by_payment_method` now returns:
+    - `transactions`: `COUNT(DISTINCT order_id)` for the filter window
+    - `total`: sum of line totals for that payment method
+  - `sales_by_product` now computed with SQL:
+    - groups by `full_product_name` (fallback: product template name / combo name)
+    - returns non-zero totals.
+- Ops:
+  - Restart Odoo service.
+  - Refresh Admin Reports screen.
+
+- Security notes:
+  - The `user_id + session_id` fallback is gated on the SID matching
+    `pos_admin_active_sid`, which is rotated each time the admin logs in.
+    A leaked old SID becomes invalid the moment the admin logs in again.
+  - Cookie-based auth is still preferred when available.
+
+==================================================
+79) FIX (RECEIPT HISTORY: REPRINT/REFUND PRINT STOPS HALF WAY)
+==================================================
+- Symptom:
+  - When reprinting a historical receipt (or printing refund slip) from Receipt History, printer sometimes prints only half then stops.
+- Root cause:
+  - Raw receipt data from API can return numeric fields as strings (e.g. `lines[].qty`, `lines[].subtotal`, `amount_total`).
+  - Printer code previously cast these as `num`, which can throw mid-loop and abort the remaining print commands.
+- Flutter fix:
+  - File: `lib/services/printer_service.dart`
+  - Hardened parsing for `qty/subtotal/amount_total` using safe converters (`_asInt`, `_asDouble`) and map-normalization for each line.
+  - Added ESC/POS-safe printing for historical receipts/refunds:
+    - Sanitizes text to ASCII (`_sanitizeForEscPos`) to prevent Unicode encoding crashes.
+    - Wraps each item row print in try/catch so one bad line won't abort the whole receipt.
+    - Important: truncation marker must be ASCII (`...`), not Unicode ellipsis (`…`) or the printer may stop mid-print.
+
+- Backend hardening (also done):
+  - File: `pos_backend/controllers/pos_order_api.py`
+  - `/api/pos/order/<id>/receipt` now normalizes numeric fields to JSON primitives:
+    - `lines[].qty` as int, `lines[].price_unit`/`lines[].subtotal` as float, `amount_total` as float.
+  - Refund payload builder uses the same normalization for the embedded `receipt` object.
+  - Also normalized numbers in `/api/pos/my_orders`, `/api/pos/open_tickets`, `/api/pos/self_orders/pending` for consistency.
+  - Ops: restart Odoo service after controller changes.
+
+- Additional Flutter fix (TCP flush + size2 buffer issue):
+  - Some thermal printers stopped at the `=` line just below items because:
+    1. `PosTextSize.size2` for TOTAL was doubling bytes and saturating the printer's small TCP buffer; replaced with regular bold.
+    2. `disconnect()` closed the socket before the printer drained the buffer; we now wait 800ms after `cut()` before disconnect.
+    3. Footer/feed order in `printReceiptFromRawData` and `printRefundFromRawData` now mirrors the working `_printReceiptToProfile` pattern.
+
+==================================================
+80) FIX (BILL TEMPLATES SAVE: 401 Missing session)
+==================================================
+- Symptom:
+  - Admin → Bill Templates Settings → SAVE returns `401 Missing session`
+    (`POST /api/pos/branch/templates`).
+- Root cause:
+  - The POST endpoint only accepted cookie-based `request.session.uid`.
+  - Some networks (ngrok / proxies) strip cookies, so the cookie session never reached Odoo.
+  - The matching GET endpoints already had a `user_id + session_id` fallback; POST didn't.
+- Backend fix (`pos_backend/controllers/pos_branch_api.py`):
+  - Added `_resolve_uid_with_fallback(payload)` to PosBranchApi (mirrors the helper used in
+    pos_order_api.py).
+  - `set_branch_templates` now uses the fallback, accepting `user_id + session_id` from JSON body,
+    query string, or `X-Openerp-Session-Id` header. Validates against `pos_active_sid` /
+    `pos_admin_active_sid`.
+- Flutter fix (`lib/services/api_service.dart`):
+  - `setBranchBillTemplates(...)` now sends `user_id` + `session_id` in the JSON body too.
+- Ops:
+  - Restart Odoo service after this controller change.
+
+==================================================
+- ROOT CAUSE (confirmed via runtime debug logs): currency symbol `₭` (Lao kip) was non-ASCII and the
+  `esc_pos_utils` Latin-1 encoder threw `Invalid argument (string): Contains invalid characters.`
+  on the TOTAL row because we forgot to sanitize the currency string for that one row.
+  - Flutter fix: added `_safeCurrency()` (maps `₭`→`LAK`, `€`→`EUR`, etc.) used in both
+    `printReceiptFromRawData` and `printRefundFromRawData`.
+    Also explicitly sanitized the TOTAL/REFUND AMOUNT row text via `_sanitizeForEscPos`.
+  - Backend fix: `pos_backend/controllers/pos_order_api.py` now returns `currency_id.name`
+    (ISO code like `LAK`) instead of `currency_id.symbol` (`₭`) for both
+    `/api/pos/order/<id>/receipt` and the refund payload — so future printers don't have
+    to handle Unicode currency at all.
+  - Ops: restart Odoo to pick up controller change.
+
+==================================================
+82) FIX (LOADING SCREEN: INSTANT LAUNCH WITH BACKGROUND SYNC)
+==================================================
+- Symptom:
+  - Every login shows a 4-5 second loading progress screen (Loading products…,
+    Loading tables…, etc.) even when the app already has fresh cached data.
+- Root cause:
+  - `LoadingScreen._initializeApp()` always called `syncAllData(onProgress: …)`
+    which runs steps sequentially and WAITS for all network calls to finish
+    before navigating to POS — even when cache was already available.
+- Flutter fix (`lib/screens/loading_screen.dart`):
+  - `_initializeApp()` now checks `hasBasicCache()` first.
+  - If cache exists → immediately call `_proceedToApp()` (no wait),
+    then fire-and-forget `syncAllData()` (no onProgress, parallel fetch).
+    POS screen shows cached data instantly; cache refreshes silently in background.
+  - If no cache (first-time / cleared) → keep existing full sequential sync
+    with progress bar (same as before — required to initialize the app).
+- Files changed:
+  - `lib/screens/loading_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart app.
+- Quick verification:
+  - Login as cashier (cache already populated) → goes straight to POS
+    with no loading screen delay.
+  - On first login (no cache) → still shows loading progress screen normally.
+  - After navigating to POS, data refreshes silently (new products/tables appear
+    after a short moment without any visible loading state).
+
+==================================================
+83) FIX (SAVE TICKET + CHARGE: OPTIMISTIC UI — INSTANT RESPONSE)
+==================================================
+- Symptom:
+  - Tapping "Save Ticket" (open ticket to table) showed a spinner for 4-5 seconds
+    before the dialog closed.
+  - Tapping "CHARGE" showed a spinner for 4-5 seconds before the charge sheet closed.
+  - Both waited for server network round-trips before updating the UI.
+- Root cause:
+  - `_processOpenTicket()`: awaited `createOrder()` (5s timeout) before closing dialog.
+  - `_processCheckout()`: awaited `updateOrder()` + `payOrder()` / `submitOrder()`
+    (up to 10s combined) before printing receipt and closing dialog.
+- Flutter fix (`lib/screens/pos_screen.dart`):
+  - `_processOpenTicket()` — fully optimistic:
+    - Immediately marks table as open in local in-memory `_tables`.
+    - Clears cart and closes dialog instantly.
+    - Shows "Ticket opened at <table>!" snackbar immediately.
+    - Fires `createOrder()` as fire-and-forget (handles online cache update +
+      offline queue internally — no change to existing behaviour).
+    - Kitchen print runs in background (fire-and-forget).
+    - `_isOpeningTicket` spinner removed (dialog already dismissed before it matters).
+  - `_processCheckout()` — fully optimistic:
+    - Immediately clears the open ticket from local cache + updates table state.
+    - Closes the charge sheet and clears cart instantly.
+    - Shows "Order Paid Successfully!" snackbar immediately.
+    - Receipt printing runs in background using a snapshot of the cart.
+    - All server calls (updateOrder / payOrder / submitOrder) run in background.
+    - `_isCharging` spinner removed (charge sheet already dismissed).
+- Files changed:
+  - `lib/screens/pos_screen.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Flutter: hot restart.
+- Quick verification:
+  - Add items → Save Ticket → select table → dialog closes instantly, snackbar appears,
+    table shows OPEN — no spinner.
+  - Open that ticket → tap CHARGE → charge sheet closes instantly, snackbar appears,
+    receipt prints in background — no spinner.
+
+==================================================
+81) FIX (OPEN TICKETS: FILTER BY BRANCH + CASHIER ORDER BRANCH ASSIGNMENT)
+==================================================
+- Symptom:
+  - "Open Tickets" screen showed ALL draft orders from ALL branches.
+  - Customer self-orders (any branch) appeared for every cashier POS terminal.
+  - Cashier-created orders also had no explicit branch in the payload, relying only on
+    the backend user profile field `pos_branch_id` (which may not be set).
+- Root cause:
+  - `/api/pos/open_tickets` fetched all `pos_backend.order` records with `state='draft'`
+    and returned them with no branch restriction.
+  - `fetchOpenTickets()` in Flutter called the endpoint with no branch param.
+  - `createOrder()` in Flutter never sent `branch_id` for cashier orders.
+  - Backend `create_order` only overrode `branch_id` from the payload when `partner_id`
+    (customer self-order) was also present; cashier-sent `branch_id` was silently ignored.
+- Backend fixes (`pos_backend/controllers/pos_order_api.py`):
+  1. `get_open_tickets` now accepts optional query param `branch_id`.
+     When provided and > 0, domain includes `('branch_id', '=', branch_id_int)`.
+     No branch_id → returns all (backward-compatible).
+  2. `create_order`: After setting branch from `cashier.pos_branch_id`, if the
+     Flutter payload also includes `branch_id` (for ANY role), it now overrides
+     the user-profile branch — making the Flutter-selected branch authoritative.
+- Flutter fixes (`lib/services/api_service.dart`):
+  1. `fetchOpenTickets()` reads `getCachedBranchId()` and appends `?branch_id=<id>`.
+  2. `createOrder()` now accepts an optional `branchId` param.
+     Falls back to `getCachedBranchId()` if not explicitly provided.
+     Sends `branch_id` in the JSON payload for both cashier and customer orders.
+     Also stores `branch_id` in the local cached ticket (online and offline mock).
+- Files changed:
+  - `pos_backend/controllers/pos_order_api.py`
+  - `lib/services/api_service.dart`
+  - `AI_HANDOFF_PROMPT.txt`
+- Commands / ops needed:
+  - Restart Odoo service (controller change).
+  - Flutter: hot restart app.
+- Quick verification:
+  - Two branches (A, B); cashier logged into Branch A terminal.
+  - Cashier creates an order → backend order gets `branch_id = A` from payload.
+  - Customer self-orders Branch B → does NOT appear in Branch A open tickets.
+  - Customer self-orders Branch A → DOES appear in Branch A open tickets.
+  - Cashier-created orders on Branch A always appear in Branch A open tickets.

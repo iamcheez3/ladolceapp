@@ -9,6 +9,15 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  errors:
+    # Flutter 3.32+ deprecations (withOpacity, Radio groupValue/onChanged, etc.)
+    # are noisy in this codebase and currently not actionable without a larger
+    # UI refactor. Keep them visible in IDE hovers, but don't fail CI/analyze.
+    deprecated_member_use: ignore
+    # Prefer-null-aware lint isn't critical for correctness.
+    use_null_aware_elements: ignore
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

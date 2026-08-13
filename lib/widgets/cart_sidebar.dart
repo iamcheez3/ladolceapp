@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
+import '../models/pos_discount_config.dart';
+import '../models/pos_tax_config.dart';
+import '../utils/pos_discount.dart';
 
 class CartSidebar extends StatelessWidget {
-  static const Color _brandNavy = Color(0xFF0D1565);
+  static const Color _brandNavy = Color(0xFF001460);
   static const Color _brandNavy2 = Color(0xFF142B8C);
 
   final List<CartItem> cartItems;
   final Function(CartItem, int) onUpdateQuantity;
   final VoidCallback onClearCart;
   final VoidCallback onCharge;
-  final VoidCallback onSaveTicket; // Replacing onOpenTicket when cart has items
-  final VoidCallback onViewTickets; // For when cart is empty
+  final VoidCallback onSaveTicket;
+  final VoidCallback onViewTickets;
+  final ValueChanged<CartItem> onEditKitchenNote;
 
   final VoidCallback onAddCustomer;
-  final VoidCallback onClearCustomer; // New clear callback
-  final Map<String, dynamic>? selectedCustomer; // Selected customer data
+  final VoidCallback onClearCustomer;
+  final Map<String, dynamic>? selectedCustomer;
+  final PosTaxConfig taxConfig;
+  final PosDiscountOption? selectedDiscountOption;
+  final double? discountManualValue;
 
   const CartSidebar({
     super.key,
@@ -24,16 +31,24 @@ class CartSidebar extends StatelessWidget {
     required this.onCharge,
     required this.onSaveTicket,
     required this.onViewTickets,
+    required this.onEditKitchenNote,
     required this.onAddCustomer,
     required this.onClearCustomer,
     this.selectedCustomer,
+    this.taxConfig = PosTaxConfig.disabled,
+    this.selectedDiscountOption,
+    this.discountManualValue,
   });
 
   @override
   Widget build(BuildContext context) {
-    final subtotal = cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final tax = subtotal * 0.1; // 10% tax example
-    final total = subtotal + tax;
+    final linesSum = cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    final cd = computeCartBreakdown(
+      linesSum,
+      taxConfig,
+      selectedDiscountOption: selectedDiscountOption,
+      discountManualValue: discountManualValue,
+    );
 
     return Container(
       color: Colors.white,
@@ -55,9 +70,12 @@ class CartSidebar extends StatelessWidget {
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'SAVE TICKET',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'SAVE TICKET',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
                     ),
                   ),
                 ),
@@ -75,12 +93,19 @@ class CartSidebar extends StatelessWidget {
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                       elevation: 0,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                        Text('₭${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      ],
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                          Text(
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -113,6 +138,8 @@ class CartSidebar extends StatelessWidget {
                               Text(
                                 'Customer: ${selectedCustomer!['name']}',
                                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 '${selectedCustomer!['reward_points']} pts',
@@ -208,6 +235,7 @@ class CartSidebar extends StatelessWidget {
                                 item: item,
                                 isSaved: true,
                                 onUpdateQuantity: onUpdateQuantity,
+                                onEditKitchenNote: onEditKitchenNote,
                               )),
                           const Divider(height: 1, thickness: 2, color: Color(0xFFE3E8F0)),
                         ],
@@ -237,6 +265,7 @@ class CartSidebar extends StatelessWidget {
                                 item: item,
                                 isSaved: false,
                                 onUpdateQuantity: onUpdateQuantity,
+                                onEditKitchenNote: onEditKitchenNote,
                               )),
                         ],
 
@@ -265,32 +294,137 @@ class CartSidebar extends StatelessWidget {
             ),
             child: Column(
               children: [
+                // ── Subtotal ──────────────────────────────────────────────────
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Subtotal', style: TextStyle(color: Colors.grey[600])),
-                    Text('₭${subtotal.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey[800])),
+                    Expanded(
+                      child: Text(
+                        'Subtotal',
+                        style: TextStyle(color: Colors.grey[600]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '₭${cd.cartLinesSum.toStringAsFixed(2)}',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(color: Colors.grey[800]),
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Tax (10%)', style: TextStyle(color: Colors.grey[600])),
-                    Text('₭${tax.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey[800])),
+
+
+
+                // ── Tax Breakdown ─────────────────────────────────────────────
+                if (!cd.taxActive) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Total',
+                          style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _brandNavy),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          taxConfig.inclusive ? 'Amount (excl. VAT)' : 'Subtotal (excl. VAT)',
+                          style: TextStyle(color: Colors.grey[600]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          '₭${cd.baseAmount.toStringAsFixed(2)}',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(color: Colors.grey[800]),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (taxConfig.showOnReceipt) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'VAT (${taxConfig.percentLabel}%)',
+                            style: TextStyle(color: Colors.grey[600]),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '₭${cd.taxAmount.toStringAsFixed(2)}',
+                            textAlign: TextAlign.end,
+                            style: TextStyle(color: Colors.grey[800]),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    Text('₭${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy)),
-                  ],
-                ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Total due', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(
+                              taxConfig.showOnReceipt
+                                  ? (taxConfig.inclusive ? 'Price includes tax' : 'Includes VAT')
+                                  : 'Tax hidden on receipt',
+                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+
+
                 const SizedBox(height: 16),
               ],
             ),
@@ -306,22 +440,26 @@ class _CartItemRow extends StatelessWidget {
   final CartItem item;
   final bool isSaved;
   final Function(CartItem, int) onUpdateQuantity;
+  final ValueChanged<CartItem> onEditKitchenNote;
 
   const _CartItemRow({
     required this.item,
     required this.isSaved,
     required this.onUpdateQuantity,
+    required this.onEditKitchenNote,
   });
 
   @override
   Widget build(BuildContext context) {
     final textColor = isSaved ? Colors.grey[700]! : Colors.black87;
-    final priceColor = isSaved ? Colors.grey[600]! : const Color(0xFF0D1565);
-    final iconColor = isSaved ? Colors.grey[500]! : const Color(0xFF0D1565);
+    final priceColor = isSaved ? Colors.grey[600]! : const Color(0xFF001460);
+    final iconColor = isSaved ? Colors.grey[500]! : const Color(0xFF001460);
 
-    return Container(
+    return Material(
       color: isSaved ? const Color(0xFFFAFBFF) : Colors.white,
-      child: Padding(
+      child: InkWell(
+        onTap: () => onEditKitchenNote(item),
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -392,10 +530,12 @@ class _CartItemRow extends StatelessWidget {
                       fontSize: 15,
                       color: textColor,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '₭${item.product.price.toStringAsFixed(2)} each',
+                    '₭${item.product.effectivePrice.toStringAsFixed(2)} each',
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
                   if (item.selectedToppings.isNotEmpty) ...[
@@ -419,20 +559,52 @@ class _CartItemRow extends StatelessWidget {
                       }).toList(),
                     ),
                   ],
+                  if (item.kitchenNote.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 14,
+                          color: Colors.amber[800],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            item.kitchenNote.trim(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.amber[900],
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-            // Price
-            Text(
-              '₭${item.totalPrice.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: priceColor,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '₭${item.totalPrice.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: priceColor,
+                  ),
+                ),
               ),
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class LaDolcePosUi {
   // Brand
-  static const Color navy = Color(0xFF0D1565);
+  static const Color navy = Color(0xFF001460);
   static const Color navy2 = Color(0xFF142B8C);
   static const Color surface = Color(0xFFF6F7FB);
   static const Color card = Colors.white;

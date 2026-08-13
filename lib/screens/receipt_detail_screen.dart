@@ -49,8 +49,13 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
     }
     setState(() => _isActionLoading = true);
     try {
-      final ok = await printerService.printReceiptFromRawData(_receiptData!);
+      final qn = (_receiptData?['queue_number'] ?? 0).toInt();
+      final ok = await printerService
+          .printReceiptFromRawData(_receiptData!, queueNumber: qn)
+          .timeout(const Duration(seconds: 20), onTimeout: () => false);
       _snack(ok ? '🖨️ Receipt reprinted!' : 'Printer error. Check connection.', ok ? Colors.green : Colors.red);
+    } catch (e) {
+      _snack('Printer error: ${e.toString()}', Colors.red);
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
     }
@@ -130,6 +135,31 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
           _isRefunded = true;
           _isActionLoading = false;
         });
+        // Best-effort: print refund bill immediately after refund.
+        if (printerService.isConfigured) {
+          try {
+            Map<String, dynamic>? tpl;
+            try {
+              tpl = await _apiService.fetchBillTemplate(type: 'refund');
+            } catch (_) {}
+            final headerText = (tpl?['header_text'] ?? '').toString();
+            final footerText = (tpl?['footer_text'] ?? '').toString();
+
+            final latest = await _apiService.fetchOrderReceipt(widget.orderId);
+            final qn = (latest['queue_number'] ?? 0).toInt();
+            await printerService
+                .printRefundFromRawData(
+                  latest,
+                  headerText: headerText,
+                  footerText: footerText,
+                  queueNumber: qn,
+                )
+                .timeout(const Duration(seconds: 25), onTimeout: () => false);
+          } catch (_) {
+            // Do not block refund success if printing fails
+          }
+        }
+
         _snack('✅ Order refunded successfully.', Colors.green);
         // Go back to history after a short delay so the snack is visible
         await Future.delayed(const Duration(seconds: 2));
@@ -290,14 +320,60 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                       const Divider(),
                       const SizedBox(height: 16),
 
+                      // ── Discount ───────────────────────────────────────
+                      if (((data['amount_discount'] as num?)?.toDouble() ?? 0) > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Discount',
+                                  style: TextStyle(fontSize: 16, color: Colors.red),
+                                ),
+                              ),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    '-${data['currency'] ?? 'LAK'} ${(data['amount_discount'] as num).toStringAsFixed(2)}',
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                       // ── Total ─────────────────────────────────────────
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Total Amount', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                          Text(
-                            '${data['currency'] ?? 'LAK'} ${(data['amount_total'] as num).toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
+                          const Expanded(
+                            child: Text(
+                              'Total Amount',
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                '${data['currency'] ?? 'LAK'} ${(data['amount_total'] as num).toStringAsFixed(2)}',
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: _navy,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'dart:typed_data';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
 
@@ -24,14 +22,7 @@ class ProductList extends StatelessWidget {
         itemBuilder: (context, index) {
           final product = products[index];
           final initial = product.name.trim().isNotEmpty ? product.name.trim()[0].toUpperCase() : '?';
-          Uint8List? imageBytes;
-          if (product.imageBase64 != null && product.imageBase64!.isNotEmpty) {
-            try {
-              imageBytes = base64Decode(product.imageBase64!);
-            } catch (_) {
-              imageBytes = null;
-            }
-          }
+          final imageBytes = product.decodedImageBytes;
 
           return InkWell(
             onTap: () => onProductTap(product),
@@ -106,19 +97,34 @@ class ProductList extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: LaDolcePosUi.navy.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: LaDolcePosUi.navy.withOpacity(0.14)),
-                    ),
-                    child: Text(
-                      '₭${product.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        color: LaDolcePosUi.navy,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (product.promotionPrice != null && !Product.disablePromotionPrice)
+                            Text(
+                              '₭${product.price.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade400,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          Text(
+                            '₭${product.effectivePrice.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              color: (product.promotionPrice != null && !Product.disablePromotionPrice)
+                                  ? Colors.red
+                                  : LaDolcePosUi.navy,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

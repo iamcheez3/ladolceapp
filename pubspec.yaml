@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+7
 
 environment:
   sdk: '>=3.10.3 <4.0.0'
@@ -30,6 +30,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  google_fonts: ^6.2.1
+  telbiz: ^0.0.5
+
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -54,6 +59,12 @@ dependencies:
   intl_phone_field: ^3.2.0
   url_launcher: ^6.3.1
   qr_flutter: ^4.1.0
+  fl_chart: ^0.69.0
+  firebase_auth: ^6.5.1
+  google_sign_in: ^7.2.0
+  google_maps_flutter: ^2.17.0
+  geolocator: ^14.0.2
+  mobile_scanner: ^7.2.0
 
 dev_dependencies:
   flutter_test:
@@ -66,11 +77,15 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+dependency_overrides:
+  http: ^1.6.0
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -82,6 +97,7 @@ flutter:
     - .env
     - assets/images/
     - assets/sounds/
+    - assets/map_styles/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -127,3 +143,4 @@ flutter_native_splash:
   android_12:
     color: "#0D1565"
     image: assets/images/ladolce_bear_logo.png
+    icon_background_color: "#0D1565"

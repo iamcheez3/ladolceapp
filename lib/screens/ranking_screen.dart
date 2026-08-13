@@ -21,7 +21,7 @@ class RankingScreen extends StatefulWidget {
 }
 
 class _RankingScreenState extends State<RankingScreen> {
-  static const Color _brandNavy = Color(0xFF0D1565);
+  static const Color _brandNavy = Color(0xFF001460);
   static const Color _brandNavy2 = Color(0xFF142B8C);
   static const Color _surface = Color(0xFFF6F7FB);
 
@@ -57,10 +57,16 @@ class _RankingScreenState extends State<RankingScreen> {
     }
   }
 
+  final Map<String, MemoryImage> _avatarCache = {};
+
   MemoryImage? _mem(String? b64) {
     if (b64 == null || b64.trim().isEmpty) return null;
+    final clean = b64.trim();
+    if (_avatarCache.containsKey(clean)) return _avatarCache[clean];
     try {
-      return MemoryImage(base64Decode(b64));
+      final img = MemoryImage(base64Decode(clean));
+      _avatarCache[clean] = img;
+      return img;
     } catch (_) {
       return null;
     }

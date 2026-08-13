@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ladolce_pos_ui.dart';
+import 'printer_edit_screen.dart';
 
 class PrinterSettingsScreen extends StatefulWidget {
   const PrinterSettingsScreen({super.key});
@@ -11,12 +12,10 @@ class PrinterSettingsScreen extends StatefulWidget {
 }
 
 class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
-  static const _brandNavy = Color(0xFF0D1565);
-  static const _brandNavy2 = Color(0xFF142B8C);
-
   final ApiService _apiService = ApiService();
   bool _loading = true;
-  List<String> _categories = [];
+
+  static const Color _accent = Color(0xFF4CAF50);
 
   @override
   void initState() {
@@ -27,322 +26,204 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   Future<void> _load() async {
     await printerService.initialize();
     try {
-      final products = await _apiService.fetchProducts(limit: 300);
-      final set = products.map((e) => e.category).where((e) => e.trim().isNotEmpty).toSet().toList()..sort();
-      if (!mounted) return;
-      setState(() {
-        _categories = set;
-        _loading = false;
-      });
+      await _apiService.fetchProducts(limit: 300);
+      if (mounted) setState(() => _loading = false);
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _openEditor({PrinterProfile? profile}) async {
-    final id = profile?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
-    final nameCtrl = TextEditingController(text: profile?.name ?? '');
-    final ipCtrl = TextEditingController(text: profile?.ip ?? '');
-    final portCtrl = TextEditingController(text: (profile?.port ?? 9100).toString());
-    int paperWidth = profile?.paperWidthMm ?? 80;
-    bool printReceipts = profile?.printReceiptsAndBills ?? true;
-    bool printOrders = profile?.printOrders ?? false;
-    bool singleItem = profile?.singleItemPerTicket ?? false;
-    bool groupItems = profile?.groupIdenticalItems ?? true;
-    final selectedCats = {...(profile?.categoryFilters ?? <String>[])};
-    bool asDefaultReceipt = profile != null && profile.id == printerService.selectedReceiptPrinterId;
-    bool isTesting = false;
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Container(
-          height: MediaQuery.of(ctx).size.height * 0.92,
-          decoration: const BoxDecoration(
-            color: Color(0xFFF6F7FB),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(colors: [_brandNavy, _brandNavy2]),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      ),
-                      Expanded(
-                        child: Text(
-                          profile == null ? 'Add Printer' : 'Edit Printer',
-                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          final navigator = Navigator.of(ctx);
-                          final name = nameCtrl.text.trim();
-                          final ip = ipCtrl.text.trim();
-                          final port = int.tryParse(portCtrl.text.trim()) ?? 9100;
-                          if (name.isEmpty || ip.isEmpty) return;
-
-                          final p = PrinterProfile(
-                            id: id,
-                            name: name,
-                            ip: ip,
-                            port: port,
-                            paperWidthMm: paperWidth,
-                            printReceiptsAndBills: printReceipts,
-                            printOrders: printOrders,
-                            singleItemPerTicket: singleItem,
-                            groupIdenticalItems: groupItems,
-                            categoryFilters: selectedCats.toList()..sort(),
-                          );
-                          await printerService.savePrinter(p, setAsReceiptPrinter: asDefaultReceipt);
-                          if (asDefaultReceipt) {
-                            await printerService.setReceiptPrinter(p.id);
-                          }
-                          if (!mounted) return;
-                          setState(() {});
-                          navigator.pop();
-                        },
-                        child: const Text('SAVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                    children: [
-                      TextField(
-                        controller: nameCtrl,
-                        decoration: const InputDecoration(labelText: 'Name'),
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: ipCtrl,
-                        decoration: const InputDecoration(labelText: 'Printer IP address'),
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: portCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Port'),
-                      ),
-                      const SizedBox(height: 14),
-                      DropdownButtonFormField<int>(
-                        initialValue: paperWidth,
-                        items: const [
-                          DropdownMenuItem(value: 80, child: Text('80 mm')),
-                          DropdownMenuItem(value: 58, child: Text('58 mm')),
-                        ],
-                        onChanged: (v) => setSheet(() => paperWidth = v ?? 80),
-                        decoration: const InputDecoration(labelText: 'Paper width'),
-                      ),
-                      const SizedBox(height: 12),
-                      SwitchListTile(
-                        value: asDefaultReceipt,
-                        onChanged: (v) => setSheet(() => asDefaultReceipt = v),
-                        title: const Text('Default printer for receipts'),
-                      ),
-                      const Divider(height: 26),
-                      const Text('Advanced settings', style: TextStyle(fontWeight: FontWeight.w700, color: _brandNavy)),
-                      SwitchListTile(
-                        value: printReceipts,
-                        onChanged: (v) => setSheet(() => printReceipts = v),
-                        title: const Text('Print receipts and bills'),
-                      ),
-                      SwitchListTile(
-                        value: printOrders,
-                        onChanged: (v) => setSheet(() => printOrders = v),
-                        title: const Text('Print orders'),
-                      ),
-                      SwitchListTile(
-                        value: singleItem,
-                        onChanged: (v) => setSheet(() => singleItem = v),
-                        title: const Text('Print single item per order ticket'),
-                      ),
-                      SwitchListTile(
-                        value: groupItems,
-                        onChanged: (v) => setSheet(() => groupItems = v),
-                        title: const Text('Group identical items in order tickets'),
-                      ),
-                      const Divider(height: 26),
-                      const Text('Category routing', style: TextStyle(fontWeight: FontWeight.w700, color: _brandNavy)),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'If none selected, all categories will print on this printer.',
-                        style: TextStyle(color: Colors.black54),
-                      ),
-                      const SizedBox(height: 8),
-                      ..._categories.map((c) => CheckboxListTile(
-                            value: selectedCats.contains(c),
-                            onChanged: (v) => setSheet(() {
-                              if (v == true) {
-                                selectedCats.add(c);
-                              } else {
-                                selectedCats.remove(c);
-                              }
-                            }),
-                            title: Text(c),
-                            controlAffinity: ListTileControlAffinity.trailing,
-                          )),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: isTesting
-                            ? null
-                            : () async {
-                                final name = nameCtrl.text.trim();
-                                final ip = ipCtrl.text.trim();
-                                final port = int.tryParse(portCtrl.text.trim()) ?? 9100;
-                                if (name.isEmpty || ip.isEmpty) return;
-                                setSheet(() => isTesting = true);
-                                final ok = await printerService.testProfile(
-                                  PrinterProfile(
-                                    id: id,
-                                    name: name,
-                                    ip: ip,
-                                    port: port,
-                                    paperWidthMm: paperWidth,
-                                  ),
-                                );
-                                setSheet(() => isTesting = false);
-                                if (!ctx.mounted) return;
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(
-                                    content: Text(ok ? 'Printer test successful.' : 'Printer test failed.'),
-                                    backgroundColor: ok ? Colors.green : Colors.red,
-                                  ),
-                                );
-                              },
-                        style: FilledButton.styleFrom(backgroundColor: _brandNavy),
-                        icon: isTesting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.print_outlined),
-                        label: Text(isTesting ? 'Testing...' : 'PRINT TEST'),
-                      ),
-                      if (profile != null) ...[
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final navigator = Navigator.of(ctx);
-                            await printerService.deletePrinter(profile.id);
-                            if (!mounted) return;
-                            setState(() {});
-                            navigator.pop();
-                          },
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('DELETE PRINTER'),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+  void _openPrinterScreen({PrinterProfile? profile}) {
+    Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PrinterEditScreen(profile: profile),
       ),
-    );
+    ).then((saved) {
+      if (saved == true && mounted) setState(() {});
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final profiles = printerService.profiles;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
+      backgroundColor: LaDolcePosUi.surface,
       appBar: AppBar(
-        backgroundColor: _brandNavy,
+        backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         title: const Text('Printers'),
       ),
-      body: LuxuryPatternBackground(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : profiles.isEmpty
-                ? Center(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 22),
-                      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.93),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: _brandNavy.withOpacity(0.12)),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x22000000), blurRadius: 18, offset: Offset(0, 8)),
-                        ],
-                      ),
-                      child: const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.print_outlined, size: 44, color: _brandNavy),
-                          SizedBox(height: 12),
-                          Text(
-                            'No printers yet',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _brandNavy),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : profiles.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 80, height: 80,
+                          decoration: BoxDecoration(
+                            color: _accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Tap + to add your first printer.\nYou can configure receipts, orders, and category routing.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.black54, height: 1.35),
-                          ),
-                        ],
-                      ),
+                          child: Icon(Icons.print_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text('No printers yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tap + to add your first printer.\nConfigure receipts, orders, and category routing.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText, height: 1.35),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Add Printer'),
+                          onPressed: () => _openPrinterScreen(),
+                          style: LaDolcePosUi.primaryButtonStyle(),
+                        ),
+                      ],
                     ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-                    itemCount: profiles.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, i) {
-                      final p = profiles[i];
-                      final isDefault = p.id == printerService.selectedReceiptPrinterId;
-                      return ListTile(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(color: _brandNavy.withOpacity(0.08)),
-                        ),
-                        tileColor: Colors.white.withOpacity(0.94),
-                        leading: CircleAvatar(
-                          backgroundColor: _brandNavy.withOpacity(0.08),
-                          child: const Icon(Icons.print, color: _brandNavy),
-                        ),
-                        title: Text(
-                          p.name,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        subtitle: Text(
-                          '${p.ip}:${p.port}${isDefault ? ' • Default receipt printer' : ''}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Text(
-                          p.printOrders ? 'Orders' : (p.printReceiptsAndBills ? 'Receipt' : 'Disabled'),
-                          style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
-                        ),
-                        onTap: () => _openEditor(profile: p),
-                      );
-                    },
                   ),
-      ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 8, bottom: 90),
+                  itemCount: profiles.length,
+                  itemBuilder: (context, i) {
+                    final p = profiles[i];
+                    final isDefault = p.id == printerService.selectedReceiptPrinterId;
+                    return _PrinterCard(
+                      profile: p,
+                      isDefault: isDefault,
+                      accent: _accent,
+                      onTap: () => _openPrinterScreen(profile: p),
+                    );
+                  },
+                ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF4CAF50),
-        onPressed: () => _openEditor(),
+        backgroundColor: _accent,
+        foregroundColor: Colors.white,
+        onPressed: () => _openPrinterScreen(),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class _PrinterCard extends StatelessWidget {
+  final PrinterProfile profile;
+  final bool isDefault;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _PrinterCard({
+    required this.profile,
+    required this.isDefault,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mode = profile.printOrders
+        ? 'Orders'
+        : (profile.printReceiptsAndBills ? 'Receipt' : 'Disabled');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
+        child: Container(
+          decoration: BoxDecoration(
+            color: LaDolcePosUi.card,
+            borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
+            border: Border.all(color: LaDolcePosUi.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.print_outlined, color: accent, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              profile.name,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isDefault)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              margin: const EdgeInsets.only(left: 6),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Default',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: accent),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            '${profile.ip}:${profile.port}',
+                            style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: LaDolcePosUi.surface,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              mode,
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: LaDolcePosUi.mutedText),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, color: LaDolcePosUi.mutedText, size: 20),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

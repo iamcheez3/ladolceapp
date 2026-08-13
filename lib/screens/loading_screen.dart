@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 import '../services/api_service.dart';
 import '../theme/coffee_luxury_background.dart';
+import '../utils/responsive_layout.dart';
 import 'customer_self_order_screen.dart';
 import 'pin_screen.dart';
 import 'login_screen.dart';
 import 'pos_identity_screen.dart';
+import 'rider_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -35,8 +37,25 @@ class _LoadingScreenState extends State<LoadingScreen> {
       _hasError = false;
     });
 
+    final api = ApiService();
+
+    // If we already have cache, go straight to the app and sync in the background.
+    // This eliminates the 4-5 second wait for returning users.
+    final hasCache = await api.hasBasicCache();
+    if (hasCache) {
+      developer.log(
+        '[LoadingScreen] Cache found — navigating immediately, syncing in background.',
+        name: 'LoadingScreen',
+      );
+      _proceedToApp();
+      // Fire-and-forget background sync (updates cache silently, no onProgress).
+      api.syncAllData().catchError((_) {});
+      return;
+    }
+
+    // First-time setup (no cache) — show progress bar and wait for full sync.
     try {
-      await ApiService().syncAllData(
+      await api.syncAllData(
         onProgress: (message, progress) {
           if (!mounted) return;
           setState(() {
@@ -49,8 +68,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
       _proceedToApp();
     } catch (e) {
       if (!mounted) return;
-      final hasCache = await ApiService().hasBasicCache();
-      if (hasCache) {
+      final stillHasCache = await api.hasBasicCache();
+      if (stillHasCache) {
         developer.log(
           '[LoadingScreen] Sync failed, but we have offline cache. Proceeding.',
           name: 'LoadingScreen',
@@ -79,14 +98,31 @@ class _LoadingScreenState extends State<LoadingScreen> {
         userId: widget.user['user_id'] ?? 1,
         partnerId: widget.user['partner_id'],
       );
-    } else if (role == 'cashier') {
+    } else if (role == 'cashier' || role == 'admin') {
       nextScreen = const SizedBox.shrink();
     } else {
       nextScreen = const LoginScreen();
     }
 
+    if (role == 'rider') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => RiderScreen(
+            riderName: widget.user['name'] ?? 'Rider',
+            riderId: widget.user['user_id'] ?? 1,
+          ),
+        ),
+      );
+      return;
+    }
     if (role == 'cashier') {
       _goCashierFlow();
+      return;
+    }
+    if (role == 'admin') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => PinScreen(cachedUser: widget.user)),
+      );
       return;
     }
 
@@ -120,17 +156,26 @@ class _LoadingScreenState extends State<LoadingScreen> {
     // from [PinStyleBackground] stay visually consistent.
     return Scaffold(
       backgroundColor: kCoffeeBrandNavy,
-      body: PinStyleBackground(
-        child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+      body: SafeArea(
+        child: LayoutBuilder(
+            builder: (context, viewport) {
+              final hPad =
+                  ResponsiveLayout.pageHorizontalPadding(context).clamp(
+                22.0,
+                44.0,
+              );
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: viewport.maxHeight),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                     const Text(
                       'LaDolce',
                       style: TextStyle(
@@ -225,11 +270,13 @@ class _LoadingScreenState extends State<LoadingScreen> {
                       ),
                     ],
                   ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+            );
+            },
           ),
-        ),
       ),
     );
   }

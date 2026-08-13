@@ -20,12 +20,17 @@ class SplitTicketResult {
 class _SplitLine {
   final Product product;
   final List<Topping> selectedToppings;
+  final String kitchenNote;
   bool movedToNew = false;
 
-  _SplitLine({required this.product, required this.selectedToppings});
+  _SplitLine({
+    required this.product,
+    required this.selectedToppings,
+    this.kitchenNote = '',
+  });
 
   double get unitPrice {
-    double base = product.price;
+    double base = product.effectivePrice;
     for (final t in selectedToppings) {
       base += t.extraPrice;
     }
@@ -64,6 +69,7 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
         _lines.add(_SplitLine(
           product: item.product,
           selectedToppings: List.from(item.selectedToppings),
+          kitchenNote: item.kitchenNote,
         ));
       }
     }
@@ -101,7 +107,7 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
     final Map<String, CartItem> merged = {};
     for (final line in lines) {
       final key =
-          '${line.product.id}__${line.selectedToppings.map((t) => t.id).join(',')}';
+          '${line.product.id}__${line.selectedToppings.map((t) => t.id).join(',')}__${line.kitchenNote}';
       if (merged.containsKey(key)) {
         merged[key]!.quantity++;
       } else {
@@ -110,6 +116,7 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
           quantity: 1,
           isSaved: false,
           selectedToppings: line.selectedToppings,
+          kitchenNote: line.kitchenNote,
         );
       }
     }

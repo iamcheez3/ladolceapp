@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Brand colors shared with [PinScreen].
-const Color kCoffeeBrandNavy = Color(0xFF0D1565);
+const Color kCoffeeBrandNavy = Color(0xFF001460);
 const Color kCoffeeBrown = Color(0xFF6B4F3A);
 const Color kCoffeeGold = Color(0xFFC6A15B);
 
@@ -112,7 +112,7 @@ class PinStyleBackground extends StatelessWidget {
                   ),
                   child: Image.asset(
                     'assets/images/ladolce_bear_logo.png',
-                    width: watermarkLogoWidth,
+                    width: MediaQuery.of(context).size.width * 0.8,
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
