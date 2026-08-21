@@ -210,6 +210,7 @@
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				70111976B2A33987F96E2DD7 /* [CP] Embed Pods Frameworks */,
 				5D9BB989554A0C52943F65D9 /* [CP] Copy Pods Resources */,
+				A1B2C3D41E5F60789A0BCDE1 /* Inject Google Maps API Key */,
 			);
 			buildRules = (
 			);
@@ -291,6 +292,22 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		A1B2C3D41E5F60789A0BCDE1 /* Inject Google Maps API Key */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../.env",
+			);
+			name = "Inject Google Maps API Key";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"$SRCROOT/Scripts/inject_maps_api_key.sh\"\n";
+		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
