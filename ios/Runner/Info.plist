@@ -36,6 +36,9 @@
 		</array>
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<!-- Populated at build time from .env by ios/Scripts/inject_maps_api_key.sh -->
+		<key>GoogleMapsApiKey</key>
+		<string></string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>NSCameraUsageDescription</key>
