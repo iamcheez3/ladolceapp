@@ -4375,6 +4375,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'⚡ OFFLINE'**
   String get offline;
+
+  /// No description provided for @removeCoupon.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove coupon'**
+  String get removeCoupon;
 }
 
 class _AppLocalizationsDelegate

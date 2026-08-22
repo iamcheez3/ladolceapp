@@ -268,7 +268,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     final double baseFee =
         (branch['base_rider_fee'] as num?)?.toDouble() ?? 0.0;
 
-    final cartTotal = _cartTotal - _couponDiscount;
+    final cartTotal = _cartTotal - _effectiveCouponDiscount;
 
     _isFreeDeliveryTipApplicable = false;
     _amountNeededForFreeDelivery = 0.0;
@@ -2531,11 +2531,25 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _removeCoupon() {
-    setState(() {
-      _appliedCouponCode = null;
-      _couponDiscount = 0.0;
-      _couponController.clear();
-    });
+    setState(_clearCouponState);
+  }
+
+  /// A coupon can never discount more than the cart it applies to. Reducing
+  /// quantities after applying one used to drive the displayed total — and the
+  /// amount_total posted to Odoo — negative.
+  double get _effectiveCouponDiscount =>
+      _couponDiscount > _cartTotal ? _cartTotal : _couponDiscount;
+
+  /// Drops the applied coupon. Must run whenever the cart is emptied as well as
+  /// on explicit removal: a coupon is spent by the order that used it, and
+  /// leaving it set carried the old discount into the next order and sent a
+  /// stale code to the backend.
+  ///
+  /// Call inside a setState.
+  void _clearCouponState() {
+    _appliedCouponCode = null;
+    _couponDiscount = 0.0;
+    _couponController.clear();
   }
 
   void _showCheckoutOptions() {
@@ -3162,7 +3176,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 ),
                                               ),
                                               Text(
-                                                '₭${(_cartTotal - _couponDiscount + _deliveryFee).toStringAsFixed(0)}',
+                                                '₭${(_cartTotal - _effectiveCouponDiscount + _deliveryFee).toStringAsFixed(0)}',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w900,
                                                   fontSize: 20,
@@ -3498,7 +3512,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                 ),
                                 child: Text(
-                                  '${AppLocalizations.of(context)?.confirmOrder ?? (_l10n?.confirmOrder ?? 'Confirm Order')} (₭${(_cartTotal - _couponDiscount + _deliveryFee).toStringAsFixed(2)})',
+                                  '${AppLocalizations.of(context)?.confirmOrder ?? (_l10n?.confirmOrder ?? 'Confirm Order')} (₭${(_cartTotal - _effectiveCouponDiscount + _deliveryFee).toStringAsFixed(2)})',
                                 ),
                               ),
                             ),
@@ -3624,7 +3638,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         'source': 'local',
         'id': result['order_id'] ?? 0,
         'name': result['order_reference'] ?? 'Order',
-        'amount_total': _cartTotal - _couponDiscount + _deliveryFee,
+        'amount_total':
+            _cartTotal - _effectiveCouponDiscount + _deliveryFee,
         'date_order': nowIso,
         'payment_method': paymentChoice == 'transfer'
             ? (_l10n?.payTransfer ?? 'Transfer')
@@ -3660,6 +3675,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (!mounted) return;
       setState(() {
         _cartItems.clear();
+        // The coupon was consumed by this order; without this it stayed
+        // applied, kept discounting the next cart and could not be removed.
+        _clearCouponState();
+        _deliveryFee = 0.0;
         _selectedTabIndex =
             2; // History tab (Home=0, Cart=1, History=2, Profile=3)
       });
@@ -6889,9 +6908,17 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   Expanded(
                     child: TextField(
                       controller: _couponController,
-                      enabled: _appliedCouponCode == null,
+                      // Not `enabled: false`: TextField wraps itself (and its
+                      // decoration) in an IgnorePointer when disabled, which
+                      // swallowed taps on the remove-X below. readOnly stops
+                      // editing but keeps the suffix icon tappable.
+                      readOnly: _appliedCouponCode != null,
                       decoration: InputDecoration(
                         hintText: _l10n?.enterCouponCode ?? (_l10n?.enterCouponCode ?? 'Enter coupon code'),
+                        // Greyed fill keeps the "locked" cue the disabled state
+                        // used to give.
+                        filled: _appliedCouponCode != null,
+                        fillColor: const Color(0xFFF1F5F9),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 12,
@@ -6914,6 +6941,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   Icons.close,
                                   color: Colors.red,
                                 ),
+                                tooltip:
+                                    _l10n?.removeCoupon ?? 'Remove coupon',
                                 onPressed: _removeCoupon,
                               )
                             : null,
@@ -6988,7 +7017,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   ),
 
                   Text(
-                    '₭${(_cartTotal - _couponDiscount > 0 ? _cartTotal - _couponDiscount : 0).toStringAsFixed(0)}',
+                    '₭${(_cartTotal - _effectiveCouponDiscount).toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

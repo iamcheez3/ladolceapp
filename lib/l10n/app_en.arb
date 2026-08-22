@@ -1148,5 +1148,6 @@
   "complete": "COMPLETE",
   "delivered": "DELIVERED",
   "cancelled": "CANCELLED",
-  "offline": "⚡ OFFLINE"
+  "offline": "⚡ OFFLINE",
+  "removeCoupon": "Remove coupon"
 }

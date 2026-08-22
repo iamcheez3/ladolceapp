@@ -711,5 +711,6 @@
   "complete": "ສຳເລັດ",
   "delivered": "ຈັດສົ່ງແລ້ວ",
   "cancelled": "ຍົກເລີກແລ້ວ",
-  "offline": "⚡ ອອບໄລນ໌"
+  "offline": "⚡ ອອບໄລນ໌",
+  "removeCoupon": "ລຶບຄູປອງ"
 }

@@ -2350,4 +2350,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offline => '⚡ OFFLINE';
+
+  @override
+  String get removeCoupon => 'Remove coupon';
 }

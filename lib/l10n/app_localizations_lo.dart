@@ -2321,4 +2321,7 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get offline => '⚡ ອອບໄລນ໌';
+
+  @override
+  String get removeCoupon => 'ລຶບຄູປອງ';
 }
