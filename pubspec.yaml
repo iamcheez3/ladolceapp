@@ -43,6 +43,9 @@ dependencies:
   flutter_dotenv: ^6.0.0
   esc_pos_utils: ^1.1.0
   esc_pos_printer: ^4.1.0
+  # Direct dep so Lao lines can be rasterised for ESC/POS, which cannot
+  # encode anything above U+00FF. Pinned to the major esc_pos_utils uses.
+  image: ^3.3.0
   shared_preferences: ^2.5.5
   intl: ^0.20.2
   image_picker: ^1.1.2

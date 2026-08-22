@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:ui' show TextAlign;
 import 'package:esc_pos_utils/esc_pos_utils.dart';
+import 'escpos_text_image.dart';
 import 'package:esc_pos_printer/esc_pos_printer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cart_item.dart';
@@ -168,6 +170,118 @@ class PrinterService {
     return sanitized;
   }
 
+  /// Dot width of the print head for this paper size, matching the values
+  /// esc_pos_utils uses internally for its column maths.
+  int _dotsFor(PrinterProfile profile) =>
+      profile.paperWidthMm == 58 ? 372 : 558;
+
+  /// Prints one line, rasterising it when it contains characters ESC/POS cannot
+  /// encode. `esc_pos_utils` pushes text through `latin1.encode`, which throws a
+  /// FormatException above U+00FF, so one Lao product name used to abort the
+  /// entire receipt. Printers have no Lao glyphs either, so a bitmap is the only
+  /// way the text actually appears. ASCII keeps the fast native-text path.
+  Future<void> _emitLine(
+    NetworkPrinter printer,
+    String text, {
+    required int dots,
+    bool bold = false,
+    bool large = false,
+    PosAlign align = PosAlign.left,
+  }) async {
+    final line = text.trimRight();
+    if (line.isEmpty) return;
+    if (!escPosNeedsImage(line)) {
+      printer.text(
+        line,
+        styles: PosStyles(
+          align: align,
+          bold: bold,
+          height: large ? PosTextSize.size2 : PosTextSize.size1,
+          width: large ? PosTextSize.size2 : PosTextSize.size1,
+        ),
+      );
+      return;
+    }
+    try {
+      final image = await renderEscPosLine(
+        text: line,
+        widthDots: dots,
+        bold: bold,
+        fontSize: large ? 40 : 26,
+        align: align == PosAlign.center
+            ? TextAlign.center
+            : align == PosAlign.right
+            ? TextAlign.right
+            : TextAlign.left,
+      );
+      if (image != null) {
+        printer.imageRaster(image, align: align);
+        return;
+      }
+    } catch (e) {
+      _printerLog('[PRINTER] raster line failed, falling back to ASCII: $e');
+    }
+    // Last resort: never let an unprintable glyph abort the job.
+    printer.text(
+      _sanitizeForEscPos(line),
+      styles: PosStyles(align: align, bold: bold),
+    );
+  }
+
+  /// Two-column "label .... value" row with the same rasterising fallback.
+  Future<void> _emitRow(
+    NetworkPrinter printer,
+    String left,
+    String right, {
+    required int dots,
+    bool bold = false,
+    bool large = false,
+  }) async {
+    if (!escPosNeedsImage(left) && !escPosNeedsImage(right)) {
+      final h = large ? PosTextSize.size2 : PosTextSize.size1;
+      printer.row([
+        PosColumn(
+          text: left,
+          width: 8,
+          styles: PosStyles(bold: bold, height: h),
+        ),
+        PosColumn(
+          text: right,
+          width: 4,
+          styles: PosStyles(align: PosAlign.right, bold: bold, height: h),
+        ),
+      ]);
+      return;
+    }
+    try {
+      final image = await renderEscPosRow(
+        left: left,
+        right: right,
+        widthDots: dots,
+        bold: bold,
+        fontSize: large ? 40 : 26,
+      );
+      if (image != null) {
+        printer.imageRaster(image);
+        return;
+      }
+    } catch (e) {
+      _printerLog('[PRINTER] raster row failed, falling back to ASCII: $e');
+    }
+    printer.row([
+      PosColumn(
+        text: _sanitizeForEscPos(left),
+        width: 8,
+        styles: PosStyles(bold: bold),
+      ),
+      PosColumn(
+        text: _sanitizeForEscPos(right),
+        width: 4,
+        styles: PosStyles(align: PosAlign.right, bold: bold),
+      ),
+    ]);
+  }
+
   String _trimToFit(String s, int maxChars) {
     if (maxChars <= 0) return '';
     if (s.length <= maxChars) return s;
@@ -272,13 +386,19 @@ class PrinterService {
   Future<bool> testProfile(PrinterProfile profile) async {
     try {
       final printer = NetworkPrinter(profile.paperSize, await CapabilityProfile.load());
+      final dots = _dotsFor(profile);
       final result = await printer
           .connect(profile.ip, port: profile.port)
           .timeout(_connectTimeout);
       if (result != PosPrintResult.success) return false;
       try {
         printer.text('=== LaDolce POS ===', styles: const PosStyles(align: PosAlign.center, bold: true));
-        printer.text('Printer: ${profile.name}', styles: const PosStyles(align: PosAlign.center));
+        await _emitLine(
+        printer,
+        'Printer: ${profile.name}',
+        dots: dots,
+        align: PosAlign.center,
+      );
         printer.text('Test page OK', styles: const PosStyles(align: PosAlign.center));
         printer.feed(3);
         printer.cut();
@@ -537,13 +657,28 @@ class PrinterService {
     printer.text('Cashier: $cashierName');
     printer.hr();
 
+    final dots = _dotsFor(profile);
     for (final item in cartItems) {
-      printer.row([
-        PosColumn(text: '${item.quantity}x ${item.product.name}', width: 8, styles: const PosStyles(bold: true)),
-        PosColumn(text: 'LAK ${item.totalPrice.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-      ]);
+      await _emitRow(
+        printer,
+        '${item.quantity}x ${item.product.name}',
+        'LAK ${item.totalPrice.toStringAsFixed(2)}',
+        dots: dots,
+        bold: true,
+      );
       // Print toppings as sub-lines if any
       for (final topping in item.selectedToppings) {
+        if (escPosNeedsImage(topping.name)) {
+          await _emitRow(
+            printer,
+            '  + ${topping.name}',
+            topping.extraPrice > 0
+                ? 'LAK${topping.extraPrice.toStringAsFixed(2)}'
+                : '',
+            dots: dots,
+          );
+          continue;
+        }
         printer.row([
           PosColumn(text: '  + ${topping.name}', width: 8),
           PosColumn(
@@ -654,31 +789,46 @@ class PrinterService {
           .timeout(_connectTimeout);
       if (result != PosPrintResult.success) return false;
 
+      final dots = _dotsFor(profile);
       final head = (headerText ?? '').trim();
       if (head.isNotEmpty) {
         for (final line in head.split('\n')) {
           final t = line.trimRight();
           if (t.isEmpty) continue;
-          printer.text(t, styles: const PosStyles(align: PosAlign.center, bold: true));
+          await _emitLine(
+            printer,
+            t,
+            dots: dots,
+            bold: true,
+            align: PosAlign.center,
+          );
         }
       } else {
         printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
         printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
       }
-      printer.text('Printer: ${profile.name}', styles: const PosStyles(align: PosAlign.center));
+      await _emitLine(
+        printer,
+        'Printer: ${profile.name}',
+        dots: dots,
+        align: PosAlign.center,
+      );
       printer.hr();
       if (queueNumber != null && queueNumber > 0) {
         printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
         printer.hr();
       }
       printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
-      printer.text('Cashier: $cashierName');
+      await _emitLine(printer, 'Cashier: $cashierName', dots: dots);
       printer.hr();
       for (final item in cartItems) {
-        printer.row([
-          PosColumn(text: '${item.quantity}x ${item.product.name}', width: 8, styles: const PosStyles(bold: true)),
-          PosColumn(text: 'LAK${item.totalPrice.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-        ]);
+        await _emitRow(
+          printer,
+          '${item.quantity}x ${item.product.name}',
+          'LAK${item.totalPrice.toStringAsFixed(2)}',
+          dots: dots,
+          bold: true,
+        );
       }
       printer.hr();
       if (discountAmount > 0) {
@@ -712,7 +862,7 @@ class PrinterService {
         for (final line in foot.split('\n')) {
           final t = line.trimRight();
           if (t.isEmpty) continue;
-          printer.text(t, styles: const PosStyles(align: PosAlign.center));
+          await _emitLine(printer, t, dots: dots, align: PosAlign.center);
         }
       }
       printer.feed(3);
@@ -736,6 +886,7 @@ class PrinterService {
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
+    final dots = _dotsFor(profile);
     try {
       final result = await printer
           .connect(profile.ip, port: profile.port)
@@ -759,26 +910,42 @@ class PrinterService {
       } else {
         printer.text('Kitchen / Order Ticket', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2));
       }
-      printer.text('Printer: ${profile.name}', styles: const PosStyles(align: PosAlign.center));
+      await _emitLine(
+        printer,
+        'Printer: ${profile.name}',
+        dots: dots,
+        align: PosAlign.center,
+      );
       printer.hr();
       if (queueNumber != null && queueNumber > 0) {
         printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
         printer.hr();
       }
       printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
-      printer.text('Cashier: $cashierName');
+      await _emitLine(printer, 'Cashier: $cashierName', dots: dots);
       printer.hr();
 
       if (profile.singleItemPerTicket) {
         for (final i in items) {
           for (int q = 0; q < i.quantity; q++) {
-            printer.text('1x ${i.product.name}', styles: const PosStyles(bold: true, height: PosTextSize.size2));
+            await _emitLine(
+              printer,
+              '1x ${i.product.name}',
+              dots: dots,
+              bold: true,
+              large: true,
+            );
             for (final topping in i.selectedToppings) {
-              printer.text('  + ${topping.name}');
+              await _emitLine(printer, '  + ${topping.name}', dots: dots);
             }
             final note = i.kitchenNote.trim();
             if (note.isNotEmpty) {
-              printer.text('  NOTE: $note', styles: const PosStyles(bold: true));
+              await _emitLine(
+                printer,
+                '  NOTE: $note',
+                dots: dots,
+                bold: true,
+              );
             }
             printer.feed(2);
             printer.cut();
@@ -822,10 +989,16 @@ class PrinterService {
       }
 
       for (final r in rows) {
-        printer.text('${r['qty']}x ${r['name']}', styles: const PosStyles(bold: true, height: PosTextSize.size2));
+        await _emitLine(
+          printer,
+          '${r['qty']}x ${r['name']}',
+          dots: dots,
+          bold: true,
+          large: true,
+        );
         final toppings = (r['toppings'] as List?) ?? const [];
         for (final topping in toppings) {
-          printer.text('  + $topping');
+          await _emitLine(printer, '  + $topping', dots: dots);
         }
         final note = (r['note'] ?? '').toString().trim();
         if (note.isNotEmpty) {
@@ -839,7 +1012,7 @@ class PrinterService {
         for (final line in foot.split('\n')) {
           final t = line.trimRight();
           if (t.isEmpty) continue;
-          printer.text(t, styles: const PosStyles(align: PosAlign.center));
+          await _emitLine(printer, t, dots: dots, align: PosAlign.center);
         }
       }
       printer.feed(2);
