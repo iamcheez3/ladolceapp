@@ -353,9 +353,30 @@ class _PosScreenState extends State<PosScreen> {
         _cachedBranchName = branchName;
         _taxConfig = tax;
         _discountConfig = discount;
+        _selectedDiscountOption =
+            _resolveSelectedDiscount(discount, _selectedDiscountOption);
+        if (_selectedDiscountOption == null) {
+          _pendingDiscountManualValue = null;
+        }
       });
-      _recomputeDiscount();
+      _recomputeDiscount(manualValue: _pendingDiscountManualValue);
     } catch (_) {}
+  }
+
+  /// Re-points [current] at the equivalent option inside [config] after a
+  /// reload. PosDiscountConfig.load() rebuilds its options from JSON and
+  /// PosDiscountOption has no value equality, so keeping the old instance would
+  /// trip DropdownButton's "exactly one item" assertion in the checkout sheet.
+  /// Returns null when discounts are off or the option no longer exists.
+  PosDiscountOption? _resolveSelectedDiscount(
+    PosDiscountConfig config,
+    PosDiscountOption? current,
+  ) {
+    if (!config.enabled || current == null) return null;
+    for (final option in config.options) {
+      if (option.id == current.id) return option;
+    }
+    return null;
   }
 
   void _recomputeDiscount({double? manualValue}) {
@@ -1809,6 +1830,7 @@ class _PosScreenState extends State<PosScreen> {
                             ),
                           ).then((_) {
                             _loadPromotionPriceSetting();
+                            _loadPosProfileLabels();
                           });
                         },
                       ),
