@@ -2584,26 +2584,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     setState(() => item.kitchenNote = result.trim());
   }
 
-  /// "Latte: sugar 50% | Coffee: no ice" for the order-level note.
-  String _composeItemNotes() {
-    final parts = <String>[];
-    for (final item in _cartItems) {
-      final note = item.kitchenNote.trim();
-      if (note.isEmpty) continue;
-      parts.add('${item.product.name}: $note');
-    }
-    return parts.join(' | ');
-  }
-
-  /// Builds the order note actually sent to Odoo.
+  /// Builds the order-level note sent to Odoo.
   ///
-  /// Per-item notes ride along here as well as on each line. The cashier's
-  /// review screen reads `line['note']`, but whether the backend persists that
-  /// on submit is outside this app; the order note is already displayed today,
-  /// so folding them in guarantees the kitchen sees the request either way.
+  /// Per-item notes are NOT folded in here: they travel on each line as
+  /// `note`, which pos_backend stores on pos.order.line.note ('Kitchen Note')
+  /// and returns from both /self_orders/pending and /open_tickets, so the
+  /// cashier already sees them per item. Duplicating them here would print the
+  /// same request twice.
   ///
-  /// This also stops '[SELF-PICKUP]' from replacing what the customer typed,
-  /// which previously discarded their note entirely on pickup orders.
+  /// This exists to stop '[SELF-PICKUP]' from replacing what the customer
+  /// typed, which previously discarded their note entirely on pickup orders.
   String? _composeOrderNote({
     required bool isSelfPickup,
     required String? customerNote,
@@ -2612,8 +2602,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     if (isSelfPickup) parts.add('[SELF-PICKUP]');
     final typed = (customerNote ?? '').trim();
     if (typed.isNotEmpty) parts.add(typed);
-    final itemNotes = _composeItemNotes();
-    if (itemNotes.isNotEmpty) parts.add(itemNotes);
     return parts.isEmpty ? null : parts.join(' | ');
   }
 
