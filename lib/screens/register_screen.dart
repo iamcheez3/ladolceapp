@@ -4,6 +4,8 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import '../services/api_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/push_notifications_service.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
+import '../main.dart';
 import '../utils/responsive_layout.dart';
 import 'loading_screen.dart';
 import 'privacy_policy_screen.dart';
@@ -74,13 +76,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<bool> _sendOtp(String phone) async {
+    // Resolved before the await: after it, this State may be unmounted and
+    // looking either up off `context` would throw.
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final res = await _apiService.sendOtp(phone);
       if (res['status'] == 'success') {
         return true;
       }
 
-      String errorMsg = res['message'] ?? 'Failed to send OTP';
+      String errorMsg =
+          res['message'] ?? l10n?.failedToSendOtp ?? 'Failed to send OTP';
       if (res['wait_seconds'] != null) {
         final totalSeconds = (res['wait_seconds'] as num).toInt();
         final duration = Duration(seconds: totalSeconds);
@@ -92,17 +99,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (minutes > 0 || hours > 0) timeStr += '${minutes}m ';
         timeStr += '${seconds}s';
         errorMsg =
+            l10n?.tooManyOtpRequests(timeStr) ??
             'Too many OTP requests. Please wait $timeStr before resending.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text(errorMsg), backgroundColor: Colors.orange),
       );
       return false;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-          content: Text('Failed to send OTP: ${e.toString()}'),
+          content: Text(
+            l10n?.failedToSendOtpError(e.toString()) ??
+                'Failed to send OTP: ${e.toString()}',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -132,8 +143,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'OTP Verification',
+                        Text(
+                          AppLocalizations.of(context)?.otpVerification ??
+                              'OTP Verification',
                           style: TextStyle(
                             color: _brandNavy,
                             fontSize: 20,
@@ -153,7 +165,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'We have sent a 6-digit OTP to your phone number:\n+856 $telbizPhone',
+                      AppLocalizations.of(context)?.otpSentTo(telbizPhone) ??
+                          'We have sent a 6-digit OTP to your phone number:\n+856 $telbizPhone',
                       style: const TextStyle(
                         color: Color(0xFF64748B),
                         fontSize: 14,
@@ -229,10 +242,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         onPressed: _isVerifyingOtp || _isSendingOtp
                             ? null
                             : () async {
+                                // Resolved up front; the dialog is popped
+                                // mid-flow, which invalidates its context.
+                                final l10n = AppLocalizations.of(context);
+                                final messenger = ScaffoldMessenger.of(
+                                  context,
+                                );
                                 final enteredCode = otpController.text.trim();
                                 if (enteredCode.length != 6) {
                                   setDialogState(() {
-                                    _otpError = 'Please enter a 6-digit code';
+                                    _otpError =
+                                        l10n?.pleaseEnterSixDigitCode ??
+                                        'Please enter a 6-digit code';
                                   });
                                   return;
                                 }
@@ -264,10 +285,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                                   Navigator.pop(context); // Close OTP Dialog
 
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(
                                         response['message'] ??
+                                            l10n?.registrationSuccessful ??
                                             'Registration successful',
                                       ),
                                       backgroundColor: Colors.green,
@@ -279,6 +301,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 } catch (e) {
                                   setDialogState(() {
                                     _otpError =
+                                        l10n?.registrationFailed(e.toString()) ??
                                         'Registration Failed: ${e.toString()}';
                                   });
                                 } finally {
@@ -304,8 +327,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   strokeWidth: 2.2,
                                 ),
                               )
-                            : const Text(
-                                'VERIFY & REGISTER',
+                            : Text(
+                                AppLocalizations.of(context)?.verifyAndRegister ??
+                                    'VERIFY & REGISTER',
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w900,
@@ -328,9 +352,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   _isSendingOtp = false;
                                   if (ok) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'OTP code resent successfully!',
+                                          AppLocalizations.of(
+                                                context,
+                                              )?.otpResentSuccessfully ??
+                                              'OTP code resent successfully!',
                                         ),
                                         backgroundColor: Colors.green,
                                       ),
@@ -347,8 +374,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   color: _brandNavy,
                                 ),
                               )
-                            : const Text(
-                                'Resend Code',
+                            : Text(
+                                AppLocalizations.of(context)?.resendCode ??
+                                    'Resend Code',
                                 style: TextStyle(
                                   color: _brandNavy,
                                   fontWeight: FontWeight.w800,
@@ -389,7 +417,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response['message'] ?? 'Registration successful'),
+          content: Text(
+            response['message'] ??
+                AppLocalizations.of(context)?.registrationSuccessful ??
+                'Registration successful',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -399,7 +431,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Registration Failed: ${e.toString()}'),
+          content: Text(
+            AppLocalizations.of(context)?.registrationFailed(e.toString()) ??
+                'Registration Failed: ${e.toString()}',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -456,8 +491,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if ((_selectedRole == 'cashier' || _selectedRole == 'rider') &&
         (_selectedBranchId == null || _selectedBranchId! <= 0)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a branch before Google registration'),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)?.selectBranchBeforeGoogle ??
+                'Please select a branch before Google registration',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -517,7 +555,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Google Registration Failed: ${e.toString()}'),
+          content: Text(
+            AppLocalizations.of(
+                  context,
+                )?.googleRegistrationFailed(e.toString()) ??
+                'Google Registration Failed: ${e.toString()}',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -610,8 +653,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            'Create Account',
+                          Text(
+                            AppLocalizations.of(context)?.createAccountTitle ??
+                                'Create Account',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: _brandNavy,
@@ -620,23 +664,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            'Join LaDolce and start ordering',
+                          Text(
+                            AppLocalizations.of(context)?.joinLaDolce ??
+                                'Join LaDolce and start ordering',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Color(0xFF64748B),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 8),
+                          // EN / Lao switcher, mirroring the login screen so
+                          // the language choice carries into registration.
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              TextButton(
+                                onPressed: () => PosApp.setLocale(
+                                  context,
+                                  const Locale('en', ''),
+                                ),
+                                style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      Localizations.localeOf(
+                                            context,
+                                          ).languageCode ==
+                                          'en'
+                                      ? _brandNavy
+                                      : const Color(0xFF94A3B8),
+                                ),
+                                child: const Text('EN'),
+                              ),
+                              const Text(
+                                '|',
+                                style: TextStyle(color: Color(0xFFCBD5E1)),
+                              ),
+                              TextButton(
+                                onPressed: () => PosApp.setLocale(
+                                  context,
+                                  const Locale('lo', ''),
+                                ),
+                                style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      Localizations.localeOf(
+                                            context,
+                                          ).languageCode ==
+                                          'lo'
+                                      ? _brandNavy
+                                      : const Color(0xFF94A3B8),
+                                ),
+                                child: const Text('ລາວ'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
                           TextFormField(
                             controller: _nameController,
                             decoration: _inputDecoration(
-                              'Full Name',
+                              AppLocalizations.of(context)?.fullName ?? 'Full Name',
                               Icons.badge_outlined,
                             ),
                             validator: (value) =>
-                                value!.isEmpty ? 'Please enter name' : null,
+                                value!.isEmpty
+                                ? (AppLocalizations.of(
+                                        context,
+                                      )?.pleaseEnterName ??
+                                      'Please enter name')
+                                : null,
                           ),
                           const SizedBox(height: 12),
                           IntlPhoneField(
@@ -644,8 +738,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             disableLengthCheck: true,
                             decoration: _inputDecoration(
                               _selectedRole == 'customer'
-                                  ? 'Phone Number (Required for Customers)'
-                                  : 'Phone Number (Optional)',
+                                  ? (AppLocalizations.of(
+                                              context,
+                                            )?.phoneRequiredCustomers ??
+                                            'Phone Number (Required for Customers)')
+                                  : (AppLocalizations.of(
+                                              context,
+                                            )?.phoneOptional ??
+                                            'Phone Number (Optional)'),
                               Icons.phone_outlined,
                             ),
                             onChanged: (phone) {
@@ -654,13 +754,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             validator: (phone) {
                               final v = phone?.completeNumber.trim() ?? '';
                               if (_selectedRole == 'customer' && v.isEmpty) {
-                                return 'Phone number is required for customers';
+                                return AppLocalizations.of(
+                                      context,
+                                    )?.phoneRequiredForCustomers ??
+                                    'Phone number is required for customers';
                               }
                               if (v.isNotEmpty) {
                                 final numberOnly = phone?.number ?? '';
                                 if (numberOnly.length != 10 ||
                                     !numberOnly.startsWith('20')) {
-                                  return 'Phone must be 10 digits starting with 20';
+                                  return AppLocalizations.of(
+                                        context,
+                                      )?.phoneMustBe10Digits ??
+                                      'Phone must be 10 digits starting with 20';
                                 }
                               }
                               return null;
@@ -670,11 +776,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextFormField(
                             controller: _loginController,
                             decoration: _inputDecoration(
-                              'Email / Login',
+                              AppLocalizations.of(context)?.emailOrLogin ?? 'Email / Login',
                               Icons.email_outlined,
                             ),
                             validator: (value) => value!.isEmpty
-                                ? 'Please enter login/email'
+                                ? (AppLocalizations.of(
+                                        context,
+                                      )?.pleaseEnterLoginEmail ??
+                                      'Please enter login/email')
                                 : null,
                           ),
                           const SizedBox(height: 12),
@@ -683,7 +792,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             obscureText: _obscurePassword,
                             decoration:
                                 _inputDecoration(
-                                  'Password',
+                                  AppLocalizations.of(context)?.password ?? 'Password',
                                   Icons.lock_outline,
                                 ).copyWith(
                                   suffixIcon: IconButton(
@@ -700,12 +809,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                 ),
                             validator: (value) =>
-                                value!.isEmpty ? 'Please enter password' : null,
+                                value!.isEmpty
+                                ? (AppLocalizations.of(
+                                        context,
+                                      )?.pleaseEnterPassword ??
+                                      'Please enter password')
+                                : null,
                           ),
                           const SizedBox(height: 16),
                           if (widget.showStaffRoles) ...[
-                            const Text(
-                              'Role',
+                            Text(
+                              AppLocalizations.of(context)?.role ?? 'Role',
                               style: TextStyle(
                                 color: _brandNavy,
                                 fontWeight: FontWeight.w800,
@@ -716,7 +830,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               spacing: 10,
                               children: [
                                 ChoiceChip(
-                                  label: const Text('Customer'),
+                                  label: Text(
+                                    AppLocalizations.of(context)?.roleCustomer ??
+                                        'Customer',
+                                  ),
                                   selected: _selectedRole == 'customer',
                                   selectedColor: _brandNavy,
                                   labelStyle: TextStyle(
@@ -735,7 +852,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   }),
                                 ),
                                 ChoiceChip(
-                                  label: const Text('Cashier'),
+                                  label: Text(
+                                    AppLocalizations.of(context)?.roleCashier ??
+                                        'Cashier',
+                                  ),
                                   selected: _selectedRole == 'cashier',
                                   selectedColor: _brandNavy,
                                   labelStyle: TextStyle(
@@ -753,7 +873,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   },
                                 ),
                                 ChoiceChip(
-                                  label: const Text('Rider'),
+                                  label: Text(
+                                    AppLocalizations.of(context)?.roleRider ?? 'Rider',
+                                  ),
                                   selected: _selectedRole == 'rider',
                                   selectedColor: _brandNavy,
                                   labelStyle: TextStyle(
@@ -776,8 +898,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (_selectedRole == 'cashier' ||
                               _selectedRole == 'rider') ...[
                             const SizedBox(height: 14),
-                            const Text(
-                              'Branch',
+                            Text(
+                              AppLocalizations.of(context)?.branch ?? 'Branch',
                               style: TextStyle(
                                 color: _brandNavy,
                                 fontWeight: FontWeight.w800,
@@ -821,7 +943,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     : (v) =>
                                           setState(() => _selectedBranchId = v),
                                 decoration: _inputDecoration(
-                                  'Select branch',
+                                  AppLocalizations.of(context)?.selectBranchHint ??
+                                      'Select branch',
                                   Icons.account_tree_outlined,
                                 ),
                                 validator: (v) {
@@ -829,7 +952,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       _selectedRole != 'rider')
                                     return null;
                                   if (v == null || v <= 0) {
-                                    return 'Please select a branch';
+                                    return AppLocalizations.of(
+                                          context,
+                                        )?.pleaseSelectBranch ??
+                                        'Please select a branch';
                                   }
                                   return null;
                                 },
@@ -865,12 +991,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           fontWeight: FontWeight.w600,
                                         ),
                                     children: [
-                                      const TextSpan(
+                                      TextSpan(
                                         text:
+                                            AppLocalizations.of(
+                                              context,
+                                            )?.agreeToTerms ??
                                             'I agree to the Terms of Service and ',
                                       ),
                                       TextSpan(
-                                        text: 'Privacy Policy',
+                                        text:
+                                            AppLocalizations.of(
+                                              context,
+                                            )?.privacyPolicy ??
+                                            'Privacy Policy',
                                         style: const TextStyle(
                                           color: _brandNavy,
                                           fontWeight: FontWeight.bold,
@@ -909,8 +1042,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         strokeWidth: 2.2,
                                       ),
                                     )
-                                  : const Text(
-                                      'REGISTER',
+                                  : Text(
+                                      AppLocalizations.of(context)?.registerButton ??
+                                          'REGISTER',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w900,
@@ -921,7 +1055,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (FirebaseAuthService.isGoogleAuthAvailable) ...[
                             const SizedBox(height: 12),
                             _GoogleAuthButton(
-                              label: 'Continue with Google',
+                              label:
+                                  AppLocalizations.of(
+                                    context,
+                                  )?.continueWithGoogle ??
+                                  'Continue with Google',
                               isLoading: _isLoading,
                               onPressed: _continueWithGoogle,
                             ),

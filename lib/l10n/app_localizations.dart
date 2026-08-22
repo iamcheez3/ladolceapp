@@ -217,6 +217,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Due to bad weather, your delivery or rider may be delayed.'**
   String get weatherWarning;
+
+  /// No description provided for @deviceIphone.
+  ///
+  /// In en, this message translates to:
+  /// **'iPhone / iPad'**
+  String get deviceIphone;
+
+  /// No description provided for @deviceAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Android device'**
+  String get deviceAndroid;
+
+  /// No description provided for @alreadySignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Already signed in'**
+  String get alreadySignedIn;
+
+  /// No description provided for @accountActiveOtherDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account is currently active on another device.'**
+  String get accountActiveOtherDevice;
+
+  /// No description provided for @deviceIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'ID: {maskedId}'**
+  String deviceIdLabel(String maskedId);
+
+  /// No description provided for @continueSignsOutOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Continuing will sign out that device.'**
+  String get continueSignsOutOther;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @continueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueLabel;
+
+  /// No description provided for @unknownRoleFromServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown role from server'**
+  String get unknownRoleFromServer;
+
+  /// No description provided for @googleMissingEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Google account is missing email information.'**
+  String get googleMissingEmail;
+
+  /// No description provided for @googleLoginFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Login Failed: {error}'**
+  String googleLoginFailed(String error);
+
+  /// No description provided for @pleaseEnterLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter login'**
+  String get pleaseEnterLogin;
+
+  /// No description provided for @pleaseEnterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter password'**
+  String get pleaseEnterPassword;
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @registerStaffAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Register Staff Account'**
+  String get registerStaffAccount;
+
+  /// No description provided for @failedToSendOtp.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send OTP'**
+  String get failedToSendOtp;
+
+  /// No description provided for @failedToSendOtpError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send OTP: {error}'**
+  String failedToSendOtpError(String error);
+
+  /// No description provided for @tooManyOtpRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many OTP requests. Please wait {time} before resending.'**
+  String tooManyOtpRequests(String time);
+
+  /// No description provided for @otpVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'OTP Verification'**
+  String get otpVerification;
+
+  /// No description provided for @otpSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We have sent a 6-digit OTP to your phone number:\n+856 {phone}'**
+  String otpSentTo(String phone);
+
+  /// No description provided for @pleaseEnterSixDigitCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a 6-digit code'**
+  String get pleaseEnterSixDigitCode;
+
+  /// No description provided for @registrationSuccessful.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration successful'**
+  String get registrationSuccessful;
+
+  /// No description provided for @registrationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration Failed: {error}'**
+  String registrationFailed(String error);
+
+  /// No description provided for @verifyAndRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'VERIFY & REGISTER'**
+  String get verifyAndRegister;
+
+  /// No description provided for @otpResentSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'OTP code resent successfully!'**
+  String get otpResentSuccessfully;
+
+  /// No description provided for @resendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend Code'**
+  String get resendCode;
+
+  /// No description provided for @selectBranchBeforeGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a branch before Google registration'**
+  String get selectBranchBeforeGoogle;
+
+  /// No description provided for @googleRegistrationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Registration Failed: {error}'**
+  String googleRegistrationFailed(String error);
+
+  /// No description provided for @createAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get createAccountTitle;
+
+  /// No description provided for @joinLaDolce.
+  ///
+  /// In en, this message translates to:
+  /// **'Join LaDolce and start ordering'**
+  String get joinLaDolce;
+
+  /// No description provided for @fullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get fullName;
+
+  /// No description provided for @pleaseEnterName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter name'**
+  String get pleaseEnterName;
+
+  /// No description provided for @phoneRequiredCustomers.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number (Required for Customers)'**
+  String get phoneRequiredCustomers;
+
+  /// No description provided for @phoneOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number (Optional)'**
+  String get phoneOptional;
+
+  /// No description provided for @phoneRequiredForCustomers.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number is required for customers'**
+  String get phoneRequiredForCustomers;
+
+  /// No description provided for @phoneMustBe10Digits.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone must be 10 digits starting with 20'**
+  String get phoneMustBe10Digits;
+
+  /// No description provided for @pleaseEnterLoginEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter login/email'**
+  String get pleaseEnterLoginEmail;
+
+  /// No description provided for @role.
+  ///
+  /// In en, this message translates to:
+  /// **'Role'**
+  String get role;
+
+  /// No description provided for @roleCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer'**
+  String get roleCustomer;
+
+  /// No description provided for @roleCashier.
+  ///
+  /// In en, this message translates to:
+  /// **'Cashier'**
+  String get roleCashier;
+
+  /// No description provided for @roleRider.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider'**
+  String get roleRider;
+
+  /// No description provided for @branch.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch'**
+  String get branch;
+
+  /// No description provided for @selectBranchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select branch'**
+  String get selectBranchHint;
+
+  /// No description provided for @pleaseSelectBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a branch'**
+  String get pleaseSelectBranch;
+
+  /// No description provided for @agreeToTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'I agree to the Terms of Service and '**
+  String get agreeToTerms;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @registerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'REGISTER'**
+  String get registerButton;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
 }
 
 class _AppLocalizationsDelegate

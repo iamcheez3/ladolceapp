@@ -281,7 +281,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final maskedId = rawDeviceId.length > 8
         ? '${rawDeviceId.substring(0, 6)}…'
         : rawDeviceId;
-    final platformLabel = platform == 'ios' ? 'iPhone / iPad' : 'Android device';
+    final l10n = AppLocalizations.of(context);
+    final platformLabel = platform == 'ios'
+        ? (l10n?.deviceIphone ?? 'iPhone / iPad')
+        : (l10n?.deviceAndroid ?? 'Android device');
     final platformIcon = platform == 'ios' ? '🍎' : '📱';
 
     final confirmed = await showDialog<bool>(
@@ -309,8 +312,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Already signed in',
+              Text(
+                l10n?.alreadySignedIn ?? 'Already signed in',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
@@ -319,7 +322,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Your account is currently active on another device.',
+                l10n?.accountActiveOtherDevice ??
+                    'Your account is currently active on another device.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
@@ -355,7 +359,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         if (maskedId.isNotEmpty)
                           Text(
-                            'ID: $maskedId',
+                            l10n?.deviceIdLabel(maskedId) ?? 'ID: $maskedId',
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey[500],
@@ -369,7 +373,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Continuing will sign out that device.',
+                l10n?.continueSignsOutOther ??
+                    'Continuing will sign out that device.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -389,8 +394,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         side: const BorderSide(color: Color(0xFFDCE5FF)),
                       ),
-                      child: const Text(
-                        'Cancel',
+                      child: Text(
+                        l10n?.cancel ?? 'Cancel',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: _brandNavy,
@@ -411,9 +416,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Continue',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                      child: Text(
+                        l10n?.continueLabel ?? 'Continue',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
                   ),
@@ -457,7 +462,12 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Unknown role from server')),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)?.unknownRoleFromServer ??
+                    'Unknown role from server',
+              ),
+            ),
           );
         }
         return;
@@ -470,7 +480,12 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unknown role from server')),
+          SnackBar(
+              content: Text(
+                AppLocalizations.of(context)?.unknownRoleFromServer ??
+                    'Unknown role from server',
+              ),
+            ),
         );
       }
     } catch (e) {
@@ -550,7 +565,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Google Login Failed: ${e.toString()}'),
+          content: Text(
+            AppLocalizations.of(context)?.googleLoginFailed(e.toString()) ??
+                'Google Login Failed: ${e.toString()}',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -770,7 +788,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 validator: (value) => value!.isEmpty
-                                    ? 'Please enter login'
+                                    ? (AppLocalizations.of(
+                                            context,
+                                          )?.pleaseEnterLogin ??
+                                          'Please enter login')
                                     : null,
                               ),
                               const SizedBox(height: 14),
@@ -820,7 +841,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 validator: (value) => value!.isEmpty
-                                    ? 'Please enter password'
+                                    ? (AppLocalizations.of(
+                                            context,
+                                          )?.pleaseEnterPassword ??
+                                          'Please enter password')
                                     : null,
                               ),
                               const SizedBox(height: 18),
@@ -862,7 +886,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   .isGoogleAuthAvailable) ...[
                                 const SizedBox(height: 12),
                                 _GoogleAuthButton(
-                                  label: 'Continue with Google',
+                                  label:
+                                      AppLocalizations.of(
+                                        context,
+                                      )?.continueWithGoogle ??
+                                      'Continue with Google',
                                   isLoading: _isLoading,
                                   onPressed: _continueWithGoogle,
                                 ),
@@ -877,8 +905,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     );
                                   },
-                                  child: const Text(
-                                    'Register Staff Account',
+                                  child: Text(
+                                    AppLocalizations.of(
+                                          context,
+                                        )?.registerStaffAccount ??
+                                        'Register Staff Account',
                                     style: TextStyle(
                                       color: Color(0xFF64748B),
                                       fontWeight: FontWeight.w600,

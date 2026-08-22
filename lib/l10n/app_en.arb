@@ -18,5 +18,102 @@
   "runOut": "Run out",
   "orderNote": "Order Note / Pickup Time",
   "orderNoteHint": "e.g., Pickup at 3:00 PM, extra spicy, etc.",
-  "weatherWarning": "Due to bad weather, your delivery or rider may be delayed."
+  "weatherWarning": "Due to bad weather, your delivery or rider may be delayed.",
+  "deviceIphone": "iPhone / iPad",
+  "deviceAndroid": "Android device",
+  "alreadySignedIn": "Already signed in",
+  "accountActiveOtherDevice": "Your account is currently active on another device.",
+  "deviceIdLabel": "ID: {maskedId}",
+  "@deviceIdLabel": {
+    "placeholders": {
+      "maskedId": {
+        "type": "String"
+      }
+    }
+  },
+  "continueSignsOutOther": "Continuing will sign out that device.",
+  "cancel": "Cancel",
+  "continueLabel": "Continue",
+  "unknownRoleFromServer": "Unknown role from server",
+  "googleMissingEmail": "Google account is missing email information.",
+  "googleLoginFailed": "Google Login Failed: {error}",
+  "@googleLoginFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseEnterLogin": "Please enter login",
+  "pleaseEnterPassword": "Please enter password",
+  "continueWithGoogle": "Continue with Google",
+  "registerStaffAccount": "Register Staff Account",
+  "failedToSendOtp": "Failed to send OTP",
+  "failedToSendOtpError": "Failed to send OTP: {error}",
+  "@failedToSendOtpError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "tooManyOtpRequests": "Too many OTP requests. Please wait {time} before resending.",
+  "@tooManyOtpRequests": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "otpVerification": "OTP Verification",
+  "otpSentTo": "We have sent a 6-digit OTP to your phone number:\n+856 {phone}",
+  "@otpSentTo": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseEnterSixDigitCode": "Please enter a 6-digit code",
+  "registrationSuccessful": "Registration successful",
+  "registrationFailed": "Registration Failed: {error}",
+  "@registrationFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "verifyAndRegister": "VERIFY & REGISTER",
+  "otpResentSuccessfully": "OTP code resent successfully!",
+  "resendCode": "Resend Code",
+  "selectBranchBeforeGoogle": "Please select a branch before Google registration",
+  "googleRegistrationFailed": "Google Registration Failed: {error}",
+  "@googleRegistrationFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "createAccountTitle": "Create Account",
+  "joinLaDolce": "Join LaDolce and start ordering",
+  "fullName": "Full Name",
+  "pleaseEnterName": "Please enter name",
+  "phoneRequiredCustomers": "Phone Number (Required for Customers)",
+  "phoneOptional": "Phone Number (Optional)",
+  "phoneRequiredForCustomers": "Phone number is required for customers",
+  "phoneMustBe10Digits": "Phone must be 10 digits starting with 20",
+  "pleaseEnterLoginEmail": "Please enter login/email",
+  "role": "Role",
+  "roleCustomer": "Customer",
+  "roleCashier": "Cashier",
+  "roleRider": "Rider",
+  "branch": "Branch",
+  "selectBranchHint": "Select branch",
+  "pleaseSelectBranch": "Please select a branch",
+  "agreeToTerms": "I agree to the Terms of Service and ",
+  "privacyPolicy": "Privacy Policy",
+  "registerButton": "REGISTER",
+  "language": "Language"
 }
