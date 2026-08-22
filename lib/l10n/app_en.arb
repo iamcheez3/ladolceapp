@@ -115,5 +115,437 @@
   "agreeToTerms": "I agree to the Terms of Service and ",
   "privacyPolicy": "Privacy Policy",
   "registerButton": "REGISTER",
-  "language": "Language"
+  "language": "Language",
+  "apply": "Apply",
+  "save": "Save",
+  "clear": "Clear",
+  "done": "Done",
+  "retry": "Retry",
+  "unknown": "Unknown",
+  "free": "Free",
+  "errorWithMessage": "Error: {error}",
+  "@errorWithMessage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "featureComingSoon": "Feature coming soon!",
+  "allItems": "All Items",
+  "combos": "Combos",
+  "searchProducts": "Search products...",
+  "noProductsMatching": "No products matching \"{query}\"",
+  "@noProductsMatching": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "noProductsInCategory": "No products in this category",
+  "applyDiscount": "Apply Discount",
+  "selectDiscountOption": "Select Discount Option",
+  "selectDiscount": "Select Discount",
+  "noDiscount": "No Discount",
+  "customPercent": "(Custom %)",
+  "customAmount": "(Custom Amount)",
+  "enterDiscountPercentage": "Enter Discount Percentage",
+  "enterDiscountAmount": "Enter Discount Amount",
+  "removeDiscount": "Remove Discount",
+  "discountValueOption": "Discount (Value)",
+  "percentOff": "{percent}% Off",
+  "@percentOff": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "egTen": "e.g. 10",
+  "egFiveThousand": "e.g. 5000",
+  "kitchenNote": "Kitchen note",
+  "kitchenNoteHint": "Less sugar, no ice, extra spicy...",
+  "selectToppingsFor": "Select Toppings for {product}",
+  "@selectToppingsFor": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "addWithoutToppings": "Add Without Toppings",
+  "addToOrder": "Add To Order",
+  "tickets": "Tickets",
+  "openTickets": "Open Tickets",
+  "ticketLabel": "Ticket",
+  "ticketOptions": "Ticket Options",
+  "clearTicket": "Clear ticket",
+  "printBill": "Print bill",
+  "reprintOrderKitchen": "Reprint order (kitchen)",
+  "splitTicketAction": "Split ticket",
+  "moveTicketAction": "Move ticket",
+  "sendToRider": "Send to rider",
+  "openCashDrawer": "Open cash drawer",
+  "syncAction": "Sync",
+  "scanVoucher": "Scan Voucher",
+  "switchToList": "Switch to List",
+  "switchToGrid": "Switch to Grid",
+  "ticketCleared": "Ticket cleared.",
+  "ticketRemovedByAdminPin": "Ticket removed by Admin PIN.",
+  "cannotClearTicket": "Cannot clear ticket: {error}",
+  "@cannotClearTicket": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPinRequired": "Admin PIN Required",
+  "enterPinToClearTicket": "Enter PIN to clear selected ticket",
+  "pinIsRequired": "PIN is required",
+  "currentTicket": "CURRENT TICKET",
+  "itemsCount": "{count} Items",
+  "@itemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "viewTicketCharge": "View Ticket &\nCharge",
+  "ticketSavedNoNewItems": "Ticket saved (no new items added).",
+  "ticketUpdatedWithItems": "Ticket {name} updated with {count} new item(s)!",
+  "@ticketUpdatedWithItems": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "noItemsToPrint": "No items in the current ticket to print.",
+  "noPrinterConfiguredSettings": "No printer configured. Set up a printer in Settings first.",
+  "noPrinterConfigured": "No printer configured. Set up a printer first.",
+  "amountExclVat": "Amount (excl. VAT):",
+  "vatPercentLabel": "VAT ({percent}%):",
+  "@vatPercentLabel": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "billPrinted": "🧾 Bill printed!",
+  "failedToPrintBill": "Failed to print bill. Check printer connection.",
+  "noItemsToReprint": "No items in the current ticket to reprint.",
+  "orderReprinted": "🖨️ Order reprinted to {count} kitchen printer(s).",
+  "@orderReprinted": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "noPrinterForReprint": "No available printer could print this reprint request.",
+  "cashDrawerOpened": "🗃️ Cash drawer opened!",
+  "failedToOpenDrawer": "Failed to open drawer. Check printer connection.",
+  "noItemsToSplit": "No items in the current ticket to split.",
+  "saveTicketBeforeSplit": "Please save the ticket first before splitting.",
+  "ticketSplitCreated": "Ticket split! \"{name}\" created.",
+  "@ticketSplitCreated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "splitError": "Split error: {error}",
+  "@splitError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotLoadOpenTickets": "Cannot load open tickets: {error}",
+  "@cannotLoadOpenTickets": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noOpenTicketToMoveFrom": "No open ticket to move from.",
+  "noDestinationAvailable": "No destination available. Open another ticket or free a table.",
+  "moveTicketTitle": "Move Ticket",
+  "selectSourceTicket": "Select source ticket",
+  "tableNumber": "Table {id}",
+  "@tableNumber": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "noTable": "No table",
+  "moveDestination": "Move destination",
+  "openTicketLabel": "Open ticket",
+  "emptyTable": "Empty table",
+  "moveNow": "Move Now",
+  "sourceTicketGone": "Source ticket no longer exists.",
+  "selectDestinationFirst": "Please select a destination ticket or table.",
+  "sourceHasNoItems": "Source ticket has no items to move.",
+  "destinationTicketGone": "Destination ticket no longer exists.",
+  "movedItemsTo": "Moved items from ticket #{source} to {destination}",
+  "@movedItemsTo": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "moveTicketFailed": "Move ticket failed: {error}",
+  "@moveTicketFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "destTicketRef": "ticket #{id}",
+  "@destTicketRef": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "destTableRef": "table #{id} (new ticket)",
+  "@destTableRef": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceTotalItems": "Source total: ₭{total}\nItems: {count}",
+  "@sourceTotalItems": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotLoadRiders": "Cannot load riders: {error}",
+  "@cannotLoadRiders": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noRidersAvailable": "No riders available for this branch.",
+  "selectRider": "Select Rider",
+  "orderForCustomer": "Order for: {name}",
+  "@orderForCustomer": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deliveryToPlace": "Delivery to: {place}",
+  "@deliveryToPlace": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "selfOrderDelivery": "Self-order delivery",
+  "unnamed": "Unnamed",
+  "orderSentToRider": "Order sent to {rider}",
+  "@orderSentToRider": {
+    "placeholders": {
+      "rider": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToAssignRider": "Failed to assign rider: {error}",
+  "@failedToAssignRider": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSelected": "Customer {name} selected!",
+  "@customerSelected": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "charge": "Charge",
+  "totalAmount": "Total Amount",
+  "selectPaymentMethod": "Select Payment Method",
+  "noPaymentMethods": "No payment methods configured.",
+  "amountReceived": "Amount Received",
+  "changeDue": "Change Due:",
+  "chargeAmount": "CHARGE K{amount}",
+  "@chargeAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPaidSuccessfully": "Order Paid Successfully!",
+  "transferTicketFixedTo": "Transfer ticket: fixed to {method}.",
+  "@transferTicketFixedTo": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "transferTicketFixed": "Transfer ticket: payment method is fixed.",
+  "administrator": "Administrator",
+  "posTerminal": "POS Terminal",
+  "sales": "Sales",
+  "receipts": "Receipts",
+  "selfOrdersReview": "Self Orders Review",
+  "itemsMenu": "Items",
+  "settings": "Settings",
+  "lockSwitchUser": "Lock / Switch User",
+  "demoCashier": "Demo Cashier",
+  "selectTable": "Select Table",
+  "chooseLocationNewTicket": "Choose a location to open a new ticket",
+  "noTablesAvailable": "No tables available.\nPlease sync catalog.",
+  "tableAvailable": "Available",
+  "tableOpen": "Open",
+  "tableOccupied": "Occupied",
+  "openOrder": "Open Order",
+  "ticketOpenedAt": "Ticket opened at {table}!",
+  "@ticketOpenedAt": {
+    "placeholders": {
+      "table": {
+        "type": "String"
+      }
+    }
+  },
+  "rewardClaimed": "Reward Claimed!",
+  "voucherCustomer": "Customer: {name}",
+  "@voucherCustomer": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "voucherProduct": "Product: {name}",
+  "@voucherProduct": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "giveItemToCustomer": "Please give this item to the customer.",
+  "claimRewardVoucher": "Claim Reward Voucher",
+  "enterOrScanVoucher": "Enter or scan the customer's reward voucher code:",
+  "voucherCode": "Voucher Code",
+  "claim": "Claim",
+  "syncedOfflineOrders": "✅ Synced {count} offline orders to server.",
+  "@syncedOfflineOrders": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "syncedAllData": "✅ Synced all data.",
+  "syncFailed": "Sync failed: {error}",
+  "@syncFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "newSelfOrderWaiting": "New self order waiting review",
+  "newSelfOrderWaitingCount": "New self order waiting review ({count} pending)",
+  "@newSelfOrderWaitingCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "newSelfOrderDetail": "New self order: {summary}",
+  "@newSelfOrderDetail": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "newSelfOrdersCount": "{count} new self orders: {detail}",
+  "@newSelfOrdersCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "english": "English",
+  "laoLanguage": "Lao",
+  "chooseAppLanguage": "Choose the app language",
+  "appSettings": "App Settings",
+  "printerConfiguration": "Printer Configuration",
+  "printersConfigured": "{count} printer(s) configured",
+  "@printersConfigured": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "connectedTo": "Connected: {ip}",
+  "@connectedTo": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  },
+  "notConfigured": "Not configured",
+  "billTemplates": "Bill Templates",
+  "billTemplatesSubtitle": "Select bill/receipt/refund templates for this branch",
+  "discountConfiguration": "Discount Configuration",
+  "discountOptionsConfigured": "{count} discount option(s) configured",
+  "@discountOptionsConfigured": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "usePromotionPrice": "Use Promotion Price in POS",
+  "promotionalPricesApplied": "Promotional prices will be applied",
+  "normalPricesApplied": "Normal base prices will be applied"
 }

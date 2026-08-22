@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
+import '../main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'printer_settings_screen.dart';
 import 'bill_template_settings_screen.dart';
@@ -18,8 +20,39 @@ class PosSettingsScreen extends StatefulWidget {
 
 class _PosSettingsScreenState extends State<PosSettingsScreen> {
   final ApiService _apiService = ApiService();
+
+  AppLocalizations? get _l10n => AppLocalizations.of(context);
   PosDiscountConfig _discountConfig = PosDiscountConfig.disabled;
   bool _usePromotionPrice = true;
+
+  /// Lets staff flip the app between English and Lao. PosApp.setLocale
+  /// persists the choice, so it survives a restart and applies app-wide.
+  Future<void> _showLanguagePicker() async {
+    final current = Localizations.localeOf(context).languageCode;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(_l10n?.chooseAppLanguage ?? 'Choose the app language'),
+        children: [
+          for (final option in const [
+            ['en', 'English'],
+            ['lo', 'ລາວ'],
+          ])
+            ListTile(
+              title: Text(option[1]),
+              trailing: current == option[0]
+                  ? const Icon(Icons.check, color: Colors.green)
+                  : null,
+              onTap: () {
+                PosApp.setLocale(context, Locale(option[0], ''));
+                Navigator.pop(ctx);
+              },
+            ),
+        ],
+      ),
+    );
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
@@ -57,7 +90,7 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('App Settings'),
+        title: Text(_l10n?.appSettings ?? 'App Settings'),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
       ),
@@ -67,12 +100,14 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
           _buildMenuCard(
             context,
             icon: Icons.print,
-            title: 'Printer Configuration',
+            title: _l10n?.printerConfiguration ?? 'Printer Configuration',
             subtitle: printerService.profiles.isNotEmpty
-                ? '${printerService.profiles.length} printer(s) configured'
+                ? (_l10n?.printersConfigured('${printerService.profiles.length}') ??
+                      '${printerService.profiles.length} printer(s) configured')
                 : (printerService.isConfigured
-                    ? 'Connected: ${printerService.printerIp}'
-                    : 'Not configured'),
+                    ? (_l10n?.connectedTo('${printerService.printerIp}') ??
+                      'Connected: ${printerService.printerIp}')
+                    : (_l10n?.notConfigured ?? 'Not configured')),
             subtitleColor: printerService.isConfigured ? Colors.green : null,
             onTap: () async {
               await Navigator.push(
@@ -88,8 +123,10 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
           _buildMenuCard(
             context,
             icon: Icons.receipt_long_rounded,
-            title: 'Bill Templates',
-            subtitle: 'Select bill/receipt/refund templates for this branch',
+            title: _l10n?.billTemplates ?? 'Bill Templates',
+            subtitle:
+                _l10n?.billTemplatesSubtitle ??
+                'Select bill/receipt/refund templates for this branch',
             onTap: () async {
               await Navigator.push(
                 context,
@@ -103,10 +140,13 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
           _buildMenuCard(
             context,
             icon: Icons.discount_outlined,
-            title: 'Discount Configuration',
+            title: _l10n?.discountConfiguration ?? 'Discount Configuration',
             subtitle: _discountConfig.enabled
-                ? '${_discountConfig.options.length} discount option(s) configured'
-                : 'Not configured',
+                ? (_l10n?.discountOptionsConfigured(
+                        '${_discountConfig.options.length}',
+                      ) ??
+                      '${_discountConfig.options.length} discount option(s) configured')
+                : (_l10n?.notConfigured ?? 'Not configured'),
             subtitleColor: _discountConfig.enabled ? Colors.green : null,
             onTap: () async {
               final changed = await Navigator.push<bool>(
@@ -123,12 +163,24 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
           const SizedBox(height: 12),
           _buildToggleCard(
             icon: Icons.campaign_outlined,
-            title: 'Use Promotion Price in POS',
+            title: _l10n?.usePromotionPrice ?? 'Use Promotion Price in POS',
             subtitle: _usePromotionPrice
-                ? 'Promotional prices will be applied'
-                : 'Normal base prices will be applied',
+                ? (_l10n?.promotionalPricesApplied ??
+                      'Promotional prices will be applied')
+                : (_l10n?.normalPricesApplied ??
+                      'Normal base prices will be applied'),
             value: _usePromotionPrice,
             onChanged: _setPromotionPriceSetting,
+          ),
+          const SizedBox(height: 12),
+          _buildMenuCard(
+            context,
+            icon: Icons.language_outlined,
+            title: _l10n?.language ?? 'Language',
+            subtitle: Localizations.localeOf(context).languageCode == 'lo'
+                ? 'ລາວ'
+                : (_l10n?.english ?? 'English'),
+            onTap: _showLanguagePicker,
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
@@ -62,6 +63,10 @@ class _PosScreenState extends State<PosScreen> {
   PosDiscountOption? _selectedDiscountOption;
   DiscountBreakdown _discountBreakdown = DiscountBreakdown.none;
   double? _pendingDiscountManualValue;
+
+  /// Shorthand for the generated lookups. Null-safe so every call site can
+  /// fall back to its English literal if localisation is not ready yet.
+  AppLocalizations? get _l10n => AppLocalizations.of(context);
 
   String? get _appliedDiscountType {
     if (!_discountConfig.enabled || !_discountBreakdown.active) return null;
@@ -277,7 +282,8 @@ class _PosScreenState extends State<PosScreen> {
           final detail = parts.isEmpty ? 'waiting review' : parts.join('; ');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${newcomers.length} new self orders: $detail'),
+              content: Text(_l10n?.newSelfOrdersCount('${newcomers.length}', detail) ??
+        '${newcomers.length} new self orders: $detail'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 6),
             ),
@@ -286,7 +292,8 @@ class _PosScreenState extends State<PosScreen> {
       } else if (nextCount > prevCount) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('New self order waiting review ($nextCount pending)'),
+            content: Text(_l10n?.newSelfOrderWaitingCount('$nextCount') ??
+        'New self order waiting review ($nextCount pending)'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 4),
           ),
@@ -424,7 +431,7 @@ class _PosScreenState extends State<PosScreen> {
               children: [
                 Icon(Icons.discount_outlined, color: Colors.red.shade700),
                 const SizedBox(width: 8),
-                const Text('Apply Discount'),
+                Text(_l10n?.applyDiscount ?? 'Apply Discount'),
               ],
             ),
             content: SizedBox(
@@ -433,8 +440,7 @@ class _PosScreenState extends State<PosScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Select Discount Option',
+                  Text(_l10n?.selectDiscountOption ?? 'Select Discount Option',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 10),
@@ -448,19 +454,19 @@ class _PosScreenState extends State<PosScreen> {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<PosDiscountOption?>(
                         value: selectedOption,
-                        hint: const Text('No Discount'),
+                        hint: Text(_l10n?.noDiscount ?? 'No Discount'),
                         isExpanded: true,
                         items: [
-                          const DropdownMenuItem<PosDiscountOption?>(
+                          DropdownMenuItem<PosDiscountOption?>(
                             value: null,
-                            child: Text('No Discount'),
+                            child: Text(_l10n?.noDiscount ?? 'No Discount'),
                           ),
                           ..._discountConfig.options.map((opt) {
                             String valStr = '';
                             if (opt.value == null) {
                               valStr = opt.type == 'percentage'
-                                  ? '(Custom %)'
-                                  : '(Custom Amount)';
+                                  ? (_l10n?.customPercent ?? '(Custom %)')
+                                  : (_l10n?.customAmount ?? '(Custom Amount)');
                             } else {
                               valStr = opt.type == 'percentage'
                                   ? '(${opt.value!.toStringAsFixed(0)}%)'
@@ -488,8 +494,8 @@ class _PosScreenState extends State<PosScreen> {
                     const SizedBox(height: 16),
                     Text(
                       selectedOption!.type == 'percentage'
-                          ? 'Enter Discount Percentage'
-                          : 'Enter Discount Amount',
+                          ? (_l10n?.enterDiscountPercentage ?? 'Enter Discount Percentage')
+                          : (_l10n?.enterDiscountAmount ?? 'Enter Discount Amount'),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 10),
@@ -508,8 +514,8 @@ class _PosScreenState extends State<PosScreen> {
                             ? '₭ '
                             : null,
                         hintText: selectedOption!.type == 'percentage'
-                            ? 'e.g. 10'
-                            : 'e.g. 5000',
+                            ? (_l10n?.egTen ?? 'e.g. 10')
+                            : (_l10n?.egFiveThousand ?? 'e.g. 5000'),
                       ),
                       onChanged: (v) {
                         manualVal = double.tryParse(v);
@@ -522,15 +528,14 @@ class _PosScreenState extends State<PosScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(_l10n?.cancel ?? 'Cancel'),
               ),
               TextButton(
                 onPressed: () {
                   _clearDiscount();
                   Navigator.pop(ctx);
                 },
-                child: Text(
-                  'Remove Discount',
+                child: Text(_l10n?.removeDiscount ?? 'Remove Discount',
                   style: TextStyle(color: Colors.red.shade400),
                 ),
               ),
@@ -547,7 +552,7 @@ class _PosScreenState extends State<PosScreen> {
                   _recomputeDiscount(manualValue: manualVal);
                   Navigator.pop(ctx);
                 },
-                child: const Text('Apply'),
+                child: Text(_l10n?.apply ?? 'Apply'),
               ),
             ],
           );
@@ -620,7 +625,8 @@ class _PosScreenState extends State<PosScreen> {
         if (syncedCount > 0 && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Synced $syncedCount offline orders to server.'),
+              content: Text(_l10n?.syncedOfflineOrders('$syncedCount') ??
+        '✅ Synced $syncedCount offline orders to server.'),
               backgroundColor: Colors.green,
             ),
           );
@@ -683,14 +689,14 @@ class _PosScreenState extends State<PosScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Synced all data.'),
+          content: Text(_l10n?.syncedAllData ?? '✅ Synced all data.'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sync failed: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(_l10n?.syncFailed('$e') ?? 'Sync failed: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -750,8 +756,7 @@ class _PosScreenState extends State<PosScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text(
-          'Kitchen note',
+        title: Text(_l10n?.kitchenNote ?? 'Kitchen note',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -760,19 +765,19 @@ class _PosScreenState extends State<PosScreen> {
           autofocus: true,
           maxLines: 3,
           textInputAction: TextInputAction.newline,
-          decoration: const InputDecoration(
-            hintText: 'Less sugar, no ice, extra spicy...',
+          decoration: InputDecoration(
+            hintText: _l10n?.kitchenNoteHint ?? 'Less sugar, no ice, extra spicy...',
             border: OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, ''),
-            child: const Text('Clear'),
+            child: Text(_l10n?.clear ?? 'Clear'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(_l10n?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -780,7 +785,7 @@ class _PosScreenState extends State<PosScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Save'),
+            child: Text(_l10n?.save ?? 'Save'),
           ),
         ],
       ),
@@ -814,7 +819,8 @@ class _PosScreenState extends State<PosScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Select Toppings for ${product.name}',
+                    _l10n?.selectToppingsFor(product.name) ??
+        'Select Toppings for ${product.name}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -834,7 +840,7 @@ class _PosScreenState extends State<PosScreen> {
                               ? Text(
                                   '+₭${topping.extraPrice.toStringAsFixed(2)}',
                                 )
-                              : const Text('Free'),
+                              : Text(_l10n?.free ?? 'Free'),
                           value: isSelected,
                           activeColor: _brandNavy,
                           onChanged: (bool? value) {
@@ -862,7 +868,7 @@ class _PosScreenState extends State<PosScreen> {
                               [],
                             ); // Skip toppings completely
                           },
-                          child: const Text('Add Without Toppings'),
+                          child: Text(_l10n?.addWithoutToppings ?? 'Add Without Toppings'),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -876,7 +882,7 @@ class _PosScreenState extends State<PosScreen> {
                             Navigator.pop(context);
                             _addDirectlyToCart(product, selectedToppings);
                           },
-                          child: const Text('Add To Order'),
+                          child: Text(_l10n?.addToOrder ?? 'Add To Order'),
                         ),
                       ),
                     ],
@@ -983,8 +989,8 @@ class _PosScreenState extends State<PosScreen> {
       _clearCart();
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Ticket cleared.'),
+          SnackBar(
+            content: Text(_l10n?.ticketCleared ?? 'Ticket cleared.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -1003,8 +1009,8 @@ class _PosScreenState extends State<PosScreen> {
       _clearCart();
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Ticket removed by Admin PIN.'),
+        SnackBar(
+          content: Text(_l10n?.ticketRemovedByAdminPin ?? 'Ticket removed by Admin PIN.'),
           backgroundColor: Colors.green,
         ),
       );
@@ -1012,7 +1018,7 @@ class _PosScreenState extends State<PosScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Cannot clear ticket: $e'),
+          content: Text(_l10n?.cannotClearTicket('$e') ?? 'Cannot clear ticket: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1090,8 +1096,7 @@ class _PosScreenState extends State<PosScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Text(
-              'Admin PIN Required',
+            title: Text(_l10n?.adminPinRequired ?? 'Admin PIN Required',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -1102,8 +1107,7 @@ class _PosScreenState extends State<PosScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Enter PIN to clear selected ticket',
+                  Text(_l10n?.enterPinToClearTicket ?? 'Enter PIN to clear selected ticket',
                     style: TextStyle(color: Colors.white70),
                     textAlign: TextAlign.center,
                   ),
@@ -1132,10 +1136,9 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                   ),
                   if (hasError)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 12),
-                      child: Text(
-                        'PIN is required',
+                      child: Text(_l10n?.pinIsRequired ?? 'PIN is required',
                         style: TextStyle(
                           color: Colors.redAccent,
                           fontWeight: FontWeight.bold,
@@ -1174,8 +1177,7 @@ class _PosScreenState extends State<PosScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx, null),
-                child: const Text(
-                  'Cancel',
+                child: Text(_l10n?.cancel ?? 'Cancel',
                   style: TextStyle(color: Colors.white70),
                 ),
               ),
@@ -1230,8 +1232,8 @@ class _PosScreenState extends State<PosScreen> {
                     const SizedBox(width: 8),
                     Text(
                       MediaQuery.sizeOf(context).width < 380
-                          ? 'Tickets'
-                          : 'Open Tickets',
+                          ? (_l10n?.tickets ?? 'Tickets')
+                          : (_l10n?.openTickets ?? 'Open Tickets'),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -1246,7 +1248,7 @@ class _PosScreenState extends State<PosScreen> {
                 _openScannerDialog();
               },
               icon: const Icon(Icons.qr_code_scanner),
-              tooltip: 'Scan Voucher',
+              tooltip: _l10n?.scanVoucher ?? 'Scan Voucher',
             ),
             const SizedBox(width: 8),
 
@@ -1256,14 +1258,16 @@ class _PosScreenState extends State<PosScreen> {
                 setState(() => _isGridView = !_isGridView);
               },
               icon: const Icon(Icons.filter_list_rounded),
-              tooltip: _isGridView ? 'Switch to List' : 'Switch to Grid',
+              tooltip: _isGridView
+                  ? (_l10n?.switchToList ?? 'Switch to List')
+                  : (_l10n?.switchToGrid ?? 'Switch to Grid'),
             ),
             const SizedBox(width: 8),
 
             // Ticket / Sync Operations Menu
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_horiz_rounded),
-              tooltip: 'Ticket Options',
+              tooltip: _l10n?.ticketOptions ?? 'Ticket Options',
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -1278,9 +1282,8 @@ class _PosScreenState extends State<PosScreen> {
                   case 'print':
                     if (_cartItems.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'No items in the current ticket to print.',
+                        SnackBar(
+                          content: Text(_l10n?.noItemsToPrint ?? 'No items in the current ticket to print.',
                           ),
                         ),
                       );
@@ -1288,9 +1291,8 @@ class _PosScreenState extends State<PosScreen> {
                     }
                     if (!printerService.isConfigured) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'No printer configured. Set up a printer in Settings first.',
+                        SnackBar(
+                          content: Text(_l10n?.noPrinterConfiguredSettings ?? 'No printer configured. Set up a printer in Settings first.',
                           ),
                           backgroundColor: Colors.orange,
                         ),
@@ -1306,7 +1308,7 @@ class _PosScreenState extends State<PosScreen> {
                       final headerText = (tpl?['header_text'] ?? '').toString();
                       final footerText = (tpl?['footer_text'] ?? '').toString();
                       final subLabel = bd.taxActive && _taxConfig.inclusive
-                          ? 'Amount (excl. VAT):'
+                          ? (_l10n?.amountExclVat ?? 'Amount (excl. VAT):')
                           : 'Subtotal:';
                       final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
                           ? 'VAT (${_taxConfig.percentLabel}%):'
@@ -1330,8 +1332,9 @@ class _PosScreenState extends State<PosScreen> {
                           SnackBar(
                             content: Text(
                               ok
-                                  ? '🧾 Bill printed!'
-                                  : 'Failed to print bill. Check printer connection.',
+                                  ? (_l10n?.billPrinted ?? '🧾 Bill printed!')
+                                  : (_l10n?.failedToPrintBill ??
+                                        'Failed to print bill. Check printer connection.'),
                             ),
                             backgroundColor: ok ? Colors.green : Colors.red,
                           ),
@@ -1347,9 +1350,8 @@ class _PosScreenState extends State<PosScreen> {
                     }
                     if (_cartItems.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'No items in the current ticket to reprint.',
+                        SnackBar(
+                          content: Text(_l10n?.noItemsToReprint ?? 'No items in the current ticket to reprint.',
                           ),
                         ),
                       );
@@ -1357,9 +1359,8 @@ class _PosScreenState extends State<PosScreen> {
                     }
                     if (!printerService.isConfigured) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'No printer configured. Set up a printer in Settings first.',
+                        SnackBar(
+                          content: Text(_l10n?.noPrinterConfiguredSettings ?? 'No printer configured. Set up a printer in Settings first.',
                           ),
                           backgroundColor: Colors.orange,
                         ),
@@ -1378,8 +1379,10 @@ class _PosScreenState extends State<PosScreen> {
                           SnackBar(
                             content: Text(
                               reprintCount > 0
-                                  ? '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
-                                  : 'No available printer could print this reprint request.',
+                                  ? _l10n?.orderReprinted('$reprintCount') ??
+        '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
+                                  : (_l10n?.noPrinterForReprint ??
+                                        'No available printer could print this reprint request.'),
                             ),
                             backgroundColor: reprintCount > 0
                                 ? Colors.green
@@ -1392,9 +1395,8 @@ class _PosScreenState extends State<PosScreen> {
                   case 'split':
                     if (_cartItems.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'No items in the current ticket to split.',
+                        SnackBar(
+                          content: Text(_l10n?.noItemsToSplit ?? 'No items in the current ticket to split.',
                           ),
                         ),
                       );
@@ -1402,9 +1404,8 @@ class _PosScreenState extends State<PosScreen> {
                     }
                     if (_activeTicketId == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Please save the ticket first before splitting.',
+                        SnackBar(
+                          content: Text(_l10n?.saveTicketBeforeSplit ?? 'Please save the ticket first before splitting.',
                           ),
                           backgroundColor: Colors.orange,
                         ),
@@ -1463,7 +1464,8 @@ class _PosScreenState extends State<PosScreen> {
                         messenger.showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Ticket split! "${splitResult.newTicketName}" created.',
+                              _l10n?.ticketSplitCreated(splitResult.newTicketName) ??
+        'Ticket split! "${splitResult.newTicketName}" created.',
                             ),
                             backgroundColor: Colors.green,
                           ),
@@ -1473,7 +1475,7 @@ class _PosScreenState extends State<PosScreen> {
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Split error: $e'),
+                            content: Text(_l10n?.splitError('$e') ?? 'Split error: $e'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -1489,9 +1491,8 @@ class _PosScreenState extends State<PosScreen> {
                   case 'drawer':
                     if (!printerService.isConfigured) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'No printer configured. Set up a printer first.',
+                        SnackBar(
+                          content: Text(_l10n?.noPrinterConfigured ?? 'No printer configured. Set up a printer first.',
                           ),
                           backgroundColor: Colors.orange,
                         ),
@@ -1504,8 +1505,10 @@ class _PosScreenState extends State<PosScreen> {
                         SnackBar(
                           content: Text(
                             opened
-                                ? '🗃️ Cash drawer opened!'
-                                : 'Failed to open drawer. Check printer connection.',
+                                ? (_l10n?.cashDrawerOpened ??
+                                      '🗃️ Cash drawer opened!')
+                                : (_l10n?.failedToOpenDrawer ??
+                                      'Failed to open drawer. Check printer connection.'),
                           ),
                           backgroundColor: opened ? Colors.green : Colors.red,
                         ),
@@ -1520,7 +1523,7 @@ class _PosScreenState extends State<PosScreen> {
 
                   default:
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Feature coming soon!')),
+                      SnackBar(content: Text(_l10n?.featureComingSoon ?? 'Feature coming soon!')),
                     );
                 }
               },
@@ -1549,7 +1552,7 @@ class _PosScreenState extends State<PosScreen> {
                     enabled: ticketSelected,
                     child: disablableTile(
                       Icons.delete_outline_rounded,
-                      'Clear ticket',
+                      _l10n?.clearTicket ?? 'Clear ticket',
                       enabled: ticketSelected,
                     ),
                   ),
@@ -1561,7 +1564,7 @@ class _PosScreenState extends State<PosScreen> {
                     enabled: hasItems,
                     child: disablableTile(
                       Icons.receipt_outlined,
-                      'Print bill',
+                      _l10n?.printBill ?? 'Print bill',
                       enabled: hasItems,
                     ),
                   ),
@@ -1570,7 +1573,7 @@ class _PosScreenState extends State<PosScreen> {
                     enabled: hasTicket,
                     child: disablableTile(
                       Icons.print_outlined,
-                      'Reprint order (kitchen)',
+                      _l10n?.reprintOrderKitchen ?? 'Reprint order (kitchen)',
                       enabled: hasTicket,
                     ),
                   ),
@@ -1582,7 +1585,7 @@ class _PosScreenState extends State<PosScreen> {
                     enabled: hasItems && hasTicket,
                     child: disablableTile(
                       Icons.call_split_rounded,
-                      'Split ticket',
+                      _l10n?.splitTicketAction ?? 'Split ticket',
                       enabled: hasItems && hasTicket,
                     ),
                   ),
@@ -1591,7 +1594,7 @@ class _PosScreenState extends State<PosScreen> {
                     enabled: hasTicket,
                     child: disablableTile(
                       Icons.open_in_new_rounded,
-                      'Move ticket',
+                      _l10n?.moveTicketAction ?? 'Move ticket',
                       enabled: hasTicket,
                     ),
                   ),
@@ -1603,27 +1606,27 @@ class _PosScreenState extends State<PosScreen> {
                     enabled: hasTicket && _activeTicketIsSelfOrder,
                     child: disablableTile(
                       Icons.delivery_dining_rounded,
-                      'Send to rider',
+                      _l10n?.sendToRider ?? 'Send to rider',
                       enabled: hasTicket && _activeTicketIsSelfOrder,
                     ),
                   ),
                   const PopupMenuDivider(),
 
                   // ── Always-enabled ──────────────────────────────────────
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'drawer',
                     child: ListTile(
                       dense: true,
                       leading: Icon(Icons.lock_open_outlined),
-                      title: Text('Open cash drawer'),
+                      title: Text(_l10n?.openCashDrawer ?? 'Open cash drawer'),
                     ),
                   ),
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'sync',
                     child: ListTile(
                       dense: true,
                       leading: Icon(Icons.sync_rounded),
-                      title: Text('Sync'),
+                      title: Text(_l10n?.syncAction ?? 'Sync'),
                     ),
                   ),
                 ];
@@ -1689,8 +1692,8 @@ class _PosScreenState extends State<PosScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   widget.role == 'admin'
-                                      ? 'Administrator'
-                                      : 'Cashier',
+                                      ? (_l10n?.administrator ?? 'Administrator')
+                                      : (_l10n?.roleCashier ?? 'Cashier'),
                                   style: const TextStyle(
                                     color: Colors.white70,
                                     fontSize: 13,
@@ -1725,7 +1728,7 @@ class _PosScreenState extends State<PosScreen> {
                                   if ((_cachedPosName ?? '').trim().isNotEmpty)
                                     (_cachedPosName ?? '').trim()
                                   else
-                                    'POS Terminal',
+                                    _l10n?.posTerminal ?? 'POS Terminal',
                                   if ((_cachedBranchName ?? '')
                                       .trim()
                                       .isNotEmpty)
@@ -1755,13 +1758,13 @@ class _PosScreenState extends State<PosScreen> {
                     children: [
                       _drawerItem(
                         icon: Icons.storefront_outlined,
-                        label: 'Sales',
+                        label: _l10n?.sales ?? 'Sales',
                         isActive: true,
                         onTap: () => Navigator.pop(context),
                       ),
                       _drawerItem(
                         icon: Icons.receipt_long_outlined,
-                        label: 'Receipts',
+                        label: _l10n?.receipts ?? 'Receipts',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -1774,7 +1777,7 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                       _drawerItem(
                         icon: Icons.fact_check_outlined,
-                        label: 'Self Orders Review',
+                        label: _l10n?.selfOrdersReview ?? 'Self Orders Review',
                         trailing: _pendingSelfOrdersCount > 0
                             ? Container(
                                 padding: const EdgeInsets.symmetric(
@@ -1820,7 +1823,7 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                       _drawerItem(
                         icon: Icons.settings_outlined,
-                        label: 'Settings',
+                        label: _l10n?.settings ?? 'Settings',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -1864,7 +1867,7 @@ class _PosScreenState extends State<PosScreen> {
                         ),
                         border: Border.all(color: _brandNavy.withOpacity(0.14)),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
                           Icon(
                             Icons.lock_outline_rounded,
@@ -1872,8 +1875,7 @@ class _PosScreenState extends State<PosScreen> {
                             size: 22,
                           ),
                           SizedBox(width: 14),
-                          Text(
-                            'Lock / Switch User',
+                          Text(_l10n?.lockSwitchUser ?? 'Lock / Switch User',
                             style: TextStyle(
                               color: _brandNavy,
                               fontWeight: FontWeight.w700,
@@ -1929,7 +1931,7 @@ class _PosScreenState extends State<PosScreen> {
                                 });
                                 _fetchOdooProducts();
                               },
-                              child: const Text('Retry'),
+                              child: Text(_l10n?.retry ?? 'Retry'),
                             ),
                           ],
                         ),
@@ -1951,7 +1953,7 @@ class _PosScreenState extends State<PosScreen> {
                                   controller: _searchController,
                                   style: const TextStyle(fontSize: 15),
                                   decoration: InputDecoration(
-                                    hintText: 'Search products...',
+                                    hintText: _l10n?.searchProducts ?? 'Search products...',
                                     hintStyle: TextStyle(
                                       color: Colors.grey[400],
                                       fontSize: 15,
@@ -2051,7 +2053,7 @@ class _PosScreenState extends State<PosScreen> {
                                           const SizedBox(height: 16),
                                           ElevatedButton(
                                             onPressed: _fetchOdooProducts,
-                                            child: const Text('Retry'),
+                                            child: Text(_l10n?.retry ?? 'Retry'),
                                           ),
                                         ],
                                       ),
@@ -2104,8 +2106,10 @@ class _PosScreenState extends State<PosScreen> {
                                                 const SizedBox(height: 16),
                                                 Text(
                                                   _searchQuery.isNotEmpty
-                                                      ? 'No products matching "$_searchQuery"'
-                                                      : 'No products in this category',
+                                                      ? _l10n?.noProductsMatching(_searchQuery) ??
+        'No products matching "$_searchQuery"'
+                                                      : (_l10n?.noProductsInCategory ??
+                                                            'No products in this category'),
                                                   style: TextStyle(
                                                     color: Colors.grey[600],
                                                     fontSize: 16,
@@ -2277,8 +2281,7 @@ class _PosScreenState extends State<PosScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'CURRENT TICKET',
+                    Text(_l10n?.currentTicket ?? 'CURRENT TICKET',
                       style: TextStyle(
                         color: Color(0xFF9CA3AF),
                         fontSize: 9,
@@ -2367,7 +2370,7 @@ class _PosScreenState extends State<PosScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Cannot load open tickets: $e'),
+          content: Text(_l10n?.cannotLoadOpenTickets('$e') ?? 'Cannot load open tickets: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -2378,8 +2381,8 @@ class _PosScreenState extends State<PosScreen> {
 
     if (tickets.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No open ticket to move from.'),
+        SnackBar(
+          content: Text(_l10n?.noOpenTicketToMoveFrom ?? 'No open ticket to move from.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -2396,9 +2399,8 @@ class _PosScreenState extends State<PosScreen> {
 
     if (tickets.length < 2 && emptyTables.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No destination available. Open another ticket or free a table.',
+        SnackBar(
+          content: Text(_l10n?.noDestinationAvailable ?? 'No destination available. Open another ticket or free a table.',
           ),
           backgroundColor: Colors.orange,
         ),
@@ -2469,9 +2471,8 @@ class _PosScreenState extends State<PosScreen> {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
-                          child: Text(
-                            'Move Ticket',
+                        Expanded(
+                          child: Text(_l10n?.moveTicketTitle ?? 'Move Ticket',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -2487,8 +2488,7 @@ class _PosScreenState extends State<PosScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Select source ticket',
+                    Text(_l10n?.selectSourceTicket ?? 'Select source ticket',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
@@ -2500,7 +2500,7 @@ class _PosScreenState extends State<PosScreen> {
                             ? (t.tableName ?? '').trim()
                             : (t.tableId != null
                                   ? 'Table ${t.tableId}'
-                                  : 'No table');
+                                  : (_l10n?.noTable ?? 'No table'));
                         return DropdownMenuItem<int>(
                           value: t.id,
                           child: Text(
@@ -2530,20 +2530,19 @@ class _PosScreenState extends State<PosScreen> {
                             },
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Move destination',
+                    Text(_l10n?.moveDestination ?? 'Move destination',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     SegmentedButton<String>(
-                      segments: const [
+                      segments: [
                         ButtonSegment<String>(
                           value: 'ticket',
-                          label: Text('Open ticket'),
+                          label: Text(_l10n?.openTicketLabel ?? 'Open ticket'),
                         ),
                         ButtonSegment<String>(
                           value: 'table',
-                          label: Text('Empty table'),
+                          label: Text(_l10n?.emptyTable ?? 'Empty table'),
                         ),
                       ],
                       selected: <String>{destinationMode},
@@ -2572,7 +2571,7 @@ class _PosScreenState extends State<PosScreen> {
                               ? (t.tableName ?? '').trim()
                               : (t.tableId != null
                                     ? 'Table ${t.tableId}'
-                                    : 'No table');
+                                    : (_l10n?.noTable ?? 'No table'));
                           return DropdownMenuItem<int>(
                             value: t.id,
                             child: Text(
@@ -2630,7 +2629,7 @@ class _PosScreenState extends State<PosScreen> {
                             onPressed: isSubmitting
                                 ? null
                                 : () => Navigator.pop(dialogCtx),
-                            child: const Text('Cancel'),
+                            child: Text(_l10n?.cancel ?? 'Cancel'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -2670,7 +2669,7 @@ class _PosScreenState extends State<PosScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text('Move Now'),
+                                : Text(_l10n?.moveNow ?? 'Move Now'),
                           ),
                         ),
                       ],
@@ -2773,7 +2772,7 @@ class _PosScreenState extends State<PosScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Move ticket failed: $e'),
+            content: Text(_l10n?.moveTicketFailed('$e') ?? 'Move ticket failed: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -2790,7 +2789,7 @@ class _PosScreenState extends State<PosScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Cannot load riders: $e'),
+          content: Text(_l10n?.cannotLoadRiders('$e') ?? 'Cannot load riders: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -2801,8 +2800,8 @@ class _PosScreenState extends State<PosScreen> {
 
     if (riders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No riders available for this branch.'),
+        SnackBar(
+          content: Text(_l10n?.noRidersAvailable ?? 'No riders available for this branch.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -2821,22 +2820,24 @@ class _PosScreenState extends State<PosScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Select Rider',
+              Text(_l10n?.selectRider ?? 'Select Rider',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),
               Text(
                 _activeTicketPartnerName.isNotEmpty
-                    ? 'Order for: $_activeTicketPartnerName'
+                    ? _l10n?.orderForCustomer(_activeTicketPartnerName) ??
+        'Order for: $_activeTicketPartnerName'
                     : _activeTicketDeliveryPlaceName.isNotEmpty
-                    ? 'Delivery to: $_activeTicketDeliveryPlaceName'
-                    : 'Self-order delivery',
+                    ? _l10n?.deliveryToPlace(_activeTicketDeliveryPlaceName) ??
+        'Delivery to: $_activeTicketDeliveryPlaceName'
+                    : (_l10n?.selfOrderDelivery ?? 'Self-order delivery'),
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 12),
               ...riders.map((r) {
-                final name = r['name'] ?? 'Unnamed';
+                final name =
+                    r['name'] ?? (_l10n?.unnamed ?? 'Unnamed');
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundColor: const Color(0xFF1E3A8A),
@@ -2875,7 +2876,7 @@ class _PosScreenState extends State<PosScreen> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Order sent to $riderName'),
+          content: Text(_l10n?.orderSentToRider(riderName) ?? 'Order sent to $riderName'),
           backgroundColor: Colors.green,
         ),
       );
@@ -2884,7 +2885,7 @@ class _PosScreenState extends State<PosScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to assign rider: $e'),
+          content: Text(_l10n?.failedToAssignRider('$e') ?? 'Failed to assign rider: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -2906,11 +2907,12 @@ class _PosScreenState extends State<PosScreen> {
         _selectedCustomer = result;
       });
 
-      final customerName = result['name']?.toString() ?? 'Unknown';
+      final customerName =
+          result['name']?.toString() ?? (_l10n?.unknown ?? 'Unknown');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Customer $customerName selected!'),
+          content: Text(_l10n?.customerSelected(customerName) ?? 'Customer $customerName selected!'),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -3002,8 +3004,7 @@ class _PosScreenState extends State<PosScreen> {
                           ),
                         ),
                         const Spacer(),
-                        const Text(
-                          'Charge',
+                        Text(_l10n?.charge ?? 'Charge',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -3028,8 +3029,7 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                       child: Column(
                         children: [
-                          const Text(
-                            'Total Amount',
+                          Text(_l10n?.totalAmount ?? 'Total Amount',
                             style: TextStyle(
                               color: Colors.white60,
                               fontSize: 13,
@@ -3068,8 +3068,10 @@ class _PosScreenState extends State<PosScreen> {
                             ),
                             child: Text(
                               _activeTicketPaymentMethodName.isNotEmpty
-                                  ? 'Transfer ticket: fixed to $_activeTicketPaymentMethodName.'
-                                  : 'Transfer ticket: payment method is fixed.',
+                                  ? _l10n?.transferTicketFixedTo(_activeTicketPaymentMethodName) ??
+        'Transfer ticket: fixed to $_activeTicketPaymentMethodName.'
+                                  : (_l10n?.transferTicketFixed ??
+                                        'Transfer ticket: payment method is fixed.'),
                               style: TextStyle(
                                 color: Colors.blue.shade900,
                                 fontWeight: FontWeight.w600,
@@ -3079,8 +3081,7 @@ class _PosScreenState extends State<PosScreen> {
 
                         // ── Select Discount Dropdown ──────────────────────
                         if (_discountConfig.enabled) ...[
-                          const Text(
-                            'Select Discount',
+                          Text(_l10n?.selectDiscount ?? 'Select Discount',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -3098,19 +3099,19 @@ class _PosScreenState extends State<PosScreen> {
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<PosDiscountOption?>(
                                 value: _selectedDiscountOption,
-                                hint: const Text('No Discount'),
+                                hint: Text(_l10n?.noDiscount ?? 'No Discount'),
                                 isExpanded: true,
                                 items: [
-                                  const DropdownMenuItem<PosDiscountOption?>(
+                                  DropdownMenuItem<PosDiscountOption?>(
                                     value: null,
-                                    child: Text('No Discount'),
+                                    child: Text(_l10n?.noDiscount ?? 'No Discount'),
                                   ),
                                   ..._discountConfig.options.map((opt) {
                                     String valStr = '';
                                     if (opt.value == null) {
                                       valStr = opt.type == 'percentage'
-                                          ? '(Custom %)'
-                                          : '(Custom Amount)';
+                                          ? (_l10n?.customPercent ?? '(Custom %)')
+                                          : (_l10n?.customAmount ?? '(Custom Amount)');
                                     } else {
                                       valStr = opt.type == 'percentage'
                                           ? '(${opt.value!.toStringAsFixed(0)}%)'
@@ -3151,8 +3152,8 @@ class _PosScreenState extends State<PosScreen> {
                               _selectedDiscountOption!.isManual) ...[
                             Text(
                               _selectedDiscountOption!.type == 'percentage'
-                                  ? 'Enter Discount Percentage'
-                                  : 'Enter Discount Amount',
+                                  ? (_l10n?.enterDiscountPercentage ?? 'Enter Discount Percentage')
+                                  : (_l10n?.enterDiscountAmount ?? 'Enter Discount Amount'),
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -3199,8 +3200,8 @@ class _PosScreenState extends State<PosScreen> {
                                         hintText:
                                             _selectedDiscountOption!.type ==
                                                 'percentage'
-                                            ? 'e.g. 10'
-                                            : 'e.g. 5000',
+                                            ? (_l10n?.egTen ?? 'e.g. 10')
+                                            : (_l10n?.egFiveThousand ?? 'e.g. 5000'),
                                         contentPadding:
                                             const EdgeInsets.symmetric(
                                               vertical: 12,
@@ -3232,8 +3233,7 @@ class _PosScreenState extends State<PosScreen> {
                         ],
 
                         // ── Payment Method Label ──────────────────────────
-                        const Text(
-                          'Select Payment Method',
+                        Text(_l10n?.selectPaymentMethod ?? 'Select Payment Method',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -3244,8 +3244,7 @@ class _PosScreenState extends State<PosScreen> {
 
                         // ── Payment Method Pills ──────────────────────────
                         if (_paymentMethods.isEmpty)
-                          const Text(
-                            'No payment methods configured.',
+                          Text(_l10n?.noPaymentMethods ?? 'No payment methods configured.',
                             style: TextStyle(color: Colors.grey),
                           )
                         else
@@ -3342,8 +3341,7 @@ class _PosScreenState extends State<PosScreen> {
 
                         // ── Cash Input ────────────────────────────────────
                         if (isCash) ...[
-                          const Text(
-                            'Amount Received',
+                          Text(_l10n?.amountReceived ?? 'Amount Received',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -3415,8 +3413,7 @@ class _PosScreenState extends State<PosScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Change Due:',
+                                Text(_l10n?.changeDue ?? 'Change Due:',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey.shade500,
@@ -3461,7 +3458,7 @@ class _PosScreenState extends State<PosScreen> {
                           elevation: 0,
                         ),
                         child: Text(
-                          'CHARGE K${fmt.format(total)}',
+                          _l10n?.chargeAmount(fmt.format(total)) ?? 'CHARGE K${fmt.format(total)}',
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
@@ -3486,7 +3483,7 @@ class _PosScreenState extends State<PosScreen> {
     CartBreakdown bd,
   ) async {
     final subtotalRowLabel = bd.taxActive && _taxConfig.inclusive
-        ? 'Amount (excl. VAT):'
+        ? (_l10n?.amountExclVat ?? 'Amount (excl. VAT):')
         : 'Subtotal:';
     final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
         ? 'VAT (${_taxConfig.percentLabel}%):'
@@ -3561,8 +3558,8 @@ class _PosScreenState extends State<PosScreen> {
     if (context.mounted) Navigator.pop(context);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order Paid Successfully!'),
+        SnackBar(
+          content: Text(_l10n?.orderPaidSuccessfully ?? 'Order Paid Successfully!'),
           backgroundColor: Colors.green,
         ),
       );
@@ -3671,8 +3668,8 @@ class _PosScreenState extends State<PosScreen> {
         _clearCart();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Ticket saved (no new items added).'),
+            SnackBar(
+              content: Text(_l10n?.ticketSavedNoNewItems ?? 'Ticket saved (no new items added).'),
               backgroundColor: Colors.blue,
             ),
           );
@@ -3833,12 +3830,11 @@ class _PosScreenState extends State<PosScreen> {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Select Table',
+                              Text(_l10n?.selectTable ?? 'Select Table',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w900,
@@ -3846,8 +3842,7 @@ class _PosScreenState extends State<PosScreen> {
                                   letterSpacing: 0.5,
                                 ),
                               ),
-                              Text(
-                                'Choose a location to open a new ticket',
+                              Text(_l10n?.chooseLocationNewTicket ?? 'Choose a location to open a new ticket',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: Colors.white70,
@@ -4070,18 +4065,36 @@ class _PosScreenState extends State<PosScreen> {
                             spacing: 12,
                             runSpacing: 8,
                             children: [
-                              _statusDot(Colors.green[400]!, 'Available'),
-                              _statusDot(Colors.orange[400]!, 'Open'),
-                              _statusDot(Colors.red[400]!, 'Occupied'),
+                              _statusDot(
+                                Colors.green[400]!,
+                                _l10n?.tableAvailable ?? 'Available',
+                              ),
+                              _statusDot(
+                                Colors.orange[400]!,
+                                _l10n?.tableOpen ?? 'Open',
+                              ),
+                              _statusDot(
+                                Colors.red[400]!,
+                                _l10n?.tableOccupied ?? 'Occupied',
+                              ),
                             ],
                           )
                         : Row(
                             children: [
-                              _statusDot(Colors.green[400]!, 'Available'),
+                              _statusDot(
+                                Colors.green[400]!,
+                                _l10n?.tableAvailable ?? 'Available',
+                              ),
                               const SizedBox(width: 24),
-                              _statusDot(Colors.orange[400]!, 'Open Order'),
+                              _statusDot(
+                                Colors.orange[400]!,
+                                _l10n?.openOrder ?? 'Open Order',
+                              ),
                               const SizedBox(width: 24),
-                              _statusDot(Colors.red[400]!, 'Occupied'),
+                              _statusDot(
+                                Colors.red[400]!,
+                                _l10n?.tableOccupied ?? 'Occupied',
+                              ),
                               const Spacer(),
                               if (_isOpeningTicket)
                                 const SizedBox(
@@ -4161,7 +4174,7 @@ class _PosScreenState extends State<PosScreen> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ticket opened at ${table.name}!'),
+          content: Text(_l10n?.ticketOpenedAt(table.name) ?? 'Ticket opened at ${table.name}!'),
           backgroundColor: Colors.green,
         ),
       );
@@ -4234,7 +4247,7 @@ class _PosScreenState extends State<PosScreen> {
             if (claimedData != null) {
               return AlertDialog(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: const Text('Reward Claimed!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                title: Text(_l10n?.rewardClaimed ?? 'Reward Claimed!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -4244,13 +4257,13 @@ class _PosScreenState extends State<PosScreen> {
                     const SizedBox(height: 8),
                     Text('Product: ${claimedData!['product_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    const Text('Please give this item to the customer.'),
+                    Text(_l10n?.giveItemToCustomer ?? 'Please give this item to the customer.'),
                   ],
                 ),
                 actions: [
                   ElevatedButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Done'),
+                    child: Text(_l10n?.done ?? 'Done'),
                   )
                 ],
               );
@@ -4258,7 +4271,7 @@ class _PosScreenState extends State<PosScreen> {
 
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Claim Reward Voucher', style: TextStyle(fontWeight: FontWeight.w900)),
+              title: Text(_l10n?.claimRewardVoucher ?? 'Claim Reward Voucher', style: TextStyle(fontWeight: FontWeight.w900)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -4304,7 +4317,7 @@ class _PosScreenState extends State<PosScreen> {
                     TextField(
                       controller: codeController,
                       decoration: InputDecoration(
-                        labelText: 'Voucher Code',
+                        labelText: _l10n?.voucherCode ?? 'Voucher Code',
                         errorText: errorText,
                         border: const OutlineInputBorder(),
                         suffixIcon: Row(
@@ -4353,7 +4366,7 @@ class _PosScreenState extends State<PosScreen> {
               actions: [
                 TextButton(
                   onPressed: isClaiming ? null : () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  child: Text(_l10n?.cancel ?? 'Cancel', style: TextStyle(color: Colors.grey)),
                 ),
                 if (!isScanning)
                   ElevatedButton(
@@ -4377,7 +4390,7 @@ class _PosScreenState extends State<PosScreen> {
                         });
                       }
                     },
-                    child: isClaiming ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Claim'),
+                    child: isClaiming ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(_l10n?.claim ?? 'Claim'),
                   ),
               ],
             );
