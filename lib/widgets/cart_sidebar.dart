@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../models/cart_item.dart';
 import '../models/pos_discount_config.dart';
 import '../models/pos_tax_config.dart';
@@ -70,10 +71,9 @@ class CartSidebar extends StatelessWidget {
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                       elevation: 0,
                     ),
-                    child: const FittedBox(
+                    child: FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Text(
-                        'SAVE TICKET',
+                      child: Text(AppLocalizations.of(context)?.saveTicket ?? (AppLocalizations.of(context)?.saveTicket ?? 'SAVE TICKET'),
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                       ),
                     ),
@@ -99,7 +99,7 @@ class CartSidebar extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('CHARGE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                          Text(AppLocalizations.of(context)?.charge2 ?? (AppLocalizations.of(context)?.charge2 ?? 'CHARGE'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                           Text(
                             '₭${cd.totalDue.toStringAsFixed(2)}',
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
@@ -147,8 +147,7 @@ class CartSidebar extends StatelessWidget {
                               ),
                             ],
                           )
-                        : Text(
-                            'Add customer',
+                        : Text(AppLocalizations.of(context)?.addCustomer ?? (AppLocalizations.of(context)?.addCustomer ?? 'Add customer'),
                             style: TextStyle(fontSize: 15, color: Colors.grey.shade800),
                           ),
                   ),
@@ -171,8 +170,7 @@ class CartSidebar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Current Ticket',
+                Text(AppLocalizations.of(context)?.currentTicket2 ?? (AppLocalizations.of(context)?.currentTicket2 ?? 'Current Ticket'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -182,7 +180,7 @@ class CartSidebar extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   onPressed: cartItems.isEmpty ? null : onClearCart,
-                  tooltip: 'Clear Ticket',
+                  tooltip: AppLocalizations.of(context)?.clearTicket2 ?? (AppLocalizations.of(context)?.clearTicket2 ?? 'Clear Ticket'),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -200,7 +198,7 @@ class CartSidebar extends StatelessWidget {
                       children: [
                         Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
-                        Text('No items in ticket', style: TextStyle(color: Colors.grey[500], fontSize: 16)),
+                        Text(AppLocalizations.of(context)?.noItemsInTicket ?? (AppLocalizations.of(context)?.noItemsInTicket ?? 'No items in ticket'), style: TextStyle(color: Colors.grey[500], fontSize: 16)),
                       ],
                     ),
                   )
@@ -219,8 +217,7 @@ class CartSidebar extends StatelessWidget {
                               children: [
                                 const Icon(Icons.check_circle, size: 14, color: Color(0xFF1E3A8A)),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'ALREADY ORDERED',
+                                Text(AppLocalizations.of(context)?.alreadyOrdered ?? (AppLocalizations.of(context)?.alreadyOrdered ?? 'ALREADY ORDERED'),
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
@@ -249,8 +246,7 @@ class CartSidebar extends StatelessWidget {
                               children: [
                                 const Icon(Icons.fiber_new, size: 16, color: Colors.orange),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'NEW ITEMS',
+                                Text(AppLocalizations.of(context)?.newItems ?? (AppLocalizations.of(context)?.newItems ?? 'NEW ITEMS'),
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
@@ -272,7 +268,7 @@ class CartSidebar extends StatelessWidget {
                         // If only one type, no divider needed
                         if (savedItems.isEmpty && newItems.isEmpty)
                           Center(
-                            child: Text('No items', style: TextStyle(color: Colors.grey[500])),
+                            child: Text(AppLocalizations.of(context)?.noItems ?? (AppLocalizations.of(context)?.noItems ?? 'No items'), style: TextStyle(color: Colors.grey[500])),
                           ),
                       ],
                     );
@@ -298,8 +294,7 @@ class CartSidebar extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        'Subtotal',
+                      child: Text(AppLocalizations.of(context)?.subtotal ?? (AppLocalizations.of(context)?.subtotal ?? 'Subtotal'),
                         style: TextStyle(color: Colors.grey[600]),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -325,8 +320,7 @@ class CartSidebar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
-                        child: Text(
-                          'Total',
+                        child: Text(AppLocalizations.of(context)?.total ?? (AppLocalizations.of(context)?.total ?? 'Total'),
                           style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -348,7 +342,7 @@ class CartSidebar extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          taxConfig.inclusive ? 'Amount (excl. VAT)' : 'Subtotal (excl. VAT)',
+                          taxConfig.inclusive ? (AppLocalizations.of(context)?.amountExclVat2 ?? 'Amount (excl. VAT)') : (AppLocalizations.of(context)?.subtotalExclVat ?? 'Subtotal (excl. VAT)'),
                           style: TextStyle(color: Colors.grey[600]),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -398,11 +392,11 @@ class CartSidebar extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Total due', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(AppLocalizations.of(context)?.totalDue ?? (AppLocalizations.of(context)?.totalDue ?? 'Total due'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                             Text(
                               taxConfig.showOnReceipt
-                                  ? (taxConfig.inclusive ? 'Price includes tax' : 'Includes VAT')
-                                  : 'Tax hidden on receipt',
+                                  ? (taxConfig.inclusive ? (AppLocalizations.of(context)?.priceIncludesTax ?? 'Price includes tax') : (AppLocalizations.of(context)?.includesVat ?? 'Includes VAT'))
+                                  : (AppLocalizations.of(context)?.taxHiddenOnReceipt ?? 'Tax hidden on receipt'),
                               style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                             ),
                           ],

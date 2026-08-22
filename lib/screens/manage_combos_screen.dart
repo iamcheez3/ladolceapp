@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
@@ -75,17 +76,17 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Combo'),
-        content: const Text('Are you sure you want to delete this combo?'),
+        title: Text(AppLocalizations.of(context)?.deleteCombo ?? (AppLocalizations.of(context)?.deleteCombo ?? 'Delete Combo')),
+        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo2 ?? (AppLocalizations.of(context)?.areYouSureYouWantTo2 ?? 'Are you sure you want to delete this combo?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
           ),
           ElevatedButton(
             style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete')),
           ),
         ],
       ),
@@ -99,7 +100,7 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
       _fetchData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Combo deleted'), backgroundColor: Colors.orange),
+          SnackBar(content: Text(AppLocalizations.of(context)?.comboDeleted ?? (AppLocalizations.of(context)?.comboDeleted ?? 'Combo deleted')), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
@@ -116,13 +117,13 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Combos'),
+        title: Text(AppLocalizations.of(context)?.manageCombos ?? (AppLocalizations.of(context)?.manageCombos ?? 'Manage Combos')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add Combo',
+            tooltip: AppLocalizations.of(context)?.addCombo ?? (AppLocalizations.of(context)?.addCombo ?? 'Add Combo'),
             onPressed: () => _openComboScreen(),
           ),
         ],
@@ -151,7 +152,7 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
                           ElevatedButton.icon(
                             onPressed: _fetchData,
                             icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Retry'),
+                            label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
                             style: LaDolcePosUi.primaryButtonStyle(),
                           ),
                         ],
@@ -174,14 +175,14 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
                                 child: Icon(Icons.dashboard_customize_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
                               ),
                               const SizedBox(height: 20),
-                              const Text('No combos yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                              Text(AppLocalizations.of(context)?.noCombosYet ?? (AppLocalizations.of(context)?.noCombosYet ?? 'No combos yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                               const SizedBox(height: 6),
-                              Text('Add your first combo to get started',
+                              Text(AppLocalizations.of(context)?.addYourFirstComboToGet ?? (AppLocalizations.of(context)?.addYourFirstComboToGet ?? 'Add your first combo to get started'),
                                   style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText)),
                               const SizedBox(height: 24),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Add Combo'),
+                                label: Text(AppLocalizations.of(context)?.addCombo ?? (AppLocalizations.of(context)?.addCombo ?? 'Add Combo')),
                                 onPressed: () => _openComboScreen(),
                                 style: LaDolcePosUi.primaryButtonStyle(),
                               ),
@@ -306,7 +307,7 @@ class _ComboCard extends StatelessWidget {
                     color: Colors.red.withValues(alpha: 0.7),
                     onPressed: onDelete,
                     padding: EdgeInsets.zero,
-                    tooltip: 'Delete',
+                    tooltip: AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete'),
                   ),
                 ),
               ],

@@ -2551,6 +2551,1830 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours}h {minutes}m'**
   String hoursMinutesShort(String hours, String minutes);
+
+  /// No description provided for @noData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get noData;
+
+  /// No description provided for @name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get name;
+
+  /// No description provided for @phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get phone;
+
+  /// No description provided for @amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get amount;
+
+  /// No description provided for @qty.
+  ///
+  /// In en, this message translates to:
+  /// **'Qty'**
+  String get qty;
+
+  /// No description provided for @item.
+  ///
+  /// In en, this message translates to:
+  /// **'Item'**
+  String get item;
+
+  /// No description provided for @product.
+  ///
+  /// In en, this message translates to:
+  /// **'Product'**
+  String get product;
+
+  /// No description provided for @products.
+  ///
+  /// In en, this message translates to:
+  /// **'Products'**
+  String get products;
+
+  /// No description provided for @categories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get categories;
+
+  /// No description provided for @toppings.
+  ///
+  /// In en, this message translates to:
+  /// **'Toppings'**
+  String get toppings;
+
+  /// No description provided for @category.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get category;
+
+  /// No description provided for @orders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get orders;
+
+  /// No description provided for @order.
+  ///
+  /// In en, this message translates to:
+  /// **'Order'**
+  String get order;
+
+  /// No description provided for @revenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue'**
+  String get revenue;
+
+  /// No description provided for @transactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get transactions;
+
+  /// No description provided for @payment.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment'**
+  String get payment;
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
+
+  /// No description provided for @remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// No description provided for @keep.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get keep;
+
+  /// No description provided for @reject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get reject;
+
+  /// No description provided for @call.
+  ///
+  /// In en, this message translates to:
+  /// **'Call'**
+  String get call;
+
+  /// No description provided for @newLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get newLabel;
+
+  /// No description provided for @active.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get active;
+
+  /// No description provided for @pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pending;
+
+  /// No description provided for @completed.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get completed;
+
+  /// No description provided for @confirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get confirmed;
+
+  /// No description provided for @defaultLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultLabel;
+
+  /// No description provided for @disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get disabled;
+
+  /// No description provided for @blocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get blocked;
+
+  /// No description provided for @admin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get admin;
+
+  /// No description provided for @system.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get system;
+
+  /// No description provided for @today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get today;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get yesterday;
+
+  /// No description provided for @today2.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY'**
+  String get today2;
+
+  /// No description provided for @yesterday2.
+  ///
+  /// In en, this message translates to:
+  /// **'YESTERDAY'**
+  String get yesterday2;
+
+  /// No description provided for @loadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load More'**
+  String get loadMore;
+
+  /// No description provided for @fullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen'**
+  String get fullscreen;
+
+  /// No description provided for @official.
+  ///
+  /// In en, this message translates to:
+  /// **'Official'**
+  String get official;
+
+  /// No description provided for @unsynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsynced'**
+  String get unsynced;
+
+  /// No description provided for @percentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage'**
+  String get percentage;
+
+  /// No description provided for @fixedValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed Value'**
+  String get fixedValue;
+
+  /// No description provided for @manageCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Catalog'**
+  String get manageCatalog;
+
+  /// No description provided for @manageYourActiveProductCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage your active product catalog'**
+  String get manageYourActiveProductCatalog;
+
+  /// No description provided for @organizeProductsIntoGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize products into groups'**
+  String get organizeProductsIntoGroups;
+
+  /// No description provided for @addOnsModifiersAndVariations.
+  ///
+  /// In en, this message translates to:
+  /// **'Add-ons, modifiers, and variations'**
+  String get addOnsModifiersAndVariations;
+
+  /// No description provided for @manageCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Categories'**
+  String get manageCategories;
+
+  /// No description provided for @manageCombos.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Combos'**
+  String get manageCombos;
+
+  /// No description provided for @manageProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Products'**
+  String get manageProducts;
+
+  /// No description provided for @manageToppings.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Toppings'**
+  String get manageToppings;
+
+  /// No description provided for @addProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Product'**
+  String get addProduct;
+
+  /// No description provided for @addCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Category'**
+  String get addCategory;
+
+  /// No description provided for @addCombo.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Combo'**
+  String get addCombo;
+
+  /// No description provided for @addTopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Topping'**
+  String get addTopping;
+
+  /// No description provided for @addYourFirstCategoryToGet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first category to get started'**
+  String get addYourFirstCategoryToGet;
+
+  /// No description provided for @addYourFirstComboToGet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first combo to get started'**
+  String get addYourFirstComboToGet;
+
+  /// No description provided for @addYourFirstProductToGet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first product to get started'**
+  String get addYourFirstProductToGet;
+
+  /// No description provided for @addYourFirstToppingToGet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first topping to get started'**
+  String get addYourFirstToppingToGet;
+
+  /// No description provided for @noCategoriesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No categories yet'**
+  String get noCategoriesYet;
+
+  /// No description provided for @noCombosYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No combos yet'**
+  String get noCombosYet;
+
+  /// No description provided for @noProductsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No products yet'**
+  String get noProductsYet;
+
+  /// No description provided for @noToppingsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No toppings yet'**
+  String get noToppingsYet;
+
+  /// No description provided for @deleteCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Category'**
+  String get deleteCategory;
+
+  /// No description provided for @deleteCombo.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Combo'**
+  String get deleteCombo;
+
+  /// No description provided for @deleteProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Product'**
+  String get deleteProduct;
+
+  /// No description provided for @deleteTopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Topping'**
+  String get deleteTopping;
+
+  /// No description provided for @areYouSureYouWantTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this category?'**
+  String get areYouSureYouWantTo;
+
+  /// No description provided for @areYouSureYouWantTo2.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this combo?'**
+  String get areYouSureYouWantTo2;
+
+  /// No description provided for @areYouSureYouWantTo3.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this product?'**
+  String get areYouSureYouWantTo3;
+
+  /// No description provided for @areYouSureYouWantTo4.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this topping?'**
+  String get areYouSureYouWantTo4;
+
+  /// No description provided for @categoryDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Category deleted'**
+  String get categoryDeleted;
+
+  /// No description provided for @comboDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Combo deleted'**
+  String get comboDeleted;
+
+  /// No description provided for @productDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Product deleted'**
+  String get productDeleted;
+
+  /// No description provided for @toppingDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Topping deleted'**
+  String get toppingDeleted;
+
+  /// No description provided for @visibleInApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible in app'**
+  String get visibleInApp;
+
+  /// No description provided for @hiddenInApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden in app'**
+  String get hiddenInApp;
+
+  /// No description provided for @categoryName.
+  ///
+  /// In en, this message translates to:
+  /// **'Category Name*'**
+  String get categoryName;
+
+  /// No description provided for @comboName.
+  ///
+  /// In en, this message translates to:
+  /// **'Combo Name*'**
+  String get comboName;
+
+  /// No description provided for @comboFixedPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Combo Fixed Price*'**
+  String get comboFixedPrice;
+
+  /// No description provided for @productName.
+  ///
+  /// In en, this message translates to:
+  /// **'Product Name*'**
+  String get productName;
+
+  /// No description provided for @toppingName.
+  ///
+  /// In en, this message translates to:
+  /// **'Topping Name*'**
+  String get toppingName;
+
+  /// No description provided for @listPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'List Price*'**
+  String get listPrice;
+
+  /// No description provided for @extraPriceOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra Price (Optional)'**
+  String get extraPriceOptional;
+
+  /// No description provided for @saveCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Category'**
+  String get saveCategory;
+
+  /// No description provided for @saveCombo.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Combo'**
+  String get saveCombo;
+
+  /// No description provided for @saveProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Product'**
+  String get saveProduct;
+
+  /// No description provided for @saveTopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Topping'**
+  String get saveTopping;
+
+  /// No description provided for @categoryAddedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Category added successfully'**
+  String get categoryAddedSuccessfully;
+
+  /// No description provided for @categoryUpdatedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Category updated successfully'**
+  String get categoryUpdatedSuccessfully;
+
+  /// No description provided for @comboSavedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Combo saved successfully'**
+  String get comboSavedSuccessfully;
+
+  /// No description provided for @productSavedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Product saved successfully'**
+  String get productSavedSuccessfully;
+
+  /// No description provided for @toppingSavedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Topping saved successfully'**
+  String get toppingSavedSuccessfully;
+
+  /// No description provided for @nameIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name is required'**
+  String get nameIsRequired;
+
+  /// No description provided for @validNameAndPriceAreRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid name and price are required'**
+  String get validNameAndPriceAreRequired;
+
+  /// No description provided for @comboMustHaveAtLeastOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Combo must have at least one product'**
+  String get comboMustHaveAtLeastOne;
+
+  /// No description provided for @comboItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Combo Items'**
+  String get comboItems;
+
+  /// No description provided for @noProductsAddedToThisCombo.
+  ///
+  /// In en, this message translates to:
+  /// **'No products added to this combo yet.'**
+  String get noProductsAddedToThisCombo;
+
+  /// No description provided for @availableToppings.
+  ///
+  /// In en, this message translates to:
+  /// **'Available Toppings'**
+  String get availableToppings;
+
+  /// No description provided for @noToppingsConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'No toppings configured.'**
+  String get noToppingsConfigured;
+
+  /// No description provided for @showInApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Show in app'**
+  String get showInApp;
+
+  /// No description provided for @onlyCheckedCategoriesAreVisibleIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Only checked categories are visible in POS app.'**
+  String get onlyCheckedCategoriesAreVisibleIn;
+
+  /// No description provided for @customerSelfOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer self-order'**
+  String get customerSelfOrder;
+
+  /// No description provided for @customersCanSelectAndOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Customers can select and order'**
+  String get customersCanSelectAndOrder;
+
+  /// No description provided for @runOutBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Run out (blocked)'**
+  String get runOutBlocked;
+
+  /// No description provided for @shownAsRunOutCannotAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown as run out; cannot add to cart'**
+  String get shownAsRunOutCannotAdd;
+
+  /// No description provided for @couldNotSaveToppingPleaseTry.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save topping. Please try again.'**
+  String get couldNotSaveToppingPleaseTry;
+
+  /// No description provided for @currentTicket2.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Ticket'**
+  String get currentTicket2;
+
+  /// No description provided for @newItems.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW ITEMS'**
+  String get newItems;
+
+  /// No description provided for @alreadyOrdered.
+  ///
+  /// In en, this message translates to:
+  /// **'ALREADY ORDERED'**
+  String get alreadyOrdered;
+
+  /// No description provided for @noItems.
+  ///
+  /// In en, this message translates to:
+  /// **'No items'**
+  String get noItems;
+
+  /// No description provided for @noItemsInTicket.
+  ///
+  /// In en, this message translates to:
+  /// **'No items in ticket'**
+  String get noItemsInTicket;
+
+  /// No description provided for @addCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Add customer'**
+  String get addCustomer;
+
+  /// No description provided for @clearTicket2.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Ticket'**
+  String get clearTicket2;
+
+  /// No description provided for @saveTicket.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE TICKET'**
+  String get saveTicket;
+
+  /// No description provided for @charge2.
+  ///
+  /// In en, this message translates to:
+  /// **'CHARGE'**
+  String get charge2;
+
+  /// No description provided for @subtotalExclVat.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtotal (excl. VAT)'**
+  String get subtotalExclVat;
+
+  /// No description provided for @amountExclVat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount (excl. VAT)'**
+  String get amountExclVat2;
+
+  /// No description provided for @includesVat.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes VAT'**
+  String get includesVat;
+
+  /// No description provided for @priceIncludesTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Price includes tax'**
+  String get priceIncludesTax;
+
+  /// No description provided for @taxHiddenOnReceipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax hidden on receipt'**
+  String get taxHiddenOnReceipt;
+
+  /// No description provided for @totalDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Total due'**
+  String get totalDue;
+
+  /// No description provided for @selectCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Customer'**
+  String get selectCustomer;
+
+  /// No description provided for @addCustomer2.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Customer'**
+  String get addCustomer2;
+
+  /// No description provided for @newCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'New Customer'**
+  String get newCustomer;
+
+  /// No description provided for @addCustomerIfNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Add customer if not found'**
+  String get addCustomerIfNotFound;
+
+  /// No description provided for @searchByNameOrPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name or phone...'**
+  String get searchByNameOrPhone;
+
+  /// No description provided for @loadingCustomers.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading customers...'**
+  String get loadingCustomers;
+
+  /// No description provided for @noCustomersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No customers found'**
+  String get noCustomersFound;
+
+  /// No description provided for @searchFailedPleaseTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed. Please try again.'**
+  String get searchFailedPleaseTryAgain;
+
+  /// No description provided for @couldNotCreateCustomerPleaseTry.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create customer. Please try again.'**
+  String get couldNotCreateCustomerPleaseTry;
+
+  /// No description provided for @couldNotLoadMorePleaseTry.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load more. Please try again.'**
+  String get couldNotLoadMorePleaseTry;
+
+  /// No description provided for @noOpenTickets.
+  ///
+  /// In en, this message translates to:
+  /// **'No open tickets'**
+  String get noOpenTickets;
+
+  /// No description provided for @noTable2.
+  ///
+  /// In en, this message translates to:
+  /// **'No Table'**
+  String get noTable2;
+
+  /// No description provided for @orderReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Ready'**
+  String get orderReady;
+
+  /// No description provided for @discountCustomItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount / Custom Item'**
+  String get discountCustomItem;
+
+  /// No description provided for @couldNotLoadTicketsPleaseCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load tickets. Please check your connection and try again.'**
+  String get couldNotLoadTicketsPleaseCheck;
+
+  /// No description provided for @couldNotSendNotificationPleaseTry.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send notification. Please try again.'**
+  String get couldNotSendNotificationPleaseTry;
+
+  /// No description provided for @splitTicket.
+  ///
+  /// In en, this message translates to:
+  /// **'Split Ticket'**
+  String get splitTicket;
+
+  /// No description provided for @ticketName.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticket Name'**
+  String get ticketName;
+
+  /// No description provided for @renameNewTicket.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename New Ticket'**
+  String get renameNewTicket;
+
+  /// No description provided for @allItemsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'All items moved'**
+  String get allItemsMoved;
+
+  /// No description provided for @pleaseMoveAtLeastOneItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Please move at least one item to the new ticket.'**
+  String get pleaseMoveAtLeastOneItem;
+
+  /// No description provided for @theOriginalTicketCannotBeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The original ticket cannot be empty. Keep at least one item.'**
+  String get theOriginalTicketCannotBeEmpty;
+
+  /// No description provided for @tapItemsOnTheLeftTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap items on the\nleft to move them here'**
+  String get tapItemsOnTheLeftTo;
+
+  /// No description provided for @discountOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount Options'**
+  String get discountOptions;
+
+  /// No description provided for @addDiscountOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Discount Option'**
+  String get addDiscountOption;
+
+  /// No description provided for @discountType.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount Type'**
+  String get discountType;
+
+  /// No description provided for @enableDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Discount'**
+  String get enableDiscount;
+
+  /// No description provided for @discountHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount hidden'**
+  String get discountHidden;
+
+  /// No description provided for @discountWillAppearInPos.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount will appear in POS'**
+  String get discountWillAppearInPos;
+
+  /// No description provided for @discountSettingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount settings saved'**
+  String get discountSettingsSaved;
+
+  /// No description provided for @noDiscountOptionsAddedYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No discount options added yet.'**
+  String get noDiscountOptionsAddedYet;
+
+  /// No description provided for @optionName.
+  ///
+  /// In en, this message translates to:
+  /// **'Option Name'**
+  String get optionName;
+
+  /// No description provided for @percentage2.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage (%)'**
+  String get percentage2;
+
+  /// No description provided for @leaveEmptyForManualInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty for manual input'**
+  String get leaveEmptyForManualInput;
+
+  /// No description provided for @tipLeaveTheValueBlankTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip: Leave the value blank to let cashiers enter a custom amount.'**
+  String get tipLeaveTheValueBlankTo;
+
+  /// No description provided for @receiptsHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipts History'**
+  String get receiptsHistory;
+
+  /// No description provided for @noPaidReceiptsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No paid receipts yet'**
+  String get noPaidReceiptsYet;
+
+  /// No description provided for @noMoreReceipts.
+  ///
+  /// In en, this message translates to:
+  /// **'No more receipts'**
+  String get noMoreReceipts;
+
+  /// No description provided for @unknownDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Date'**
+  String get unknownDate;
+
+  /// No description provided for @thisReceiptIsMissingAnOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'This receipt is missing an order id. Please refresh and try again.'**
+  String get thisReceiptIsMissingAnOrder;
+
+  /// No description provided for @refund.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund'**
+  String get refund;
+
+  /// No description provided for @refundOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund Order'**
+  String get refundOrder;
+
+  /// No description provided for @confirmRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Refund'**
+  String get confirmRefund;
+
+  /// No description provided for @reprintReceipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Reprint Receipt'**
+  String get reprintReceipt;
+
+  /// No description provided for @adminPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin PIN'**
+  String get adminPin;
+
+  /// No description provided for @adminPinIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin PIN is required.'**
+  String get adminPinIsRequired;
+
+  /// No description provided for @thisOrderHasBeenRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'This order has been refunded'**
+  String get thisOrderHasBeenRefunded;
+
+  /// No description provided for @printerErrorCheckConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Printer error. Check connection.'**
+  String get printerErrorCheckConnection;
+
+  /// No description provided for @orderRefundedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Order refunded successfully.'**
+  String get orderRefundedSuccessfully;
+
+  /// No description provided for @receiptReprinted.
+  ///
+  /// In en, this message translates to:
+  /// **'🖨️ Receipt reprinted!'**
+  String get receiptReprinted;
+
+  /// No description provided for @noPendingSelfOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending self orders'**
+  String get noPendingSelfOrders;
+
+  /// No description provided for @quickConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Confirm'**
+  String get quickConfirm;
+
+  /// No description provided for @rejectOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject Order'**
+  String get rejectOrder;
+
+  /// No description provided for @rejectOrder2.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject Order?'**
+  String get rejectOrder2;
+
+  /// No description provided for @orderRejectedAndCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Order rejected and cancelled.'**
+  String get orderRejectedAndCancelled;
+
+  /// No description provided for @transferConfirmedOrderMovedToOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer confirmed. Order moved to Open Tickets.'**
+  String get transferConfirmedOrderMovedToOpen;
+
+  /// No description provided for @couldNotConfirmOrderPleaseTry.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not confirm order. Please try again.'**
+  String get couldNotConfirmOrderPleaseTry;
+
+  /// No description provided for @couldNotRejectOrderPleaseTry.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reject order. Please try again.'**
+  String get couldNotRejectOrderPleaseTry;
+
+  /// No description provided for @couldNotLoadOrdersPleaseCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load orders. Please check your connection and try again.'**
+  String get couldNotLoadOrdersPleaseCheck;
+
+  /// No description provided for @viewProof.
+  ///
+  /// In en, this message translates to:
+  /// **'View Proof'**
+  String get viewProof;
+
+  /// No description provided for @noProofImageUploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'No proof image uploaded'**
+  String get noProofImageUploaded;
+
+  /// No description provided for @cannotLoadProofImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot load proof image'**
+  String get cannotLoadProofImage;
+
+  /// No description provided for @bankTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank Transfer'**
+  String get bankTransfer;
+
+  /// No description provided for @payAtStore2.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay at Store'**
+  String get payAtStore2;
+
+  /// No description provided for @customerPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer place:'**
+  String get customerPlace;
+
+  /// No description provided for @orderNotePickupTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Note / Pickup Time:'**
+  String get orderNotePickupTime;
+
+  /// No description provided for @openMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Open map'**
+  String get openMap;
+
+  /// No description provided for @callCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Call Customer?'**
+  String get callCustomer;
+
+  /// No description provided for @dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashboard'**
+  String get dashboard;
+
+  /// No description provided for @currentOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Orders'**
+  String get currentOrders;
+
+  /// No description provided for @orderHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Order History'**
+  String get orderHistory;
+
+  /// No description provided for @ordersByStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders by Status'**
+  String get ordersByStatus;
+
+  /// No description provided for @totalOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Orders'**
+  String get totalOrders;
+
+  /// No description provided for @totalRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Revenue'**
+  String get totalRevenue;
+
+  /// No description provided for @onTheWay.
+  ///
+  /// In en, this message translates to:
+  /// **'On The Way'**
+  String get onTheWay;
+
+  /// No description provided for @noCurrentOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'No current orders'**
+  String get noCurrentOrders;
+
+  /// No description provided for @noHistoryYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No history yet'**
+  String get noHistoryYet;
+
+  /// No description provided for @activeOrdersWillAppearHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Active orders will appear here'**
+  String get activeOrdersWillAppearHere;
+
+  /// No description provided for @completedOrdersWillAppearHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed orders will appear here'**
+  String get completedOrdersWillAppearHere;
+
+  /// No description provided for @actionFailedPleaseTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Action failed. Please try again.'**
+  String get actionFailedPleaseTryAgain;
+
+  /// No description provided for @chatWithCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with Customer'**
+  String get chatWithCustomer;
+
+  /// No description provided for @navigateInApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigate (In App)'**
+  String get navigateInApp;
+
+  /// No description provided for @openInGoogleMapsApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in Google Maps App'**
+  String get openInGoogleMapsApp;
+
+  /// No description provided for @deliveryTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery Target'**
+  String get deliveryTarget;
+
+  /// No description provided for @youRider.
+  ///
+  /// In en, this message translates to:
+  /// **'You (Rider)'**
+  String get youRider;
+
+  /// No description provided for @callCustomer2.
+  ///
+  /// In en, this message translates to:
+  /// **'Call Customer'**
+  String get callCustomer2;
+
+  /// No description provided for @refreshRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh route'**
+  String get refreshRoute;
+
+  /// No description provided for @fitRouteOnScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit route on screen'**
+  String get fitRouteOnScreen;
+
+  /// No description provided for @openInExternalGoogleMapsApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in External Google Maps app'**
+  String get openInExternalGoogleMapsApp;
+
+  /// No description provided for @couldNotLaunchDialer.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not launch dialer'**
+  String get couldNotLaunchDialer;
+
+  /// No description provided for @couldNotLaunchExternalMapsApplication.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not launch external maps application'**
+  String get couldNotLaunchExternalMapsApplication;
+
+  /// No description provided for @statusUpdatedToArrived.
+  ///
+  /// In en, this message translates to:
+  /// **'Status updated to Arrived'**
+  String get statusUpdatedToArrived;
+
+  /// No description provided for @statusUpdatedToCompleteDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Status updated to Complete / Delivered'**
+  String get statusUpdatedToCompleteDelivered;
+
+  /// No description provided for @noMessagesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet'**
+  String get noMessagesYet;
+
+  /// No description provided for @startTheConversationBelow.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the conversation below'**
+  String get startTheConversationBelow;
+
+  /// No description provided for @typeAMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message…'**
+  String get typeAMessage;
+
+  /// No description provided for @sendImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Image'**
+  String get sendImage;
+
+  /// No description provided for @sendImage2.
+  ///
+  /// In en, this message translates to:
+  /// **'Send image'**
+  String get sendImage2;
+
+  /// No description provided for @takeAPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get takeAPhoto;
+
+  /// No description provided for @chooseFromGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from gallery'**
+  String get chooseFromGallery;
+
+  /// No description provided for @addACaptionOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a caption (optional)'**
+  String get addACaptionOptional;
+
+  /// No description provided for @imageReadyToSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Image ready to send'**
+  String get imageReadyToSend;
+
+  /// No description provided for @couldNotLoadImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load image'**
+  String get couldNotLoadImage;
+
+  /// No description provided for @couldNotLoadMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load messages.'**
+  String get couldNotLoadMessages;
+
+  /// No description provided for @failedToSendImagePleaseTry.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send image. Please try again.'**
+  String get failedToSendImagePleaseTry;
+
+  /// No description provided for @failedToSendMessagePleaseTry.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send message. Please try again.'**
+  String get failedToSendMessagePleaseTry;
+
+  /// No description provided for @sendingImage.
+  ///
+  /// In en, this message translates to:
+  /// **'📷 Sending image…'**
+  String get sendingImage;
+
+  /// No description provided for @printers.
+  ///
+  /// In en, this message translates to:
+  /// **'Printers'**
+  String get printers;
+
+  /// No description provided for @addPrinter.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Printer'**
+  String get addPrinter;
+
+  /// No description provided for @deletePrinter.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Printer'**
+  String get deletePrinter;
+
+  /// No description provided for @printerSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Printer saved'**
+  String get printerSaved;
+
+  /// No description provided for @printerDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Printer deleted'**
+  String get printerDeleted;
+
+  /// No description provided for @printerTestSuccessful.
+  ///
+  /// In en, this message translates to:
+  /// **'Printer test successful.'**
+  String get printerTestSuccessful;
+
+  /// No description provided for @printerTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Printer test failed.'**
+  String get printerTestFailed;
+
+  /// No description provided for @printTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Print Test'**
+  String get printTest;
+
+  /// No description provided for @printerIpAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Printer IP address'**
+  String get printerIpAddress;
+
+  /// No description provided for @port.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get port;
+
+  /// No description provided for @paperWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper width'**
+  String get paperWidth;
+
+  /// No description provided for @advancedSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced settings'**
+  String get advancedSettings;
+
+  /// No description provided for @categoryRouting.
+  ///
+  /// In en, this message translates to:
+  /// **'Category routing'**
+  String get categoryRouting;
+
+  /// No description provided for @noCategoriesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No categories found'**
+  String get noCategoriesFound;
+
+  /// No description provided for @ifNoneSelectedAllCategoriesWill.
+  ///
+  /// In en, this message translates to:
+  /// **'If none selected, all categories will print on this printer.'**
+  String get ifNoneSelectedAllCategoriesWill;
+
+  /// No description provided for @printReceiptsAndBills.
+  ///
+  /// In en, this message translates to:
+  /// **'Print receipts and bills'**
+  String get printReceiptsAndBills;
+
+  /// No description provided for @printOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Print orders'**
+  String get printOrders;
+
+  /// No description provided for @defaultPrinterForReceipts.
+  ///
+  /// In en, this message translates to:
+  /// **'Default printer for receipts'**
+  String get defaultPrinterForReceipts;
+
+  /// No description provided for @printSingleItemPerOrderTicket.
+  ///
+  /// In en, this message translates to:
+  /// **'Print single item per order ticket'**
+  String get printSingleItemPerOrderTicket;
+
+  /// No description provided for @groupIdenticalItemsInOrderTickets.
+  ///
+  /// In en, this message translates to:
+  /// **'Group identical items in order tickets'**
+  String get groupIdenticalItemsInOrderTickets;
+
+  /// No description provided for @noPrintersYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No printers yet'**
+  String get noPrintersYet;
+
+  /// No description provided for @tapToAddYourFirstPrinter.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + to add your first printer.\nConfigure receipts, orders, and categories.'**
+  String get tapToAddYourFirstPrinter;
+
+  /// No description provided for @receipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt'**
+  String get receipt;
+
+  /// No description provided for @billPreReceipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill (pre-receipt)'**
+  String get billPreReceipt;
+
+  /// No description provided for @receiptPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt (paid)'**
+  String get receiptPaid;
+
+  /// No description provided for @kitchenOrderTicket.
+  ///
+  /// In en, this message translates to:
+  /// **'Kitchen / Order Ticket'**
+  String get kitchenOrderTicket;
+
+  /// No description provided for @kitchenOrderTicket2.
+  ///
+  /// In en, this message translates to:
+  /// **'Kitchen / Order ticket'**
+  String get kitchenOrderTicket2;
+
+  /// No description provided for @refundVoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund / Void'**
+  String get refundVoid;
+
+  /// No description provided for @savedTemplateSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved template settings.'**
+  String get savedTemplateSettings;
+
+  /// No description provided for @noTemplateSelectedPreviewUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No template selected — preview unavailable'**
+  String get noTemplateSelectedPreviewUnavailable;
+
+  /// No description provided for @adminReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Reports'**
+  String get adminReports;
+
+  /// No description provided for @allBranches.
+  ///
+  /// In en, this message translates to:
+  /// **'All branches'**
+  String get allBranches;
+
+  /// No description provided for @selectDateRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Select date range'**
+  String get selectDateRange;
+
+  /// No description provided for @salesByDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales by date'**
+  String get salesByDate;
+
+  /// No description provided for @salesByPaymentType.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales by payment type'**
+  String get salesByPaymentType;
+
+  /// No description provided for @salesByProductTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales by product (top)'**
+  String get salesByProductTop;
+
+  /// No description provided for @paymentType.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment type'**
+  String get paymentType;
+
+  /// No description provided for @peakOrderHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Peak order hours'**
+  String get peakOrderHours;
+
+  /// No description provided for @noHourlyPeakDataAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No hourly peak data available'**
+  String get noHourlyPeakDataAvailable;
+
+  /// No description provided for @noOrderTrafficRecordedInThis.
+  ///
+  /// In en, this message translates to:
+  /// **'No order traffic recorded in this range.'**
+  String get noOrderTrafficRecordedInThis;
+
+  /// No description provided for @branchRanking.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch ranking'**
+  String get branchRanking;
+
+  /// No description provided for @forbiddenAdminOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Forbidden (admin only)'**
+  String get forbiddenAdminOnly;
+
+  /// No description provided for @cannotLoadRanking.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot load ranking'**
+  String get cannotLoadRanking;
+
+  /// No description provided for @climbTheAdventureLadder.
+  ///
+  /// In en, this message translates to:
+  /// **'Climb the adventure ladder!'**
+  String get climbTheAdventureLadder;
+
+  /// No description provided for @yourRank.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rank: -'**
+  String get yourRank;
+
+  /// No description provided for @enterPinToUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter PIN to unlock'**
+  String get enterPinToUnlock;
+
+  /// No description provided for @createYour4DigitPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your 4-digit PIN'**
+  String get createYour4DigitPin;
+
+  /// No description provided for @confirmYourNewPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm your new PIN'**
+  String get confirmYourNewPin;
+
+  /// No description provided for @incorrectPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect PIN'**
+  String get incorrectPin;
+
+  /// No description provided for @pinMismatchOrSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN mismatch or save failed'**
+  String get pinMismatchOrSaveFailed;
+
+  /// No description provided for @switchUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch User'**
+  String get switchUser;
+
+  /// No description provided for @setPosName.
+  ///
+  /// In en, this message translates to:
+  /// **'Set POS Name'**
+  String get setPosName;
+
+  /// No description provided for @posNameExCounter1Ipad.
+  ///
+  /// In en, this message translates to:
+  /// **'POS name (ex: Counter-1, iPad-Bar, Android-Front)'**
+  String get posNameExCounter1Ipad;
+
+  /// No description provided for @pleaseEnterAPosName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a POS name'**
+  String get pleaseEnterAPosName;
+
+  /// No description provided for @posNameIsTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'POS name is too short'**
+  String get posNameIsTooShort;
+
+  /// No description provided for @posNameIsTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'POS name is too long'**
+  String get posNameIsTooLong;
+
+  /// No description provided for @thisHelpsTrackWhichDeviceWas.
+  ///
+  /// In en, this message translates to:
+  /// **'This helps track which device was used when something happens.'**
+  String get thisHelpsTrackWhichDeviceWas;
+
+  /// No description provided for @refreshingMenusTablesAndSalesData.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing menus, tables, and sales data for this device'**
+  String get refreshingMenusTablesAndSalesData;
+
+  /// No description provided for @returnToLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to Login'**
+  String get returnToLogin;
+
+  /// No description provided for @networkErrorAndNoOfflineCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error and no offline cache available.\nPlease connect to the internet.'**
+  String get networkErrorAndNoOfflineCache;
+
+  /// No description provided for @maintenanceMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Maintenance Mode'**
+  String get maintenanceMode;
+
+  /// No description provided for @reachTheAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Reach the admin'**
+  String get reachTheAdmin;
+
+  /// No description provided for @useTheOptionsYourStoreHas.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the options your store has enabled in Odoo.'**
+  String get useTheOptionsYourStoreHas;
+
+  /// No description provided for @openFacebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Facebook'**
+  String get openFacebook;
+
+  /// No description provided for @openInWhatsapp.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in WhatsApp'**
+  String get openInWhatsapp;
+
+  /// No description provided for @notConfiguredAskStaffToSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured. Ask staff to set the Facebook URL in Odoo (Customer support).'**
+  String get notConfiguredAskStaffToSet;
+
+  /// No description provided for @notConfiguredAskStaffToSet2.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured. Ask staff to set the WhatsApp number in Odoo (Customer support).'**
+  String get notConfiguredAskStaffToSet2;
+
+  /// No description provided for @ladolcePrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'LaDolce Privacy'**
+  String get ladolcePrivacy;
+
+  /// No description provided for @failedToLoadPrivacyPolicyPlease.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load Privacy Policy. Please check your network connection and try again.'**
+  String get failedToLoadPrivacyPolicyPlease;
+
+  /// No description provided for @orderItems.
+  ///
+  /// In en, this message translates to:
+  /// **'ORDER ITEMS'**
+  String get orderItems;
+
+  /// No description provided for @transferProof.
+  ///
+  /// In en, this message translates to:
+  /// **'TRANSFER PROOF'**
+  String get transferProof;
+
+  /// No description provided for @noLineItems.
+  ///
+  /// In en, this message translates to:
+  /// **'No line items'**
+  String get noLineItems;
+
+  /// No description provided for @waitingReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting review'**
+  String get waitingReview;
+
+  /// No description provided for @complete.
+  ///
+  /// In en, this message translates to:
+  /// **'COMPLETE'**
+  String get complete;
+
+  /// No description provided for @delivered.
+  ///
+  /// In en, this message translates to:
+  /// **'DELIVERED'**
+  String get delivered;
+
+  /// No description provided for @cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'CANCELLED'**
+  String get cancelled;
+
+  /// No description provided for @offline.
+  ///
+  /// In en, this message translates to:
+  /// **'⚡ OFFLINE'**
+  String get offline;
 }
 
 class _AppLocalizationsDelegate

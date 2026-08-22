@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'manage_toppings_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_products_screen.dart';
@@ -12,7 +13,7 @@ class ManageItemsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Catalog'),
+        title: Text(AppLocalizations.of(context)?.manageCatalog ?? (AppLocalizations.of(context)?.manageCatalog ?? 'Manage Catalog')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
       ),
@@ -22,8 +23,8 @@ class ManageItemsScreen extends StatelessWidget {
           _buildMenuCard(
             context,
             icon: Icons.restaurant_menu_outlined,
-            title: 'Products',
-            subtitle: 'Manage your active product catalog',
+            title: AppLocalizations.of(context)?.products ?? (AppLocalizations.of(context)?.products ?? 'Products'),
+            subtitle: AppLocalizations.of(context)?.manageYourActiveProductCatalog ?? (AppLocalizations.of(context)?.manageYourActiveProductCatalog ?? 'Manage your active product catalog'),
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageProductsScreen()));
             },
@@ -32,8 +33,8 @@ class ManageItemsScreen extends StatelessWidget {
           _buildMenuCard(
             context,
             icon: Icons.grid_view_outlined,
-            title: 'Categories',
-            subtitle: 'Organize products into groups',
+            title: AppLocalizations.of(context)?.categories ?? (AppLocalizations.of(context)?.categories ?? 'Categories'),
+            subtitle: AppLocalizations.of(context)?.organizeProductsIntoGroups ?? (AppLocalizations.of(context)?.organizeProductsIntoGroups ?? 'Organize products into groups'),
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageCategoriesScreen()));
             },
@@ -43,7 +44,7 @@ class ManageItemsScreen extends StatelessWidget {
           // _buildMenuCard(
           //   context,
           //   icon: Icons.auto_awesome_mosaic_outlined,
-          //   title: 'Combos',
+          //   title: AppLocalizations.of(context)?.combos ?? (AppLocalizations.of(context)?.combos ?? 'Combos'),
           //   subtitle: 'Create special combination deals',
           //   onTap: () {
           //     Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageCombosScreen()));
@@ -53,8 +54,8 @@ class ManageItemsScreen extends StatelessWidget {
           _buildMenuCard(
             context,
             icon: Icons.add_circle_outline,
-            title: 'Toppings',
-            subtitle: 'Add-ons, modifiers, and variations',
+            title: AppLocalizations.of(context)?.toppings ?? (AppLocalizations.of(context)?.toppings ?? 'Toppings'),
+            subtitle: AppLocalizations.of(context)?.addOnsModifiersAndVariations ?? (AppLocalizations.of(context)?.addOnsModifiersAndVariations ?? 'Add-ons, modifiers, and variations'),
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageToppingsScreen()));
             },

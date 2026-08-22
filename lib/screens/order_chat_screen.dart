@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -170,7 +171,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     final caption = _pendingCaption.trim();
     setState(() {
       _isSending = true;
-      _uploadingLabel = caption.isEmpty ? '📷 Sending image…' : '📷 $caption';
+      _uploadingLabel = caption.isEmpty ? (AppLocalizations.of(context)?.sendingImage ?? '📷 Sending image…') : '📷 $caption';
       _pendingImage = null;
       _pendingCaption = '';
     });
@@ -231,8 +232,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final msgDay = DateTime(dt.year, dt.month, dt.day);
-    if (msgDay == today) return 'Today';
-    if (msgDay == yesterday) return 'Yesterday';
+    if (msgDay == today) return (AppLocalizations.of(context)?.today ?? 'Today');
+    if (msgDay == yesterday) return (AppLocalizations.of(context)?.yesterday ?? 'Yesterday');
     return DateFormat('d MMM yyyy').format(dt);
   }
 
@@ -258,7 +259,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined, color: _navy),
-              title: const Text('Choose from gallery'),
+              title: Text(AppLocalizations.of(context)?.chooseFromGallery ?? (AppLocalizations.of(context)?.chooseFromGallery ?? 'Choose from gallery')),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
@@ -266,7 +267,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined, color: _navy),
-              title: const Text('Take a photo'),
+              title: Text(AppLocalizations.of(context)?.takeAPhoto ?? (AppLocalizations.of(context)?.takeAPhoto ?? 'Take a photo')),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.camera);
@@ -325,7 +326,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               Text(
                 widget.otherPartyName.isNotEmpty
                     ? widget.otherPartyName
-                    : (widget.currentRole == 'customer' ? 'Rider' : 'Customer'),
+                    : (widget.currentRole == 'customer' ? (AppLocalizations.of(context)?.roleRider ?? 'Rider') : (AppLocalizations.of(context)?.roleCustomer ?? 'Customer')),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -347,7 +348,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         IconButton(
           icon: const Icon(Icons.refresh, size: 22),
           onPressed: () => _loadChat(),
-          tooltip: 'Refresh',
+          tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
         ),
       ],
     );
@@ -389,7 +390,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             const SizedBox(height: 12),
             Text(_errorMessage!, style: TextStyle(color: Colors.grey[600])),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _loadChat, child: const Text('Retry')),
+            ElevatedButton(onPressed: _loadChat, child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry'))),
           ],
         ),
       );
@@ -401,8 +402,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           children: [
             Icon(Icons.chat_bubble_outline, size: 56, color: Colors.grey[300]),
             const SizedBox(height: 16),
-            Text(
-              'No messages yet',
+            Text(AppLocalizations.of(context)?.noMessagesYet ?? (AppLocalizations.of(context)?.noMessagesYet ?? 'No messages yet'),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -410,8 +410,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Start the conversation below',
+            Text(AppLocalizations.of(context)?.startTheConversationBelow ?? (AppLocalizations.of(context)?.startTheConversationBelow ?? 'Start the conversation below'),
               style: TextStyle(fontSize: 13, color: Colors.grey[400]),
             ),
           ],
@@ -758,8 +757,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             children: [
               const Icon(Icons.image_outlined, size: 16, color: _navy),
               const SizedBox(width: 6),
-              const Text(
-                'Image ready to send',
+              Text(AppLocalizations.of(context)?.imageReadyToSend ?? (AppLocalizations.of(context)?.imageReadyToSend ?? 'Image ready to send'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -790,7 +788,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               Expanded(
                 child: TextField(
                   decoration: InputDecoration(
-                    hintText: 'Add a caption (optional)',
+                    hintText: AppLocalizations.of(context)?.addACaptionOptional ?? (AppLocalizations.of(context)?.addACaptionOptional ?? 'Add a caption (optional)'),
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
@@ -824,7 +822,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             child: ElevatedButton.icon(
               onPressed: _isSending ? null : _sendImage,
               icon: const Icon(Icons.send_rounded, size: 16),
-              label: const Text('Send Image'),
+              label: Text(AppLocalizations.of(context)?.sendImage ?? (AppLocalizations.of(context)?.sendImage ?? 'Send Image')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _navy,
                 foregroundColor: Colors.white,
@@ -876,7 +874,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   icon: const Icon(Icons.add_photo_alternate_outlined, size: 24),
                   color: _navy,
                   onPressed: _showImagePicker,
-                  tooltip: 'Send image',
+                  tooltip: AppLocalizations.of(context)?.sendImage2 ?? (AppLocalizations.of(context)?.sendImage2 ?? 'Send image'),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 40,
@@ -894,7 +892,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 keyboardType: TextInputType.multiline,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'Type a message…',
+                  hintText: AppLocalizations.of(context)?.typeAMessage ?? (AppLocalizations.of(context)?.typeAMessage ?? 'Type a message…'),
                   hintStyle:
                       TextStyle(color: Colors.grey[400], fontSize: 14),
                   filled: true,
@@ -1004,14 +1002,13 @@ class _FullscreenImageScreen extends StatelessWidget {
                     child: CircularProgressIndicator(color: Colors.white),
                   );
                 },
-                errorBuilder: (_, __, ___) => const Center(
+                errorBuilder: (_, __, ___) => Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.broken_image, size: 64, color: Colors.white38),
                       SizedBox(height: 12),
-                      Text(
-                        'Could not load image',
+                      Text(AppLocalizations.of(context)?.couldNotLoadImage ?? (AppLocalizations.of(context)?.couldNotLoadImage ?? 'Could not load image'),
                         style: TextStyle(color: Colors.white54),
                       ),
                     ],

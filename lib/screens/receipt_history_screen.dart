@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import 'receipt_detail_screen.dart';
@@ -182,7 +183,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
       dateStr = (receipt['date_paid'] ?? '').toString();
     }
     
-    if (dateStr.isEmpty) return 'Unknown Date';
+    if (dateStr.isEmpty) return (AppLocalizations.of(context)?.unknownDate ?? 'Unknown Date');
     
     try {
       final dt = DateTime.parse(dateStr).toLocal();
@@ -191,11 +192,11 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
       final yesterday = today.subtract(const Duration(days: 1));
       final dateOnly = DateTime(dt.year, dt.month, dt.day);
 
-      if (dateOnly == today) return 'TODAY';
-      if (dateOnly == yesterday) return 'YESTERDAY';
+      if (dateOnly == today) return (AppLocalizations.of(context)?.today2 ?? 'TODAY');
+      if (dateOnly == yesterday) return (AppLocalizations.of(context)?.yesterday2 ?? 'YESTERDAY');
       return DateFormat('MMMM d, yyyy').format(dt).toUpperCase();
     } catch (_) {
-      return 'Unknown Date';
+      return (AppLocalizations.of(context)?.unknownDate ?? 'Unknown Date');
     }
   }
 
@@ -236,8 +237,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'Receipts History',
+        title: Text(AppLocalizations.of(context)?.receiptsHistory ?? (AppLocalizations.of(context)?.receiptsHistory ?? 'Receipts History'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         leading: const BackButton(color: Colors.white),
@@ -280,7 +280,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
             ElevatedButton.icon(
               onPressed: _fetchInitialReceipts,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
               style: LaDolcePosUi.primaryButtonStyle(),
             ),
           ],
@@ -306,10 +306,9 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
               child: Icon(Icons.receipt_long_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
             ),
             const SizedBox(height: 20),
-            const Text('No paid receipts yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(AppLocalizations.of(context)?.noPaidReceiptsYet ?? (AppLocalizations.of(context)?.noPaidReceiptsYet ?? 'No paid receipts yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            Text(
-              'Completed orders will appear here',
+            Text(AppLocalizations.of(context)?.completedOrdersWillAppearHere ?? (AppLocalizations.of(context)?.completedOrdersWillAppearHere ?? 'Completed orders will appear here'),
               style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText),
             ),
           ],
@@ -374,7 +373,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                 child: Column(
                   children: List.generate(receipts.length, (i) {
                     final receipt = receipts[i];
-                    final paymentMethod = receipt['payment_method'] ?? 'Unknown';
+                    final paymentMethod = receipt['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown');
                     final isLast = i == receipts.length - 1;
                     final timeStr = _getTimeStr(receipt);
 
@@ -413,8 +412,8 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
         final id = _resolveReceiptId(receipt);
         if (id == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('This receipt is missing an order id. Please refresh and try again.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)?.thisReceiptIsMissingAnOrder ?? (AppLocalizations.of(context)?.thisReceiptIsMissingAnOrder ?? 'This receipt is missing an order id. Please refresh and try again.')),
               backgroundColor: Colors.orange,
             ),
           );
@@ -518,8 +517,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                       color: Colors.orange.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
-                      'Unsynced',
+                    child: Text(AppLocalizations.of(context)?.unsynced ?? (AppLocalizations.of(context)?.unsynced ?? 'Unsynced'),
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.orange),
                     ),
                   );
@@ -550,7 +548,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
             : ElevatedButton.icon(
                 onPressed: _hasMore ? _loadMoreReceipts : null,
                 icon: const Icon(Icons.expand_more, size: 18),
-                label: Text(_hasMore ? 'Load More' : 'No more receipts'),
+                label: Text(_hasMore ? (AppLocalizations.of(context)?.loadMore ?? 'Load More') : (AppLocalizations.of(context)?.noMoreReceipts ?? 'No more receipts')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: LaDolcePosUi.navy,
                   foregroundColor: Colors.white,

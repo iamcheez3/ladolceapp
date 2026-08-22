@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
@@ -81,13 +82,13 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
 
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valid name and price are required')),
+        SnackBar(content: Text(AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? (AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? 'Valid name and price are required'))),
       );
       return;
     }
     if (_lines.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Combo must have at least one product')),
+        SnackBar(content: Text(AppLocalizations.of(context)?.comboMustHaveAtLeastOne ?? (AppLocalizations.of(context)?.comboMustHaveAtLeastOne ?? 'Combo must have at least one product'))),
       );
       return;
     }
@@ -106,8 +107,8 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Combo saved successfully'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.comboSavedSuccessfully ?? (AppLocalizations.of(context)?.comboSavedSuccessfully ?? 'Combo saved successfully')),
             backgroundColor: Colors.green,
           ),
         );
@@ -127,7 +128,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.combo!['name'] : 'Add Combo'),
+        title: Text(widget.isEditing ? widget.combo!['name'] : (AppLocalizations.of(context)?.addCombo ?? 'Add Combo')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -144,7 +145,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
           else
             TextButton(
               onPressed: _save,
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text(AppLocalizations.of(context)?.save ?? (AppLocalizations.of(context)?.save ?? 'Save'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
         ],
       ),
@@ -174,7 +175,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                     TextField(
                       controller: _nameController,
                       decoration: LaDolcePosUi.input(
-                        hintText: 'Combo Name*',
+                        hintText: AppLocalizations.of(context)?.comboName ?? (AppLocalizations.of(context)?.comboName ?? 'Combo Name*'),
                         prefixIcon: const Icon(Icons.label_outline, size: 20),
                       ),
                       autofocus: !widget.isEditing,
@@ -183,7 +184,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                     TextField(
                       controller: _priceController,
                       decoration: LaDolcePosUi.input(
-                        hintText: 'Combo Fixed Price*',
+                        hintText: AppLocalizations.of(context)?.comboFixedPrice ?? (AppLocalizations.of(context)?.comboFixedPrice ?? 'Combo Fixed Price*'),
                         prefixIcon: const Icon(Icons.attach_money, size: 20),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -196,15 +197,14 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                 children: [
                   Icon(Icons.widgets_outlined, size: 18, color: LaDolcePosUi.mutedText),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Combo Items',
+                  Text(AppLocalizations.of(context)?.comboItems ?? (AppLocalizations.of(context)?.comboItems ?? 'Combo Items'),
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: _addLine,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add Product', style: TextStyle(fontSize: 13)),
+                    label: Text(AppLocalizations.of(context)?.addProduct ?? (AppLocalizations.of(context)?.addProduct ?? 'Add Product'), style: TextStyle(fontSize: 13)),
                     style: TextButton.styleFrom(foregroundColor: _accent),
                   ),
                 ],
@@ -219,8 +219,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                     borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
                     border: Border.all(color: LaDolcePosUi.border.withValues(alpha: 0.6)),
                   ),
-                  child: Text(
-                    'No products added to this combo yet.',
+                  child: Text(AppLocalizations.of(context)?.noProductsAddedToThisCombo ?? (AppLocalizations.of(context)?.noProductsAddedToThisCombo ?? 'No products added to this combo yet.'),
                     style: TextStyle(color: LaDolcePosUi.mutedText, fontSize: 13),
                   ),
                 )
@@ -256,7 +255,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : 'Save Combo'),
+                label: Text(_isSaving ? 'Saving...' : (AppLocalizations.of(context)?.saveCombo ?? 'Save Combo')),
                 style: LaDolcePosUi.primaryButtonStyle(),
               ),
             ],
@@ -311,7 +310,7 @@ class _ComboLineCard extends StatelessWidget {
             flex: 3,
             child: DropdownButtonFormField<int>(
               value: line.productId,
-              decoration: LaDolcePosUi.input(hintText: 'Product'),
+              decoration: LaDolcePosUi.input(hintText: AppLocalizations.of(context)?.product ?? (AppLocalizations.of(context)?.product ?? 'Product')),
               isExpanded: true,
               items: allProducts.map((p) {
                 return DropdownMenuItem<int>(
@@ -329,7 +328,7 @@ class _ComboLineCard extends StatelessWidget {
             width: 70,
             child: TextFormField(
               initialValue: line.qty.toString(),
-              decoration: LaDolcePosUi.input(hintText: 'Qty'),
+              decoration: LaDolcePosUi.input(hintText: AppLocalizations.of(context)?.qty ?? (AppLocalizations.of(context)?.qty ?? 'Qty')),
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
               onChanged: (val) {

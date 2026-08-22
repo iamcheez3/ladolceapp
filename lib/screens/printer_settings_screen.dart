@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../theme/ladolce_pos_ui.dart';
@@ -53,7 +54,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       appBar: AppBar(
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
-        title: const Text('Printers'),
+        title: Text(AppLocalizations.of(context)?.printers ?? (AppLocalizations.of(context)?.printers ?? 'Printers')),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -73,7 +74,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                           child: Icon(Icons.print_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
                         ),
                         const SizedBox(height: 20),
-                        const Text('No printers yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        Text(AppLocalizations.of(context)?.noPrintersYet ?? (AppLocalizations.of(context)?.noPrintersYet ?? 'No printers yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 6),
                         Text(
                           'Tap + to add your first printer.\nConfigure receipts, orders, and category routing.',
@@ -83,7 +84,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
                           icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Add Printer'),
+                          label: Text(AppLocalizations.of(context)?.addPrinter ?? (AppLocalizations.of(context)?.addPrinter ?? 'Add Printer')),
                           onPressed: () => _openPrinterScreen(),
                           style: LaDolcePosUi.primaryButtonStyle(),
                         ),
@@ -131,8 +132,8 @@ class _PrinterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mode = profile.printOrders
-        ? 'Orders'
-        : (profile.printReceiptsAndBills ? 'Receipt' : 'Disabled');
+        ? (AppLocalizations.of(context)?.orders ?? 'Orders')
+        : (profile.printReceiptsAndBills ? (AppLocalizations.of(context)?.receipt ?? 'Receipt') : (AppLocalizations.of(context)?.disabled ?? 'Disabled'));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -187,8 +188,7 @@ class _PrinterCard extends StatelessWidget {
                                 color: accent.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Text(
-                                'Default',
+                              child: Text(AppLocalizations.of(context)?.defaultLabel ?? (AppLocalizations.of(context)?.defaultLabel ?? 'Default'),
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: accent),
                               ),
                             ),

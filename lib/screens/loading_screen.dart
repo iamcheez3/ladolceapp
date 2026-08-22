@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'dart:developer' as developer;
 import '../services/api_service.dart';
 import '../theme/coffee_luxury_background.dart';
@@ -94,7 +95,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
     Widget nextScreen;
     if (role == 'customer') {
       nextScreen = CustomerSelfOrderScreen(
-        customerName: widget.user['name'] ?? 'Customer',
+        customerName: widget.user['name'] ?? (AppLocalizations.of(context)?.roleCustomer ?? 'Customer'),
         userId: widget.user['user_id'] ?? 1,
         partnerId: widget.user['partner_id'],
       );
@@ -108,7 +109,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => RiderScreen(
-            riderName: widget.user['name'] ?? 'Rider',
+            riderName: widget.user['name'] ?? (AppLocalizations.of(context)?.roleRider ?? 'Rider'),
             riderId: widget.user['user_id'] ?? 1,
           ),
         ),
@@ -186,8 +187,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      'Refreshing menus, tables, and sales data for this device',
+                    Text(AppLocalizations.of(context)?.refreshingMenusTablesAndSalesData ?? (AppLocalizations.of(context)?.refreshingMenusTablesAndSalesData ?? 'Refreshing menus, tables, and sales data for this device'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.78),
@@ -216,7 +216,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                       ElevatedButton.icon(
                         onPressed: _initializeApp,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
                         style: ElevatedButton.styleFrom(
                           foregroundColor: kCoffeeBrandNavy,
                           backgroundColor: Colors.white,
@@ -238,8 +238,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                             ),
                           );
                         },
-                        child: Text(
-                          'Return to Login',
+                        child: Text(AppLocalizations.of(context)?.returnToLogin ?? (AppLocalizations.of(context)?.returnToLogin ?? 'Return to Login'),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.55),
                           ),

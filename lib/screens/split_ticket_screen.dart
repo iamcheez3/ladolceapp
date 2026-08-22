@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
@@ -126,8 +127,8 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
   void _save() {
     if (_newLines.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please move at least one item to the new ticket.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.pleaseMoveAtLeastOneItem ?? (AppLocalizations.of(context)?.pleaseMoveAtLeastOneItem ?? 'Please move at least one item to the new ticket.')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -135,8 +136,8 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
     }
     if (_originalLines.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('The original ticket cannot be empty. Keep at least one item.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.theOriginalTicketCannotBeEmpty ?? (AppLocalizations.of(context)?.theOriginalTicketCannotBeEmpty ?? 'The original ticket cannot be empty. Keep at least one item.')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -158,16 +159,16 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rename New Ticket'),
+        title: Text(AppLocalizations.of(context)?.renameNewTicket ?? (AppLocalizations.of(context)?.renameNewTicket ?? 'Rename New Ticket')),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Ticket Name'),
+          decoration: InputDecoration(labelText: AppLocalizations.of(context)?.ticketName ?? (AppLocalizations.of(context)?.ticketName ?? 'Ticket Name')),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: _green, foregroundColor: Colors.white),
             onPressed: () {
@@ -191,7 +192,7 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
       appBar: AppBar(
         backgroundColor: _green,
         foregroundColor: Colors.white,
-        title: const Text('Split Ticket', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(AppLocalizations.of(context)?.splitTicket ?? (AppLocalizations.of(context)?.splitTicket ?? 'Split Ticket'), style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         actions: [
           TextButton(
@@ -308,7 +309,7 @@ class _TicketColumn extends StatelessWidget {
           child: lines.isEmpty
               ? Center(
                   child: Text(
-                    isNew ? 'Tap items on the\nleft to move them here' : 'All items moved',
+                    isNew ? (AppLocalizations.of(context)?.tapItemsOnTheLeftTo ?? 'Tap items on the\nleft to move them here') : (AppLocalizations.of(context)?.allItemsMoved ?? 'All items moved'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey[400], fontSize: 13),
                   ),
@@ -390,7 +391,7 @@ class _TicketColumn extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total',
+              Text(AppLocalizations.of(context)?.total ?? (AppLocalizations.of(context)?.total ?? 'Total'),
                   style: TextStyle(fontWeight: FontWeight.bold)),
               Text(
                 '₭${total.toStringAsFixed(2)}',

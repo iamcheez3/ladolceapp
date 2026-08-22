@@ -1,4 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -113,7 +114,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   void _openRanking() {
     final u = _cachedUser ?? const <String, dynamic>{};
-    final name = (u['name'] ?? 'Admin').toString();
+    final name = (u['name'] ?? (AppLocalizations.of(context)?.admin ?? 'Admin')).toString();
     final points = int.tryParse((u['reward_points'] ?? 0).toString()) ?? 0;
     final img = u['image_base64']?.toString();
     Navigator.push(
@@ -138,29 +139,29 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: !widget.asAdminHome,
-        title: const Text('Admin Reports'),
+        title: Text(AppLocalizations.of(context)?.adminReports ?? (AppLocalizations.of(context)?.adminReports ?? 'Admin Reports')),
         actions: [
           IconButton(
             onPressed: _pickRange,
             icon: const Icon(Icons.date_range_outlined),
-            tooltip: 'Select date range',
+            tooltip: AppLocalizations.of(context)?.selectDateRange ?? (AppLocalizations.of(context)?.selectDateRange ?? 'Select date range'),
           ),
           if (widget.asAdminHome)
             IconButton(
               onPressed: _openRanking,
               icon: const Icon(Icons.emoji_events_outlined),
-              tooltip: 'Ranking',
+              tooltip: AppLocalizations.of(context)?.ranking ?? (AppLocalizations.of(context)?.ranking ?? 'Ranking'),
             ),
           IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
           ),
           if (widget.asAdminHome)
             IconButton(
               onPressed: _logout,
               icon: const Icon(Icons.lock_outline_rounded),
-              tooltip: 'Lock / Switch User',
+              tooltip: AppLocalizations.of(context)?.lockSwitchUser ?? (AppLocalizations.of(context)?.lockSwitchUser ?? 'Lock / Switch User'),
             ),
         ],
       ),
@@ -187,7 +188,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _load,
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
             ),
           ],
         ),
@@ -214,24 +215,24 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         _filtersCard(grandTotal, salesByDay),
         const SizedBox(height: 12),
         _chartCard(
-          title: 'Sales by date',
+          title: AppLocalizations.of(context)?.salesByDate ?? (AppLocalizations.of(context)?.salesByDate ?? 'Sales by date'),
           child: _salesLineChart(salesByDay),
         ),
         const SizedBox(height: 12),
         _hourlyPeakCard(salesByHour),
         const SizedBox(height: 12),
         _chartCard(
-          title: 'Sales by payment type',
+          title: AppLocalizations.of(context)?.salesByPaymentType ?? (AppLocalizations.of(context)?.salesByPaymentType ?? 'Sales by payment type'),
           child: _paymentTable(byPayment),
         ),
         const SizedBox(height: 12),
         _chartCard(
-          title: 'Sales by product (top)',
+          title: AppLocalizations.of(context)?.salesByProductTop ?? (AppLocalizations.of(context)?.salesByProductTop ?? 'Sales by product (top)'),
           child: _simpleBarChart(
             byProduct
                 .take(12)
                 .map((e) => _BarItem(
-                      label: (e['name'] ?? 'Item').toString(),
+                      label: (e['name'] ?? (AppLocalizations.of(context)?.item ?? 'Item')).toString(),
                       value: (e['total'] as num?)?.toDouble() ?? 0,
                     ))
                 .toList(),
@@ -239,7 +240,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         ),
         const SizedBox(height: 12),
         _chartCard(
-          title: 'Branch ranking',
+          title: AppLocalizations.of(context)?.branchRanking ?? (AppLocalizations.of(context)?.branchRanking ?? 'Branch ranking'),
           child: _branchRankingList(byBranch),
         ),
       ],
@@ -284,14 +285,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           DropdownButtonFormField<int?>(
             value: _selectedBranchId,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Branch',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)?.branch ?? (AppLocalizations.of(context)?.branch ?? 'Branch'),
               border: OutlineInputBorder(),
             ),
             items: [
-              const DropdownMenuItem<int?>(
+              DropdownMenuItem<int?>(
                 value: null,
-                child: Text('All branches'),
+                child: Text(AppLocalizations.of(context)?.allBranches ?? (AppLocalizations.of(context)?.allBranches ?? 'All branches')),
               ),
               ..._branches.map((b) {
                 final id = (b['id'] is int)
@@ -441,7 +442,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   Widget _salesLineChart(List<Map> rows) {
     if (rows.isEmpty) {
-      return const Center(child: Text('No data'));
+      return Center(child: Text(AppLocalizations.of(context)?.noData ?? (AppLocalizations.of(context)?.noData ?? 'No data')));
     }
     final spots = <FlSpot>[];
     final labels = <String>[];
@@ -529,7 +530,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _simpleBarChart(List<_BarItem> items) {
-    if (items.isEmpty) return const Center(child: Text('No data'));
+    if (items.isEmpty) return Center(child: Text(AppLocalizations.of(context)?.noData ?? (AppLocalizations.of(context)?.noData ?? 'No data')));
     final maxV = items.map((e) => e.value).fold<double>(0, (a, b) => a > b ? a : b);
     return BarChart(
       BarChartData(
@@ -594,7 +595,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _branchRankingList(List<Map> rows) {
-    if (rows.isEmpty) return const Center(child: Text('No data'));
+    if (rows.isEmpty) return Center(child: Text(AppLocalizations.of(context)?.noData ?? (AppLocalizations.of(context)?.noData ?? 'No data')));
     final items = rows
         .map(
           (e) => _BarItem(
@@ -604,7 +605,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         )
         .where((e) => e.label.isNotEmpty)
         .toList();
-    if (items.isEmpty) return const Center(child: Text('No data'));
+    if (items.isEmpty) return Center(child: Text(AppLocalizations.of(context)?.noData ?? (AppLocalizations.of(context)?.noData ?? 'No data')));
     items.sort((a, b) => b.value.compareTo(a.value));
 
     return ListView.separated(
@@ -644,11 +645,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _paymentTable(List<Map> rows) {
-    if (rows.isEmpty) return const Center(child: Text('No data'));
+    if (rows.isEmpty) return Center(child: Text(AppLocalizations.of(context)?.noData ?? (AppLocalizations.of(context)?.noData ?? 'No data')));
 
     final items = rows
         .map((e) {
-          final name = (e['payment_method'] ?? 'Unknown').toString();
+          final name = (e['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')).toString();
           final total = (e['total'] as num?)?.toDouble() ?? 0;
           final tx = (e['transactions'] as num?)?.toInt();
           return _PaymentRow(name: name, transactions: tx, total: total);
@@ -669,7 +670,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             itemBuilder: (ctx, i) {
               if (i == items.length) {
                 return _paymentDataRow(
-                  label: 'Total',
+                  label: AppLocalizations.of(context)?.total ?? (AppLocalizations.of(context)?.total ?? 'Total'),
                   tx: totalTx,
                   amt: totalAmt,
                   isTotal: true,
@@ -689,29 +690,26 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _paymentHeaderRow() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Expanded(
             flex: 4,
-            child: Text(
-              'Payment type',
+            child: Text(AppLocalizations.of(context)?.paymentType ?? (AppLocalizations.of(context)?.paymentType ?? 'Payment type'),
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black54),
             ),
           ),
           Expanded(
             flex: 3,
-            child: Text(
-              'Transactions',
+            child: Text(AppLocalizations.of(context)?.transactions ?? (AppLocalizations.of(context)?.transactions ?? 'Transactions'),
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black54),
             ),
           ),
           Expanded(
             flex: 4,
-            child: Text(
-              'Amount',
+            child: Text(AppLocalizations.of(context)?.amount ?? (AppLocalizations.of(context)?.amount ?? 'Amount'),
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black54),
             ),
@@ -765,11 +763,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const SizedBox(
+        child: SizedBox(
           height: 100,
           child: Center(
-            child: Text(
-              'No hourly peak data available',
+            child: Text(AppLocalizations.of(context)?.noHourlyPeakDataAvailable ?? (AppLocalizations.of(context)?.noHourlyPeakDataAvailable ?? 'No hourly peak data available'),
               style: TextStyle(color: Colors.black54),
             ),
           ),
@@ -798,8 +795,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Peak order hours',
+              Text(AppLocalizations.of(context)?.peakOrderHours ?? (AppLocalizations.of(context)?.peakOrderHours ?? 'Peak order hours'),
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
               ),
               // Segmented controls for switching modes
@@ -813,12 +809,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _toggleButton(
-                      label: 'Orders',
+                      label: AppLocalizations.of(context)?.orders ?? (AppLocalizations.of(context)?.orders ?? 'Orders'),
                       active: _showHourlyOrders,
                       onTap: () => setState(() => _showHourlyOrders = true),
                     ),
                     _toggleButton(
-                      label: 'Revenue',
+                      label: AppLocalizations.of(context)?.revenue ?? (AppLocalizations.of(context)?.revenue ?? 'Revenue'),
                       active: !_showHourlyOrders,
                       onTap: () => setState(() => _showHourlyOrders = false),
                     ),
@@ -980,8 +976,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     }
 
     if (topHours.isEmpty) {
-      return const Text(
-        'No order traffic recorded in this range.',
+      return Text(AppLocalizations.of(context)?.noOrderTrafficRecordedInThis ?? (AppLocalizations.of(context)?.noOrderTrafficRecordedInThis ?? 'No order traffic recorded in this range.'),
         style: TextStyle(
           fontSize: 11,
           color: Colors.black54,

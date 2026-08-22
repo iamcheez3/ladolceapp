@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
@@ -44,7 +45,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name is required')),
+        SnackBar(content: Text(AppLocalizations.of(context)?.nameIsRequired ?? (AppLocalizations.of(context)?.nameIsRequired ?? 'Name is required'))),
       );
       return;
     }
@@ -61,8 +62,8 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(widget.isEditing
-                ? 'Category updated successfully'
-                : 'Category added successfully'),
+                ? (AppLocalizations.of(context)?.categoryUpdatedSuccessfully ?? 'Category updated successfully')
+                : (AppLocalizations.of(context)?.categoryAddedSuccessfully ?? 'Category added successfully')),
             backgroundColor: Colors.green,
           ),
         );
@@ -82,7 +83,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.category!['name'] : 'Add Category'),
+        title: Text(widget.isEditing ? widget.category!['name'] : (AppLocalizations.of(context)?.addCategory ?? 'Add Category')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -99,7 +100,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
           else
             TextButton(
               onPressed: _save,
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text(AppLocalizations.of(context)?.save ?? (AppLocalizations.of(context)?.save ?? 'Save'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
         ],
       ),
@@ -129,7 +130,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                     TextField(
                       controller: _nameController,
                       decoration: LaDolcePosUi.input(
-                        hintText: 'Category Name*',
+                        hintText: AppLocalizations.of(context)?.categoryName ?? (AppLocalizations.of(context)?.categoryName ?? 'Category Name*'),
                         prefixIcon: const Icon(Icons.label_outline, size: 20),
                       ),
                       autofocus: !widget.isEditing,
@@ -154,16 +155,14 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Show in app',
+                                Text(AppLocalizations.of(context)?.showInApp ?? (AppLocalizations.of(context)?.showInApp ?? 'Show in app'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                     color: _showInApp ? LaDolcePosUi.text : LaDolcePosUi.mutedText,
                                   ),
                                 ),
-                                Text(
-                                  'Only checked categories are visible in POS app.',
+                                Text(AppLocalizations.of(context)?.onlyCheckedCategoriesAreVisibleIn ?? (AppLocalizations.of(context)?.onlyCheckedCategoriesAreVisibleIn ?? 'Only checked categories are visible in POS app.'),
                                   style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
                                 ),
                               ],
@@ -189,7 +188,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : 'Save Category'),
+                label: Text(_isSaving ? 'Saving...' : (AppLocalizations.of(context)?.saveCategory ?? 'Save Category')),
                 style: LaDolcePosUi.primaryButtonStyle(),
               ),
             ],

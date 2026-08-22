@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 
@@ -56,8 +57,8 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       await _apiService.confirmSelfOrderTransfer(orderId as int);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Transfer confirmed. Order moved to Open Tickets.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.transferConfirmedOrderMovedToOpen ?? (AppLocalizations.of(context)?.transferConfirmedOrderMovedToOpen ?? 'Transfer confirmed. Order moved to Open Tickets.')),
           backgroundColor: Colors.green,
         ),
       );
@@ -66,7 +67,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       debugPrint('[SelfOrders] confirm failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not confirm order. Please try again.'), backgroundColor: Colors.red),
+        SnackBar(content: Text(AppLocalizations.of(context)?.couldNotConfirmOrderPleaseTry ?? (AppLocalizations.of(context)?.couldNotConfirmOrderPleaseTry ?? 'Could not confirm order. Please try again.')), backgroundColor: Colors.red),
       );
     }
   }
@@ -79,16 +80,16 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Reject Order?'),
+        title: Text(AppLocalizations.of(context)?.rejectOrder2 ?? (AppLocalizations.of(context)?.rejectOrder2 ?? 'Reject Order?')),
         content: Text(
             'Are you sure you want to reject and cancel order ${order['name']}?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Keep')),
+              child: Text(AppLocalizations.of(context)?.keep ?? (AppLocalizations.of(context)?.keep ?? 'Keep'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject', style: TextStyle(color: Colors.red)),
+            child: Text(AppLocalizations.of(context)?.reject ?? (AppLocalizations.of(context)?.reject ?? 'Reject'), style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -100,8 +101,8 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       await _apiService.rejectSelfOrder(orderId as int);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order rejected and cancelled.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.orderRejectedAndCancelled ?? (AppLocalizations.of(context)?.orderRejectedAndCancelled ?? 'Order rejected and cancelled.')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -110,7 +111,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       debugPrint('[SelfOrders] reject failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not reject order. Please try again.'), backgroundColor: Colors.red),
+        SnackBar(content: Text(AppLocalizations.of(context)?.couldNotRejectOrderPleaseTry ?? (AppLocalizations.of(context)?.couldNotRejectOrderPleaseTry ?? 'Could not reject order. Please try again.')), backgroundColor: Colors.red),
       );
     }
   }
@@ -152,7 +153,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                   final absUrl = (snapshot.data![0] as String?) ?? '';
                   final headers =
                       (snapshot.data![1] as Map<String, String>?) ?? const {};
-                  if (absUrl.isEmpty) return const Text('No proof image uploaded');
+                  if (absUrl.isEmpty) return Text(AppLocalizations.of(context)?.noProofImageUploaded ?? (AppLocalizations.of(context)?.noProofImageUploaded ?? 'No proof image uploaded'));
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -179,7 +180,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                                 );
                               },
                               errorBuilder: (_, _, _) =>
-                                  const Text('Cannot load proof image'),
+                                  Text(AppLocalizations.of(context)?.cannotLoadProofImage ?? (AppLocalizations.of(context)?.cannotLoadProofImage ?? 'Cannot load proof image')),
                             ),
                           ),
                         ),
@@ -193,7 +194,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                             headers: headers,
                           ),
                           icon: const Icon(Icons.zoom_out_map),
-                          label: const Text('Fullscreen'),
+                          label: Text(AppLocalizations.of(context)?.fullscreen ?? (AppLocalizations.of(context)?.fullscreen ?? 'Fullscreen')),
                         ),
                       ),
                     ],
@@ -205,7 +206,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close'),
+                  child: Text(AppLocalizations.of(context)?.close ?? (AppLocalizations.of(context)?.close ?? 'Close')),
                 ),
               ),
             ],
@@ -249,8 +250,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
               imageUrl,
               headers: headers,
               fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => const Text(
-                'Cannot load proof image',
+              errorBuilder: (_, _, _) => Text(AppLocalizations.of(context)?.cannotLoadProofImage ?? (AppLocalizations.of(context)?.cannotLoadProofImage ?? 'Cannot load proof image'),
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -278,8 +278,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
     return Scaffold(
       backgroundColor: _surface,
       appBar: AppBar(
-        title: const Text(
-          'Self Orders Review',
+        title: Text(AppLocalizations.of(context)?.selfOrdersReview ?? (AppLocalizations.of(context)?.selfOrdersReview ?? 'Self Orders Review'),
           style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.3),
         ),
         backgroundColor: _navy,
@@ -289,7 +288,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
           IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
           ),
         ],
       ),
@@ -317,7 +316,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
               ElevatedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
                 style: ElevatedButton.styleFrom(backgroundColor: _navy,
                     foregroundColor: Colors.white),
               ),
@@ -333,8 +332,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
             Icon(Icons.inbox_rounded, size: 72,
                 color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text(
-              'No pending self orders',
+            Text(AppLocalizations.of(context)?.noPendingSelfOrders ?? (AppLocalizations.of(context)?.noPendingSelfOrders ?? 'No pending self orders'),
               style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
             ),
           ],
@@ -448,7 +446,7 @@ class _OrderCard extends StatelessWidget {
           ],
           const Divider(height: 1, color: Color(0xFFE8EDF5)),
           // ── Actions ───────────────────────────────────────────────────────
-          _buildActions(),
+          _buildActions(context),
           const SizedBox(height: 4),
         ],
       ),
@@ -542,16 +540,16 @@ class _OrderCard extends StatelessWidget {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Call Customer?'),
+                        title: Text(AppLocalizations.of(context)?.callCustomer ?? (AppLocalizations.of(context)?.callCustomer ?? 'Call Customer?')),
                         content: Text('Do you want to call $phone?'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
+                            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Call'),
+                            child: Text(AppLocalizations.of(context)?.call ?? (AppLocalizations.of(context)?.call ?? 'Call')),
                           ),
                         ],
                       ),
@@ -608,8 +606,7 @@ class _OrderCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Customer place:',
+                  Text(AppLocalizations.of(context)?.customerPlace ?? (AppLocalizations.of(context)?.customerPlace ?? 'Customer place:'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -649,7 +646,7 @@ class _OrderCard extends StatelessWidget {
                           }
                         },
                         icon: const Icon(Icons.map_outlined, size: 16),
-                        label: const Text('Open map'),
+                        label: Text(AppLocalizations.of(context)?.openMap ?? (AppLocalizations.of(context)?.openMap ?? 'Open map')),
                       ),
                     ),
                 ],
@@ -682,8 +679,7 @@ class _OrderCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Order Note / Pickup Time:',
+                  Text(AppLocalizations.of(context)?.orderNotePickupTime ?? (AppLocalizations.of(context)?.orderNotePickupTime ?? 'Order Note / Pickup Time:'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -772,7 +768,7 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  Widget _buildActions() {
+  Widget _buildActions(BuildContext context) {
     if (_isPayAtStore) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
@@ -782,7 +778,9 @@ class _OrderCard extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onReject,
                 icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Reject'),
+                label: Text(
+                  AppLocalizations.of(context)?.reject ?? 'Reject',
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red),
@@ -798,7 +796,9 @@ class _OrderCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onConfirm,
                 icon: const Icon(Icons.done_all_rounded, size: 18),
-                label: const Text('Quick Confirm'),
+                label: Text(
+                  AppLocalizations.of(context)?.quickConfirm ?? 'Quick Confirm',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF059669),
                   foregroundColor: Colors.white,
@@ -824,7 +824,9 @@ class _OrderCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onViewProof,
                   icon: const Icon(Icons.image_search_rounded, size: 18),
-                  label: const Text('View Proof'),
+                  label: Text(
+                  AppLocalizations.of(context)?.viewProof ?? 'View Proof',
+                ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _navy,
                     side: const BorderSide(color: _navy),
@@ -839,7 +841,9 @@ class _OrderCard extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onConfirm,
                   icon: const Icon(Icons.check_circle_rounded, size: 18),
-                  label: const Text('Confirm'),
+                  label: Text(
+                  AppLocalizations.of(context)?.confirm ?? 'Confirm',
+                ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _navy,
                     foregroundColor: Colors.white,
@@ -857,7 +861,9 @@ class _OrderCard extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onReject,
               icon: const Icon(Icons.cancel_outlined, size: 18),
-              label: const Text('Reject Order'),
+              label: Text(
+                  AppLocalizations.of(context)?.rejectOrder ?? 'Reject Order',
+                ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
                 side: const BorderSide(color: Colors.red),
@@ -890,7 +896,7 @@ class _LineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = line['product_name']?.toString() ?? 'Item';
+    final name = line['product_name']?.toString() ?? (AppLocalizations.of(context)?.item ?? 'Item');
     final qty = line['qty'] ?? line['quantity'] ?? 1;
     final subtotal = line['subtotal'] ??
         line['price_subtotal'] ??

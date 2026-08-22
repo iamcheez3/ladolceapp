@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
@@ -84,17 +85,17 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Product'),
-        content: const Text('Are you sure you want to delete this product?'),
+        title: Text(AppLocalizations.of(context)?.deleteProduct ?? (AppLocalizations.of(context)?.deleteProduct ?? 'Delete Product')),
+        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo3 ?? (AppLocalizations.of(context)?.areYouSureYouWantTo3 ?? 'Are you sure you want to delete this product?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
           ),
           ElevatedButton(
             style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete')),
           ),
         ],
       ),
@@ -108,8 +109,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       _fetchData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Product deleted'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.productDeleted ?? (AppLocalizations.of(context)?.productDeleted ?? 'Product deleted')),
             backgroundColor: Colors.orange,
           ),
         );
@@ -131,13 +132,13 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Products'),
+        title: Text(AppLocalizations.of(context)?.manageProducts ?? (AppLocalizations.of(context)?.manageProducts ?? 'Manage Products')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add Product',
+            tooltip: AppLocalizations.of(context)?.addProduct ?? (AppLocalizations.of(context)?.addProduct ?? 'Add Product'),
             onPressed: () => _openProductScreen(),
           ),
         ],
@@ -175,7 +176,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                           ElevatedButton.icon(
                             onPressed: _fetchData,
                             icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Retry'),
+                            label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
                             style: LaDolcePosUi.primaryButtonStyle(),
                           ),
                         ],
@@ -203,16 +204,14 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                                 ),
                               ),
                               const SizedBox(height: 20),
-                              const Text(
-                                'No products yet',
+                              Text(AppLocalizations.of(context)?.noProductsYet ?? (AppLocalizations.of(context)?.noProductsYet ?? 'No products yet'),
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              Text(
-                                'Add your first product to get started',
+                              Text(AppLocalizations.of(context)?.addYourFirstProductToGet ?? (AppLocalizations.of(context)?.addYourFirstProductToGet ?? 'Add your first product to get started'),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: LaDolcePosUi.mutedText,
@@ -221,7 +220,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                               const SizedBox(height: 24),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Add Product'),
+                                label: Text(AppLocalizations.of(context)?.addProduct ?? (AppLocalizations.of(context)?.addProduct ?? 'Add Product')),
                                 onPressed: () => _openProductScreen(),
                                 style: LaDolcePosUi.primaryButtonStyle(),
                               ),
@@ -387,8 +386,7 @@ class _ProductCard extends StatelessWidget {
                                   color: Colors.orange.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text(
-                                  'Blocked',
+                                child: Text(AppLocalizations.of(context)?.blocked ?? (AppLocalizations.of(context)?.blocked ?? 'Blocked'),
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
@@ -411,7 +409,7 @@ class _ProductCard extends StatelessWidget {
                     color: Colors.red.withValues(alpha: 0.7),
                     onPressed: onDelete,
                     padding: EdgeInsets.zero,
-                    tooltip: 'Delete',
+                    tooltip: AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete'),
                   ),
                 ),
               ],

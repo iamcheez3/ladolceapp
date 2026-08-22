@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../theme/ladolce_pos_ui.dart';
@@ -102,7 +103,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Printer saved'), backgroundColor: Colors.green),
+        SnackBar(content: Text(AppLocalizations.of(context)?.printerSaved ?? (AppLocalizations.of(context)?.printerSaved ?? 'Printer saved')), backgroundColor: Colors.green),
       );
       Navigator.pop(context, true);
     }
@@ -113,7 +114,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
     await printerService.deletePrinter(widget.profile!.id);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Printer deleted'), backgroundColor: Colors.orange),
+        SnackBar(content: Text(AppLocalizations.of(context)?.printerDeleted ?? (AppLocalizations.of(context)?.printerDeleted ?? 'Printer deleted')), backgroundColor: Colors.orange),
       );
       Navigator.pop(context, true);
     }
@@ -123,7 +124,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.profile!.name : 'Add Printer'),
+        title: Text(widget.isEditing ? widget.profile!.name : (AppLocalizations.of(context)?.addPrinter ?? 'Add Printer')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -137,7 +138,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
           else
             TextButton(
               onPressed: _save,
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text(AppLocalizations.of(context)?.save ?? (AppLocalizations.of(context)?.save ?? 'Save'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
         ],
       ),
@@ -150,7 +151,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                 TextField(
                   controller: _nameCtrl,
                   decoration: LaDolcePosUi.input(
-                    hintText: 'Name',
+                    hintText: AppLocalizations.of(context)?.name ?? (AppLocalizations.of(context)?.name ?? 'Name'),
                     prefixIcon: const Icon(Icons.label_outline, size: 20),
                   ),
                 ),
@@ -158,7 +159,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                 TextField(
                   controller: _ipCtrl,
                   decoration: LaDolcePosUi.input(
-                    hintText: 'Printer IP address',
+                    hintText: AppLocalizations.of(context)?.printerIpAddress ?? (AppLocalizations.of(context)?.printerIpAddress ?? 'Printer IP address'),
                     prefixIcon: const Icon(Icons.router_outlined, size: 20),
                   ),
                 ),
@@ -167,14 +168,14 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                   controller: _portCtrl,
                   keyboardType: TextInputType.number,
                   decoration: LaDolcePosUi.input(
-                    hintText: 'Port',
+                    hintText: AppLocalizations.of(context)?.port ?? (AppLocalizations.of(context)?.port ?? 'Port'),
                     prefixIcon: const Icon(Icons.numbers, size: 20),
                   ),
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<int>(
                   value: _paperWidth,
-                  decoration: LaDolcePosUi.input(hintText: 'Paper width'),
+                  decoration: LaDolcePosUi.input(hintText: AppLocalizations.of(context)?.paperWidth ?? (AppLocalizations.of(context)?.paperWidth ?? 'Paper width')),
                   items: const [
                     DropdownMenuItem(value: 80, child: Text('80 mm')),
                     DropdownMenuItem(value: 58, child: Text('58 mm')),
@@ -185,48 +186,48 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                 _buildSwitchTile(
                   icon: Icons.receipt_outlined,
                   value: _asDefaultReceipt,
-                  title: 'Default printer for receipts',
+                  title: AppLocalizations.of(context)?.defaultPrinterForReceipts ?? (AppLocalizations.of(context)?.defaultPrinterForReceipts ?? 'Default printer for receipts'),
                   onChanged: (v) => setState(() => _asDefaultReceipt = v),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             _buildSection(
-              title: 'Advanced settings',
+              title: AppLocalizations.of(context)?.advancedSettings ?? (AppLocalizations.of(context)?.advancedSettings ?? 'Advanced settings'),
               children: [
                 _buildSwitchTile(
                   icon: Icons.receipt_long_outlined,
                   value: _printReceipts,
-                  title: 'Print receipts and bills',
+                  title: AppLocalizations.of(context)?.printReceiptsAndBills ?? (AppLocalizations.of(context)?.printReceiptsAndBills ?? 'Print receipts and bills'),
                   onChanged: (v) => setState(() => _printReceipts = v),
                 ),
                 const Divider(height: 1, indent: 44),
                 _buildSwitchTile(
                   icon: Icons.receipt_outlined,
                   value: _printOrders,
-                  title: 'Print orders',
+                  title: AppLocalizations.of(context)?.printOrders ?? (AppLocalizations.of(context)?.printOrders ?? 'Print orders'),
                   onChanged: (v) => setState(() => _printOrders = v),
                 ),
                 const Divider(height: 1, indent: 44),
                 _buildSwitchTile(
                   icon: Icons.article_outlined,
                   value: _singleItem,
-                  title: 'Print single item per order ticket',
+                  title: AppLocalizations.of(context)?.printSingleItemPerOrderTicket ?? (AppLocalizations.of(context)?.printSingleItemPerOrderTicket ?? 'Print single item per order ticket'),
                   onChanged: (v) => setState(() => _singleItem = v),
                 ),
                 const Divider(height: 1, indent: 44),
                 _buildSwitchTile(
                   icon: Icons.copy_outlined,
                   value: _groupItems,
-                  title: 'Group identical items in order tickets',
+                  title: AppLocalizations.of(context)?.groupIdenticalItemsInOrderTickets ?? (AppLocalizations.of(context)?.groupIdenticalItemsInOrderTickets ?? 'Group identical items in order tickets'),
                   onChanged: (v) => setState(() => _groupItems = v),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             _buildSection(
-              title: 'Category routing',
-              subtitle: 'If none selected, all categories will print on this printer.',
+              title: AppLocalizations.of(context)?.categoryRouting ?? (AppLocalizations.of(context)?.categoryRouting ?? 'Category routing'),
+              subtitle: AppLocalizations.of(context)?.ifNoneSelectedAllCategoriesWill ?? (AppLocalizations.of(context)?.ifNoneSelectedAllCategoriesWill ?? 'If none selected, all categories will print on this printer.'),
               children: [
                 if (_loadingCats)
                   const Padding(
@@ -236,7 +237,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                 else if (_categories.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No categories found', style: TextStyle(color: LaDolcePosUi.mutedText, fontSize: 13)),
+                    child: Text(AppLocalizations.of(context)?.noCategoriesFound ?? (AppLocalizations.of(context)?.noCategoriesFound ?? 'No categories found'), style: TextStyle(color: LaDolcePosUi.mutedText, fontSize: 13)),
                   )
                 else
                   ..._categories.map((c) => CheckboxListTile(
@@ -276,7 +277,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(ok ? 'Printer test successful.' : 'Printer test failed.'),
+                          content: Text(ok ? (AppLocalizations.of(context)?.printerTestSuccessful ?? 'Printer test successful.') : (AppLocalizations.of(context)?.printerTestFailed ?? 'Printer test failed.')),
                           backgroundColor: ok ? Colors.green : Colors.red,
                         ),
                       );
@@ -284,7 +285,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
               icon: _isTesting
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.print_outlined, size: 20),
-              label: Text(_isTesting ? 'Testing...' : 'Print Test'),
+              label: Text(_isTesting ? 'Testing...' : (AppLocalizations.of(context)?.printTest ?? 'Print Test')),
               style: LaDolcePosUi.primaryButtonStyle(),
             ),
             if (widget.profile != null) ...[
@@ -292,7 +293,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
               OutlinedButton.icon(
                 onPressed: _delete,
                 icon: const Icon(Icons.delete_outline, size: 20),
-                label: const Text('Delete Printer'),
+                label: Text(AppLocalizations.of(context)?.deletePrinter ?? (AppLocalizations.of(context)?.deletePrinter ?? 'Delete Printer')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red),

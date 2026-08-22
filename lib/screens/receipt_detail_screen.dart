@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 
@@ -53,7 +54,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
       final ok = await printerService
           .printReceiptFromRawData(_receiptData!, queueNumber: qn)
           .timeout(const Duration(seconds: 20), onTimeout: () => false);
-      _snack(ok ? '🖨️ Receipt reprinted!' : 'Printer error. Check connection.', ok ? Colors.green : Colors.red);
+      _snack(ok ? (AppLocalizations.of(context)?.receiptReprinted ?? '🖨️ Receipt reprinted!') : (AppLocalizations.of(context)?.printerErrorCheckConnection ?? 'Printer error. Check connection.'), ok ? Colors.green : Colors.red);
     } catch (e) {
       _snack('Printer error: ${e.toString()}', Colors.red);
     } finally {
@@ -70,11 +71,11 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.undo_rounded, color: Colors.red),
             SizedBox(width: 8),
-            Text('Confirm Refund', style: TextStyle(fontSize: 18)),
+            Text(AppLocalizations.of(context)?.confirmRefund ?? (AppLocalizations.of(context)?.confirmRefund ?? 'Confirm Refund'), style: TextStyle(fontSize: 18)),
           ],
         ),
         content: Column(
@@ -92,7 +93,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               decoration: InputDecoration(
-                labelText: 'Admin PIN',
+                labelText: AppLocalizations.of(context)?.adminPin ?? (AppLocalizations.of(context)?.adminPin ?? 'Admin PIN'),
                 prefixIcon: const Icon(Icons.lock_outlined),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 counterText: '',
@@ -103,7 +104,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -112,7 +113,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Refund'),
+            child: Text(AppLocalizations.of(context)?.refund ?? (AppLocalizations.of(context)?.refund ?? 'Refund')),
           ),
         ],
       ),
@@ -205,7 +206,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
         children: [
           Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: _fetchReceipt, child: const Text('Retry')),
+          ElevatedButton(onPressed: _fetchReceipt, child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry'))),
         ],
       ),
     );
@@ -238,18 +239,18 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.red.shade200),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
                               Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
                               SizedBox(width: 8),
-                              Text('This order has been refunded', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                              Text(AppLocalizations.of(context)?.thisOrderHasBeenRefunded ?? (AppLocalizations.of(context)?.thisOrderHasBeenRefunded ?? 'This order has been refunded'), style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
 
                       // ── Header ────────────────────────────────────────
                       Text(
-                        data['order_reference'] ?? 'Receipt',
+                        data['order_reference'] ?? (AppLocalizations.of(context)?.receipt ?? 'Receipt'),
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       ),
@@ -259,21 +260,21 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
 
                       // ── Meta ──────────────────────────────────────────
                       _metaRow('Date:', data['date_order'] ?? ''),
-                      _metaRow('Cashier:', data['cashier'] ?? 'Unknown'),
+                      _metaRow('Cashier:', data['cashier'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')),
                       if ((data['table']?.toString() ?? '').isNotEmpty)
                         _metaRow('Table:', data['table'].toString()),
-                      _metaRow('Payment:', data['payment_method'] ?? 'Unknown'),
+                      _metaRow('Payment:', data['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')),
 
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 16),
 
                       // ── Items header ──────────────────────────────────
-                      const Row(
+                      Row(
                         children: [
-                          Expanded(flex: 3, child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                          Expanded(flex: 1, child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                          Expanded(flex: 2, child: Text('Total', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                          Expanded(flex: 3, child: Text(AppLocalizations.of(context)?.item ?? (AppLocalizations.of(context)?.item ?? 'Item'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                          Expanded(flex: 1, child: Text(AppLocalizations.of(context)?.qty ?? (AppLocalizations.of(context)?.qty ?? 'Qty'), textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                          Expanded(flex: 2, child: Text(AppLocalizations.of(context)?.total ?? (AppLocalizations.of(context)?.total ?? 'Total'), textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -293,7 +294,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                               children: [
                                 Expanded(
                                   flex: 3,
-                                  child: Text(line['product_name'] ?? 'Item',
+                                  child: Text(line['product_name'] ?? (AppLocalizations.of(context)?.item ?? 'Item'),
                                       style: const TextStyle(fontWeight: FontWeight.w500)),
                                 ),
                                 Expanded(
@@ -326,9 +327,8 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
                             children: [
-                              const Expanded(
-                                child: Text(
-                                  'Discount',
+                              Expanded(
+                                child: Text(AppLocalizations.of(context)?.discount ?? (AppLocalizations.of(context)?.discount ?? 'Discount'),
                                   style: TextStyle(fontSize: 16, color: Colors.red),
                                 ),
                               ),
@@ -354,9 +354,8 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                       // ── Total ─────────────────────────────────────────
                       Row(
                         children: [
-                          const Expanded(
-                            child: Text(
-                              'Total Amount',
+                          Expanded(
+                            child: Text(AppLocalizations.of(context)?.totalAmount ?? (AppLocalizations.of(context)?.totalAmount ?? 'Total Amount'),
                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -400,7 +399,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _reprintReceipt,
                           icon: const Icon(Icons.print_outlined),
-                          label: const Text('Reprint Receipt'),
+                          label: Text(AppLocalizations.of(context)?.reprintReceipt ?? (AppLocalizations.of(context)?.reprintReceipt ?? 'Reprint Receipt')),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _navy,
                             foregroundColor: Colors.white,
@@ -416,7 +415,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _showRefundDialog,
                           icon: const Icon(Icons.undo_rounded),
-                          label: const Text('Refund Order'),
+                          label: Text(AppLocalizations.of(context)?.refundOrder ?? (AppLocalizations.of(context)?.refundOrder ?? 'Refund Order')),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade600,
                             foregroundColor: Colors.white,

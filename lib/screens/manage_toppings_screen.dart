@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
@@ -65,17 +66,17 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Topping'),
-        content: const Text('Are you sure you want to delete this topping?'),
+        title: Text(AppLocalizations.of(context)?.deleteTopping ?? (AppLocalizations.of(context)?.deleteTopping ?? 'Delete Topping')),
+        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo4 ?? (AppLocalizations.of(context)?.areYouSureYouWantTo4 ?? 'Are you sure you want to delete this topping?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
           ),
           ElevatedButton(
             style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete')),
           ),
         ],
       ),
@@ -89,7 +90,7 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
       _fetchToppings();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Topping deleted'), backgroundColor: Colors.orange),
+          SnackBar(content: Text(AppLocalizations.of(context)?.toppingDeleted ?? (AppLocalizations.of(context)?.toppingDeleted ?? 'Topping deleted')), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
@@ -106,13 +107,13 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Toppings'),
+        title: Text(AppLocalizations.of(context)?.manageToppings ?? (AppLocalizations.of(context)?.manageToppings ?? 'Manage Toppings')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add Topping',
+            tooltip: AppLocalizations.of(context)?.addTopping ?? (AppLocalizations.of(context)?.addTopping ?? 'Add Topping'),
             onPressed: () => _openToppingScreen(),
           ),
         ],
@@ -141,7 +142,7 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
                           ElevatedButton.icon(
                             onPressed: _fetchToppings,
                             icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Retry'),
+                            label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
                             style: LaDolcePosUi.primaryButtonStyle(),
                           ),
                         ],
@@ -164,14 +165,14 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
                                 child: Icon(Icons.eco_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
                               ),
                               const SizedBox(height: 20),
-                              const Text('No toppings yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                              Text(AppLocalizations.of(context)?.noToppingsYet ?? (AppLocalizations.of(context)?.noToppingsYet ?? 'No toppings yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                               const SizedBox(height: 6),
-                              Text('Add your first topping to get started',
+                              Text(AppLocalizations.of(context)?.addYourFirstToppingToGet ?? (AppLocalizations.of(context)?.addYourFirstToppingToGet ?? 'Add your first topping to get started'),
                                   style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText)),
                               const SizedBox(height: 24),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Add Topping'),
+                                label: Text(AppLocalizations.of(context)?.addTopping ?? (AppLocalizations.of(context)?.addTopping ?? 'Add Topping')),
                                 onPressed: () => _openToppingScreen(),
                                 style: LaDolcePosUi.primaryButtonStyle(),
                               ),
@@ -272,7 +273,7 @@ class _ToppingCard extends StatelessWidget {
                         child: Text(
                           topping.extraPrice > 0
                               ? '+\$${topping.extraPrice.toStringAsFixed(2)}'
-                              : 'Free',
+                              : (AppLocalizations.of(context)?.free ?? 'Free'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -290,7 +291,7 @@ class _ToppingCard extends StatelessWidget {
                     color: Colors.red.withValues(alpha: 0.7),
                     onPressed: onDelete,
                     padding: EdgeInsets.zero,
-                    tooltip: 'Delete',
+                    tooltip: AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete'),
                   ),
                 ),
               ],

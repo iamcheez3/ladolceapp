@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../models/pos_discount_config.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
@@ -28,7 +29,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
     await cfg.save();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Discount settings saved'), backgroundColor: Colors.green),
+        SnackBar(content: Text(AppLocalizations.of(context)?.discountSettingsSaved ?? (AppLocalizations.of(context)?.discountSettingsSaved ?? 'Discount settings saved')), backgroundColor: Colors.green),
       );
       Navigator.pop(context, true);
     }
@@ -44,7 +45,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Discount Option'),
+          title: Text(AppLocalizations.of(context)?.addDiscountOption ?? (AppLocalizations.of(context)?.addDiscountOption ?? 'Add Discount Option')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -52,17 +53,17 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                 TextField(
                   controller: nameCtrl,
                   decoration: LaDolcePosUi.input(
-                    hintText: 'Option Name',
+                    hintText: AppLocalizations.of(context)?.optionName ?? (AppLocalizations.of(context)?.optionName ?? 'Option Name'),
                     prefixIcon: const Icon(Icons.label_outline, size: 20),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text('Discount Type', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
+                Text(AppLocalizations.of(context)?.discountType ?? (AppLocalizations.of(context)?.discountType ?? 'Discount Type'), style: TextStyle(fontWeight: FontWeight.w700)),
+                SizedBox(height: 8),
                 SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'percentage', label: Text('Percentage')),
-                    ButtonSegment(value: 'value', label: Text('Fixed Value')),
+                  segments: [
+                    ButtonSegment(value: 'percentage', label: Text(AppLocalizations.of(context)?.percentage ?? (AppLocalizations.of(context)?.percentage ?? 'Percentage'))),
+                    ButtonSegment(value: 'value', label: Text(AppLocalizations.of(context)?.fixedValue ?? (AppLocalizations.of(context)?.fixedValue ?? 'Fixed Value'))),
                   ],
                   selected: {optType},
                   onSelectionChanged: (sel) => setDialogState(() => optType = sel.first),
@@ -71,8 +72,8 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                 TextField(
                   controller: valueCtrl,
                   decoration: InputDecoration(
-                    labelText: optType == 'percentage' ? 'Percentage (%)' : 'Amount (₭)',
-                    hintText: 'Leave empty for manual input',
+                    labelText: optType == 'percentage' ? (AppLocalizations.of(context)?.percentage2 ?? 'Percentage (%)') : 'Amount (₭)',
+                    hintText: AppLocalizations.of(context)?.leaveEmptyForManualInput ?? (AppLocalizations.of(context)?.leaveEmptyForManualInput ?? 'Leave empty for manual input'),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm)),
                     suffixText: optType == 'percentage' ? '%' : null,
                     prefixText: optType == 'value' ? '₭ ' : null,
@@ -84,7 +85,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel'))),
             ElevatedButton(
               onPressed: () {
                 if (nameCtrl.text.trim().isEmpty) return;
@@ -97,7 +98,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                 setState(() => _options.add(newOpt));
                 Navigator.pop(ctx);
               },
-              child: const Text('Add'),
+              child: Text(AppLocalizations.of(context)?.add ?? (AppLocalizations.of(context)?.add ?? 'Add')),
             ),
           ],
         ),
@@ -109,13 +110,13 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Discount Configuration'),
+        title: Text(AppLocalizations.of(context)?.discountConfiguration ?? (AppLocalizations.of(context)?.discountConfiguration ?? 'Discount Configuration')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: _save,
-            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+            child: Text(AppLocalizations.of(context)?.save ?? (AppLocalizations.of(context)?.save ?? 'Save'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
           ),
         ],
       ),
@@ -156,11 +157,11 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Enable Discount', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                            Text(AppLocalizations.of(context)?.enableDiscount ?? (AppLocalizations.of(context)?.enableDiscount ?? 'Enable Discount'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                             Text(
                               _enabled
-                                  ? 'Discount will appear in POS'
-                                  : 'Discount hidden',
+                                  ? (AppLocalizations.of(context)?.discountWillAppearInPos ?? 'Discount will appear in POS')
+                                  : (AppLocalizations.of(context)?.discountHidden ?? 'Discount hidden'),
                               style: TextStyle(fontSize: 12, color: _enabled ? Colors.green : LaDolcePosUi.mutedText),
                             ),
                           ],
@@ -182,12 +183,12 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                 children: [
                   Icon(Icons.list_alt_outlined, size: 18, color: LaDolcePosUi.mutedText),
                   const SizedBox(width: 8),
-                  const Text('Discount Options', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  Text(AppLocalizations.of(context)?.discountOptions ?? (AppLocalizations.of(context)?.discountOptions ?? 'Discount Options'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: _showAddOptionDialog,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add', style: TextStyle(fontSize: 13)),
+                    label: Text(AppLocalizations.of(context)?.add ?? (AppLocalizations.of(context)?.add ?? 'Add'), style: TextStyle(fontSize: 13)),
                     style: TextButton.styleFrom(foregroundColor: LaDolcePosUi.navy),
                   ),
                 ],
@@ -202,7 +203,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                     borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
                     border: Border.all(color: LaDolcePosUi.border.withValues(alpha: 0.6)),
                   ),
-                  child: Text('No discount options added yet.',
+                  child: Text(AppLocalizations.of(context)?.noDiscountOptionsAddedYet ?? (AppLocalizations.of(context)?.noDiscountOptionsAddedYet ?? 'No discount options added yet.'),
                       style: TextStyle(color: LaDolcePosUi.mutedText, fontSize: 13)),
                 )
               else
@@ -255,7 +256,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                               color: Colors.red.withValues(alpha: 0.7),
                               onPressed: () => setState(() => _options.removeAt(i)),
                               padding: EdgeInsets.zero,
-                              tooltip: 'Remove',
+                              tooltip: AppLocalizations.of(context)?.remove ?? (AppLocalizations.of(context)?.remove ?? 'Remove'),
                             ),
                           ),
                         ],
@@ -275,8 +276,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                     Icon(Icons.info_outline, size: 16, color: LaDolcePosUi.mutedText),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        'Tip: Leave the value blank to let cashiers enter a custom amount.',
+                      child: Text(AppLocalizations.of(context)?.tipLeaveTheValueBlankTo ?? (AppLocalizations.of(context)?.tipLeaveTheValueBlankTo ?? 'Tip: Leave the value blank to let cashiers enter a custom amount.'),
                         style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
                       ),
                     ),

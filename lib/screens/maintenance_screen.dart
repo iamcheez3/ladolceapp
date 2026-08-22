@@ -47,7 +47,7 @@ class MaintenanceScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  isLao ? 'ກຳລັງປັບປຸງລະບົບ' : 'Maintenance Mode',
+                  isLao ? 'ກຳລັງປັບປຸງລະບົບ' : (AppLocalizations.of(context)?.maintenanceMode ?? 'Maintenance Mode'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.notoSansLao(
                     fontSize: 28,
@@ -96,7 +96,7 @@ class MaintenanceScreen extends StatelessWidget {
                     elevation: 0,
                   ),
                   child: Text(
-                    isLao ? 'ອອກຈາກລະບົບ' : 'Logout',
+                    isLao ? 'ອອກຈາກລະບົບ' : (AppLocalizations.of(context)?.logout ?? 'Logout'),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,

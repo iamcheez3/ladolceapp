@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:ladolce/l10n/app_localizations.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -50,8 +51,8 @@ class CustomerOrderDetailScreen extends StatelessWidget {
     final hasServerProof = proofUrl.isNotEmpty;
     final lines = ((item['lines'] as List?) ?? const []).cast<dynamic>();
     final rawState = (item['state'] ?? '').toString();
-    final payMethod = (item['payment_method'] ?? 'Unknown').toString();
-    final name = item['name']?.toString() ?? 'Order';
+    final payMethod = (item['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')).toString();
+    final name = item['name']?.toString() ?? (AppLocalizations.of(context)?.order ?? 'Order');
     final amount =
         double.tryParse((item['amount_total'] ?? 0).toString()) ?? 0.0;
     final dateStr = (item['date_order'] ?? '').toString();
@@ -136,8 +137,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Status',
+                          Text(AppLocalizations.of(context)?.status ?? (AppLocalizations.of(context)?.status ?? 'Status'),
                             style: TextStyle(
                               color: _labelMuted,
                               fontWeight: FontWeight.w600,
@@ -217,11 +217,10 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                       _sectionTitle('ORDER ITEMS'),
                       const SizedBox(height: 12),
                       if (lines.isEmpty)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
                           child: Center(
-                            child: Text(
-                              'No line items',
+                            child: Text(AppLocalizations.of(context)?.noLineItems ?? (AppLocalizations.of(context)?.noLineItems ?? 'No line items'),
                               style: TextStyle(
                                 color: _labelMuted,
                                 fontWeight: FontWeight.w600,

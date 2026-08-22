@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
@@ -67,17 +68,17 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Category'),
-        content: const Text('Are you sure you want to delete this category?'),
+        title: Text(AppLocalizations.of(context)?.deleteCategory ?? (AppLocalizations.of(context)?.deleteCategory ?? 'Delete Category')),
+        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo ?? (AppLocalizations.of(context)?.areYouSureYouWantTo ?? 'Are you sure you want to delete this category?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
           ),
           ElevatedButton(
             style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete')),
           ),
         ],
       ),
@@ -91,7 +92,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
       _fetchCategories();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Category deleted'), backgroundColor: Colors.orange),
+          SnackBar(content: Text(AppLocalizations.of(context)?.categoryDeleted ?? (AppLocalizations.of(context)?.categoryDeleted ?? 'Category deleted')), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
@@ -108,13 +109,13 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Categories'),
+        title: Text(AppLocalizations.of(context)?.manageCategories ?? (AppLocalizations.of(context)?.manageCategories ?? 'Manage Categories')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add Category',
+            tooltip: AppLocalizations.of(context)?.addCategory ?? (AppLocalizations.of(context)?.addCategory ?? 'Add Category'),
             onPressed: () => _openCategoryScreen(),
           ),
         ],
@@ -143,7 +144,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                           ElevatedButton.icon(
                             onPressed: _fetchCategories,
                             icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Retry'),
+                            label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
                             style: LaDolcePosUi.primaryButtonStyle(),
                           ),
                         ],
@@ -166,14 +167,14 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                                 child: Icon(Icons.category_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
                               ),
                               const SizedBox(height: 20),
-                              const Text('No categories yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                              Text(AppLocalizations.of(context)?.noCategoriesYet ?? (AppLocalizations.of(context)?.noCategoriesYet ?? 'No categories yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                               const SizedBox(height: 6),
-                              Text('Add your first category to get started',
+                              Text(AppLocalizations.of(context)?.addYourFirstCategoryToGet ?? (AppLocalizations.of(context)?.addYourFirstCategoryToGet ?? 'Add your first category to get started'),
                                   style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText)),
                               const SizedBox(height: 24),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Add Category'),
+                                label: Text(AppLocalizations.of(context)?.addCategory ?? (AppLocalizations.of(context)?.addCategory ?? 'Add Category')),
                                 onPressed: () => _openCategoryScreen(),
                                 style: LaDolcePosUi.primaryButtonStyle(),
                               ),
@@ -275,7 +276,7 @@ class _CategoryCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isVisible ? 'Visible in app' : 'Hidden in app',
+                            isVisible ? (AppLocalizations.of(context)?.visibleInApp ?? 'Visible in app') : (AppLocalizations.of(context)?.hiddenInApp ?? 'Hidden in app'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -294,7 +295,7 @@ class _CategoryCard extends StatelessWidget {
                     color: Colors.red.withValues(alpha: 0.7),
                     onPressed: onDelete,
                     padding: EdgeInsets.zero,
-                    tooltip: 'Delete',
+                    tooltip: AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete'),
                   ),
                 ),
               ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
@@ -69,7 +70,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
 
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valid name and price are required')),
+        SnackBar(content: Text(AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? (AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? 'Valid name and price are required'))),
       );
       return;
     }
@@ -87,8 +88,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Product saved successfully'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.productSavedSuccessfully ?? (AppLocalizations.of(context)?.productSavedSuccessfully ?? 'Product saved successfully')),
             backgroundColor: Colors.green,
           ),
         );
@@ -108,7 +109,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.product!.name : 'Add Product'),
+        title: Text(widget.isEditing ? widget.product!.name : (AppLocalizations.of(context)?.addProduct ?? 'Add Product')),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -129,8 +130,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
           else
             TextButton(
               onPressed: _save,
-              child: const Text(
-                'Save',
+              child: Text(AppLocalizations.of(context)?.save ?? (AppLocalizations.of(context)?.save ?? 'Save'),
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -151,7 +151,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   TextField(
                     controller: _nameController,
                     decoration: LaDolcePosUi.input(
-                      hintText: 'Product Name*',
+                      hintText: AppLocalizations.of(context)?.productName ?? (AppLocalizations.of(context)?.productName ?? 'Product Name*'),
                       prefixIcon: const Icon(Icons.label_outline, size: 20),
                     ),
                   ),
@@ -159,7 +159,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   TextField(
                     controller: _priceController,
                     decoration: LaDolcePosUi.input(
-                      hintText: 'List Price*',
+                      hintText: AppLocalizations.of(context)?.listPrice ?? (AppLocalizations.of(context)?.listPrice ?? 'List Price*'),
                       prefixIcon: const Icon(Icons.attach_money, size: 20),
                     ),
                     keyboardType:
@@ -167,7 +167,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<int>(
-                    decoration: LaDolcePosUi.input(hintText: 'Category'),
+                    decoration: LaDolcePosUi.input(hintText: AppLocalizations.of(context)?.category ?? (AppLocalizations.of(context)?.category ?? 'Category')),
                     value: _selectedCategoryId,
                     items: widget.categories.map((c) {
                       return DropdownMenuItem<int>(
@@ -189,8 +189,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                       Icon(Icons.shopping_cart_outlined,
                           size: 18, color: LaDolcePosUi.mutedText),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Customer self-order',
+                      Text(AppLocalizations.of(context)?.customerSelfOrder ?? (AppLocalizations.of(context)?.customerSelfOrder ?? 'Customer self-order'),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -202,8 +201,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   _buildSelfOrderTile(
                     icon: Icons.check_circle_outline,
                     iconColor: Colors.green,
-                    title: 'Available',
-                    subtitle: 'Customers can select and order',
+                    title: AppLocalizations.of(context)?.tableAvailable ?? (AppLocalizations.of(context)?.tableAvailable ?? 'Available'),
+                    subtitle: AppLocalizations.of(context)?.customersCanSelectAndOrder ?? (AppLocalizations.of(context)?.customersCanSelectAndOrder ?? 'Customers can select and order'),
                     isSelected: !_blockSelfOrder,
                     onTap: () => setState(() => _blockSelfOrder = false),
                   ),
@@ -211,8 +210,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   _buildSelfOrderTile(
                     icon: Icons.remove_circle_outline,
                     iconColor: Colors.orange,
-                    title: 'Run out (blocked)',
-                    subtitle: 'Shown as run out; cannot add to cart',
+                    title: AppLocalizations.of(context)?.runOutBlocked ?? (AppLocalizations.of(context)?.runOutBlocked ?? 'Run out (blocked)'),
+                    subtitle: AppLocalizations.of(context)?.shownAsRunOutCannotAdd ?? (AppLocalizations.of(context)?.shownAsRunOutCannotAdd ?? 'Shown as run out; cannot add to cart'),
                     isSelected: _blockSelfOrder,
                     onTap: () => setState(() => _blockSelfOrder = true),
                   ),
@@ -226,8 +225,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                       Icon(Icons.extension_outlined,
                           size: 18, color: LaDolcePosUi.mutedText),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Available Toppings',
+                      Text(AppLocalizations.of(context)?.availableToppings ?? (AppLocalizations.of(context)?.availableToppings ?? 'Available Toppings'),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -239,8 +237,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   if (widget.toppings.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'No toppings configured.',
+                      child: Text(AppLocalizations.of(context)?.noToppingsConfigured ?? (AppLocalizations.of(context)?.noToppingsConfigured ?? 'No toppings configured.'),
                         style: TextStyle(
                           color: LaDolcePosUi.mutedText,
                           fontSize: 13,
@@ -306,7 +303,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         ),
                       )
                     : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : 'Save Product'),
+                label: Text(_isSaving ? 'Saving...' : (AppLocalizations.of(context)?.saveProduct ?? 'Save Product')),
                 style: LaDolcePosUi.primaryButtonStyle(),
               ),
             ],

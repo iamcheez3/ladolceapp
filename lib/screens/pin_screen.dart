@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import '../theme/coffee_luxury_background.dart';
 import '../services/api_service.dart';
@@ -196,8 +197,7 @@ class _PinScreenState extends State<PinScreen> {
                           color: Colors.white70,
                           size: 20,
                         ),
-                        label: const Text(
-                          'Switch User',
+                        label: Text(AppLocalizations.of(context)?.switchUser ?? (AppLocalizations.of(context)?.switchUser ?? 'Switch User'),
                           style: TextStyle(color: Colors.white70),
                         ),
                       ),
@@ -236,7 +236,7 @@ class _PinScreenState extends State<PinScreen> {
                             _buildUserAvatar(),
                             const SizedBox(height: 16),
                             Text(
-                              'Welcome back, ${widget.cachedUser['name'] ?? 'Cashier'}',
+                              'Welcome back, ${widget.cachedUser['name'] ?? (AppLocalizations.of(context)?.roleCashier ?? 'Cashier')}',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -250,9 +250,9 @@ class _PinScreenState extends State<PinScreen> {
                             Text(
                               _isSetupMode
                                   ? (_firstPinEntry == null
-                                      ? 'Create your 4-digit PIN'
-                                      : 'Confirm your new PIN')
-                                  : 'Enter PIN to unlock',
+                                      ? (AppLocalizations.of(context)?.createYour4DigitPin ?? 'Create your 4-digit PIN')
+                                      : (AppLocalizations.of(context)?.confirmYourNewPin ?? 'Confirm your new PIN'))
+                                  : (AppLocalizations.of(context)?.enterPinToUnlock ?? 'Enter PIN to unlock'),
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 16,
@@ -295,8 +295,8 @@ class _PinScreenState extends State<PinScreen> {
                                   ? Center(
                                       child: Text(
                                         _isSetupMode
-                                            ? 'PIN mismatch or save failed'
-                                            : 'Incorrect PIN',
+                                            ? (AppLocalizations.of(context)?.pinMismatchOrSaveFailed ?? 'PIN mismatch or save failed')
+                                            : (AppLocalizations.of(context)?.incorrectPin ?? 'Incorrect PIN'),
                                         style: TextStyle(
                                           color: Colors.redAccent,
                                           fontWeight: FontWeight.bold,

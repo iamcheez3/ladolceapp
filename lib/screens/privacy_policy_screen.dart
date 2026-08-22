@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/responsive_layout.dart';
 
@@ -57,8 +58,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     return Scaffold(
       backgroundColor: _brandSurface,
       appBar: AppBar(
-        title: const Text(
-          'Privacy Policy',
+        title: Text(AppLocalizations.of(context)?.privacyPolicy ?? (AppLocalizations.of(context)?.privacyPolicy ?? 'Privacy Policy'),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
@@ -145,7 +145,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                 ElevatedButton.icon(
                   onPressed: _loadPrivacyPolicy,
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Retry'),
+                  label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _brandNavy,
                     foregroundColor: Colors.white,
@@ -195,8 +195,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'LaDolce Privacy',
+                    Text(AppLocalizations.of(context)?.ladolcePrivacy ?? (AppLocalizations.of(context)?.ladolcePrivacy ?? 'LaDolce Privacy'),
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -212,8 +211,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                         color: const Color(0xFFDCE5FF),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        'Official',
+                      child: Text(AppLocalizations.of(context)?.official ?? (AppLocalizations.of(context)?.official ?? 'Official'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -348,7 +349,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Could not launch dialer')));
+      ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)?.couldNotLaunchDialer ?? (AppLocalizations.of(context)?.couldNotLaunchDialer ?? 'Could not launch dialer'))));
     }
   }
 
@@ -361,8 +362,8 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not launch external maps application'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.couldNotLaunchExternalMapsApplication ?? (AppLocalizations.of(context)?.couldNotLaunchExternalMapsApplication ?? 'Could not launch external maps application')),
           ),
         );
       }
@@ -377,8 +378,8 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         if (!mounted) return;
         setState(() => _currentStatus = 'arrived');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Status updated to Arrived'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.statusUpdatedToArrived ?? (AppLocalizations.of(context)?.statusUpdatedToArrived ?? 'Status updated to Arrived')),
             backgroundColor: Colors.teal,
           ),
         );
@@ -387,8 +388,8 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         if (!mounted) return;
         setState(() => _currentStatus = 'delivered');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Status updated to Complete / Delivered'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.statusUpdatedToCompleteDelivered ?? (AppLocalizations.of(context)?.statusUpdatedToCompleteDelivered ?? 'Status updated to Complete / Delivered')),
             backgroundColor: Colors.green,
           ),
         );
@@ -411,7 +412,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
   }
 
   String _formatEta(double distKm) {
-    if (distKm < 0.1) return 'Arriving soon';
+    if (distKm < 0.1) return (AppLocalizations.of(context)?.arrivingSoon ?? 'Arriving soon');
     final hours = distKm / 40; // Assume average speed of 40 km/h
     final totalMinutes = (hours * 60).round();
     if (totalMinutes < 60) return '$totalMinutes min';
@@ -432,7 +433,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         infoWindow: InfoWindow(
           title: widget.deliveryPlace.isNotEmpty
               ? widget.deliveryPlace
-              : 'Delivery Target',
+              : (AppLocalizations.of(context)?.deliveryTarget ?? 'Delivery Target'),
           snippet: widget.deliveryAddress,
         ),
       ),
@@ -445,7 +446,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
           position: LatLng(_riderLat, _riderLng),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           anchor: const Offset(0.5, 0.5),
-          infoWindow: const InfoWindow(title: 'You (Rider)'),
+          infoWindow: InfoWindow(title: AppLocalizations.of(context)?.youRider ?? (AppLocalizations.of(context)?.youRider ?? 'You (Rider)')),
         ),
       );
     }
@@ -481,12 +482,12 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                     ),
                   )
                 : const Icon(Icons.refresh),
-            tooltip: 'Refresh route',
+            tooltip: AppLocalizations.of(context)?.refreshRoute ?? (AppLocalizations.of(context)?.refreshRoute ?? 'Refresh route'),
             onPressed: _isFetchingRoute ? null : _fetchRoute,
           ),
           IconButton(
             icon: const Icon(Icons.zoom_out_map),
-            tooltip: 'Fit route on screen',
+            tooltip: AppLocalizations.of(context)?.fitRouteOnScreen ?? (AppLocalizations.of(context)?.fitRouteOnScreen ?? 'Fit route on screen'),
             onPressed: _zoomToIncludeMarkers,
           ),
         ],
@@ -654,10 +655,10 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                     ),
                     child: Text(
                       _currentStatus == 'arrived'
-                          ? 'Arrived'
+                          ? (AppLocalizations.of(context)?.statusArrived ?? 'Arrived')
                           : _currentStatus == 'delivered'
-                          ? 'Delivered'
-                          : 'On The Way',
+                          ? (AppLocalizations.of(context)?.statusDelivered ?? 'Delivered')
+                          : (AppLocalizations.of(context)?.onTheWay ?? 'On The Way'),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -718,7 +719,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                         ),
                       ),
                       onPressed: _makePhoneCall,
-                      tooltip: 'Call Customer',
+                      tooltip: AppLocalizations.of(context)?.callCustomer2 ?? (AppLocalizations.of(context)?.callCustomer2 ?? 'Call Customer'),
                     ),
                     const SizedBox(width: 10),
                   ],
@@ -735,7 +736,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                         ),
                       ),
                       onPressed: _openExternalMaps,
-                      tooltip: 'Open in External Google Maps app',
+                      tooltip: AppLocalizations.of(context)?.openInExternalGoogleMapsApp ?? (AppLocalizations.of(context)?.openInExternalGoogleMapsApp ?? 'Open in External Google Maps app'),
                     ),
                     const SizedBox(width: 10),
                   ],
@@ -749,7 +750,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                             child: ElevatedButton.icon(
                               onPressed: () => _handleStatusAction('arrived'),
                               icon: const Icon(Icons.location_on, size: 18),
-                              label: const Text('Arrived'),
+                              label: Text(AppLocalizations.of(context)?.statusArrived ?? (AppLocalizations.of(context)?.statusArrived ?? 'Arrived')),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.teal,
                                 foregroundColor: Colors.white,
@@ -770,7 +771,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                             child: ElevatedButton.icon(
                               onPressed: () => _handleStatusAction('complete'),
                               icon: const Icon(Icons.check_circle, size: 18),
-                              label: const Text('Complete'),
+                              label: Text(AppLocalizations.of(context)?.statusComplete ?? (AppLocalizations.of(context)?.statusComplete ?? 'Complete')),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,

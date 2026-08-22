@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -334,9 +335,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
         debugPrint('Product ${line.productId} not found in catalog. Creating dummy product for line.');
         final dummyProduct = Product(
           id: line.productId,
-          name: line.productName.isNotEmpty ? line.productName : 'Discount / Custom Item',
+          name: line.productName.isNotEmpty ? line.productName : (AppLocalizations.of(context)?.discountCustomItem ?? 'Discount / Custom Item'),
           price: line.priceUnit,
-          category: 'System',
+          category: (AppLocalizations.of(context)?.system ?? 'System'),
         );
         cartItems.add(
           CartItem(
@@ -405,8 +406,8 @@ class _TicketsScreenState extends State<TicketsScreen> {
       debugPrint('[Tickets] notifyReady failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not send notification. Please try again.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.couldNotSendNotificationPleaseTry ?? (AppLocalizations.of(context)?.couldNotSendNotificationPleaseTry ?? 'Could not send notification. Please try again.')),
           backgroundColor: Colors.red,
         ),
       );
@@ -422,13 +423,13 @@ class _TicketsScreenState extends State<TicketsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Open Tickets'),
+        title: Text(AppLocalizations.of(context)?.openTickets ?? (AppLocalizations.of(context)?.openTickets ?? 'Open Tickets')),
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
             onPressed: () => _fetchTickets(backgroundRefresh: true),
           ),
         ],
@@ -453,7 +454,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _fetchTickets(backgroundRefresh: false),
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
             ),
           ],
         ),
@@ -461,14 +462,13 @@ class _TicketsScreenState extends State<TicketsScreen> {
     }
 
     if (_tickets.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.receipt_long, size: 64, color: Colors.grey),
             SizedBox(height: 12),
-            Text(
-              'No open tickets',
+            Text(AppLocalizations.of(context)?.noOpenTickets ?? (AppLocalizations.of(context)?.noOpenTickets ?? 'No open tickets'),
               style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
           ],
@@ -569,8 +569,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
                     color: Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    '⚡ OFFLINE',
+                  child: Text(AppLocalizations.of(context)?.offline ?? (AppLocalizations.of(context)?.offline ?? '⚡ OFFLINE'),
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.orange,
@@ -661,7 +660,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
                           ticket.tableName ??
                               (ticket.tableId != null
                                   ? 'Table #${ticket.tableId}'
-                                  : 'No Table'),
+                                  : (AppLocalizations.of(context)?.noTable2 ?? 'No Table')),
                           style: TextStyle(
                             fontSize: tableFontSize,
                             fontWeight: FontWeight.bold,
@@ -719,9 +718,8 @@ class _TicketsScreenState extends State<TicketsScreen> {
                             Icons.notifications_active_rounded,
                             size: 15,
                           ),
-                    label: const FittedBox(
-                      child: Text(
-                        'Order Ready',
+                    label: FittedBox(
+                      child: Text(AppLocalizations.of(context)?.orderReady ?? (AppLocalizations.of(context)?.orderReady ?? 'Order Ready'),
                         style: TextStyle(fontSize: 12),
                       ),
                     ),

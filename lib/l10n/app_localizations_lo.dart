@@ -1381,4 +1381,944 @@ class AppLocalizationsLo extends AppLocalizations {
   String hoursMinutesShort(String hours, String minutes) {
     return '$hours ຊມ $minutes ນທ';
   }
+
+  @override
+  String get noData => 'ບໍ່ມີຂໍ້ມູນ';
+
+  @override
+  String get name => 'ຊື່';
+
+  @override
+  String get phone => 'ເບີໂທລະສັບ';
+
+  @override
+  String get amount => 'ຈຳນວນເງິນ';
+
+  @override
+  String get qty => 'ຈຳນວນ';
+
+  @override
+  String get item => 'ລາຍການ';
+
+  @override
+  String get product => 'ສິນຄ້າ';
+
+  @override
+  String get products => 'ສິນຄ້າ';
+
+  @override
+  String get categories => 'ໝວດໝູ່';
+
+  @override
+  String get toppings => 'ເຄື່ອງເສີມ';
+
+  @override
+  String get category => 'ໝວດໝູ່';
+
+  @override
+  String get orders => 'ອໍເດີ';
+
+  @override
+  String get order => 'ອໍເດີ';
+
+  @override
+  String get revenue => 'ລາຍຮັບ';
+
+  @override
+  String get transactions => 'ທຸລະກຳ';
+
+  @override
+  String get payment => 'ການຊຳລະ';
+
+  @override
+  String get confirm => 'ຢືນຢັນ';
+
+  @override
+  String get remove => 'ລຶບອອກ';
+
+  @override
+  String get keep => 'ເກັບໄວ້';
+
+  @override
+  String get reject => 'ປະຕິເສດ';
+
+  @override
+  String get call => 'ໂທ';
+
+  @override
+  String get newLabel => 'ໃໝ່';
+
+  @override
+  String get active => 'ກຳລັງໃຊ້ງານ';
+
+  @override
+  String get pending => 'ລໍຖ້າ';
+
+  @override
+  String get completed => 'ສຳເລັດແລ້ວ';
+
+  @override
+  String get confirmed => 'ຢືນຢັນແລ້ວ';
+
+  @override
+  String get defaultLabel => 'ຄ່າເລີ່ມຕົ້ນ';
+
+  @override
+  String get disabled => 'ປິດໃຊ້ງານ';
+
+  @override
+  String get blocked => 'ຖືກບລັອກ';
+
+  @override
+  String get admin => 'ຜູ້ດູແລ';
+
+  @override
+  String get system => 'ລະບົບ';
+
+  @override
+  String get today => 'ມື້ນີ້';
+
+  @override
+  String get yesterday => 'ມື້ວານນີ້';
+
+  @override
+  String get today2 => 'ມື້ນີ້';
+
+  @override
+  String get yesterday2 => 'ມື້ວານນີ້';
+
+  @override
+  String get loadMore => 'ໂຫຼດເພີ່ມ';
+
+  @override
+  String get fullscreen => 'ເຕັມຈໍ';
+
+  @override
+  String get official => 'ທາງການ';
+
+  @override
+  String get unsynced => 'ຍັງບໍ່ໄດ້ຊິງຄ໌';
+
+  @override
+  String get percentage => 'ເປີເຊັນ';
+
+  @override
+  String get fixedValue => 'ຈຳນວນຄົງທີ່';
+
+  @override
+  String get manageCatalog => 'ຈັດການລາຍການສິນຄ້າ';
+
+  @override
+  String get manageYourActiveProductCatalog => 'ຈັດການລາຍການສິນຄ້າທີ່ໃຊ້ງານຢູ່';
+
+  @override
+  String get organizeProductsIntoGroups => 'ຈັດກຸ່ມສິນຄ້າ';
+
+  @override
+  String get addOnsModifiersAndVariations =>
+      'ເຄື່ອງເສີມ, ຕົວເລືອກ ແລະ ຮູບແບບຕ່າງໆ';
+
+  @override
+  String get manageCategories => 'ຈັດການໝວດໝູ່';
+
+  @override
+  String get manageCombos => 'ຈັດການຊຸດອາຫານ';
+
+  @override
+  String get manageProducts => 'ຈັດການສິນຄ້າ';
+
+  @override
+  String get manageToppings => 'ຈັດການເຄື່ອງເສີມ';
+
+  @override
+  String get addProduct => 'ເພີ່ມສິນຄ້າ';
+
+  @override
+  String get addCategory => 'ເພີ່ມໝວດໝູ່';
+
+  @override
+  String get addCombo => 'ເພີ່ມຊຸດອາຫານ';
+
+  @override
+  String get addTopping => 'ເພີ່ມເຄື່ອງເສີມ';
+
+  @override
+  String get addYourFirstCategoryToGet => 'ເພີ່ມໝວດໝູ່ທຳອິດເພື່ອເລີ່ມຕົ້ນ';
+
+  @override
+  String get addYourFirstComboToGet => 'ເພີ່ມຊຸດອາຫານທຳອິດເພື່ອເລີ່ມຕົ້ນ';
+
+  @override
+  String get addYourFirstProductToGet => 'ເພີ່ມສິນຄ້າທຳອິດເພື່ອເລີ່ມຕົ້ນ';
+
+  @override
+  String get addYourFirstToppingToGet => 'ເພີ່ມເຄື່ອງເສີມທຳອິດເພື່ອເລີ່ມຕົ້ນ';
+
+  @override
+  String get noCategoriesYet => 'ຍັງບໍ່ມີໝວດໝູ່';
+
+  @override
+  String get noCombosYet => 'ຍັງບໍ່ມີຊຸດອາຫານ';
+
+  @override
+  String get noProductsYet => 'ຍັງບໍ່ມີສິນຄ້າ';
+
+  @override
+  String get noToppingsYet => 'ຍັງບໍ່ມີເຄື່ອງເສີມ';
+
+  @override
+  String get deleteCategory => 'ລຶບໝວດໝູ່';
+
+  @override
+  String get deleteCombo => 'ລຶບຊຸດອາຫານ';
+
+  @override
+  String get deleteProduct => 'ລຶບສິນຄ້າ';
+
+  @override
+  String get deleteTopping => 'ລຶບເຄື່ອງເສີມ';
+
+  @override
+  String get areYouSureYouWantTo => 'ທ່ານແນ່ໃຈບໍວ່າຈະລຶບໝວດໝູ່ນີ້?';
+
+  @override
+  String get areYouSureYouWantTo2 => 'ທ່ານແນ່ໃຈບໍວ່າຈະລຶບຊຸດອາຫານນີ້?';
+
+  @override
+  String get areYouSureYouWantTo3 => 'ທ່ານແນ່ໃຈບໍວ່າຈະລຶບສິນຄ້ານີ້?';
+
+  @override
+  String get areYouSureYouWantTo4 => 'ທ່ານແນ່ໃຈບໍວ່າຈະລຶບເຄື່ອງເສີມນີ້?';
+
+  @override
+  String get categoryDeleted => 'ລຶບໝວດໝູ່ແລ້ວ';
+
+  @override
+  String get comboDeleted => 'ລຶບຊຸດອາຫານແລ້ວ';
+
+  @override
+  String get productDeleted => 'ລຶບສິນຄ້າແລ້ວ';
+
+  @override
+  String get toppingDeleted => 'ລຶບເຄື່ອງເສີມແລ້ວ';
+
+  @override
+  String get visibleInApp => 'ສະແດງໃນແອັບ';
+
+  @override
+  String get hiddenInApp => 'ເຊື່ອງໃນແອັບ';
+
+  @override
+  String get categoryName => 'ຊື່ໝວດໝູ່*';
+
+  @override
+  String get comboName => 'ຊື່ຊຸດອາຫານ*';
+
+  @override
+  String get comboFixedPrice => 'ລາຄາຄົງທີ່ຂອງຊຸດ*';
+
+  @override
+  String get productName => 'ຊື່ສິນຄ້າ*';
+
+  @override
+  String get toppingName => 'ຊື່ເຄື່ອງເສີມ*';
+
+  @override
+  String get listPrice => 'ລາຄາຂາຍ*';
+
+  @override
+  String get extraPriceOptional => 'ລາຄາເພີ່ມ (ບໍ່ບັງຄັບ)';
+
+  @override
+  String get saveCategory => 'ບັນທຶກໝວດໝູ່';
+
+  @override
+  String get saveCombo => 'ບັນທຶກຊຸດອາຫານ';
+
+  @override
+  String get saveProduct => 'ບັນທຶກສິນຄ້າ';
+
+  @override
+  String get saveTopping => 'ບັນທຶກເຄື່ອງເສີມ';
+
+  @override
+  String get categoryAddedSuccessfully => 'ເພີ່ມໝວດໝູ່ສຳເລັດແລ້ວ';
+
+  @override
+  String get categoryUpdatedSuccessfully => 'ອັບເດດໝວດໝູ່ສຳເລັດແລ້ວ';
+
+  @override
+  String get comboSavedSuccessfully => 'ບັນທຶກຊຸດອາຫານສຳເລັດແລ້ວ';
+
+  @override
+  String get productSavedSuccessfully => 'ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ';
+
+  @override
+  String get toppingSavedSuccessfully => 'ບັນທຶກເຄື່ອງເສີມສຳເລັດແລ້ວ';
+
+  @override
+  String get nameIsRequired => 'ຕ້ອງປ້ອນຊື່';
+
+  @override
+  String get validNameAndPriceAreRequired => 'ຕ້ອງປ້ອນຊື່ ແລະ ລາຄາທີ່ຖືກຕ້ອງ';
+
+  @override
+  String get comboMustHaveAtLeastOne => 'ຊຸດອາຫານຕ້ອງມີສິນຄ້າຢ່າງໜ້ອຍ 1 ລາຍການ';
+
+  @override
+  String get comboItems => 'ລາຍການໃນຊຸດ';
+
+  @override
+  String get noProductsAddedToThisCombo => 'ຍັງບໍ່ໄດ້ເພີ່ມສິນຄ້າໃສ່ຊຸດນີ້.';
+
+  @override
+  String get availableToppings => 'ເຄື່ອງເສີມທີ່ມີ';
+
+  @override
+  String get noToppingsConfigured => 'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າເຄື່ອງເສີມ.';
+
+  @override
+  String get showInApp => 'ສະແດງໃນແອັບ';
+
+  @override
+  String get onlyCheckedCategoriesAreVisibleIn =>
+      'ສະເພາະໝວດໝູ່ທີ່ຕິກເທົ່ານັ້ນທີ່ຈະສະແດງໃນແອັບ POS.';
+
+  @override
+  String get customerSelfOrder => 'ລູກຄ້າສັ່ງເອງ';
+
+  @override
+  String get customersCanSelectAndOrder => 'ລູກຄ້າສາມາດເລືອກ ແລະ ສັ່ງໄດ້';
+
+  @override
+  String get runOutBlocked => 'ໝົດແລ້ວ (ບລັອກ)';
+
+  @override
+  String get shownAsRunOutCannotAdd => 'ສະແດງວ່າໝົດແລ້ວ; ບໍ່ສາມາດເພີ່ມໃສ່ກະຕ່າ';
+
+  @override
+  String get couldNotSaveToppingPleaseTry =>
+      'ບັນທຶກເຄື່ອງເສີມບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get currentTicket2 => 'ບິນປັດຈຸບັນ';
+
+  @override
+  String get newItems => 'ລາຍການໃໝ່';
+
+  @override
+  String get alreadyOrdered => 'ສັ່ງໄປແລ້ວ';
+
+  @override
+  String get noItems => 'ບໍ່ມີລາຍການ';
+
+  @override
+  String get noItemsInTicket => 'ບໍ່ມີລາຍການໃນບິນ';
+
+  @override
+  String get addCustomer => 'ເພີ່ມລູກຄ້າ';
+
+  @override
+  String get clearTicket2 => 'ລຶບບິນ';
+
+  @override
+  String get saveTicket => 'ບັນທຶກບິນ';
+
+  @override
+  String get charge2 => 'ຮັບເງິນ';
+
+  @override
+  String get subtotalExclVat => 'ຍອດຍ່ອຍ (ບໍ່ລວມ VAT)';
+
+  @override
+  String get amountExclVat2 => 'ຈຳນວນເງິນ (ບໍ່ລວມ VAT)';
+
+  @override
+  String get includesVat => 'ລວມ VAT ແລ້ວ';
+
+  @override
+  String get priceIncludesTax => 'ລາຄາລວມພາສີແລ້ວ';
+
+  @override
+  String get taxHiddenOnReceipt => 'ເຊື່ອງພາສີໃນໃບຮັບເງິນ';
+
+  @override
+  String get totalDue => 'ຍອດທີ່ຕ້ອງຊຳລະ';
+
+  @override
+  String get selectCustomer => 'ເລືອກລູກຄ້າ';
+
+  @override
+  String get addCustomer2 => 'ເພີ່ມລູກຄ້າ';
+
+  @override
+  String get newCustomer => 'ລູກຄ້າໃໝ່';
+
+  @override
+  String get addCustomerIfNotFound => 'ເພີ່ມລູກຄ້າຖ້າຫາບໍ່ພົບ';
+
+  @override
+  String get searchByNameOrPhone => 'ຄົ້ນຫາດ້ວຍຊື່ ຫຼື ເບີໂທ...';
+
+  @override
+  String get loadingCustomers => 'ກຳລັງໂຫຼດຂໍ້ມູນລູກຄ້າ...';
+
+  @override
+  String get noCustomersFound => 'ບໍ່ພົບລູກຄ້າ';
+
+  @override
+  String get searchFailedPleaseTryAgain => 'ຄົ້ນຫາບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get couldNotCreateCustomerPleaseTry =>
+      'ສ້າງລູກຄ້າບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get couldNotLoadMorePleaseTry => 'ໂຫຼດເພີ່ມບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get noOpenTickets => 'ບໍ່ມີບິນທີ່ເປີດຢູ່';
+
+  @override
+  String get noTable2 => 'ບໍ່ມີໂຕະ';
+
+  @override
+  String get orderReady => 'ອໍເດີພ້ອມແລ້ວ';
+
+  @override
+  String get discountCustomItem => 'ສ່ວນຫຼຸດ / ລາຍການກຳນົດເອງ';
+
+  @override
+  String get couldNotLoadTicketsPleaseCheck =>
+      'ໂຫຼດບິນບໍ່ໄດ້. ກະລຸນາກວດການເຊື່ອມຕໍ່ ແລ້ວລອງໃໝ່.';
+
+  @override
+  String get couldNotSendNotificationPleaseTry =>
+      'ສົ່ງການແຈ້ງເຕືອນບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get splitTicket => 'ແຍກບິນ';
+
+  @override
+  String get ticketName => 'ຊື່ບິນ';
+
+  @override
+  String get renameNewTicket => 'ປ່ຽນຊື່ບິນໃໝ່';
+
+  @override
+  String get allItemsMoved => 'ຍ້າຍລາຍການທັງໝົດແລ້ວ';
+
+  @override
+  String get pleaseMoveAtLeastOneItem => 'ກະລຸນາຍ້າຍຢ່າງໜ້ອຍ 1 ລາຍການໄປບິນໃໝ່.';
+
+  @override
+  String get theOriginalTicketCannotBeEmpty =>
+      'ບິນເດີມຫວ່າງເປົ່າບໍ່ໄດ້. ຕ້ອງເກັບໄວ້ຢ່າງໜ້ອຍ 1 ລາຍການ.';
+
+  @override
+  String get tapItemsOnTheLeftTo => 'ແຕະລາຍການເບື້ອງຊ້າຍ\nເພື່ອຍ້າຍມາບ່ອນນີ້';
+
+  @override
+  String get discountOptions => 'ຕົວເລືອກສ່ວນຫຼຸດ';
+
+  @override
+  String get addDiscountOption => 'ເພີ່ມຕົວເລືອກສ່ວນຫຼຸດ';
+
+  @override
+  String get discountType => 'ປະເພດສ່ວນຫຼຸດ';
+
+  @override
+  String get enableDiscount => 'ເປີດໃຊ້ສ່ວນຫຼຸດ';
+
+  @override
+  String get discountHidden => 'ເຊື່ອງສ່ວນຫຼຸດ';
+
+  @override
+  String get discountWillAppearInPos => 'ສ່ວນຫຼຸດຈະສະແດງໃນ POS';
+
+  @override
+  String get discountSettingsSaved => 'ບັນທຶກການຕັ້ງຄ່າສ່ວນຫຼຸດແລ້ວ';
+
+  @override
+  String get noDiscountOptionsAddedYet => 'ຍັງບໍ່ໄດ້ເພີ່ມຕົວເລືອກສ່ວນຫຼຸດ.';
+
+  @override
+  String get optionName => 'ຊື່ຕົວເລືອກ';
+
+  @override
+  String get percentage2 => 'ເປີເຊັນ (%)';
+
+  @override
+  String get leaveEmptyForManualInput => 'ປະຫວ່າງໄວ້ເພື່ອໃຫ້ປ້ອນເອງ';
+
+  @override
+  String get tipLeaveTheValueBlankTo =>
+      'ຄຳແນະນຳ: ປະຄ່າຫວ່າງໄວ້ ເພື່ອໃຫ້ພະນັກງານປ້ອນຈຳນວນເອງ.';
+
+  @override
+  String get receiptsHistory => 'ປະຫວັດໃບຮັບເງິນ';
+
+  @override
+  String get noPaidReceiptsYet => 'ຍັງບໍ່ມີໃບຮັບເງິນທີ່ຊຳລະແລ້ວ';
+
+  @override
+  String get noMoreReceipts => 'ບໍ່ມີໃບຮັບເງິນເພີ່ມ';
+
+  @override
+  String get unknownDate => 'ບໍ່ຮູ້ວັນທີ';
+
+  @override
+  String get thisReceiptIsMissingAnOrder =>
+      'ໃບຮັບເງິນນີ້ບໍ່ມີລະຫັດອໍເດີ. ກະລຸນາໂຫຼດຄືນ ແລ້ວລອງໃໝ່.';
+
+  @override
+  String get refund => 'ຄືນເງິນ';
+
+  @override
+  String get refundOrder => 'ຄືນເງິນອໍເດີ';
+
+  @override
+  String get confirmRefund => 'ຢືນຢັນການຄືນເງິນ';
+
+  @override
+  String get reprintReceipt => 'ພິມໃບຮັບເງິນຄືນ';
+
+  @override
+  String get adminPin => 'PIN ຜູ້ດູແລ';
+
+  @override
+  String get adminPinIsRequired => 'ຕ້ອງປ້ອນ PIN ຜູ້ດູແລ.';
+
+  @override
+  String get thisOrderHasBeenRefunded => 'ອໍເດີນີ້ຖືກຄືນເງິນແລ້ວ';
+
+  @override
+  String get printerErrorCheckConnection =>
+      'ເຄື່ອງພິມຜິດພາດ. ກະລຸນາກວດການເຊື່ອມຕໍ່.';
+
+  @override
+  String get orderRefundedSuccessfully => '✅ ຄືນເງິນອໍເດີສຳເລັດແລ້ວ.';
+
+  @override
+  String get receiptReprinted => '🖨️ ພິມໃບຮັບເງິນຄືນແລ້ວ!';
+
+  @override
+  String get noPendingSelfOrders => 'ບໍ່ມີອໍເດີລູກຄ້າທີ່ລໍຖ້າ';
+
+  @override
+  String get quickConfirm => 'ຢືນຢັນດ່ວນ';
+
+  @override
+  String get rejectOrder => 'ປະຕິເສດອໍເດີ';
+
+  @override
+  String get rejectOrder2 => 'ປະຕິເສດອໍເດີ?';
+
+  @override
+  String get orderRejectedAndCancelled => 'ປະຕິເສດ ແລະ ຍົກເລີກອໍເດີແລ້ວ.';
+
+  @override
+  String get transferConfirmedOrderMovedToOpen =>
+      'ຢືນຢັນການໂອນແລ້ວ. ຍ້າຍອໍເດີໄປບິນທີ່ເປີດຢູ່.';
+
+  @override
+  String get couldNotConfirmOrderPleaseTry =>
+      'ຢືນຢັນອໍເດີບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get couldNotRejectOrderPleaseTry =>
+      'ປະຕິເສດອໍເດີບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get couldNotLoadOrdersPleaseCheck =>
+      'ໂຫຼດອໍເດີບໍ່ໄດ້. ກະລຸນາກວດການເຊື່ອມຕໍ່ ແລ້ວລອງໃໝ່.';
+
+  @override
+  String get viewProof => 'ເບິ່ງຫຼັກຖານ';
+
+  @override
+  String get noProofImageUploaded => 'ບໍ່ໄດ້ອັບໂຫຼດຮູບຫຼັກຖານ';
+
+  @override
+  String get cannotLoadProofImage => 'ໂຫຼດຮູບຫຼັກຖານບໍ່ໄດ້';
+
+  @override
+  String get bankTransfer => 'ໂອນຜ່ານທະນາຄານ';
+
+  @override
+  String get payAtStore2 => 'ຈ່າຍທີ່ຮ້ານ';
+
+  @override
+  String get customerPlace => 'ສະຖານທີ່ລູກຄ້າ:';
+
+  @override
+  String get orderNotePickupTime => 'ໝາຍເຫດ / ເວລາຮັບເຄື່ອງ:';
+
+  @override
+  String get openMap => 'ເປີດແຜນທີ່';
+
+  @override
+  String get callCustomer => 'ໂທຫາລູກຄ້າ?';
+
+  @override
+  String get dashboard => 'ພາບລວມ';
+
+  @override
+  String get currentOrders => 'ອໍເດີປັດຈຸບັນ';
+
+  @override
+  String get orderHistory => 'ປະຫວັດອໍເດີ';
+
+  @override
+  String get ordersByStatus => 'ອໍເດີຕາມສະຖານະ';
+
+  @override
+  String get totalOrders => 'ອໍເດີທັງໝົດ';
+
+  @override
+  String get totalRevenue => 'ລາຍຮັບທັງໝົດ';
+
+  @override
+  String get onTheWay => 'ກຳລັງເດີນທາງ';
+
+  @override
+  String get noCurrentOrders => 'ບໍ່ມີອໍເດີປັດຈຸບັນ';
+
+  @override
+  String get noHistoryYet => 'ຍັງບໍ່ມີປະຫວັດ';
+
+  @override
+  String get activeOrdersWillAppearHere => 'ອໍເດີທີ່ກຳລັງດຳເນີນຈະສະແດງຢູ່ນີ້';
+
+  @override
+  String get completedOrdersWillAppearHere => 'ອໍເດີທີ່ສຳເລັດແລ້ວຈະສະແດງຢູ່ນີ້';
+
+  @override
+  String get actionFailedPleaseTryAgain => 'ດຳເນີນການບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get chatWithCustomer => 'ສົນທະນາກັບລູກຄ້າ';
+
+  @override
+  String get navigateInApp => 'ນຳທາງ (ໃນແອັບ)';
+
+  @override
+  String get openInGoogleMapsApp => 'ເປີດໃນແອັບ Google Maps';
+
+  @override
+  String get deliveryTarget => 'ຈຸດໝາຍການຈັດສົ່ງ';
+
+  @override
+  String get youRider => 'ທ່ານ (ໄຣເດີ)';
+
+  @override
+  String get callCustomer2 => 'ໂທຫາລູກຄ້າ';
+
+  @override
+  String get refreshRoute => 'ໂຫຼດເສັ້ນທາງຄືນ';
+
+  @override
+  String get fitRouteOnScreen => 'ຈັດເສັ້ນທາງໃຫ້ພໍດີຈໍ';
+
+  @override
+  String get openInExternalGoogleMapsApp => 'ເປີດໃນແອັບ Google Maps ພາຍນອກ';
+
+  @override
+  String get couldNotLaunchDialer => 'ເປີດແອັບໂທບໍ່ໄດ້';
+
+  @override
+  String get couldNotLaunchExternalMapsApplication =>
+      'ເປີດແອັບແຜນທີ່ພາຍນອກບໍ່ໄດ້';
+
+  @override
+  String get statusUpdatedToArrived => 'ອັບເດດສະຖານະເປັນ ມາຮອດແລ້ວ';
+
+  @override
+  String get statusUpdatedToCompleteDelivered =>
+      'ອັບເດດສະຖານະເປັນ ສຳເລັດ / ຈັດສົ່ງແລ້ວ';
+
+  @override
+  String get noMessagesYet => 'ຍັງບໍ່ມີຂໍ້ຄວາມ';
+
+  @override
+  String get startTheConversationBelow => 'ເລີ່ມສົນທະນາຢູ່ດ້ານລຸ່ມ';
+
+  @override
+  String get typeAMessage => 'ພິມຂໍ້ຄວາມ…';
+
+  @override
+  String get sendImage => 'ສົ່ງຮູບ';
+
+  @override
+  String get sendImage2 => 'ສົ່ງຮູບ';
+
+  @override
+  String get takeAPhoto => 'ຖ່າຍຮູບ';
+
+  @override
+  String get chooseFromGallery => 'ເລືອກຈາກຄັງຮູບ';
+
+  @override
+  String get addACaptionOptional => 'ເພີ່ມຄຳບັນຍາຍ (ບໍ່ບັງຄັບ)';
+
+  @override
+  String get imageReadyToSend => 'ຮູບພ້ອມສົ່ງແລ້ວ';
+
+  @override
+  String get couldNotLoadImage => 'ໂຫຼດຮູບບໍ່ໄດ້';
+
+  @override
+  String get couldNotLoadMessages => 'ໂຫຼດຂໍ້ຄວາມບໍ່ໄດ້.';
+
+  @override
+  String get failedToSendImagePleaseTry => 'ສົ່ງຮູບບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get failedToSendMessagePleaseTry =>
+      'ສົ່ງຂໍ້ຄວາມບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get sendingImage => '📷 ກຳລັງສົ່ງຮູບ…';
+
+  @override
+  String get printers => 'ເຄື່ອງພິມ';
+
+  @override
+  String get addPrinter => 'ເພີ່ມເຄື່ອງພິມ';
+
+  @override
+  String get deletePrinter => 'ລຶບເຄື່ອງພິມ';
+
+  @override
+  String get printerSaved => 'ບັນທຶກເຄື່ອງພິມແລ້ວ';
+
+  @override
+  String get printerDeleted => 'ລຶບເຄື່ອງພິມແລ້ວ';
+
+  @override
+  String get printerTestSuccessful => 'ທົດສອບເຄື່ອງພິມສຳເລັດ.';
+
+  @override
+  String get printerTestFailed => 'ທົດສອບເຄື່ອງພິມບໍ່ສຳເລັດ.';
+
+  @override
+  String get printTest => 'ທົດສອບການພິມ';
+
+  @override
+  String get printerIpAddress => 'ທີ່ຢູ່ IP ຂອງເຄື່ອງພິມ';
+
+  @override
+  String get port => 'ພອດ';
+
+  @override
+  String get paperWidth => 'ຄວາມກວ້າງເຈ້ຍ';
+
+  @override
+  String get advancedSettings => 'ການຕັ້ງຄ່າຂັ້ນສູງ';
+
+  @override
+  String get categoryRouting => 'ການກຳນົດເສັ້ນທາງໝວດໝູ່';
+
+  @override
+  String get noCategoriesFound => 'ບໍ່ພົບໝວດໝູ່';
+
+  @override
+  String get ifNoneSelectedAllCategoriesWill =>
+      'ຖ້າບໍ່ເລືອກຫຍັງ ທຸກໝວດໝູ່ຈະພິມອອກເຄື່ອງນີ້.';
+
+  @override
+  String get printReceiptsAndBills => 'ພິມໃບຮັບເງິນ ແລະ ບິນ';
+
+  @override
+  String get printOrders => 'ພິມອໍເດີ';
+
+  @override
+  String get defaultPrinterForReceipts => 'ເຄື່ອງພິມຫຼັກສຳລັບໃບຮັບເງິນ';
+
+  @override
+  String get printSingleItemPerOrderTicket => 'ພິມ 1 ລາຍການຕໍ່ 1 ບິນຄົວ';
+
+  @override
+  String get groupIdenticalItemsInOrderTickets => 'ລວມລາຍການທີ່ຄືກັນໃນບິນຄົວ';
+
+  @override
+  String get noPrintersYet => 'ຍັງບໍ່ມີເຄື່ອງພິມ';
+
+  @override
+  String get tapToAddYourFirstPrinter =>
+      'ແຕະ + ເພື່ອເພີ່ມເຄື່ອງພິມທຳອິດ.\nຕັ້ງຄ່າໃບຮັບເງິນ, ອໍເດີ ແລະ ໝວດໝູ່.';
+
+  @override
+  String get receipt => 'ໃບຮັບເງິນ';
+
+  @override
+  String get billPreReceipt => 'ບິນ (ກ່ອນຮັບເງິນ)';
+
+  @override
+  String get receiptPaid => 'ໃບຮັບເງິນ (ຊຳລະແລ້ວ)';
+
+  @override
+  String get kitchenOrderTicket => 'ບິນຄົວ / ບິນອໍເດີ';
+
+  @override
+  String get kitchenOrderTicket2 => 'ບິນຄົວ / ບິນອໍເດີ';
+
+  @override
+  String get refundVoid => 'ຄືນເງິນ / ຍົກເລີກ';
+
+  @override
+  String get savedTemplateSettings => 'ບັນທຶກການຕັ້ງຄ່າແມ່ແບບແລ້ວ.';
+
+  @override
+  String get noTemplateSelectedPreviewUnavailable =>
+      'ຍັງບໍ່ໄດ້ເລືອກແມ່ແບບ — ບໍ່ມີຕົວຢ່າງ';
+
+  @override
+  String get adminReports => 'ລາຍງານຜູ້ດູແລ';
+
+  @override
+  String get allBranches => 'ທຸກສາຂາ';
+
+  @override
+  String get selectDateRange => 'ເລືອກຊ່ວງວັນທີ';
+
+  @override
+  String get salesByDate => 'ຍອດຂາຍຕາມວັນທີ';
+
+  @override
+  String get salesByPaymentType => 'ຍອດຂາຍຕາມປະເພດການຊຳລະ';
+
+  @override
+  String get salesByProductTop => 'ຍອດຂາຍຕາມສິນຄ້າ (ສູງສຸດ)';
+
+  @override
+  String get paymentType => 'ປະເພດການຊຳລະ';
+
+  @override
+  String get peakOrderHours => 'ຊົ່ວໂມງທີ່ສັ່ງຫຼາຍທີ່ສຸດ';
+
+  @override
+  String get noHourlyPeakDataAvailable => 'ບໍ່ມີຂໍ້ມູນຊົ່ວໂມງສູງສຸດ';
+
+  @override
+  String get noOrderTrafficRecordedInThis => 'ບໍ່ມີການສັ່ງຊື້ໃນຊ່ວງເວລານີ້.';
+
+  @override
+  String get branchRanking => 'ອັນດັບສາຂາ';
+
+  @override
+  String get forbiddenAdminOnly => 'ບໍ່ອະນຸຍາດ (ສະເພາະຜູ້ດູແລ)';
+
+  @override
+  String get cannotLoadRanking => 'ໂຫຼດອັນດັບບໍ່ໄດ້';
+
+  @override
+  String get climbTheAdventureLadder => 'ໄຕ່ອັນດັບຂຶ້ນໄປ!';
+
+  @override
+  String get yourRank => 'ອັນດັບຂອງທ່ານ: -';
+
+  @override
+  String get enterPinToUnlock => 'ປ້ອນ PIN ເພື່ອປົດລັອກ';
+
+  @override
+  String get createYour4DigitPin => 'ສ້າງ PIN 4 ຫຼັກຂອງທ່ານ';
+
+  @override
+  String get confirmYourNewPin => 'ຢືນຢັນ PIN ໃໝ່ຂອງທ່ານ';
+
+  @override
+  String get incorrectPin => 'PIN ບໍ່ຖືກຕ້ອງ';
+
+  @override
+  String get pinMismatchOrSaveFailed => 'PIN ບໍ່ກົງກັນ ຫຼື ບັນທຶກບໍ່ສຳເລັດ';
+
+  @override
+  String get switchUser => 'ປ່ຽນຜູ້ໃຊ້';
+
+  @override
+  String get setPosName => 'ຕັ້ງຊື່ເຄື່ອງ POS';
+
+  @override
+  String get posNameExCounter1Ipad =>
+      'ຊື່ເຄື່ອງ POS (ຕົວຢ່າງ: Counter-1, iPad-Bar)';
+
+  @override
+  String get pleaseEnterAPosName => 'ກະລຸນາປ້ອນຊື່ເຄື່ອງ POS';
+
+  @override
+  String get posNameIsTooShort => 'ຊື່ເຄື່ອງ POS ສັ້ນເກີນໄປ';
+
+  @override
+  String get posNameIsTooLong => 'ຊື່ເຄື່ອງ POS ຍາວເກີນໄປ';
+
+  @override
+  String get thisHelpsTrackWhichDeviceWas =>
+      'ຊ່ວຍໃຫ້ຮູ້ວ່າໃຊ້ເຄື່ອງໃດເມື່ອມີບັນຫາເກີດຂຶ້ນ.';
+
+  @override
+  String get refreshingMenusTablesAndSalesData =>
+      'ກຳລັງໂຫຼດເມນູ, ໂຕະ ແລະ ຂໍ້ມູນການຂາຍສຳລັບເຄື່ອງນີ້';
+
+  @override
+  String get returnToLogin => 'ກັບໄປໜ້າເຂົ້າສູ່ລະບົບ';
+
+  @override
+  String get networkErrorAndNoOfflineCache =>
+      'ເຄືອຂ່າຍຜິດພາດ ແລະ ບໍ່ມີຂໍ້ມູນອອບໄລນ໌.\nກະລຸນາເຊື່ອມຕໍ່ອິນເຕີເນັດ.';
+
+  @override
+  String get maintenanceMode => 'ໂໝດບຳລຸງຮັກສາ';
+
+  @override
+  String get reachTheAdmin => 'ຕິດຕໍ່ຜູ້ດູແລ';
+
+  @override
+  String get useTheOptionsYourStoreHas =>
+      'ໃຊ້ຊ່ອງທາງທີ່ຮ້ານຂອງທ່ານເປີດໄວ້ໃນ Odoo.';
+
+  @override
+  String get openFacebook => 'ເປີດ Facebook';
+
+  @override
+  String get openInWhatsapp => 'ເປີດໃນ WhatsApp';
+
+  @override
+  String get notConfiguredAskStaffToSet =>
+      'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ. ກະລຸນາແຈ້ງພະນັກງານໃຫ້ຕັ້ງ Facebook URL ໃນ Odoo.';
+
+  @override
+  String get notConfiguredAskStaffToSet2 =>
+      'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ. ກະລຸນາແຈ້ງພະນັກງານໃຫ້ຕັ້ງເບີ WhatsApp ໃນ Odoo.';
+
+  @override
+  String get ladolcePrivacy => 'ຄວາມເປັນສ່ວນຕົວ LaDolce';
+
+  @override
+  String get failedToLoadPrivacyPolicyPlease =>
+      'ໂຫຼດນະໂຍບາຍຄວາມເປັນສ່ວນຕົວບໍ່ສຳເລັດ. ກະລຸນາກວດການເຊື່ອມຕໍ່ ແລ້ວລອງໃໝ່.';
+
+  @override
+  String get orderItems => 'ລາຍການອໍເດີ';
+
+  @override
+  String get transferProof => 'ຫຼັກຖານການໂອນ';
+
+  @override
+  String get noLineItems => 'ບໍ່ມີລາຍການ';
+
+  @override
+  String get waitingReview => 'ລໍຖ້າການກວດ';
+
+  @override
+  String get complete => 'ສຳເລັດ';
+
+  @override
+  String get delivered => 'ຈັດສົ່ງແລ້ວ';
+
+  @override
+  String get cancelled => 'ຍົກເລີກແລ້ວ';
+
+  @override
+  String get offline => '⚡ ອອບໄລນ໌';
 }

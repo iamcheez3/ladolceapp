@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../theme/coffee_luxury_background.dart';
 import 'pin_screen.dart';
@@ -57,7 +58,7 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
       final userId = (widget.user['user_id'] is int)
           ? widget.user['user_id'] as int
           : int.tryParse(widget.user['user_id']?.toString() ?? '') ?? 0;
-      final cashierName = (widget.user['name'] ?? 'Cashier').toString();
+      final cashierName = (widget.user['name'] ?? (AppLocalizations.of(context)?.roleCashier ?? 'Cashier')).toString();
 
       // Mark this login's POS-name prompt as completed so app resume won't ask again.
       await api.clearPosIdentityRequiredFlag();
@@ -114,8 +115,7 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Set POS Name',
+                        Text(AppLocalizations.of(context)?.setPosName ?? (AppLocalizations.of(context)?.setPosName ?? 'Set POS Name'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
@@ -124,8 +124,7 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          'This helps track which device was used when something happens.',
+                        Text(AppLocalizations.of(context)?.thisHelpsTrackWhichDeviceWas ?? (AppLocalizations.of(context)?.thisHelpsTrackWhichDeviceWas ?? 'This helps track which device was used when something happens.'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.78),
@@ -139,7 +138,7 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                           onFieldSubmitted: (_) => _saveAndContinue(),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            labelText: 'POS name (ex: Counter-1, iPad-Bar, Android-Front)',
+                            labelText: AppLocalizations.of(context)?.posNameExCounter1Ipad ?? (AppLocalizations.of(context)?.posNameExCounter1Ipad ?? 'POS name (ex: Counter-1, iPad-Bar, Android-Front)'),
                             labelStyle: TextStyle(
                               color: Colors.white.withValues(alpha: 0.72),
                             ),
@@ -171,9 +170,9 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                           ),
                           validator: (v) {
                             final s = v?.trim() ?? '';
-                            if (s.isEmpty) return 'Please enter a POS name';
-                            if (s.length < 2) return 'POS name is too short';
-                            if (s.length > 40) return 'POS name is too long';
+                            if (s.isEmpty) return (AppLocalizations.of(context)?.pleaseEnterAPosName ?? 'Please enter a POS name');
+                            if (s.length < 2) return (AppLocalizations.of(context)?.posNameIsTooShort ?? 'POS name is too short');
+                            if (s.length > 40) return (AppLocalizations.of(context)?.posNameIsTooLong ?? 'POS name is too long');
                             return null;
                           },
                         ),
@@ -199,7 +198,7 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                                     ),
                                   )
                                 : const Icon(Icons.check_rounded),
-                            label: Text(_isSaving ? 'Saving…' : 'Continue'),
+                            label: Text(_isSaving ? 'Saving…' : (AppLocalizations.of(context)?.continueLabel ?? 'Continue')),
                           ),
                         ),
                         const SizedBox(height: 10),

@@ -1394,4 +1394,960 @@ class AppLocalizationsEn extends AppLocalizations {
   String hoursMinutesShort(String hours, String minutes) {
     return '${hours}h ${minutes}m';
   }
+
+  @override
+  String get noData => 'No data';
+
+  @override
+  String get name => 'Name';
+
+  @override
+  String get phone => 'Phone';
+
+  @override
+  String get amount => 'Amount';
+
+  @override
+  String get qty => 'Qty';
+
+  @override
+  String get item => 'Item';
+
+  @override
+  String get product => 'Product';
+
+  @override
+  String get products => 'Products';
+
+  @override
+  String get categories => 'Categories';
+
+  @override
+  String get toppings => 'Toppings';
+
+  @override
+  String get category => 'Category';
+
+  @override
+  String get orders => 'Orders';
+
+  @override
+  String get order => 'Order';
+
+  @override
+  String get revenue => 'Revenue';
+
+  @override
+  String get transactions => 'Transactions';
+
+  @override
+  String get payment => 'Payment';
+
+  @override
+  String get confirm => 'Confirm';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get keep => 'Keep';
+
+  @override
+  String get reject => 'Reject';
+
+  @override
+  String get call => 'Call';
+
+  @override
+  String get newLabel => 'New';
+
+  @override
+  String get active => 'Active';
+
+  @override
+  String get pending => 'Pending';
+
+  @override
+  String get completed => 'Completed';
+
+  @override
+  String get confirmed => 'Confirmed';
+
+  @override
+  String get defaultLabel => 'Default';
+
+  @override
+  String get disabled => 'Disabled';
+
+  @override
+  String get blocked => 'Blocked';
+
+  @override
+  String get admin => 'Admin';
+
+  @override
+  String get system => 'System';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get yesterday => 'Yesterday';
+
+  @override
+  String get today2 => 'TODAY';
+
+  @override
+  String get yesterday2 => 'YESTERDAY';
+
+  @override
+  String get loadMore => 'Load More';
+
+  @override
+  String get fullscreen => 'Fullscreen';
+
+  @override
+  String get official => 'Official';
+
+  @override
+  String get unsynced => 'Unsynced';
+
+  @override
+  String get percentage => 'Percentage';
+
+  @override
+  String get fixedValue => 'Fixed Value';
+
+  @override
+  String get manageCatalog => 'Manage Catalog';
+
+  @override
+  String get manageYourActiveProductCatalog =>
+      'Manage your active product catalog';
+
+  @override
+  String get organizeProductsIntoGroups => 'Organize products into groups';
+
+  @override
+  String get addOnsModifiersAndVariations =>
+      'Add-ons, modifiers, and variations';
+
+  @override
+  String get manageCategories => 'Manage Categories';
+
+  @override
+  String get manageCombos => 'Manage Combos';
+
+  @override
+  String get manageProducts => 'Manage Products';
+
+  @override
+  String get manageToppings => 'Manage Toppings';
+
+  @override
+  String get addProduct => 'Add Product';
+
+  @override
+  String get addCategory => 'Add Category';
+
+  @override
+  String get addCombo => 'Add Combo';
+
+  @override
+  String get addTopping => 'Add Topping';
+
+  @override
+  String get addYourFirstCategoryToGet =>
+      'Add your first category to get started';
+
+  @override
+  String get addYourFirstComboToGet => 'Add your first combo to get started';
+
+  @override
+  String get addYourFirstProductToGet =>
+      'Add your first product to get started';
+
+  @override
+  String get addYourFirstToppingToGet =>
+      'Add your first topping to get started';
+
+  @override
+  String get noCategoriesYet => 'No categories yet';
+
+  @override
+  String get noCombosYet => 'No combos yet';
+
+  @override
+  String get noProductsYet => 'No products yet';
+
+  @override
+  String get noToppingsYet => 'No toppings yet';
+
+  @override
+  String get deleteCategory => 'Delete Category';
+
+  @override
+  String get deleteCombo => 'Delete Combo';
+
+  @override
+  String get deleteProduct => 'Delete Product';
+
+  @override
+  String get deleteTopping => 'Delete Topping';
+
+  @override
+  String get areYouSureYouWantTo =>
+      'Are you sure you want to delete this category?';
+
+  @override
+  String get areYouSureYouWantTo2 =>
+      'Are you sure you want to delete this combo?';
+
+  @override
+  String get areYouSureYouWantTo3 =>
+      'Are you sure you want to delete this product?';
+
+  @override
+  String get areYouSureYouWantTo4 =>
+      'Are you sure you want to delete this topping?';
+
+  @override
+  String get categoryDeleted => 'Category deleted';
+
+  @override
+  String get comboDeleted => 'Combo deleted';
+
+  @override
+  String get productDeleted => 'Product deleted';
+
+  @override
+  String get toppingDeleted => 'Topping deleted';
+
+  @override
+  String get visibleInApp => 'Visible in app';
+
+  @override
+  String get hiddenInApp => 'Hidden in app';
+
+  @override
+  String get categoryName => 'Category Name*';
+
+  @override
+  String get comboName => 'Combo Name*';
+
+  @override
+  String get comboFixedPrice => 'Combo Fixed Price*';
+
+  @override
+  String get productName => 'Product Name*';
+
+  @override
+  String get toppingName => 'Topping Name*';
+
+  @override
+  String get listPrice => 'List Price*';
+
+  @override
+  String get extraPriceOptional => 'Extra Price (Optional)';
+
+  @override
+  String get saveCategory => 'Save Category';
+
+  @override
+  String get saveCombo => 'Save Combo';
+
+  @override
+  String get saveProduct => 'Save Product';
+
+  @override
+  String get saveTopping => 'Save Topping';
+
+  @override
+  String get categoryAddedSuccessfully => 'Category added successfully';
+
+  @override
+  String get categoryUpdatedSuccessfully => 'Category updated successfully';
+
+  @override
+  String get comboSavedSuccessfully => 'Combo saved successfully';
+
+  @override
+  String get productSavedSuccessfully => 'Product saved successfully';
+
+  @override
+  String get toppingSavedSuccessfully => 'Topping saved successfully';
+
+  @override
+  String get nameIsRequired => 'Name is required';
+
+  @override
+  String get validNameAndPriceAreRequired =>
+      'Valid name and price are required';
+
+  @override
+  String get comboMustHaveAtLeastOne => 'Combo must have at least one product';
+
+  @override
+  String get comboItems => 'Combo Items';
+
+  @override
+  String get noProductsAddedToThisCombo =>
+      'No products added to this combo yet.';
+
+  @override
+  String get availableToppings => 'Available Toppings';
+
+  @override
+  String get noToppingsConfigured => 'No toppings configured.';
+
+  @override
+  String get showInApp => 'Show in app';
+
+  @override
+  String get onlyCheckedCategoriesAreVisibleIn =>
+      'Only checked categories are visible in POS app.';
+
+  @override
+  String get customerSelfOrder => 'Customer self-order';
+
+  @override
+  String get customersCanSelectAndOrder => 'Customers can select and order';
+
+  @override
+  String get runOutBlocked => 'Run out (blocked)';
+
+  @override
+  String get shownAsRunOutCannotAdd => 'Shown as run out; cannot add to cart';
+
+  @override
+  String get couldNotSaveToppingPleaseTry =>
+      'Could not save topping. Please try again.';
+
+  @override
+  String get currentTicket2 => 'Current Ticket';
+
+  @override
+  String get newItems => 'NEW ITEMS';
+
+  @override
+  String get alreadyOrdered => 'ALREADY ORDERED';
+
+  @override
+  String get noItems => 'No items';
+
+  @override
+  String get noItemsInTicket => 'No items in ticket';
+
+  @override
+  String get addCustomer => 'Add customer';
+
+  @override
+  String get clearTicket2 => 'Clear Ticket';
+
+  @override
+  String get saveTicket => 'SAVE TICKET';
+
+  @override
+  String get charge2 => 'CHARGE';
+
+  @override
+  String get subtotalExclVat => 'Subtotal (excl. VAT)';
+
+  @override
+  String get amountExclVat2 => 'Amount (excl. VAT)';
+
+  @override
+  String get includesVat => 'Includes VAT';
+
+  @override
+  String get priceIncludesTax => 'Price includes tax';
+
+  @override
+  String get taxHiddenOnReceipt => 'Tax hidden on receipt';
+
+  @override
+  String get totalDue => 'Total due';
+
+  @override
+  String get selectCustomer => 'Select Customer';
+
+  @override
+  String get addCustomer2 => 'Add Customer';
+
+  @override
+  String get newCustomer => 'New Customer';
+
+  @override
+  String get addCustomerIfNotFound => 'Add customer if not found';
+
+  @override
+  String get searchByNameOrPhone => 'Search by name or phone...';
+
+  @override
+  String get loadingCustomers => 'Loading customers...';
+
+  @override
+  String get noCustomersFound => 'No customers found';
+
+  @override
+  String get searchFailedPleaseTryAgain => 'Search failed. Please try again.';
+
+  @override
+  String get couldNotCreateCustomerPleaseTry =>
+      'Could not create customer. Please try again.';
+
+  @override
+  String get couldNotLoadMorePleaseTry =>
+      'Could not load more. Please try again.';
+
+  @override
+  String get noOpenTickets => 'No open tickets';
+
+  @override
+  String get noTable2 => 'No Table';
+
+  @override
+  String get orderReady => 'Order Ready';
+
+  @override
+  String get discountCustomItem => 'Discount / Custom Item';
+
+  @override
+  String get couldNotLoadTicketsPleaseCheck =>
+      'Could not load tickets. Please check your connection and try again.';
+
+  @override
+  String get couldNotSendNotificationPleaseTry =>
+      'Could not send notification. Please try again.';
+
+  @override
+  String get splitTicket => 'Split Ticket';
+
+  @override
+  String get ticketName => 'Ticket Name';
+
+  @override
+  String get renameNewTicket => 'Rename New Ticket';
+
+  @override
+  String get allItemsMoved => 'All items moved';
+
+  @override
+  String get pleaseMoveAtLeastOneItem =>
+      'Please move at least one item to the new ticket.';
+
+  @override
+  String get theOriginalTicketCannotBeEmpty =>
+      'The original ticket cannot be empty. Keep at least one item.';
+
+  @override
+  String get tapItemsOnTheLeftTo => 'Tap items on the\nleft to move them here';
+
+  @override
+  String get discountOptions => 'Discount Options';
+
+  @override
+  String get addDiscountOption => 'Add Discount Option';
+
+  @override
+  String get discountType => 'Discount Type';
+
+  @override
+  String get enableDiscount => 'Enable Discount';
+
+  @override
+  String get discountHidden => 'Discount hidden';
+
+  @override
+  String get discountWillAppearInPos => 'Discount will appear in POS';
+
+  @override
+  String get discountSettingsSaved => 'Discount settings saved';
+
+  @override
+  String get noDiscountOptionsAddedYet => 'No discount options added yet.';
+
+  @override
+  String get optionName => 'Option Name';
+
+  @override
+  String get percentage2 => 'Percentage (%)';
+
+  @override
+  String get leaveEmptyForManualInput => 'Leave empty for manual input';
+
+  @override
+  String get tipLeaveTheValueBlankTo =>
+      'Tip: Leave the value blank to let cashiers enter a custom amount.';
+
+  @override
+  String get receiptsHistory => 'Receipts History';
+
+  @override
+  String get noPaidReceiptsYet => 'No paid receipts yet';
+
+  @override
+  String get noMoreReceipts => 'No more receipts';
+
+  @override
+  String get unknownDate => 'Unknown Date';
+
+  @override
+  String get thisReceiptIsMissingAnOrder =>
+      'This receipt is missing an order id. Please refresh and try again.';
+
+  @override
+  String get refund => 'Refund';
+
+  @override
+  String get refundOrder => 'Refund Order';
+
+  @override
+  String get confirmRefund => 'Confirm Refund';
+
+  @override
+  String get reprintReceipt => 'Reprint Receipt';
+
+  @override
+  String get adminPin => 'Admin PIN';
+
+  @override
+  String get adminPinIsRequired => 'Admin PIN is required.';
+
+  @override
+  String get thisOrderHasBeenRefunded => 'This order has been refunded';
+
+  @override
+  String get printerErrorCheckConnection => 'Printer error. Check connection.';
+
+  @override
+  String get orderRefundedSuccessfully => '✅ Order refunded successfully.';
+
+  @override
+  String get receiptReprinted => '🖨️ Receipt reprinted!';
+
+  @override
+  String get noPendingSelfOrders => 'No pending self orders';
+
+  @override
+  String get quickConfirm => 'Quick Confirm';
+
+  @override
+  String get rejectOrder => 'Reject Order';
+
+  @override
+  String get rejectOrder2 => 'Reject Order?';
+
+  @override
+  String get orderRejectedAndCancelled => 'Order rejected and cancelled.';
+
+  @override
+  String get transferConfirmedOrderMovedToOpen =>
+      'Transfer confirmed. Order moved to Open Tickets.';
+
+  @override
+  String get couldNotConfirmOrderPleaseTry =>
+      'Could not confirm order. Please try again.';
+
+  @override
+  String get couldNotRejectOrderPleaseTry =>
+      'Could not reject order. Please try again.';
+
+  @override
+  String get couldNotLoadOrdersPleaseCheck =>
+      'Could not load orders. Please check your connection and try again.';
+
+  @override
+  String get viewProof => 'View Proof';
+
+  @override
+  String get noProofImageUploaded => 'No proof image uploaded';
+
+  @override
+  String get cannotLoadProofImage => 'Cannot load proof image';
+
+  @override
+  String get bankTransfer => 'Bank Transfer';
+
+  @override
+  String get payAtStore2 => 'Pay at Store';
+
+  @override
+  String get customerPlace => 'Customer place:';
+
+  @override
+  String get orderNotePickupTime => 'Order Note / Pickup Time:';
+
+  @override
+  String get openMap => 'Open map';
+
+  @override
+  String get callCustomer => 'Call Customer?';
+
+  @override
+  String get dashboard => 'Dashboard';
+
+  @override
+  String get currentOrders => 'Current Orders';
+
+  @override
+  String get orderHistory => 'Order History';
+
+  @override
+  String get ordersByStatus => 'Orders by Status';
+
+  @override
+  String get totalOrders => 'Total Orders';
+
+  @override
+  String get totalRevenue => 'Total Revenue';
+
+  @override
+  String get onTheWay => 'On The Way';
+
+  @override
+  String get noCurrentOrders => 'No current orders';
+
+  @override
+  String get noHistoryYet => 'No history yet';
+
+  @override
+  String get activeOrdersWillAppearHere => 'Active orders will appear here';
+
+  @override
+  String get completedOrdersWillAppearHere =>
+      'Completed orders will appear here';
+
+  @override
+  String get actionFailedPleaseTryAgain => 'Action failed. Please try again.';
+
+  @override
+  String get chatWithCustomer => 'Chat with Customer';
+
+  @override
+  String get navigateInApp => 'Navigate (In App)';
+
+  @override
+  String get openInGoogleMapsApp => 'Open in Google Maps App';
+
+  @override
+  String get deliveryTarget => 'Delivery Target';
+
+  @override
+  String get youRider => 'You (Rider)';
+
+  @override
+  String get callCustomer2 => 'Call Customer';
+
+  @override
+  String get refreshRoute => 'Refresh route';
+
+  @override
+  String get fitRouteOnScreen => 'Fit route on screen';
+
+  @override
+  String get openInExternalGoogleMapsApp => 'Open in External Google Maps app';
+
+  @override
+  String get couldNotLaunchDialer => 'Could not launch dialer';
+
+  @override
+  String get couldNotLaunchExternalMapsApplication =>
+      'Could not launch external maps application';
+
+  @override
+  String get statusUpdatedToArrived => 'Status updated to Arrived';
+
+  @override
+  String get statusUpdatedToCompleteDelivered =>
+      'Status updated to Complete / Delivered';
+
+  @override
+  String get noMessagesYet => 'No messages yet';
+
+  @override
+  String get startTheConversationBelow => 'Start the conversation below';
+
+  @override
+  String get typeAMessage => 'Type a message…';
+
+  @override
+  String get sendImage => 'Send Image';
+
+  @override
+  String get sendImage2 => 'Send image';
+
+  @override
+  String get takeAPhoto => 'Take a photo';
+
+  @override
+  String get chooseFromGallery => 'Choose from gallery';
+
+  @override
+  String get addACaptionOptional => 'Add a caption (optional)';
+
+  @override
+  String get imageReadyToSend => 'Image ready to send';
+
+  @override
+  String get couldNotLoadImage => 'Could not load image';
+
+  @override
+  String get couldNotLoadMessages => 'Could not load messages.';
+
+  @override
+  String get failedToSendImagePleaseTry =>
+      'Failed to send image. Please try again.';
+
+  @override
+  String get failedToSendMessagePleaseTry =>
+      'Failed to send message. Please try again.';
+
+  @override
+  String get sendingImage => '📷 Sending image…';
+
+  @override
+  String get printers => 'Printers';
+
+  @override
+  String get addPrinter => 'Add Printer';
+
+  @override
+  String get deletePrinter => 'Delete Printer';
+
+  @override
+  String get printerSaved => 'Printer saved';
+
+  @override
+  String get printerDeleted => 'Printer deleted';
+
+  @override
+  String get printerTestSuccessful => 'Printer test successful.';
+
+  @override
+  String get printerTestFailed => 'Printer test failed.';
+
+  @override
+  String get printTest => 'Print Test';
+
+  @override
+  String get printerIpAddress => 'Printer IP address';
+
+  @override
+  String get port => 'Port';
+
+  @override
+  String get paperWidth => 'Paper width';
+
+  @override
+  String get advancedSettings => 'Advanced settings';
+
+  @override
+  String get categoryRouting => 'Category routing';
+
+  @override
+  String get noCategoriesFound => 'No categories found';
+
+  @override
+  String get ifNoneSelectedAllCategoriesWill =>
+      'If none selected, all categories will print on this printer.';
+
+  @override
+  String get printReceiptsAndBills => 'Print receipts and bills';
+
+  @override
+  String get printOrders => 'Print orders';
+
+  @override
+  String get defaultPrinterForReceipts => 'Default printer for receipts';
+
+  @override
+  String get printSingleItemPerOrderTicket =>
+      'Print single item per order ticket';
+
+  @override
+  String get groupIdenticalItemsInOrderTickets =>
+      'Group identical items in order tickets';
+
+  @override
+  String get noPrintersYet => 'No printers yet';
+
+  @override
+  String get tapToAddYourFirstPrinter =>
+      'Tap + to add your first printer.\nConfigure receipts, orders, and categories.';
+
+  @override
+  String get receipt => 'Receipt';
+
+  @override
+  String get billPreReceipt => 'Bill (pre-receipt)';
+
+  @override
+  String get receiptPaid => 'Receipt (paid)';
+
+  @override
+  String get kitchenOrderTicket => 'Kitchen / Order Ticket';
+
+  @override
+  String get kitchenOrderTicket2 => 'Kitchen / Order ticket';
+
+  @override
+  String get refundVoid => 'Refund / Void';
+
+  @override
+  String get savedTemplateSettings => 'Saved template settings.';
+
+  @override
+  String get noTemplateSelectedPreviewUnavailable =>
+      'No template selected — preview unavailable';
+
+  @override
+  String get adminReports => 'Admin Reports';
+
+  @override
+  String get allBranches => 'All branches';
+
+  @override
+  String get selectDateRange => 'Select date range';
+
+  @override
+  String get salesByDate => 'Sales by date';
+
+  @override
+  String get salesByPaymentType => 'Sales by payment type';
+
+  @override
+  String get salesByProductTop => 'Sales by product (top)';
+
+  @override
+  String get paymentType => 'Payment type';
+
+  @override
+  String get peakOrderHours => 'Peak order hours';
+
+  @override
+  String get noHourlyPeakDataAvailable => 'No hourly peak data available';
+
+  @override
+  String get noOrderTrafficRecordedInThis =>
+      'No order traffic recorded in this range.';
+
+  @override
+  String get branchRanking => 'Branch ranking';
+
+  @override
+  String get forbiddenAdminOnly => 'Forbidden (admin only)';
+
+  @override
+  String get cannotLoadRanking => 'Cannot load ranking';
+
+  @override
+  String get climbTheAdventureLadder => 'Climb the adventure ladder!';
+
+  @override
+  String get yourRank => 'Your rank: -';
+
+  @override
+  String get enterPinToUnlock => 'Enter PIN to unlock';
+
+  @override
+  String get createYour4DigitPin => 'Create your 4-digit PIN';
+
+  @override
+  String get confirmYourNewPin => 'Confirm your new PIN';
+
+  @override
+  String get incorrectPin => 'Incorrect PIN';
+
+  @override
+  String get pinMismatchOrSaveFailed => 'PIN mismatch or save failed';
+
+  @override
+  String get switchUser => 'Switch User';
+
+  @override
+  String get setPosName => 'Set POS Name';
+
+  @override
+  String get posNameExCounter1Ipad =>
+      'POS name (ex: Counter-1, iPad-Bar, Android-Front)';
+
+  @override
+  String get pleaseEnterAPosName => 'Please enter a POS name';
+
+  @override
+  String get posNameIsTooShort => 'POS name is too short';
+
+  @override
+  String get posNameIsTooLong => 'POS name is too long';
+
+  @override
+  String get thisHelpsTrackWhichDeviceWas =>
+      'This helps track which device was used when something happens.';
+
+  @override
+  String get refreshingMenusTablesAndSalesData =>
+      'Refreshing menus, tables, and sales data for this device';
+
+  @override
+  String get returnToLogin => 'Return to Login';
+
+  @override
+  String get networkErrorAndNoOfflineCache =>
+      'Network error and no offline cache available.\nPlease connect to the internet.';
+
+  @override
+  String get maintenanceMode => 'Maintenance Mode';
+
+  @override
+  String get reachTheAdmin => 'Reach the admin';
+
+  @override
+  String get useTheOptionsYourStoreHas =>
+      'Use the options your store has enabled in Odoo.';
+
+  @override
+  String get openFacebook => 'Open Facebook';
+
+  @override
+  String get openInWhatsapp => 'Open in WhatsApp';
+
+  @override
+  String get notConfiguredAskStaffToSet =>
+      'Not configured. Ask staff to set the Facebook URL in Odoo (Customer support).';
+
+  @override
+  String get notConfiguredAskStaffToSet2 =>
+      'Not configured. Ask staff to set the WhatsApp number in Odoo (Customer support).';
+
+  @override
+  String get ladolcePrivacy => 'LaDolce Privacy';
+
+  @override
+  String get failedToLoadPrivacyPolicyPlease =>
+      'Failed to load Privacy Policy. Please check your network connection and try again.';
+
+  @override
+  String get orderItems => 'ORDER ITEMS';
+
+  @override
+  String get transferProof => 'TRANSFER PROOF';
+
+  @override
+  String get noLineItems => 'No line items';
+
+  @override
+  String get waitingReview => 'Waiting review';
+
+  @override
+  String get complete => 'COMPLETE';
+
+  @override
+  String get delivered => 'DELIVERED';
+
+  @override
+  String get cancelled => 'CANCELLED';
+
+  @override
+  String get offline => '⚡ OFFLINE';
 }

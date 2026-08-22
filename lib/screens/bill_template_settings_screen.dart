@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:ladolce/l10n/app_localizations.dart';
 
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -117,7 +118,7 @@ class _BillTemplateSettingsScreenState
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved template settings.')),
+        SnackBar(content: Text(AppLocalizations.of(context)?.savedTemplateSettings ?? (AppLocalizations.of(context)?.savedTemplateSettings ?? 'Saved template settings.'))),
       );
       setState(() => _loading = false);
     } catch (e) {
@@ -163,7 +164,7 @@ class _BillTemplateSettingsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bill Templates'),
+        title: Text(AppLocalizations.of(context)?.billTemplates ?? (AppLocalizations.of(context)?.billTemplates ?? 'Bill Templates')),
         backgroundColor: _navy,
         foregroundColor: Colors.white,
         actions: [
@@ -184,7 +185,7 @@ class _BillTemplateSettingsScreenState
                       const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: _load,
-                        child: const Text('Retry'),
+                        child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
                       ),
                     ],
                   ),
@@ -193,7 +194,7 @@ class _BillTemplateSettingsScreenState
                   padding: const EdgeInsets.all(16),
                   children: [
                     _dropdown(
-                      label: 'Bill (pre-receipt)',
+                      label: AppLocalizations.of(context)?.billPreReceipt ?? (AppLocalizations.of(context)?.billPreReceipt ?? 'Bill (pre-receipt)'),
                       items: _billTemplates,
                       value: _selectedBillId,
                       onChanged: (v) => setState(() => _selectedBillId = v),
@@ -205,7 +206,7 @@ class _BillTemplateSettingsScreenState
                     ),
                     const SizedBox(height: 20),
                     _dropdown(
-                      label: 'Receipt (paid)',
+                      label: AppLocalizations.of(context)?.receiptPaid ?? (AppLocalizations.of(context)?.receiptPaid ?? 'Receipt (paid)'),
                       items: _receiptTemplates,
                       value: _selectedReceiptId,
                       onChanged: (v) => setState(() => _selectedReceiptId = v),
@@ -218,7 +219,7 @@ class _BillTemplateSettingsScreenState
                     ),
                     const SizedBox(height: 20),
                     _dropdown(
-                      label: 'Refund / Void',
+                      label: AppLocalizations.of(context)?.refundVoid ?? (AppLocalizations.of(context)?.refundVoid ?? 'Refund / Void'),
                       items: _refundTemplates,
                       value: _selectedRefundId,
                       onChanged: (v) => setState(() => _selectedRefundId = v),
@@ -231,7 +232,7 @@ class _BillTemplateSettingsScreenState
                     ),
                     const SizedBox(height: 20),
                     _dropdown(
-                      label: 'Kitchen / Order ticket',
+                      label: AppLocalizations.of(context)?.kitchenOrderTicket2 ?? (AppLocalizations.of(context)?.kitchenOrderTicket2 ?? 'Kitchen / Order ticket'),
                       items: _kitchenTemplates,
                       value: _selectedKitchenId,
                       onChanged: (v) => setState(() => _selectedKitchenId = v),
@@ -515,8 +516,7 @@ class _ReceiptPreview extends StatelessWidget {
           children: [
             Icon(Icons.receipt_long_outlined, color: Colors.grey[400], size: 18),
             const SizedBox(width: 8),
-            Text(
-              'No template selected — preview unavailable',
+            Text(AppLocalizations.of(context)?.noTemplateSelectedPreviewUnavailable ?? (AppLocalizations.of(context)?.noTemplateSelectedPreviewUnavailable ?? 'No template selected — preview unavailable'),
               style: TextStyle(color: Colors.grey[500], fontSize: 12),
             ),
           ],

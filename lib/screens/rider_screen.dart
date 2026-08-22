@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
@@ -239,8 +240,8 @@ class _RiderScreenState extends State<RiderScreen> {
       debugPrint('[Rider] handleAction failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Action failed. Please try again.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.actionFailedPleaseTryAgain ?? (AppLocalizations.of(context)?.actionFailedPleaseTryAgain ?? 'Action failed. Please try again.')),
             backgroundColor: Colors.red,
           ),
         );
@@ -250,12 +251,12 @@ class _RiderScreenState extends State<RiderScreen> {
 
   String _deliveryStatusLabel(String? status) {
     switch (status) {
-      case 'pending': return 'Pending';
-      case 'preparing': return 'Preparing';
-      case 'on_the_way': return 'On The Way';
-      case 'arrived': return 'Arrived';
-      case 'delivered': return 'Delivered';
-      default: return status ?? 'Unknown';
+      case 'pending': return (AppLocalizations.of(context)?.pending ?? 'Pending');
+      case 'preparing': return (AppLocalizations.of(context)?.statusPreparing ?? 'Preparing');
+      case 'on_the_way': return (AppLocalizations.of(context)?.onTheWay ?? 'On The Way');
+      case 'arrived': return (AppLocalizations.of(context)?.statusArrived ?? 'Arrived');
+      case 'delivered': return (AppLocalizations.of(context)?.statusDelivered ?? 'Delivered');
+      default: return status ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown');
     }
   }
 
@@ -306,12 +307,12 @@ class _RiderScreenState extends State<RiderScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetchOrders,
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
-            tooltip: 'Logout',
+            tooltip: AppLocalizations.of(context)?.logout ?? (AppLocalizations.of(context)?.logout ?? 'Logout'),
           ),
         ],
       ),
@@ -323,10 +324,10 @@ class _RiderScreenState extends State<RiderScreen> {
 
   String _appBarTitle() {
     switch (_selectedTabIndex) {
-      case 0: return 'Current Orders';
-      case 1: return 'Order History';
-      case 2: return 'Dashboard';
-      default: return 'Rider';
+      case 0: return (AppLocalizations.of(context)?.currentOrders ?? 'Current Orders');
+      case 1: return (AppLocalizations.of(context)?.orderHistory ?? 'Order History');
+      case 2: return (AppLocalizations.of(context)?.dashboard ?? 'Dashboard');
+      default: return (AppLocalizations.of(context)?.roleRider ?? 'Rider');
     }
   }
 
@@ -370,7 +371,7 @@ class _RiderScreenState extends State<RiderScreen> {
           ElevatedButton.icon(
             onPressed: _fetchOrders,
             icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
+            label: Text(AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh')),
           ),
         ],
       ),
@@ -390,7 +391,7 @@ class _RiderScreenState extends State<RiderScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _fetchOrders,
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
             ),
           ],
         ),
@@ -569,7 +570,7 @@ class _RiderScreenState extends State<RiderScreen> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.navigation_outlined, size: 18),
-                        label: const Text('Navigate (In App)'),
+                        label: Text(AppLocalizations.of(context)?.navigateInApp ?? (AppLocalizations.of(context)?.navigateInApp ?? 'Navigate (In App)')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _navy,
                           foregroundColor: Colors.white,
@@ -625,8 +626,7 @@ class _RiderScreenState extends State<RiderScreen> {
                           children: [
                             Icon(Icons.map, size: 16, color: Colors.blue[700]),
                             const SizedBox(width: 6),
-                            Text(
-                              'Open in Google Maps App',
+                            Text(AppLocalizations.of(context)?.openInGoogleMapsApp ?? (AppLocalizations.of(context)?.openInGoogleMapsApp ?? 'Open in Google Maps App'),
                               style: TextStyle(
                                 color: Colors.blue[700],
                                 fontWeight: FontWeight.bold,
@@ -656,7 +656,7 @@ class _RiderScreenState extends State<RiderScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          line['product_name'] ?? 'Item',
+                          line['product_name'] ?? (AppLocalizations.of(context)?.item ?? 'Item'),
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                       ),
@@ -687,7 +687,7 @@ class _RiderScreenState extends State<RiderScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: Text(isHistory ? 'View Chat History' : 'Chat with Customer'),
+                label: Text(isHistory ? (AppLocalizations.of(context)?.viewChatHistory ?? 'View Chat History') : (AppLocalizations.of(context)?.chatWithCustomer ?? 'Chat with Customer')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _navy,
                   side: const BorderSide(color: _navy),
@@ -704,7 +704,7 @@ class _RiderScreenState extends State<RiderScreen> {
                         orderId: order['id'] as int,
                         orderRef: order['order_reference']?.toString() ?? '',
                         currentRole: 'rider',
-                        otherPartyName: order['customer_name']?.toString() ?? 'Customer',
+                        otherPartyName: order['customer_name']?.toString() ?? (AppLocalizations.of(context)?.roleCustomer ?? 'Customer'),
                       ),
                     ),
                   );
@@ -722,7 +722,7 @@ class _RiderScreenState extends State<RiderScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () => _handleAction(order['id'], 'arrived'),
                       icon: const Icon(Icons.location_on, size: 18),
-                      label: const Text('Arrived'),
+                      label: Text(AppLocalizations.of(context)?.statusArrived ?? (AppLocalizations.of(context)?.statusArrived ?? 'Arrived')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,
@@ -738,7 +738,7 @@ class _RiderScreenState extends State<RiderScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => _handleAction(order['id'], 'complete'),
                     icon: const Icon(Icons.check_circle, size: 18),
-                    label: const Text('Complete'),
+                    label: Text(AppLocalizations.of(context)?.statusComplete ?? (AppLocalizations.of(context)?.statusComplete ?? 'Complete')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -776,7 +776,7 @@ class _RiderScreenState extends State<RiderScreen> {
         children: [
           _dashboardCard(
             icon: Icons.delivery_dining,
-            title: 'Total Orders',
+            title: AppLocalizations.of(context)?.totalOrders ?? (AppLocalizations.of(context)?.totalOrders ?? 'Total Orders'),
             value: '$totalOrders',
             color: _navy,
           ),
@@ -786,7 +786,7 @@ class _RiderScreenState extends State<RiderScreen> {
               Expanded(
                 child: _dashboardCard(
                   icon: Icons.timer,
-                  title: 'Active',
+                  title: AppLocalizations.of(context)?.active ?? (AppLocalizations.of(context)?.active ?? 'Active'),
                   value: '$activeOrders',
                   color: Colors.orange,
                 ),
@@ -795,7 +795,7 @@ class _RiderScreenState extends State<RiderScreen> {
               Expanded(
                 child: _dashboardCard(
                   icon: Icons.check_circle,
-                  title: 'Completed',
+                  title: AppLocalizations.of(context)?.completed ?? (AppLocalizations.of(context)?.completed ?? 'Completed'),
                   value: '$completedOrders',
                   color: Colors.green,
                 ),
@@ -805,13 +805,12 @@ class _RiderScreenState extends State<RiderScreen> {
           const SizedBox(height: 12),
           _dashboardCard(
             icon: Icons.attach_money,
-            title: 'Total Revenue',
+            title: AppLocalizations.of(context)?.totalRevenue ?? (AppLocalizations.of(context)?.totalRevenue ?? 'Total Revenue'),
             value: 'LAK ${totalRevenue.toStringAsFixed(0)}',
             color: Colors.teal,
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Orders by Status',
+          Text(AppLocalizations.of(context)?.ordersByStatus ?? (AppLocalizations.of(context)?.ordersByStatus ?? 'Orders by Status'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -962,17 +961,17 @@ class _RiderScreenState extends State<RiderScreen> {
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined, color: _navy.withOpacity(0.5)),
             selectedIcon: const Icon(Icons.receipt_long, color: _navy),
-            label: 'Order',
+            label: AppLocalizations.of(context)?.order ?? (AppLocalizations.of(context)?.order ?? 'Order'),
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined, color: _navy.withOpacity(0.5)),
             selectedIcon: const Icon(Icons.history, color: _navy),
-            label: 'History',
+            label: AppLocalizations.of(context)?.navHistory ?? (AppLocalizations.of(context)?.navHistory ?? 'History'),
           ),
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined, color: _navy.withOpacity(0.5)),
             selectedIcon: const Icon(Icons.dashboard, color: _navy),
-            label: 'Dashboard',
+            label: AppLocalizations.of(context)?.dashboard ?? (AppLocalizations.of(context)?.dashboard ?? 'Dashboard'),
           ),
         ],
       ),

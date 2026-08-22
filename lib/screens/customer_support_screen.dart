@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,7 +37,7 @@ class CustomerSupportScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customer support'),
+        title: Text(AppLocalizations.of(context)?.customerSupport ?? (AppLocalizations.of(context)?.customerSupport ?? 'Customer support')),
         backgroundColor: _brandNavy,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -57,8 +58,7 @@ class CustomerSupportScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 8),
-              const Text(
-                'Reach the admin',
+              Text(AppLocalizations.of(context)?.reachTheAdmin ?? (AppLocalizations.of(context)?.reachTheAdmin ?? 'Reach the admin'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
@@ -67,8 +67,7 @@ class CustomerSupportScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                'Use the options your store has enabled in Odoo.',
+              Text(AppLocalizations.of(context)?.useTheOptionsYourStoreHas ?? (AppLocalizations.of(context)?.useTheOptionsYourStoreHas ?? 'Use the options your store has enabled in Odoo.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.9),
@@ -135,7 +134,7 @@ class CustomerSupportScreen extends StatelessWidget {
                       FilledButton.icon(
                         onPressed: () => _openUrl(facebookUrl),
                         icon: const Icon(Icons.open_in_new, size: 20),
-                        label: const Text('Open Facebook'),
+                        label: Text(AppLocalizations.of(context)?.openFacebook ?? (AppLocalizations.of(context)?.openFacebook ?? 'Open Facebook')),
                         style: FilledButton.styleFrom(
                           backgroundColor: _brandNavy,
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -220,7 +219,7 @@ class CustomerSupportScreen extends StatelessWidget {
                       FilledButton.icon(
                         onPressed: () => _openUrl(whatsappLink),
                         icon: const Icon(Icons.chat, size: 20),
-                        label: const Text('Open in WhatsApp'),
+                        label: Text(AppLocalizations.of(context)?.openInWhatsapp ?? (AppLocalizations.of(context)?.openInWhatsapp ?? 'Open in WhatsApp')),
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF25D366),
                           foregroundColor: Colors.white,
