@@ -4381,6 +4381,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove coupon'**
   String get removeCoupon;
+
+  /// No description provided for @addNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Add note'**
+  String get addNote;
+
+  /// No description provided for @noteForKitchen.
+  ///
+  /// In en, this message translates to:
+  /// **'Note for the kitchen'**
+  String get noteForKitchen;
+
+  /// No description provided for @tapItemToAddNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an item to add a note'**
+  String get tapItemToAddNote;
+
+  /// No description provided for @proofUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Order placed, but the transfer proof could not be uploaded. Please show it to the staff.'**
+  String get proofUploadFailed;
 }
 
 class _AppLocalizationsDelegate

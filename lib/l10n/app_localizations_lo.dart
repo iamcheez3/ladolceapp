@@ -2324,4 +2324,17 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get removeCoupon => 'ລຶບຄູປອງ';
+
+  @override
+  String get addNote => 'ເພີ່ມໝາຍເຫດ';
+
+  @override
+  String get noteForKitchen => 'ໝາຍເຫດເຖິງຄົວ';
+
+  @override
+  String get tapItemToAddNote => 'ແຕະລາຍການເພື່ອເພີ່ມໝາຍເຫດ';
+
+  @override
+  String get proofUploadFailed =>
+      'ສັ່ງຊື້ສຳເລັດແລ້ວ ແຕ່ອັບໂຫຼດຫຼັກຖານການໂອນບໍ່ໄດ້. ກະລຸນາສະແດງໃຫ້ພະນັກງານເບິ່ງ.';
 }

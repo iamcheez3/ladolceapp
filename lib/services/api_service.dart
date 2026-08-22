@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
@@ -3027,32 +3028,59 @@ class ApiService {
     }
   }
 
+  /// Uploads a bank-transfer proof photo.
+  ///
+  /// This used to fail often and invisibly: a full-resolution phone photo over
+  /// mobile data rarely finished inside the old 15s budget, and the only caller
+  /// swallowed the error, so the customer saw "Order created" while the cashier
+  /// saw "No proof image uploaded". The window is now generous and a timeout or
+  /// transport error is retried before giving up, because a proof that arrives
+  /// late is still worth far more than one that never arrives.
   Future<Map<String, dynamic>> uploadTransferProof({
     required int orderId,
     required String imagePath,
     int? partnerId,
+    int attempts = 3,
   }) async {
     final base = await getBaseUrl();
-    try {
-      final url = Uri.parse('$base/pos/order/$orderId/transfer_proof');
-      final request = http.MultipartRequest('POST', url);
-      if (partnerId != null) {
-        request.fields['partner_id'] = partnerId.toString();
-      }
-      request.files.add(await http.MultipartFile.fromPath('proof', imagePath));
+    Object? lastError;
 
-      final streamed = await request.send().timeout(
-        const Duration(seconds: 15),
-      );
-      final body = await streamed.stream.bytesToString();
-      final jsonResp = jsonDecode(body);
-      if (streamed.statusCode == 200 && jsonResp['status'] == 'success') {
-        return Map<String, dynamic>.from(jsonResp['data']);
+    for (var attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        final url = Uri.parse('$base/pos/order/$orderId/transfer_proof');
+        final request = http.MultipartRequest('POST', url);
+        if (partnerId != null) {
+          request.fields['partner_id'] = partnerId.toString();
+        }
+        request.files
+            .add(await http.MultipartFile.fromPath('proof', imagePath));
+
+        final streamed =
+            await request.send().timeout(const Duration(seconds: 60));
+        final body = await streamed.stream.bytesToString();
+        final jsonResp = jsonDecode(body);
+        if (streamed.statusCode == 200 && jsonResp['status'] == 'success') {
+          return Map<String, dynamic>.from(jsonResp['data']);
+        }
+        // A rejection from the server is a real answer, not a flaky network:
+        // retrying the same bytes will not change it.
+        throw Exception(
+          jsonResp['message'] ?? 'Failed to upload transfer proof',
+        );
+      } on TimeoutException catch (e) {
+        lastError = e;
+      } on http.ClientException catch (e) {
+        lastError = e;
+      } on SocketException catch (e) {
+        lastError = e;
+      } catch (e) {
+        throw Exception('Cannot upload transfer proof: $e');
       }
-      throw Exception(jsonResp['message'] ?? 'Failed to upload transfer proof');
-    } catch (e) {
-      throw Exception('Cannot upload transfer proof: $e');
+      if (attempt < attempts) {
+        await Future<void>.delayed(Duration(seconds: 2 * attempt));
+      }
     }
+    throw Exception('Cannot upload transfer proof: $lastError');
   }
 
   Future<Map<String, dynamic>> fetchSelfOrderConfig({

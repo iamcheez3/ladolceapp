@@ -2353,4 +2353,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get removeCoupon => 'Remove coupon';
+
+  @override
+  String get addNote => 'Add note';
+
+  @override
+  String get noteForKitchen => 'Note for the kitchen';
+
+  @override
+  String get tapItemToAddNote => 'Tap an item to add a note';
+
+  @override
+  String get proofUploadFailed =>
+      'Order placed, but the transfer proof could not be uploaded. Please show it to the staff.';
 }

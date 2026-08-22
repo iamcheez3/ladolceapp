@@ -2534,6 +2534,89 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     setState(_clearCouponState);
   }
 
+  /// Lets the customer attach a preparation note to one cart line, e.g.
+  /// "sugar 50%". Stored on CartItem.kitchenNote, the same field the POS uses
+  /// for its own kitchen notes, so the cashier and kitchen ticket render it
+  /// exactly as a staff-entered note.
+  Future<void> _editItemNote(CartItem item) async {
+    final controller = TextEditingController(text: item.kitchenNote);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l10n?.noteForKitchen ?? 'Note for the kitchen'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          maxLength: 200,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            hintText:
+                _l10n?.kitchenNoteHint ??
+                'Less sugar, no ice, extra spicy...',
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          if (item.kitchenNote.trim().isNotEmpty)
+            TextButton(
+              // Empty string means "clear it"; null (dismiss) means "cancel".
+              onPressed: () => Navigator.pop(ctx, ''),
+              child: Text(
+                _l10n?.remove ?? 'Remove',
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(_l10n?.save ?? 'Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null) return; // dismissed / cancelled
+    if (!mounted) return;
+    setState(() => item.kitchenNote = result.trim());
+  }
+
+  /// "Latte: sugar 50% | Coffee: no ice" for the order-level note.
+  String _composeItemNotes() {
+    final parts = <String>[];
+    for (final item in _cartItems) {
+      final note = item.kitchenNote.trim();
+      if (note.isEmpty) continue;
+      parts.add('${item.product.name}: $note');
+    }
+    return parts.join(' | ');
+  }
+
+  /// Builds the order note actually sent to Odoo.
+  ///
+  /// Per-item notes ride along here as well as on each line. The cashier's
+  /// review screen reads `line['note']`, but whether the backend persists that
+  /// on submit is outside this app; the order note is already displayed today,
+  /// so folding them in guarantees the kitchen sees the request either way.
+  ///
+  /// This also stops '[SELF-PICKUP]' from replacing what the customer typed,
+  /// which previously discarded their note entirely on pickup orders.
+  String? _composeOrderNote({
+    required bool isSelfPickup,
+    required String? customerNote,
+  }) {
+    final parts = <String>[];
+    if (isSelfPickup) parts.add('[SELF-PICKUP]');
+    final typed = (customerNote ?? '').trim();
+    if (typed.isNotEmpty) parts.add(typed);
+    final itemNotes = _composeItemNotes();
+    if (itemNotes.isNotEmpty) parts.add(itemNotes);
+    return parts.isEmpty ? null : parts.join(' | ');
+  }
+
   /// A coupon can never discount more than the cart it applies to. Reducing
   /// quantities after applying one used to drive the displayed total — and the
   /// amount_total posted to Odoo — negative.
@@ -3424,7 +3507,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             final picked = await _imagePicker
                                                 .pickImage(
                                                   source: ImageSource.gallery,
-                                                  imageQuality: 70,
+                                                  // Any source size is
+                                                  // accepted, but downscale
+                                                  // before upload: a raw 12MP
+                                                  // photo is several MB and was
+                                                  // timing out on mobile data.
+                                                  // 1600px stays readable for
+                                                  // a transfer slip.
+                                                  maxWidth: 1600,
+                                                  maxHeight: 1600,
+                                                  imageQuality: 80,
                                                 );
                                             if (picked != null) {
                                               setSheetState(
@@ -3587,6 +3679,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
               'is_redeemed': item.isRedeemed,
               'point_cost': item.isRedeemed ? item.pointPrice : 0,
+              // Matches the key the cashier review screen reads back.
+              'note': item.kitchenNote.trim(),
             },
           )
           .toList();
@@ -3604,7 +3698,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         branchId: branchId,
         customerName: displayName,
         customerPhone: _cleanProfileText(_customerPhone),
-        note: isSelfPickup ? '[SELF-PICKUP]' : note,
+        note: _composeOrderNote(
+          isSelfPickup: isSelfPickup,
+          customerNote: note,
+        ),
         deliveryPlaceName: favoritePlace?.name,
         deliveryPlaceAddress: favoritePlace?.address,
         deliveryPlaceId: favoritePlace?.placeId,
@@ -3616,6 +3713,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       );
 
       String? uploadedProofUrl;
+      var proofUploadFailed = false;
       final orderId = int.tryParse((result['order_id'] ?? 0).toString()) ?? 0;
       if (paymentChoice == 'transfer' &&
           proofImagePath != null &&
@@ -3628,8 +3726,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             partnerId: widget.partnerId,
           );
           uploadedProofUrl = uploadResult['transfer_proof_url']?.toString();
-        } catch (_) {
-          // Keep order created even if proof upload fails.
+        } catch (e) {
+          // The order still stands, but the customer must know the proof did
+          // not arrive: silently swallowing this left them believing the shop
+          // had their slip while the cashier saw nothing.
+          debugPrint('[Order] Transfer proof upload failed: $e');
+          proofUploadFailed = true;
         }
       }
 
@@ -3678,6 +3780,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         // The coupon was consumed by this order; without this it stayed
         // applied, kept discounting the next cart and could not be removed.
         _clearCouponState();
+        _noteController.clear();
         _deliveryFee = 0.0;
         _selectedTabIndex =
             2; // History tab (Home=0, Cart=1, History=2, Profile=3)
@@ -3698,6 +3801,20 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           backgroundColor: Colors.green,
         ),
       );
+
+      if (proofUploadFailed && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _l10n?.proofUploadFailed ??
+                  'Order placed, but the transfer proof could not be '
+                      'uploaded. Please show it to the staff.',
+            ),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      }
 
       if (isBadWeather && mounted) {
         setState(() {
@@ -6764,6 +6881,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = _cartItems[index];
+              final itemNote = item.kitchenNote.trim();
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -6771,7 +6889,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFFE8E8E8)),
                 ),
-                child: Row(
+                // Tapping anywhere on the line opens its kitchen note.
+                child: InkWell(
+                  onTap: () => _editItemNote(item),
+                  child: Row(
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
@@ -6805,6 +6926,39 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               ),
                             ),
                           ],
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                itemNote.isEmpty
+                                    ? Icons.add_comment_outlined
+                                    : Icons.edit_note_rounded,
+                                size: 15,
+                                color: itemNote.isEmpty
+                                    ? Colors.grey.shade500
+                                    : Colors.amber.shade800,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  itemNote.isEmpty
+                                      ? (_l10n?.addNote ?? 'Add note')
+                                      : itemNote,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: itemNote.isEmpty
+                                        ? FontWeight.w400
+                                        : FontWeight.w600,
+                                    color: itemNote.isEmpty
+                                        ? Colors.grey.shade500
+                                        : Colors.amber.shade900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -6877,6 +7031,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ],
                     ),
                   ],
+                  ),
                 ),
               );
             },

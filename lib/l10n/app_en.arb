@@ -1149,5 +1149,9 @@
   "delivered": "DELIVERED",
   "cancelled": "CANCELLED",
   "offline": "⚡ OFFLINE",
-  "removeCoupon": "Remove coupon"
+  "removeCoupon": "Remove coupon",
+  "addNote": "Add note",
+  "noteForKitchen": "Note for the kitchen",
+  "tapItemToAddNote": "Tap an item to add a note",
+  "proofUploadFailed": "Order placed, but the transfer proof could not be uploaded. Please show it to the staff."
 }
