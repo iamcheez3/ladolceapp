@@ -116,6 +116,10 @@ class CustomerSelfOrderScreen extends StatefulWidget {
 }
 
 class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
+  /// Null-safe localisation lookup; every call site keeps its English
+  /// literal as a fallback.
+  AppLocalizations? get _l10n => AppLocalizations.of(context);
+
   final ApiService _apiService = ApiService();
   final ImagePicker _imagePicker = ImagePicker();
   final Map<String, Uint8List> _decodedImageCache = {};
@@ -157,6 +161,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   int _recommendedSlideIndex = 0;
   int _recommendedAutoSlideCount = 0;
   double _recommendedViewportFraction = 0.86;
+  // Category id/name double as the matching key for the filter tabs, so this
+  // stays English; the tab label is localised where it is rendered.
   List<Category> _categories = [Category(id: 'All', name: 'All Items')];
   final List<CartItem> _cartItems = [];
 
@@ -414,7 +420,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         branches = [
           {
             'id': selectedId,
-            'name': selectedName.isEmpty ? 'Branch' : selectedName,
+            'name': selectedName.isEmpty ? (_l10n?.branch ?? 'Branch') : selectedName,
           },
         ];
       }
@@ -439,7 +445,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             {
               'id': cachedId,
               'name': (cachedName ?? '').trim().isEmpty
-                  ? 'Branch'
+                  ? (_l10n?.branch ?? 'Branch')
                   : cachedName!.trim(),
             },
           ];
@@ -468,7 +474,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       final name = (branch[key] ?? '').toString().trim();
       if (name.isNotEmpty) return name;
     }
-    return 'Branch';
+    return (_l10n?.branch ?? 'Branch');
   }
 
   bool _isBranchClosed(Map<String, dynamic> branch) {
@@ -505,8 +511,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => const LoginScreen(
-              infoMessage: 'Session expired. Please login again.',
+            builder: (_) => LoginScreen(
+              infoMessage: (_l10n?.sessionExpired ?? 'Session expired. Please login again.'),
             ),
           ),
         );
@@ -736,7 +742,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             Expanded(
               child: Text(
                 AppLocalizations.of(context)?.weatherWarning ??
-                    'Due to bad weather, your delivery or rider may be delayed.',
+                    (_l10n?.weatherWarning ?? 'Due to bad weather, your delivery or rider may be delayed.'),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -976,8 +982,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Add favorite place',
+                    Text(_l10n?.addFavoritePlace ?? (_l10n?.addFavoritePlace ?? 'Add favorite place'),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -988,7 +993,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       controller: searchController,
                       autofocus: false,
                       decoration: InputDecoration(
-                        hintText: 'Search address or place',
+                        hintText: _l10n?.searchAddressOrPlace ?? (_l10n?.searchAddressOrPlace ?? 'Search address or place'),
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: isSearching
                             ? const Padding(
@@ -1023,7 +1028,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       controller: labelController,
                       textCapitalization: TextCapitalization.words,
                       decoration: InputDecoration(
-                        hintText: 'Name this place, e.g. House',
+                        hintText: _l10n?.nameThisPlace ?? (_l10n?.nameThisPlace ?? 'Name this place, e.g. House'),
                         prefixIcon: const Icon(Icons.bookmark_border),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -1271,8 +1276,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       horizontal: 12,
                                       vertical: 8,
                                     ),
-                                    child: Text(
-                                      'Move the map to place the pin',
+                                    child: Text(_l10n?.moveMapToPlacePin ?? (_l10n?.moveMapToPlacePin ?? 'Move the map to place the pin'),
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: _brandNavy,
@@ -1308,7 +1312,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           Expanded(
                             child: Text(
                               isResolvingMapTap
-                                  ? 'Reading selected address...'
+                                  ? (_l10n?.readingSelectedAddress ?? 'Reading selected address...')
                                   : selectedPlace?.address ??
                                         'Search or move the map to select a place.',
                               maxLines: 2,
@@ -1343,7 +1347,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 }
                               },
                         icon: const Icon(Icons.check),
-                        label: const Text('Add selected place'),
+                        label: Text(_l10n?.addSelectedPlace ?? (_l10n?.addSelectedPlace ?? 'Add selected place')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _brandNavy,
                           foregroundColor: Colors.white,
@@ -1381,7 +1385,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   String get _favoritePlacesSubtitle {
-    if (_favoritePlaces.isEmpty) return 'Add delivery places for self order';
+    if (_favoritePlaces.isEmpty) return (_l10n?.addDeliveryPlaces ?? 'Add delivery places for self order');
     final selected = _selectedFavoritePlace;
     final count = _favoritePlaces.length;
     final label = selected?.name ?? _favoritePlaces.first.name;
@@ -1444,7 +1448,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         final saved = await _apiService.saveCustomer(
           id: _customerId,
           name: _customerName.trim().isEmpty
-              ? 'Customer'
+              ? (_l10n?.roleCustomer ?? 'Customer')
               : _customerName.trim(),
           phone: _cleanProfileText(_customerPhone),
           email: _cleanProfileText(_customerEmail).isEmpty
@@ -1458,8 +1462,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           _customerImageBase64 = saved['image_base64']?.toString();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile image updated'),
+          SnackBar(
+            content: Text(_l10n?.profileImageUpdated ?? (_l10n?.profileImageUpdated ?? 'Profile image updated')),
             backgroundColor: Colors.green,
           ),
         );
@@ -1473,16 +1477,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (e.code == 'already_active') return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open the image picker. Please try again.'),
+        SnackBar(
+          content: Text(_l10n?.couldNotOpenImagePicker ?? (_l10n?.couldNotOpenImagePicker ?? 'Could not open the image picker. Please try again.')),
           backgroundColor: Colors.red,
         ),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open the image picker. Please try again.'),
+        SnackBar(
+          content: Text(_l10n?.couldNotOpenImagePicker ?? (_l10n?.couldNotOpenImagePicker ?? 'Could not open the image picker. Please try again.')),
           backgroundColor: Colors.red,
         ),
       );
@@ -1533,7 +1537,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
       final categorySet = products.map((p) => p.category).toSet();
       final categories = [
-        Category(id: 'All', name: 'All Items'),
+        Category(id: 'All', name: (_l10n?.allItems ?? 'All Items')),
         ...categorySet.map((name) => Category(id: name, name: name)),
       ];
 
@@ -1691,7 +1695,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           'name': item['name'] ?? 'Order',
           'amount_total': item['amount_total'] ?? 0,
           'date_order': item['date_order'],
-          'payment_method': item['payment_method'] ?? 'Unknown',
+          'payment_method': item['payment_method'] ?? (_l10n?.unknown ?? 'Unknown'),
           'state': item['state'] ?? 'paid',
           'delivery_status': item['delivery_status'] ?? 'none',
           'delivery_latitude': item['delivery_latitude'],
@@ -2197,8 +2201,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       final Uint8List? bytes = _qrBytesFromDataUrl();
       if (bytes == null || bytes.isEmpty) {
         showSnack(
-          const SnackBar(
-            content: Text('No QR image configured yet'),
+          SnackBar(
+            content: Text(_l10n?.noQrImageConfigured ?? (_l10n?.noQrImageConfigured ?? 'No QR image configured yet')),
             backgroundColor: Colors.orange,
           ),
         );
@@ -2215,12 +2219,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             SnackBar(
               content: Text(
                 blocked
-                    ? 'Photos permission is blocked. Open Settings to allow access.'
-                    : 'Photo permission is required to save QR',
+                    ? (_l10n?.photosPermissionBlocked ?? 'Photos permission is blocked. Open Settings to allow access.')
+                    : (_l10n?.photoPermissionRequired ?? 'Photo permission is required to save QR'),
               ),
               action: blocked
                   ? SnackBarAction(
-                      label: 'Settings',
+                      label: _l10n?.settings ?? (_l10n?.settings ?? 'Settings'),
                       onPressed: openAppSettings,
                     )
                   : null,
@@ -2236,8 +2240,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           if (!status.isGranted) {
             if (!mounted) return;
             showSnack(
-              const SnackBar(
-                content: Text('Storage permission is required to save QR'),
+              SnackBar(
+                content: Text(_l10n?.storagePermissionRequired ?? (_l10n?.storagePermissionRequired ?? 'Storage permission is required to save QR')),
               ),
             );
             return;
@@ -2284,8 +2288,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
       if (isSuccess) {
         showSnack(
-          const SnackBar(
-            content: Text('QR saved to gallery ✓'),
+          SnackBar(
+            content: Text(_l10n?.qrSavedToGallery ?? (_l10n?.qrSavedToGallery ?? 'QR saved to gallery ✓')),
             backgroundColor: Colors.green,
           ),
         );
@@ -2297,8 +2301,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       debugPrint('_downloadQrCode error: $e');
       if (!mounted) return;
       showSnack(
-        const SnackBar(
-          content: Text('Could not save QR code. Please try again.'),
+        SnackBar(
+          content: Text(_l10n?.couldNotSaveQr ?? (_l10n?.couldNotSaveQr ?? 'Could not save QR code. Please try again.')),
           backgroundColor: Colors.red,
         ),
       );
@@ -2361,7 +2365,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       debugPrint('_saveQrToDownloads error: $e');
       if (!mounted) return;
       showSnack(
-        const SnackBar(content: Text('Could not save QR to Downloads. Please try again.'), backgroundColor: Colors.red),
+        SnackBar(content: Text(_l10n?.couldNotSaveQrDownloads ?? (_l10n?.couldNotSaveQrDownloads ?? 'Could not save QR to Downloads. Please try again.')), backgroundColor: Colors.red),
       );
     }
   }
@@ -2415,8 +2419,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   void _showSelfOrderBlockedMessage() {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('This item is run out and cannot be ordered.'),
+      SnackBar(
+        content: Text(_l10n?.itemRunOut ?? (_l10n?.itemRunOut ?? 'This item is run out and cannot be ordered.')),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -2500,8 +2504,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Coupon applied successfully!'),
+          SnackBar(
+            content: Text(_l10n?.couponApplied ?? (_l10n?.couponApplied ?? 'Coupon applied successfully!')),
             backgroundColor: Colors.green,
           ),
         );
@@ -2542,21 +2546,20 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text('Phone Number Required'),
-          content: const Text(
-            'A verified phone number is required before placing an order. Please update your profile.',
+          title: Text(_l10n?.phoneNumberRequiredTitle ?? (_l10n?.phoneNumberRequiredTitle ?? 'Phone Number Required')),
+          content: Text(_l10n?.verifiedPhoneRequired ?? (_l10n?.verifiedPhoneRequired ?? 'A verified phone number is required before placing an order. Please update your profile.'),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(_l10n?.cancel ?? (_l10n?.cancel ?? 'Cancel')),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 _openEditProfileSheet();
               },
-              child: const Text('Update Profile'),
+              child: Text(_l10n?.updateProfile ?? (_l10n?.updateProfile ?? 'Update Profile')),
             ),
           ],
         ),
@@ -2619,7 +2622,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       AppLocalizations.of(
                                             context,
                                           )?.choosePaymentMethod ??
-                                          'Choose Payment Method',
+                                          (_l10n?.choosePaymentMethod ?? 'Choose Payment Method'),
                                       style: TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.bold,
@@ -2630,7 +2633,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       AppLocalizations.of(
                                             context,
                                           )?.selectBranch ??
-                                          'Select Branch',
+                                          (_l10n?.selectBranch ?? 'Select Branch'),
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -2655,7 +2658,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           AppLocalizations.of(
                                                 context,
                                               )?.noBranchesFound ??
-                                              'No branches found. Please ask staff.',
+                                              (_l10n?.noBranchesFound ?? 'No branches found. Please ask staff.'),
                                           style: const TextStyle(
                                             color: Colors.redAccent,
                                           ),
@@ -2752,8 +2755,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             const Icon(Icons.error_outline, color: Colors.red),
                                             const SizedBox(width: 8),
                                             Expanded(
-                                              child: Text(
-                                                'This branch is currently closed. Please choose another branch or order later.',
+                                              child: Text(_l10n?.branchClosed ?? (_l10n?.branchClosed ?? 'This branch is currently closed. Please choose another branch or order later.'),
                                                 style: TextStyle(
                                                   color: Colors.red.shade800,
                                                   fontWeight: FontWeight.w600,
@@ -2767,8 +2769,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ],
                                     const SizedBox(height: 16),
                                     // ── Fulfillment type ──
-                                    Text(
-                                      'How will you receive your order?',
+                                    Text(_l10n?.howReceiveOrder ?? (_l10n?.howReceiveOrder ?? 'How will you receive your order?'),
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -2817,8 +2818,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                     size: 26,
                                                   ),
                                                   const SizedBox(height: 4),
-                                                  Text(
-                                                    'Rider delivery',
+                                                  Text(_l10n?.riderDelivery ?? (_l10n?.riderDelivery ?? 'Rider delivery'),
                                                     textAlign: TextAlign.center,
                                                     style: TextStyle(
                                                       fontWeight:
@@ -2878,8 +2878,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                     size: 26,
                                                   ),
                                                   const SizedBox(height: 4),
-                                                  Text(
-                                                    'Come pick up myself',
+                                                  Text(_l10n?.comePickUpMyself ?? (_l10n?.comePickUpMyself ?? 'Come pick up myself'),
                                                     textAlign: TextAlign.center,
                                                     style: TextStyle(
                                                       fontWeight:
@@ -2903,9 +2902,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     if (!isSelfPickup) ...[
                                       Row(
                                         children: [
-                                          const Expanded(
-                                            child: Text(
-                                              'Delivery place',
+                                          Expanded(
+                                            child: Text(_l10n?.deliveryPlace ?? (_l10n?.deliveryPlace ?? 'Delivery place'),
                                               style: TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w600,
@@ -2920,7 +2918,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             icon: const Icon(
                                               Icons.add_location_alt_outlined,
                                             ),
-                                            label: const Text('Add'),
+                                            label: Text(_l10n?.add ?? (_l10n?.add ?? 'Add')),
                                           ),
                                         ],
                                       ),
@@ -2938,8 +2936,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                               color: Colors.orange.shade200,
                                             ),
                                           ),
-                                          child: const Text(
-                                            'Please add a favorite place before confirming the order.',
+                                          child: Text(_l10n?.addFavoritePlaceBeforeOrder ?? (_l10n?.addFavoritePlaceBeforeOrder ?? 'Please add a favorite place before confirming the order.'),
                                             style: TextStyle(
                                               color: Colors.deepOrange,
                                               fontWeight: FontWeight.w600,
@@ -2963,8 +2960,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             child: DropdownButton<String>(
                                               value: _selectedFavoritePlaceId,
                                               isExpanded: true,
-                                              hint: const Text(
-                                                'Select a delivery place',
+                                              hint: Text(_l10n?.selectDeliveryPlace ?? (_l10n?.selectDeliveryPlace ?? 'Select a delivery place'),
                                               ),
                                               items: _favoritePlaces.map((
                                                 place,
@@ -3040,8 +3036,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.stretch,
                                         children: [
-                                          const Text(
-                                            'Payment Breakdown',
+                                          Text(_l10n?.paymentBreakdown ?? (_l10n?.paymentBreakdown ?? 'Payment Breakdown'),
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w800,
@@ -3052,8 +3047,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
-                                              Text(
-                                                'Subtotal',
+                                              Text(_l10n?.subtotal ?? (_l10n?.subtotal ?? 'Subtotal'),
                                                 style: TextStyle(
                                                   color: Colors.grey.shade700,
                                                   fontSize: 15,
@@ -3076,8 +3070,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   MainAxisAlignment
                                                       .spaceBetween,
                                               children: [
-                                                Text(
-                                                  'Discount',
+                                                Text(_l10n?.discount ?? (_l10n?.discount ?? 'Discount'),
                                                   style: TextStyle(
                                                     color: Colors.red.shade600,
                                                     fontSize: 15,
@@ -3107,8 +3100,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   MainAxisAlignment
                                                       .spaceBetween,
                                               children: [
-                                                Text(
-                                                  'Points Required',
+                                                Text(_l10n?.pointsRequired ?? (_l10n?.pointsRequired ?? 'Points Required'),
                                                   style: TextStyle(
                                                     color:
                                                         Colors.orange.shade700,
@@ -3163,8 +3155,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Text(
-                                                'Total Payment',
+                                              Text(_l10n?.totalPayment ?? (_l10n?.totalPayment ?? 'Total Payment'),
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.w900,
                                                   fontSize: 18,
@@ -3225,7 +3216,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ),
                                     Text(
                                       AppLocalizations.of(context)?.orderNote ??
-                                          'Order Note / Pickup Time',
+                                          (_l10n?.orderNote ?? 'Order Note / Pickup Time'),
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -3242,7 +3233,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             AppLocalizations.of(
                                               context,
                                             )?.orderNoteHint ??
-                                            'e.g., Pickup at 3:00 PM, extra spicy, etc.',
+                                            (_l10n?.orderNoteHint ?? 'e.g., Pickup at 3:00 PM, extra spicy, etc.'),
                                         hintStyle: TextStyle(
                                           color: Colors.grey.shade400,
                                         ),
@@ -3279,7 +3270,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           AppLocalizations.of(
                                                 context,
                                               )?.selectBank ??
-                                              'Select Bank',
+                                              (_l10n?.selectBank ?? 'Select Bank'),
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
@@ -3332,7 +3323,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         AppLocalizations.of(
                                               context,
                                             )?.scanQrCode ??
-                                            'Scan QR Code',
+                                            (_l10n?.scanQrCode ?? 'Scan QR Code'),
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
@@ -3371,9 +3362,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                               fit: BoxFit
                                                                   .contain,
                                                             )
-                                                          : const Center(
-                                                              child: Text(
-                                                                'QR not configured in Odoo Settings',
+                                                          : Center(
+                                                              child: Text(_l10n?.qrNotConfigured ?? (_l10n?.qrNotConfigured ?? 'QR not configured in Odoo Settings'),
                                                                 textAlign:
                                                                     TextAlign
                                                                         .center,
@@ -3408,7 +3398,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             AppLocalizations.of(
                                                   context,
                                                 )?.downloadQr ??
-                                                'Download QR',
+                                                (_l10n?.downloadQr ?? 'Download QR'),
                                           ),
                                         ),
                                       ),
@@ -3434,11 +3424,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 ? AppLocalizations.of(
                                                         context,
                                                       )?.uploadTransferProof ??
-                                                      'Upload Transfer Proof'
+                                                      (_l10n?.uploadTransferProof ?? 'Upload Transfer Proof')
                                                 : AppLocalizations.of(
                                                         context,
                                                       )?.proofSelected ??
-                                                      'Proof Selected',
+                                                      (_l10n?.proofSelected ?? 'Proof Selected'),
                                           ),
                                         ),
                                       ),
@@ -3460,7 +3450,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             AppLocalizations.of(
                                                   context,
                                                 )?.transferProofSelectedMsg ??
-                                                'Transfer proof selected. It will be uploaded when you confirm order.',
+                                                (_l10n?.transferProofSelectedMsg ?? 'Transfer proof selected. It will be uploaded when you confirm order.'),
                                             style: const TextStyle(
                                               color: Colors.green,
                                               fontWeight: FontWeight.w600,
@@ -3508,7 +3498,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                 ),
                                 child: Text(
-                                  '${AppLocalizations.of(context)?.confirmOrder ?? 'Confirm Order'} (₭${(_cartTotal - _couponDiscount + _deliveryFee).toStringAsFixed(2)})',
+                                  '${AppLocalizations.of(context)?.confirmOrder ?? (_l10n?.confirmOrder ?? 'Confirm Order')} (₭${(_cartTotal - _couponDiscount + _deliveryFee).toStringAsFixed(2)})',
                                 ),
                               ),
                             ),
@@ -3566,8 +3556,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (totalPointsNeeded > _rewardPoints) {
         setState(() => _isPlacingOrder = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Not enough points to redeem these items.'),
+          SnackBar(
+            content: Text(_l10n?.notEnoughPointsRedeem ?? (_l10n?.notEnoughPointsRedeem ?? 'Not enough points to redeem these items.')),
             backgroundColor: Colors.red,
           ),
         );
@@ -3637,8 +3627,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         'amount_total': _cartTotal - _couponDiscount + _deliveryFee,
         'date_order': nowIso,
         'payment_method': paymentChoice == 'transfer'
-            ? 'Transfer'
-            : 'Pay At Store',
+            ? (_l10n?.payTransfer ?? 'Transfer')
+            : (_l10n?.payAtStore ?? 'Pay At Store'),
         'state': paymentChoice == 'transfer'
             ? 'waiting transfer verification'
             : 'waiting payment at store',
@@ -3682,9 +3672,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           content: Text(
             paymentChoice == 'transfer'
                 ? (uploadedProofUrl != null
-                      ? 'Order created. Transfer proof uploaded.'
-                      : 'Order created. Transfer proof saved locally.')
-                : 'Order created. Please pay at the store.',
+                      ? (_l10n?.orderCreatedProofUploaded ?? 'Order created. Transfer proof uploaded.')
+                      : (_l10n?.orderCreatedProofLocal ?? 'Order created. Transfer proof saved locally.'))
+                : (_l10n?.orderCreatedPayAtStore ?? 'Order created. Please pay at the store.'),
           ),
           backgroundColor: Colors.green,
         ),
@@ -3700,8 +3690,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       debugPrint('[Order] Failed to place order: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to place order. Please check your connection and try again.'),
+        SnackBar(
+          content: Text(_l10n?.failedToPlaceOrder ?? (_l10n?.failedToPlaceOrder ?? 'Failed to place order. Please check your connection and try again.')),
           backgroundColor: Colors.red,
         ),
       );
@@ -3720,14 +3710,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Phone number required'),
-        content: const Text(
-          'Please add your phone number before placing an order. This is required for customer verification and so the store can contact you if needed.',
+        title: Text(_l10n?.phoneNumberRequiredLower ?? (_l10n?.phoneNumberRequiredLower ?? 'Phone number required')),
+        content: Text(_l10n?.addPhoneBeforeOrder ?? (_l10n?.addPhoneBeforeOrder ?? 'Please add your phone number before placing an order. This is required for customer verification and so the store can contact you if needed.'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: Text(_l10n?.cancel ?? (_l10n?.cancel ?? 'Cancel')),
           ),
           ElevatedButton(
             onPressed: () {
@@ -3738,7 +3727,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               backgroundColor: _brandNavy,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Add phone'),
+            child: Text(_l10n?.addPhone ?? (_l10n?.addPhone ?? 'Add phone')),
           ),
         ],
       ),
@@ -3787,8 +3776,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       await _loadHistory(forceRefresh: true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile updated'),
+        SnackBar(
+          content: Text(_l10n?.profileUpdated ?? (_l10n?.profileUpdated ?? 'Profile updated')),
           backgroundColor: Colors.green,
         ),
       );
@@ -3796,8 +3785,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       debugPrint('[Profile] Cannot save profile: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save profile. Please check your connection and try again.'),
+        SnackBar(
+          content: Text(_l10n?.couldNotSaveProfileConnection ?? (_l10n?.couldNotSaveProfileConnection ?? 'Could not save profile. Please check your connection and try again.')),
           backgroundColor: Colors.red,
         ),
       );
@@ -3823,8 +3812,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Delete account?',
+        title: Text(_l10n?.deleteAccountTitle ?? (_l10n?.deleteAccountTitle ?? 'Delete account?'),
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         content: const Text(
@@ -3834,13 +3822,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(_l10n?.cancel ?? (_l10n?.cancel ?? 'Cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text(
-              'Delete',
+            child: Text(_l10n?.delete ?? (_l10n?.delete ?? 'Delete'),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -3871,8 +3858,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         await _apiService.logout();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Your account has been deleted.'),
+          SnackBar(
+            content: Text(_l10n?.accountDeleted ?? (_l10n?.accountDeleted ?? 'Your account has been deleted.')),
             backgroundColor: Colors.green,
           ),
         );
@@ -3886,7 +3873,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           SnackBar(
             content: Text(
               result['message']?.toString() ??
-                  'Could not delete account. Please try again.',
+                  (_l10n?.couldNotDeleteAccount ?? 'Could not delete account. Please try again.'),
             ),
             backgroundColor: Colors.red,
           ),
@@ -3936,8 +3923,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Rewards Catalog',
+                    Text(_l10n?.rewardsCatalog ?? (_l10n?.rewardsCatalog ?? 'Rewards Catalog'),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
@@ -3969,8 +3955,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               Expanded(
                 child: redeemableProducts.isEmpty
                     ? Center(
-                        child: Text(
-                          'No rewards available at the moment.',
+                        child: Text(_l10n?.noRewardsAvailable ?? (_l10n?.noRewardsAvailable ?? 'No rewards available at the moment.'),
                           style: TextStyle(color: Colors.grey.shade500),
                         ),
                       )
@@ -3994,8 +3979,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   }
                                 : () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Not enough points!'),
+                                      SnackBar(
+                                        content: Text(_l10n?.notEnoughPoints ?? (_l10n?.notEnoughPoints ?? 'Not enough points!')),
                                       ),
                                     );
                                   },
@@ -4095,8 +4080,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              title: const Text(
-                'Redeem Reward?',
+              title: Text(_l10n?.redeemRewardTitle ?? (_l10n?.redeemRewardTitle ?? 'Redeem Reward?'),
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
               content: Text(
@@ -4105,8 +4089,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               actions: [
                 TextButton(
                   onPressed: isRedeeming ? null : () => Navigator.pop(ctx),
-                  child: const Text(
-                    'Cancel',
+                  child: Text(_l10n?.cancel ?? (_l10n?.cancel ?? 'Cancel'),
                     style: TextStyle(color: Colors.grey),
                   ),
                 ),
@@ -4139,9 +4122,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 _rewardPoints -= product.pointPrice;
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Voucher created successfully!',
+                                SnackBar(
+                                  content: Text(_l10n?.voucherCreated ?? (_l10n?.voucherCreated ?? 'Voucher created successfully!'),
                                   ),
                                   backgroundColor: Colors.green,
                                 ),
@@ -4167,7 +4149,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text('Redeem'),
+                      : Text(_l10n?.redeem ?? (_l10n?.redeem ?? 'Redeem')),
                 ),
               ],
             );
@@ -4224,7 +4206,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               title: Text(
-                _isClaimed ? 'Claimed Successfully!' : (voucher['product_name'] ?? 'Voucher'),
+                _isClaimed ? (_l10n?.claimedSuccessfully ?? 'Claimed Successfully!') : (voucher['product_name'] ?? 'Voucher'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
@@ -4236,8 +4218,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 children: [
                   Text(
                     _isClaimed 
-                      ? 'Your reward has been claimed. Enjoy!'
-                      : 'Scan this QR code at the counter to claim your reward.',
+                      ? (_l10n?.rewardClaimedEnjoy ?? 'Your reward has been claimed. Enjoy!')
+                      : (_l10n?.scanQrAtCounter ?? 'Scan this QR code at the counter to claim your reward.'),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
@@ -4276,7 +4258,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     _pollTimer?.cancel();
                     Navigator.pop(ctx);
                   },
-                  child: const Text('Close'),
+                  child: Text(_l10n?.close ?? (_l10n?.close ?? 'Close')),
                 ),
               ],
             );
@@ -4315,12 +4297,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        'My Vouchers',
+                      child: Text(_l10n?.myVouchers ?? (_l10n?.myVouchers ?? 'My Vouchers'),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
@@ -4332,7 +4313,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   const Divider(height: 1),
                   Expanded(
                     child: widget.partnerId == null
-                        ? const Center(child: Text('Not logged in.'))
+                        ? Center(child: Text(_l10n?.notLoggedIn ?? (_l10n?.notLoggedIn ?? 'Not logged in.')))
                         : FutureBuilder<List<Map<String, dynamic>>>(
                             future: _apiService.fetchMyVouchers(
                               widget.partnerId!,
@@ -4413,7 +4394,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                               children: [
                                                 Text(
                                                   v['product_name'] ??
-                                                      'Unknown',
+                                                      (_l10n?.unknown ?? 'Unknown'),
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.w900,
                                                     fontSize: 16,
@@ -4449,8 +4430,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 borderRadius:
                                                     BorderRadius.circular(20),
                                               ),
-                                              child: const Text(
-                                                'ACTIVE',
+                                              child: Text(_l10n?.voucherActive ?? (_l10n?.voucherActive ?? 'ACTIVE'),
                                                 style: TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 10,
@@ -4540,9 +4520,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             if (!mounted || myToken != _notifSyncToken) return;
             setState(() => _pushNotificationsEnabled = previousValue);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Could not update notification settings. Please try again.',
+              SnackBar(
+                content: Text(_l10n?.couldNotUpdateNotifications ?? (_l10n?.couldNotUpdateNotifications ?? 'Could not update notification settings. Please try again.'),
                 ),
                 behavior: SnackBarBehavior.floating,
               ),
@@ -4574,8 +4553,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Notifications',
+                      Text(_l10n?.notifications ?? (_l10n?.notifications ?? 'Notifications'),
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           color: _textPrimaryDark,
@@ -4585,8 +4563,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       const SizedBox(height: 4),
                       Text(
                         _pushNotificationsEnabled
-                            ? 'Order updates on this device'
-                            : 'Push alerts are turned off',
+                            ? (_l10n?.orderUpdatesOnDevice ?? 'Order updates on this device')
+                            : (_l10n?.pushAlertsOff ?? 'Push alerts are turned off'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -4617,9 +4595,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           () => _pushNotificationsEnabled = previousValue,
                         );
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Could not update notification settings. Please try again.',
+                          SnackBar(
+                            content: Text(_l10n?.couldNotUpdateNotifications ?? (_l10n?.couldNotUpdateNotifications ?? 'Could not update notification settings. Please try again.'),
                             ),
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -4840,8 +4817,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text(
-                                          'Quantity',
+                                        Text(_l10n?.quantity ?? (_l10n?.quantity ?? 'Quantity'),
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.w800,
@@ -4861,8 +4837,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
                                     // Toppings Section
                                     if (product.toppings.isNotEmpty) ...[
-                                      const Text(
-                                        'Customization',
+                                      Text(_l10n?.customization ?? (_l10n?.customization ?? 'Customization'),
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w800,
@@ -5018,8 +4993,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Total Price',
+                                  Text(_l10n?.totalPrice ?? (_l10n?.totalPrice ?? 'Total Price'),
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
@@ -5072,8 +5046,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Add to Cart',
+                                  child: Text(_l10n?.addToCart ?? (_l10n?.addToCart ?? 'Add to Cart'),
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w900,
@@ -5115,7 +5088,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       NavigationDestination(
         icon: Icon(Icons.home_outlined, color: _navInactive),
         selectedIcon: _navSelectedIcon(Icons.home),
-        label: 'Home',
+        label: _l10n?.navHome ?? (_l10n?.navHome ?? 'Home'),
       ),
       NavigationDestination(
         icon: _cartCount > 0
@@ -5132,17 +5105,17 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 child: _navSelectedIcon(Icons.shopping_bag),
               )
             : _navSelectedIcon(Icons.shopping_bag),
-        label: 'Cart',
+        label: _l10n?.navCart ?? (_l10n?.navCart ?? 'Cart'),
       ),
       NavigationDestination(
         icon: Icon(Icons.access_time, color: _navInactive),
         selectedIcon: _navSelectedIcon(Icons.access_time),
-        label: 'History',
+        label: _l10n?.navHistory ?? (_l10n?.navHistory ?? 'History'),
       ),
       NavigationDestination(
         icon: Icon(Icons.person_outline, color: _navInactive),
         selectedIcon: _navSelectedIcon(Icons.person),
-        label: 'Profile',
+        label: _l10n?.navProfile ?? (_l10n?.navProfile ?? 'Profile'),
       ),
     ];
 
@@ -5197,7 +5170,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 10),
             child: IconButton(
-              tooltip: 'Refresh',
+              tooltip: _l10n?.refresh ?? (_l10n?.refresh ?? 'Refresh'),
               onPressed: _isAppBarRefreshBusy ? null : _onAppBarRefresh,
               style: IconButton.styleFrom(
                 backgroundColor: Colors.white.withValues(alpha: 0.16),
@@ -5232,7 +5205,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     Expanded(
                       child: Text(
                         AppLocalizations.of(context)?.weatherWarning ??
-                            'Due to bad weather, your delivery or rider may be delayed.',
+                            (_l10n?.weatherWarning ?? 'Due to bad weather, your delivery or rider may be delayed.'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -5335,9 +5308,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           children: [
             const Icon(Icons.error_outline, color: Colors.red, size: 46),
             const SizedBox(height: 12),
-            Text(_catalogError ?? 'Error loading products'),
+            Text(_catalogError ?? (_l10n?.errorLoadingProducts ?? 'Error loading products')),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _loadCatalog, child: const Text('Retry')),
+            ElevatedButton(onPressed: _loadCatalog, child: Text(_l10n?.retry ?? (_l10n?.retry ?? 'Retry'))),
           ],
         ),
       );
@@ -5362,9 +5335,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     final isNarrowWideLayout =
         isWide && MediaQuery.sizeOf(context).width < 1200;
     final sliverGrid = items.isEmpty
-        ? const SliverFillRemaining(
+        ? SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(child: Text('No items found')),
+            child: Center(child: Text(_l10n?.noItemsFound ?? (_l10n?.noItemsFound ?? 'No items found'))),
           )
         : SliverPadding(
             padding: EdgeInsets.fromLTRB(
@@ -5664,8 +5637,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     color: Colors.deepOrange,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(
-                                    '⭐ Recommended',
+                                  child: Text(_l10n?.recommendedBadge ?? (_l10n?.recommendedBadge ?? '⭐ Recommended'),
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w600,
@@ -5942,8 +5914,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 ),
                 alignment: Alignment.bottomLeft,
                 padding: const EdgeInsets.all(14),
-                child: const Text(
-                  'Fresh picks for you today',
+                child: Text(_l10n?.freshPicksToday ?? (_l10n?.freshPicksToday ?? 'Fresh picks for you today'),
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -6072,7 +6043,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ),
                                     child: Text(
                                       AppLocalizations.of(context)?.runOut ??
-                                          'Run out',
+                                          (_l10n?.runOut ?? 'Run out'),
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w900,
@@ -6240,8 +6211,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         size: 12,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        'Best Seller',
+                      Text(_l10n?.bestSeller ?? (_l10n?.bestSeller ?? 'Best Seller'),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: isSmall ? 9 : 10,
@@ -6269,8 +6239,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       bottomRight: Radius.circular(10),
                     ),
                   ),
-                  child: const Text(
-                    'PROMO',
+                  child: Text(_l10n?.promoBadge ?? (_l10n?.promoBadge ?? 'PROMO'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -6359,8 +6328,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Select an item\nto preview',
+                      Text(_l10n?.selectItemToPreview ?? (_l10n?.selectItemToPreview ?? 'Select an item\nto preview'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF64748B),
@@ -6441,8 +6409,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Quantity',
+                          Text(_l10n?.quantity ?? (_l10n?.quantity ?? 'Quantity'),
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
@@ -6463,8 +6430,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       const SizedBox(height: 20),
 
                       // Toppings List (Read-only summary with a button to edit)
-                      const Text(
-                        'Customization',
+                      Text(_l10n?.customization ?? (_l10n?.customization ?? 'Customization'),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
@@ -6489,7 +6455,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               Expanded(
                                 child: Text(
                                   _previewToppings.isEmpty
-                                      ? 'No Toppings Selected'
+                                      ? (_l10n?.noToppingsSelected ?? 'No Toppings Selected')
                                       : _previewToppings
                                             .map((t) => t.name)
                                             .join(', '),
@@ -6524,8 +6490,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              'Subtotal',
+                            Text(_l10n?.subtotal ?? (_l10n?.subtotal ?? 'Subtotal'),
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF64748B),
@@ -6582,7 +6547,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ),
                     ),
                     child: Text(
-                      previewBlocked ? 'Run out' : 'Add to Cart',
+                      previewBlocked ? (_l10n?.runOut ?? 'Run out') : (_l10n?.addToCart ?? 'Add to Cart'),
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 16,
@@ -6648,8 +6613,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Optional',
+                    Text(_l10n?.optional ?? (_l10n?.optional ?? 'Optional'),
                       style: TextStyle(
                         color: Color(0xFF64748B),
                         fontWeight: FontWeight.w700,
@@ -6686,7 +6650,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             subtitle: Text(
                               topping.extraPrice > 0
                                   ? '+₭${topping.extraPrice.toStringAsFixed(2)}'
-                                  : 'Free',
+                                  : (_l10n?.free ?? 'Free'),
                               style: const TextStyle(
                                 color: Color(0xFF64748B),
                                 fontWeight: FontWeight.w700,
@@ -6714,8 +6678,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Text(
-                          'Done',
+                        child: Text(_l10n?.done ?? (_l10n?.done ?? 'Done'),
                           style: TextStyle(fontWeight: FontWeight.w900),
                         ),
                       ),
@@ -6754,8 +6717,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               ),
               const SizedBox(height: 24),
               // "Your cart is empty" text
-              const Text(
-                'Your cart is empty',
+              Text(_l10n?.cartEmpty ?? (_l10n?.cartEmpty ?? 'Your cart is empty'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -6764,8 +6726,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               ),
               const SizedBox(height: 8),
               // "Add items from Home" text
-              Text(
-                'Add items from Home',
+              Text(_l10n?.addItemsFromHome ?? (_l10n?.addItemsFromHome ?? 'Add items from Home'),
                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
             ],
@@ -6930,7 +6891,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       controller: _couponController,
                       enabled: _appliedCouponCode == null,
                       decoration: InputDecoration(
-                        hintText: 'Enter coupon code',
+                        hintText: _l10n?.enterCouponCode ?? (_l10n?.enterCouponCode ?? 'Enter coupon code'),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 12,
@@ -6986,7 +6947,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             ),
                           )
                         : Text(
-                            _appliedCouponCode != null ? 'Applied' : 'Apply',
+                            _appliedCouponCode != null ? (_l10n?.couponApplied2 ?? 'Applied') : (_l10n?.apply ?? 'Apply'),
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                   ),
@@ -7022,8 +6983,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Total',
+                  Text(_l10n?.total ?? (_l10n?.total ?? 'Total'),
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
 
@@ -7060,8 +7020,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Checkout',
+                      : Text(_l10n?.checkout ?? (_l10n?.checkout ?? 'Checkout'),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -7116,8 +7075,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 color: _brandNavy.withValues(alpha: 0.25),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'No order history yet',
+              Text(_l10n?.noOrderHistory ?? (_l10n?.noOrderHistory ?? 'No order history yet'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -7125,8 +7083,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Your completed orders will show up here.',
+              Text(_l10n?.completedOrdersHere ?? (_l10n?.completedOrdersHere ?? 'Your completed orders will show up here.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _labelGray,
@@ -7160,7 +7117,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           final dateLabel = _formatHistoryDateLabel(
             item['date_order']?.toString(),
           );
-          final pay = (item['payment_method'] ?? 'Unknown').toString();
+          final pay = (item['payment_method'] ?? (_l10n?.unknown ?? 'Unknown')).toString();
 
           return Material(
             color: _historyCardBg,
@@ -7215,8 +7172,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Status',
+                        Text(_l10n?.status ?? (_l10n?.status ?? 'Status'),
                           style: TextStyle(
                             color: _labelGray,
                             fontWeight: FontWeight.w600,
@@ -7248,7 +7204,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           onPressed: () =>
                               _openRiderMap((item['id'] ?? '').toString()),
                           icon: const Icon(Icons.location_on, size: 18),
-                          label: const Text('Track Rider'),
+                          label: Text(_l10n?.trackRider ?? (_l10n?.trackRider ?? 'Track Rider')),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF1D4ED8),
                             side: const BorderSide(color: Color(0xFF1D4ED8)),
@@ -7271,8 +7227,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
                           label: Text(deliveryStatus == 'completed'
-                              ? 'View Chat History'
-                              : 'Chat with Rider'),
+                              ? (_l10n?.viewChatHistory ?? 'View Chat History')
+                              : (_l10n?.chatWithRider ?? 'Chat with Rider')),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF1E3A8A),
                             side: const BorderSide(color: Color(0xFF1E3A8A)),
@@ -7293,7 +7249,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       : int.tryParse(orderId.toString()) ?? 0,
                                   orderRef: orderRef,
                                   currentRole: 'customer',
-                                  otherPartyName: 'Rider',
+                                  otherPartyName: (_l10n?.roleRider ?? 'Rider'),
                                 ),
                               ),
                             );
@@ -7309,9 +7265,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Text(
-                            'View order details',
+                        children: [
+                          Text(_l10n?.viewOrderDetails ?? (_l10n?.viewOrderDetails ?? 'View order details'),
                             style: TextStyle(
                               color: Color(0xFF2563EB),
                               fontWeight: FontWeight.w800,
@@ -7435,23 +7390,23 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     String? deliveryStatus,
   }) {
     if (rawState.toLowerCase().trim() == 'paid') {
-      return 'Complete';
+      return (_l10n?.statusComplete ?? 'Complete');
     }
     final ds = (deliveryStatus ?? '').toLowerCase();
-    if (ds == 'delivered') return 'Delivered';
-    if (ds == 'arrived') return 'Rider arrived';
-    if (ds == 'on_the_way') return 'Rider is on the way';
-    if (ds == 'preparing') return 'Preparing your order';
+    if (ds == 'delivered') return (_l10n?.statusDelivered ?? 'Delivered');
+    if (ds == 'arrived') return (_l10n?.statusRiderArrived ?? 'Rider arrived');
+    if (ds == 'on_the_way') return (_l10n?.statusRiderOnWay ?? 'Rider is on the way');
+    if (ds == 'preparing') return (_l10n?.statusPreparingYourOrder ?? 'Preparing your order');
     if (rawState == 'waiting_transfer_review') {
-      return 'Waiting transfer verification';
+      return (_l10n?.statusWaitingTransfer ?? 'Waiting transfer verification');
     }
     if (rawState == 'draft' &&
         paymentMethod.toLowerCase().contains('transfer')) {
-      return 'Transfer verified, preparing order';
+      return (_l10n?.statusTransferVerified ?? 'Transfer verified, preparing order');
     }
-    if (rawState == 'draft') return 'Order confirmed';
-    if (rawState == 'paid') return 'Complete';
-    if (rawState == 'cancelled') return 'Cancelled';
+    if (rawState == 'draft') return (_l10n?.statusOrderConfirmed ?? 'Order confirmed');
+    if (rawState == 'paid') return (_l10n?.statusComplete ?? 'Complete');
+    if (rawState == 'cancelled') return (_l10n?.statusCancelled ?? 'Cancelled');
     return rawState.isEmpty ? '-' : rawState;
   }
 
@@ -7470,8 +7425,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Delivery progress',
+        Text(_l10n?.deliveryProgress ?? (_l10n?.deliveryProgress ?? 'Delivery progress'),
           style: TextStyle(
             color: _labelGray,
             fontWeight: FontWeight.w600,
@@ -7716,7 +7670,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          _customerName.isEmpty ? 'Customer' : _customerName,
+                          _customerName.isEmpty ? (_l10n?.roleCustomer ?? 'Customer') : _customerName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -7741,9 +7695,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             onTap: () {
                               Clipboard.setData(ClipboardData(text: _clientId));
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Client ID copied to clipboard!',
+                                SnackBar(
+                                  content: Text(_l10n?.clientIdCopied ?? (_l10n?.clientIdCopied ?? 'Client ID copied to clipboard!'),
                                   ),
                                   duration: Duration(seconds: 2),
                                 ),
@@ -7795,38 +7748,38 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           child: Column(
                             children: [
                               _profileMenuTile(
-                                title: 'Profile',
+                                title: _l10n?.navProfile ?? (_l10n?.navProfile ?? 'Profile'),
                                 subtitle:
                                     '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
                                 icon: Icons.person_outline,
                                 onTap: _openEditProfileSheet,
                               ),
                               _profileMenuTile(
-                                title: 'Rewards Catalog',
-                                subtitle: 'Convert your points into free items',
+                                title: _l10n?.rewardsCatalog ?? (_l10n?.rewardsCatalog ?? 'Rewards Catalog'),
+                                subtitle: _l10n?.convertPointsIntoItems ?? (_l10n?.convertPointsIntoItems ?? 'Convert your points into free items'),
                                 icon: Icons.card_giftcard_outlined,
                                 onTap: () {
                                   _openRewardsCatalog();
                                 },
                               ),
                               _profileMenuTile(
-                                title: 'My Vouchers',
-                                subtitle: 'View and claim your saved vouchers',
+                                title: _l10n?.myVouchers ?? (_l10n?.myVouchers ?? 'My Vouchers'),
+                                subtitle: _l10n?.viewClaimVouchers ?? (_l10n?.viewClaimVouchers ?? 'View and claim your saved vouchers'),
                                 icon: Icons.qr_code_scanner_outlined,
                                 onTap: () {
                                   _openMyVouchers();
                                 },
                               ),
                               _profileMenuTile(
-                                title: 'Favorite places',
+                                title: _l10n?.favoritePlaces ?? (_l10n?.favoritePlaces ?? 'Favorite places'),
                                 subtitle: _favoritePlacesSubtitle,
                                 icon: Icons.place_outlined,
                                 onTap: _openFavoritePlacesSheet,
                               ),
                               _profileNotificationTile(),
                               _profileMenuTile(
-                                title: 'Ranking',
-                                subtitle: 'See Top 50 rewards leaderboard',
+                                title: _l10n?.ranking ?? (_l10n?.ranking ?? 'Ranking'),
+                                subtitle: _l10n?.seeTop50 ?? (_l10n?.seeTop50 ?? 'See Top 50 rewards leaderboard'),
                                 icon: Icons.emoji_events_outlined,
                                 trailing: _rewardRank > 0
                                     ? _rankPill(_rewardRank)
@@ -7847,9 +7800,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 },
                               ),
                               _profileMenuTile(
-                                title: 'Customer support',
-                                subtitle:
-                                    'Facebook & WhatsApp (from store settings)',
+                                title: _l10n?.customerSupport ?? (_l10n?.customerSupport ?? 'Customer support'),
+                                subtitle: _l10n?.supportChannels ?? (_l10n?.supportChannels ?? 'Facebook & WhatsApp (from store settings)'),
                                 icon: Icons.support_agent_outlined,
                                 isLast: true,
                                 onTap: () {
@@ -7875,8 +7827,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     onPressed: _isLoggingOut ? null : _logout,
                                     icon: const Icon(Icons.logout),
                                     label: _isLoggingOut
-                                        ? const Text('Logging out...')
-                                        : const Text('Logout'),
+                                        ? Text(_l10n?.loggingOut ?? (_l10n?.loggingOut ?? 'Logging out...'))
+                                        : Text(_l10n?.logout ?? (_l10n?.logout ?? 'Logout')),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.redAccent,
                                       side: const BorderSide(
@@ -7910,8 +7862,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 ),
                                 child: Text(
                                   _isDeletingAccount
-                                      ? 'Deleting account...'
-                                      : 'Delete account',
+                                      ? (_l10n?.deletingAccount ?? 'Deleting account...')
+                                      : (_l10n?.deleteAccount ?? 'Delete account'),
                                 ),
                               ),
                             ],
@@ -8050,6 +8002,10 @@ class _ProfileEditScreen extends StatefulWidget {
 }
 
 class _ProfileEditScreenState extends State<_ProfileEditScreen> {
+  /// Null-safe localisation lookup; every call site keeps its English
+  /// literal as a fallback.
+  AppLocalizations? get _l10n => AppLocalizations.of(context);
+
   late final TextEditingController _nameCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _dobCtrl;
@@ -8084,7 +8040,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit profile'),
+        title: Text(_l10n?.editProfile ?? (_l10n?.editProfile ?? 'Edit profile')),
         backgroundColor: _navy,
         foregroundColor: Colors.white,
       ),
@@ -8092,18 +8048,18 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
         children: [
           _buildField(
-            label: 'FULL NAME',
+            label: _l10n?.fullNameCaps ?? (_l10n?.fullNameCaps ?? 'FULL NAME'),
             controller: _nameCtrl,
             icon: Icons.person_outline,
-            hintText: 'Your Full Name',
+            hintText: _l10n?.yourFullName ?? (_l10n?.yourFullName ?? 'Your Full Name'),
           ),
           const SizedBox(height: 20),
           _buildField(
-            label: 'PHONE',
+            label: _l10n?.phoneCaps ?? (_l10n?.phoneCaps ?? 'PHONE'),
             controller: _phoneCtrl,
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
-            hintText: 'e.g. 20XXXXXXXX',
+            hintText: _l10n?.phoneExample ?? (_l10n?.phoneExample ?? 'e.g. 20XXXXXXXX'),
             prefixText: '+856 ',
           ),
           const SizedBox(height: 20),
@@ -8131,8 +8087,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text(
-                      'Save Changes',
+                  : Text(_l10n?.saveChanges ?? (_l10n?.saveChanges ?? 'Save Changes'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -8167,8 +8122,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'OTP Verification',
+                        Text(_l10n?.otpVerification ?? (_l10n?.otpVerification ?? 'OTP Verification'),
                           style: TextStyle(
                             color: _navy,
                             fontSize: 20,
@@ -8286,7 +8240,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                                   if (response['status'] != 'success') {
                                     throw Exception(
                                       response['message'] ??
-                                          'OTP verification failed',
+                                          (_l10n?.otpVerificationFailed ?? 'OTP verification failed'),
                                     );
                                   }
 
@@ -8336,8 +8290,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                                   strokeWidth: 2.2,
                                 ),
                               )
-                            : const Text(
-                                'VERIFY & SAVE',
+                            : Text(_l10n?.verifyAndSave ?? (_l10n?.verifyAndSave ?? 'VERIFY & SAVE'),
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w900,
@@ -8362,14 +8315,13 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                                   if (okRes['status'] != 'success') {
                                     throw Exception(
                                       okRes['message'] ??
-                                          'Failed to resend OTP',
+                                          (_l10n?.failedToResendOtp ?? 'Failed to resend OTP'),
                                     );
                                   }
                                   if (!mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'OTP code resent successfully!',
+                                    SnackBar(
+                                      content: Text(_l10n?.otpResentSuccessfully ?? (_l10n?.otpResentSuccessfully ?? 'OTP code resent successfully!'),
                                       ),
                                       backgroundColor: Colors.green,
                                     ),
@@ -8396,8 +8348,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
                                   color: _navy,
                                 ),
                               )
-                            : const Text(
-                                'Resend Code',
+                            : Text(_l10n?.resendCode ?? (_l10n?.resendCode ?? 'Resend Code'),
                                 style: TextStyle(
                                   color: _navy,
                                   fontWeight: FontWeight.w700,
@@ -8433,8 +8384,8 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
 
     if (telbizPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Phone number is required'),
+        SnackBar(
+          content: Text(_l10n?.phoneNumberIsRequired ?? (_l10n?.phoneNumberIsRequired ?? 'Phone number is required')),
           backgroundColor: Colors.red,
         ),
       );
@@ -8443,9 +8394,8 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
 
     if (!telbizPhone.startsWith('20') || telbizPhone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Phone number must start with 20 and be exactly 10 digits long (e.g. 20XXXXXXXX)',
+        SnackBar(
+          content: Text(_l10n?.phoneMustStartWith20 ?? (_l10n?.phoneMustStartWith20 ?? 'Phone number must start with 20 and be exactly 10 digits long (e.g. 20XXXXXXXX)'),
           ),
           backgroundColor: Colors.red,
         ),
@@ -8479,8 +8429,8 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
         debugPrint('[Profile] Failed to save profile: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not save profile. Please try again.'),
+            SnackBar(
+              content: Text(_l10n?.couldNotSaveProfile ?? (_l10n?.couldNotSaveProfile ?? 'Could not save profile. Please try again.')),
               backgroundColor: Colors.red,
             ),
           );
@@ -8496,7 +8446,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
     try {
       final res = await ApiService().sendOtp(telbizPhone);
       if (res['status'] != 'success') {
-        throw Exception(res['message'] ?? 'Failed to send OTP');
+        throw Exception(res['message'] ?? (_l10n?.failedToSendOtp ?? 'Failed to send OTP'));
       }
 
       if (!mounted) return;
@@ -8591,8 +8541,7 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'DATE OF BIRTH',
+        Text(_l10n?.dateOfBirthCaps ?? (_l10n?.dateOfBirthCaps ?? 'DATE OF BIRTH'),
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w800,
@@ -8679,6 +8628,10 @@ class _FavoritePlacesScreen extends StatefulWidget {
 }
 
 class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
+  /// Null-safe localisation lookup; every call site keeps its English
+  /// literal as a fallback.
+  AppLocalizations? get _l10n => AppLocalizations.of(context);
+
   late List<_FavoritePlace> _places;
   late String? _selectedId;
 
@@ -8695,16 +8648,16 @@ class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete place?'),
+        title: Text(_l10n?.deletePlaceTitle ?? (_l10n?.deletePlaceTitle ?? 'Delete place?')),
         content: Text('Remove "${place.name}" from your favorites?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(_l10n?.cancel ?? (_l10n?.cancel ?? 'Cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(_l10n?.delete ?? (_l10n?.delete ?? 'Delete'), style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -8723,7 +8676,7 @@ class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favorite places'),
+        title: Text(_l10n?.favoritePlaces ?? (_l10n?.favoritePlaces ?? 'Favorite places')),
         backgroundColor: _navy,
         foregroundColor: Colors.white,
         actions: [
@@ -8749,8 +8702,7 @@ class _FavoritePlacesScreenState extends State<_FavoritePlacesScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'No favorite places saved yet.',
+                  Text(_l10n?.noFavoritePlaces ?? (_l10n?.noFavoritePlaces ?? 'No favorite places saved yet.'),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF64748B),
@@ -8942,6 +8894,10 @@ class _RiderTrackingSheet extends StatefulWidget {
 }
 
 class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
+  /// Null-safe localisation lookup; every call site keeps its English
+  /// literal as a fallback.
+  AppLocalizations? get _l10n => AppLocalizations.of(context);
+
   GoogleMapController? _mapController;
   Timer? _refreshTimer;
   Timer? _animTimer;
@@ -9021,7 +8977,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
   }
 
   String _formatEta(double distanceKm) {
-    if (distanceKm < 0.1) return 'Arriving soon';
+    if (distanceKm < 0.1) return (_l10n?.arrivingSoon ?? 'Arriving soon');
     final hours = distanceKm / 50;
     final totalMinutes = (hours * 60).round();
     if (totalMinutes < 60) return '$totalMinutes min';
@@ -9238,7 +9194,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
               _bikeMarker ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           anchor: const Offset(0.5, 0.5),
-          infoWindow: const InfoWindow(title: 'Rider'),
+          infoWindow: InfoWindow(title: _l10n?.roleRider ?? (_l10n?.roleRider ?? 'Rider')),
         ),
       );
     }
@@ -9248,7 +9204,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
           markerId: const MarkerId('destination'),
           position: LatLng(destLat, destLng),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: const InfoWindow(title: 'Delivery location'),
+          infoWindow: InfoWindow(title: _l10n?.deliveryLocation ?? (_l10n?.deliveryLocation ?? 'Delivery location')),
         ),
       );
     }
@@ -9308,8 +9264,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                 size: 20,
               ),
               const SizedBox(width: 6),
-              const Text(
-                'Live Rider Tracking',
+              Text(_l10n?.liveRiderTracking ?? (_l10n?.liveRiderTracking ?? 'Live Rider Tracking'),
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 18,
@@ -9358,7 +9313,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                     color: const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
@@ -9367,8 +9322,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                         color: Color(0xFF16A34A),
                       ),
                       SizedBox(width: 4),
-                      Text(
-                        'LIVE',
+                      Text(_l10n?.liveBadge ?? (_l10n?.liveBadge ?? 'LIVE'),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -9398,8 +9352,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                     color: Color(0xFF1D4ED8),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Rider is on the way',
+                  Text(_l10n?.statusRiderOnWay ?? (_l10n?.statusRiderOnWay ?? 'Rider is on the way'),
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -9451,8 +9404,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                           if (_isLoading) ...[
                             const CircularProgressIndicator(),
                             const SizedBox(height: 12),
-                            const Text(
-                              'Fetching rider location…',
+                            Text(_l10n?.fetchingRiderLocation ?? (_l10n?.fetchingRiderLocation ?? 'Fetching rider location…'),
                               style: TextStyle(
                                 color: _CustomerSelfOrderScreenState._labelGray,
                               ),
@@ -9464,16 +9416,14 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                               color: Color(0xFFCBD5E1),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'No location data yet',
+                            Text(_l10n?.noLocationData ?? (_l10n?.noLocationData ?? 'No location data yet'),
                               style: TextStyle(
                                 color: _CustomerSelfOrderScreenState._labelGray,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'Rider location will appear here once available',
+                            Text(_l10n?.riderLocationWillAppear ?? (_l10n?.riderLocationWillAppear ?? 'Rider location will appear here once available'),
                               style: TextStyle(
                                 color: _CustomerSelfOrderScreenState._labelGray,
                                 fontSize: 12,
@@ -9486,7 +9436,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                                 _fetchLocation();
                               },
                               icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Retry'),
+                              label: Text(_l10n?.retry ?? (_l10n?.retry ?? 'Retry')),
                             ),
                           ],
                         ],
@@ -9516,8 +9466,7 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
-                              'Rider location',
+                            Text(_l10n?.riderLocation ?? (_l10n?.riderLocation ?? 'Rider location'),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,

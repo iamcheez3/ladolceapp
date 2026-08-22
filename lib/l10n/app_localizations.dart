@@ -1471,6 +1471,1086 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Normal base prices will be applied'**
   String get normalPricesApplied;
+
+  /// No description provided for @sessionExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Session expired. Please login again.'**
+  String get sessionExpired;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// No description provided for @optional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get optional;
+
+  /// No description provided for @total.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get total;
+
+  /// No description provided for @status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get status;
+
+  /// No description provided for @date.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get date;
+
+  /// No description provided for @quantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity'**
+  String get quantity;
+
+  /// No description provided for @selectedLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected location'**
+  String get selectedLocation;
+
+  /// No description provided for @couldNotSearchPlaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not search for places. Please check your connection.'**
+  String get couldNotSearchPlaces;
+
+  /// No description provided for @couldNotReadAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the selected address. Please try again.'**
+  String get couldNotReadAddress;
+
+  /// No description provided for @addFavoritePlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Add favorite place'**
+  String get addFavoritePlace;
+
+  /// No description provided for @searchAddressOrPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Search address or place'**
+  String get searchAddressOrPlace;
+
+  /// No description provided for @nameThisPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Name this place, e.g. House'**
+  String get nameThisPlace;
+
+  /// No description provided for @placeHouse.
+  ///
+  /// In en, this message translates to:
+  /// **'House'**
+  String get placeHouse;
+
+  /// No description provided for @placeWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get placeWork;
+
+  /// No description provided for @placeFriendHouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend house'**
+  String get placeFriendHouse;
+
+  /// No description provided for @locationServicesDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Location services are disabled. Please enable them in Settings.'**
+  String get locationServicesDisabled;
+
+  /// No description provided for @locationPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission denied.'**
+  String get locationPermissionDenied;
+
+  /// No description provided for @locationPermissionPermanentlyDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission permanently denied. Please enable it in Settings.'**
+  String get locationPermissionPermanentlyDenied;
+
+  /// No description provided for @couldNotGetLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not get current location. Please allow location access and try again.'**
+  String get couldNotGetLocation;
+
+  /// No description provided for @moveMapToPlacePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the map to place the pin'**
+  String get moveMapToPlacePin;
+
+  /// No description provided for @readingSelectedAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading selected address...'**
+  String get readingSelectedAddress;
+
+  /// No description provided for @addSelectedPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Add selected place'**
+  String get addSelectedPlace;
+
+  /// No description provided for @addDeliveryPlaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Add delivery places for self order'**
+  String get addDeliveryPlaces;
+
+  /// No description provided for @favoritePlaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite places'**
+  String get favoritePlaces;
+
+  /// No description provided for @noFavoritePlaces.
+  ///
+  /// In en, this message translates to:
+  /// **'No favorite places saved yet.'**
+  String get noFavoritePlaces;
+
+  /// No description provided for @deletePlaceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete place?'**
+  String get deletePlaceTitle;
+
+  /// No description provided for @removePlaceConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from your favorites?'**
+  String removePlaceConfirm(String name);
+
+  /// No description provided for @placeSavedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}  •  {count} saved'**
+  String placeSavedCount(String label, String count);
+
+  /// No description provided for @profileImageUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile image updated'**
+  String get profileImageUpdated;
+
+  /// No description provided for @couldNotOpenImagePicker.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the image picker. Please try again.'**
+  String get couldNotOpenImagePicker;
+
+  /// No description provided for @noQrImageConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'No QR image configured yet'**
+  String get noQrImageConfigured;
+
+  /// No description provided for @photosPermissionBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos permission is blocked. Open Settings to allow access.'**
+  String get photosPermissionBlocked;
+
+  /// No description provided for @photoPermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo permission is required to save QR'**
+  String get photoPermissionRequired;
+
+  /// No description provided for @storagePermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage permission is required to save QR'**
+  String get storagePermissionRequired;
+
+  /// No description provided for @qrSavedToGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'QR saved to gallery ✓'**
+  String get qrSavedToGallery;
+
+  /// No description provided for @couldNotSaveQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save QR code. Please try again.'**
+  String get couldNotSaveQr;
+
+  /// No description provided for @cannotFindSaveDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot find save directory'**
+  String get cannotFindSaveDirectory;
+
+  /// No description provided for @couldNotSaveQrDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save QR to Downloads. Please try again.'**
+  String get couldNotSaveQrDownloads;
+
+  /// No description provided for @qrSavedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'QR saved to {path}'**
+  String qrSavedTo(String path);
+
+  /// No description provided for @itemRunOut.
+  ///
+  /// In en, this message translates to:
+  /// **'This item is run out and cannot be ordered.'**
+  String get itemRunOut;
+
+  /// No description provided for @couponApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Coupon applied successfully!'**
+  String get couponApplied;
+
+  /// No description provided for @phoneNumberRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number Required'**
+  String get phoneNumberRequiredTitle;
+
+  /// No description provided for @verifiedPhoneRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'A verified phone number is required before placing an order. Please update your profile.'**
+  String get verifiedPhoneRequired;
+
+  /// No description provided for @updateProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Profile'**
+  String get updateProfile;
+
+  /// No description provided for @branchClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'This branch is currently closed. Please choose another branch or order later.'**
+  String get branchClosed;
+
+  /// No description provided for @howReceiveOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'How will you receive your order?'**
+  String get howReceiveOrder;
+
+  /// No description provided for @riderDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider delivery'**
+  String get riderDelivery;
+
+  /// No description provided for @comePickUpMyself.
+  ///
+  /// In en, this message translates to:
+  /// **'Come pick up myself'**
+  String get comePickUpMyself;
+
+  /// No description provided for @deliveryPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery place'**
+  String get deliveryPlace;
+
+  /// No description provided for @addFavoritePlaceBeforeOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Please add a favorite place before confirming the order.'**
+  String get addFavoritePlaceBeforeOrder;
+
+  /// No description provided for @selectDeliveryPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a delivery place'**
+  String get selectDeliveryPlace;
+
+  /// No description provided for @paymentBreakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Breakdown'**
+  String get paymentBreakdown;
+
+  /// No description provided for @subtotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtotal'**
+  String get subtotal;
+
+  /// No description provided for @discount.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount'**
+  String get discount;
+
+  /// No description provided for @pointsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Points Required'**
+  String get pointsRequired;
+
+  /// No description provided for @totalPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Payment'**
+  String get totalPayment;
+
+  /// No description provided for @deliveryFeeKm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery Fee ({km} km)'**
+  String deliveryFeeKm(String km);
+
+  /// No description provided for @addMoreForFreeDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Add ₭{amount} more to get free delivery!'**
+  String addMoreForFreeDelivery(String amount);
+
+  /// No description provided for @notEnoughPointsRedeem.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough points to redeem these items.'**
+  String get notEnoughPointsRedeem;
+
+  /// No description provided for @payTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get payTransfer;
+
+  /// No description provided for @payAtStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay At Store'**
+  String get payAtStore;
+
+  /// No description provided for @orderCreatedProofUploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Order created. Transfer proof uploaded.'**
+  String get orderCreatedProofUploaded;
+
+  /// No description provided for @orderCreatedProofLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Order created. Transfer proof saved locally.'**
+  String get orderCreatedProofLocal;
+
+  /// No description provided for @orderCreatedPayAtStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Order created. Please pay at the store.'**
+  String get orderCreatedPayAtStore;
+
+  /// No description provided for @failedToPlaceOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to place order. Please check your connection and try again.'**
+  String get failedToPlaceOrder;
+
+  /// No description provided for @phoneNumberRequiredLower.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number required'**
+  String get phoneNumberRequiredLower;
+
+  /// No description provided for @addPhoneBeforeOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Please add your phone number before placing an order. This is required for customer verification and so the store can contact you if needed.'**
+  String get addPhoneBeforeOrder;
+
+  /// No description provided for @addPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Add phone'**
+  String get addPhone;
+
+  /// No description provided for @profileUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile updated'**
+  String get profileUpdated;
+
+  /// No description provided for @couldNotSaveProfileConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save profile. Please check your connection and try again.'**
+  String get couldNotSaveProfileConnection;
+
+  /// No description provided for @couldNotSaveProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save profile. Please try again.'**
+  String get couldNotSaveProfile;
+
+  /// No description provided for @deleteAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account?'**
+  String get deleteAccountTitle;
+
+  /// No description provided for @accountDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been deleted.'**
+  String get accountDeleted;
+
+  /// No description provided for @couldNotDeleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete account. Please try again.'**
+  String get couldNotDeleteAccount;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get editProfile;
+
+  /// No description provided for @fullNameCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'FULL NAME'**
+  String get fullNameCaps;
+
+  /// No description provided for @yourFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Full Name'**
+  String get yourFullName;
+
+  /// No description provided for @phoneCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'PHONE'**
+  String get phoneCaps;
+
+  /// No description provided for @phoneExample.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 20XXXXXXXX'**
+  String get phoneExample;
+
+  /// No description provided for @dateOfBirthCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'DATE OF BIRTH'**
+  String get dateOfBirthCaps;
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Changes'**
+  String get saveChanges;
+
+  /// No description provided for @phoneNumberIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number is required'**
+  String get phoneNumberIsRequired;
+
+  /// No description provided for @phoneMustStartWith20.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number must start with 20 and be exactly 10 digits long (e.g. 20XXXXXXXX)'**
+  String get phoneMustStartWith20;
+
+  /// No description provided for @verifyAndSave.
+  ///
+  /// In en, this message translates to:
+  /// **'VERIFY & SAVE'**
+  String get verifyAndSave;
+
+  /// No description provided for @otpVerificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'OTP verification failed'**
+  String get otpVerificationFailed;
+
+  /// No description provided for @failedToResendOtp.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to resend OTP'**
+  String get failedToResendOtp;
+
+  /// No description provided for @logout.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get logout;
+
+  /// No description provided for @loggingOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Logging out...'**
+  String get loggingOut;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get deleteAccount;
+
+  /// No description provided for @deletingAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting account...'**
+  String get deletingAccount;
+
+  /// No description provided for @clientIdCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Client ID copied to clipboard!'**
+  String get clientIdCopied;
+
+  /// No description provided for @rewardPointsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward points: {points}'**
+  String rewardPointsLabel(String points);
+
+  /// No description provided for @rewardsCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewards Catalog'**
+  String get rewardsCatalog;
+
+  /// No description provided for @noRewardsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No rewards available at the moment.'**
+  String get noRewardsAvailable;
+
+  /// No description provided for @notEnoughPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough points!'**
+  String get notEnoughPoints;
+
+  /// No description provided for @redeemRewardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Redeem Reward?'**
+  String get redeemRewardTitle;
+
+  /// No description provided for @redeemConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Do you want to convert {points} points into a voucher for {product}?'**
+  String redeemConfirm(String points, String product);
+
+  /// No description provided for @customerNotLoggedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer not logged in properly.'**
+  String get customerNotLoggedIn;
+
+  /// No description provided for @voucherCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Voucher created successfully!'**
+  String get voucherCreated;
+
+  /// No description provided for @redeem.
+  ///
+  /// In en, this message translates to:
+  /// **'Redeem'**
+  String get redeem;
+
+  /// No description provided for @claimedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Claimed Successfully!'**
+  String get claimedSuccessfully;
+
+  /// No description provided for @rewardClaimedEnjoy.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reward has been claimed. Enjoy!'**
+  String get rewardClaimedEnjoy;
+
+  /// No description provided for @scanQrAtCounter.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan this QR code at the counter to claim your reward.'**
+  String get scanQrAtCounter;
+
+  /// No description provided for @myVouchers.
+  ///
+  /// In en, this message translates to:
+  /// **'My Vouchers'**
+  String get myVouchers;
+
+  /// No description provided for @notLoggedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Not logged in.'**
+  String get notLoggedIn;
+
+  /// No description provided for @voucherActive.
+  ///
+  /// In en, this message translates to:
+  /// **'ACTIVE'**
+  String get voucherActive;
+
+  /// No description provided for @redeemPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Redeem points'**
+  String get redeemPoints;
+
+  /// No description provided for @convertPointsIntoItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert your points into free items'**
+  String get convertPointsIntoItems;
+
+  /// No description provided for @viewClaimVouchers.
+  ///
+  /// In en, this message translates to:
+  /// **'View and claim your saved vouchers'**
+  String get viewClaimVouchers;
+
+  /// No description provided for @ranking.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranking'**
+  String get ranking;
+
+  /// No description provided for @seeTop50.
+  ///
+  /// In en, this message translates to:
+  /// **'See Top 50 rewards leaderboard'**
+  String get seeTop50;
+
+  /// No description provided for @customerSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer support'**
+  String get customerSupport;
+
+  /// No description provided for @supportChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'Facebook & WhatsApp (from store settings)'**
+  String get supportChannels;
+
+  /// No description provided for @pointsSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} Pts'**
+  String pointsSuffix(String points);
+
+  /// No description provided for @couldNotUpdateNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update notification settings. Please try again.'**
+  String get couldNotUpdateNotifications;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @orderUpdatesOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Order updates on this device'**
+  String get orderUpdatesOnDevice;
+
+  /// No description provided for @pushAlertsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Push alerts are turned off'**
+  String get pushAlertsOff;
+
+  /// No description provided for @customization.
+  ///
+  /// In en, this message translates to:
+  /// **'Customization'**
+  String get customization;
+
+  /// No description provided for @totalPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Price'**
+  String get totalPrice;
+
+  /// No description provided for @addToCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Cart'**
+  String get addToCart;
+
+  /// No description provided for @navHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
+  /// No description provided for @navCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Cart'**
+  String get navCart;
+
+  /// No description provided for @navHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get navHistory;
+
+  /// No description provided for @navProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get navProfile;
+
+  /// No description provided for @errorLoadingProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading products'**
+  String get errorLoadingProducts;
+
+  /// No description provided for @allProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'All Products'**
+  String get allProducts;
+
+  /// No description provided for @noItemsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No items found'**
+  String get noItemsFound;
+
+  /// No description provided for @recommendedProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended Products'**
+  String get recommendedProducts;
+
+  /// No description provided for @recommendedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'⭐ Recommended'**
+  String get recommendedBadge;
+
+  /// No description provided for @mostPopular.
+  ///
+  /// In en, this message translates to:
+  /// **'Most Popular'**
+  String get mostPopular;
+
+  /// No description provided for @freshPicksToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Fresh picks for you today'**
+  String get freshPicksToday;
+
+  /// No description provided for @bestSeller.
+  ///
+  /// In en, this message translates to:
+  /// **'Best Seller'**
+  String get bestSeller;
+
+  /// No description provided for @promoBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'PROMO'**
+  String get promoBadge;
+
+  /// No description provided for @selectItemToPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an item\nto preview'**
+  String get selectItemToPreview;
+
+  /// No description provided for @noToppingsSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No Toppings Selected'**
+  String get noToppingsSelected;
+
+  /// No description provided for @toppingsFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Toppings for {product}'**
+  String toppingsFor(String product);
+
+  /// No description provided for @cartEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Your cart is empty'**
+  String get cartEmpty;
+
+  /// No description provided for @addItemsFromHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Add items from Home'**
+  String get addItemsFromHome;
+
+  /// No description provided for @enterCouponCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter coupon code'**
+  String get enterCouponCode;
+
+  /// No description provided for @couponApplied2.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied'**
+  String get couponApplied2;
+
+  /// No description provided for @checkout.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get checkout;
+
+  /// No description provided for @addedToCart.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} added to cart'**
+  String addedToCart(String name);
+
+  /// No description provided for @addedToCartQty.
+  ///
+  /// In en, this message translates to:
+  /// **'{qty} {name} added to cart'**
+  String addedToCartQty(String qty, String name);
+
+  /// No description provided for @discountWithCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount ({code})'**
+  String discountWithCode(String code);
+
+  /// No description provided for @noOrderHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'No order history yet'**
+  String get noOrderHistory;
+
+  /// No description provided for @completedOrdersHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Your completed orders will show up here.'**
+  String get completedOrdersHere;
+
+  /// No description provided for @paymentMethodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment method'**
+  String get paymentMethodLabel;
+
+  /// No description provided for @trackRider.
+  ///
+  /// In en, this message translates to:
+  /// **'Track Rider'**
+  String get trackRider;
+
+  /// No description provided for @viewChatHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'View Chat History'**
+  String get viewChatHistory;
+
+  /// No description provided for @chatWithRider.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with Rider'**
+  String get chatWithRider;
+
+  /// No description provided for @viewOrderDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View order details'**
+  String get viewOrderDetails;
+
+  /// No description provided for @statusComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get statusComplete;
+
+  /// No description provided for @statusDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get statusDelivered;
+
+  /// No description provided for @statusRiderArrived.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider arrived'**
+  String get statusRiderArrived;
+
+  /// No description provided for @statusOnTheWay.
+  ///
+  /// In en, this message translates to:
+  /// **'On the way'**
+  String get statusOnTheWay;
+
+  /// No description provided for @statusPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing'**
+  String get statusPreparing;
+
+  /// No description provided for @statusCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get statusCancelled;
+
+  /// No description provided for @statusWaitingTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting transfer verification'**
+  String get statusWaitingTransfer;
+
+  /// No description provided for @statusOrderConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Order confirmed'**
+  String get statusOrderConfirmed;
+
+  /// No description provided for @statusRiderOnWay.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider is on the way'**
+  String get statusRiderOnWay;
+
+  /// No description provided for @statusPreparingYourOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your order'**
+  String get statusPreparingYourOrder;
+
+  /// No description provided for @statusTransferVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer verified, preparing order'**
+  String get statusTransferVerified;
+
+  /// No description provided for @statusArrived.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrived'**
+  String get statusArrived;
+
+  /// No description provided for @deliveryProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery progress'**
+  String get deliveryProgress;
+
+  /// No description provided for @arrivingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Arriving soon'**
+  String get arrivingSoon;
+
+  /// No description provided for @deliveryLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery location'**
+  String get deliveryLocation;
+
+  /// No description provided for @liveRiderTracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Rider Tracking'**
+  String get liveRiderTracking;
+
+  /// No description provided for @liveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get liveBadge;
+
+  /// No description provided for @fetchingRiderLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching rider location…'**
+  String get fetchingRiderLocation;
+
+  /// No description provided for @noLocationData.
+  ///
+  /// In en, this message translates to:
+  /// **'No location data yet'**
+  String get noLocationData;
+
+  /// No description provided for @riderLocationWillAppear.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider location will appear here once available'**
+  String get riderLocationWillAppear;
+
+  /// No description provided for @riderLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider location'**
+  String get riderLocation;
+
+  /// No description provided for @etaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'ETA: {eta}'**
+  String etaLabel(String eta);
+
+  /// No description provided for @minutesShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String minutesShort(String minutes);
+
+  /// No description provided for @hoursMinutesShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}m'**
+  String hoursMinutesShort(String hours, String minutes);
 }
 
 class _AppLocalizationsDelegate

@@ -793,4 +793,592 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get normalPricesApplied => 'ຈະໃຊ້ລາຄາປົກກະຕິ';
+
+  @override
+  String get sessionExpired => 'ເຊສຊັນໝົດອາຍຸ. ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່.';
+
+  @override
+  String get close => 'ປິດ';
+
+  @override
+  String get add => 'ເພີ່ມ';
+
+  @override
+  String get delete => 'ລຶບ';
+
+  @override
+  String get refresh => 'ໂຫຼດຄືນ';
+
+  @override
+  String get optional => 'ບໍ່ບັງຄັບ';
+
+  @override
+  String get total => 'ລວມທັງໝົດ';
+
+  @override
+  String get status => 'ສະຖານະ';
+
+  @override
+  String get date => 'ວັນທີ';
+
+  @override
+  String get quantity => 'ຈຳນວນ';
+
+  @override
+  String get selectedLocation => 'ຕຳແໜ່ງທີ່ເລືອກ';
+
+  @override
+  String get couldNotSearchPlaces =>
+      'ຄົ້ນຫາສະຖານທີ່ບໍ່ໄດ້. ກະລຸນາກວດການເຊື່ອມຕໍ່ອິນເຕີເນັດ.';
+
+  @override
+  String get couldNotReadAddress => 'ອ່ານທີ່ຢູ່ທີ່ເລືອກບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get addFavoritePlace => 'ເພີ່ມສະຖານທີ່ທີ່ມັກ';
+
+  @override
+  String get searchAddressOrPlace => 'ຄົ້ນຫາທີ່ຢູ່ ຫຼື ສະຖານທີ່';
+
+  @override
+  String get nameThisPlace => 'ຕັ້ງຊື່ສະຖານທີ່ນີ້ ເຊັ່ນ: ບ້ານ';
+
+  @override
+  String get placeHouse => 'ບ້ານ';
+
+  @override
+  String get placeWork => 'ບ່ອນເຮັດວຽກ';
+
+  @override
+  String get placeFriendHouse => 'ບ້ານໝູ່';
+
+  @override
+  String get locationServicesDisabled =>
+      'ບໍລິການຕຳແໜ່ງຖືກປິດຢູ່. ກະລຸນາເປີດໃນການຕັ້ງຄ່າ.';
+
+  @override
+  String get locationPermissionDenied => 'ບໍ່ໄດ້ຮັບອະນຸຍາດເຂົ້າເຖິງຕຳແໜ່ງ.';
+
+  @override
+  String get locationPermissionPermanentlyDenied =>
+      'ການເຂົ້າເຖິງຕຳແໜ່ງຖືກປະຕິເສດຖາວອນ. ກະລຸນາເປີດໃນການຕັ້ງຄ່າ.';
+
+  @override
+  String get couldNotGetLocation =>
+      'ຫາຕຳແໜ່ງປັດຈຸບັນບໍ່ໄດ້. ກະລຸນາອະນຸຍາດການເຂົ້າເຖິງຕຳແໜ່ງ ແລ້ວລອງໃໝ່.';
+
+  @override
+  String get moveMapToPlacePin => 'ເລື່ອນແຜນທີ່ເພື່ອວາງໝຸດ';
+
+  @override
+  String get readingSelectedAddress => 'ກຳລັງອ່ານທີ່ຢູ່ທີ່ເລືອກ...';
+
+  @override
+  String get addSelectedPlace => 'ເພີ່ມສະຖານທີ່ທີ່ເລືອກ';
+
+  @override
+  String get addDeliveryPlaces => 'ເພີ່ມສະຖານທີ່ຈັດສົ່ງສຳລັບການສັ່ງເອງ';
+
+  @override
+  String get favoritePlaces => 'ສະຖານທີ່ທີ່ມັກ';
+
+  @override
+  String get noFavoritePlaces => 'ຍັງບໍ່ມີສະຖານທີ່ທີ່ມັກ.';
+
+  @override
+  String get deletePlaceTitle => 'ລຶບສະຖານທີ່?';
+
+  @override
+  String removePlaceConfirm(String name) {
+    return 'ຕ້ອງການລຶບ \"$name\" ອອກຈາກລາຍການທີ່ມັກບໍ?';
+  }
+
+  @override
+  String placeSavedCount(String label, String count) {
+    return '$label  •  ບັນທຶກ $count ແຫ່ງ';
+  }
+
+  @override
+  String get profileImageUpdated => 'ອັບເດດຮູບໂປຣໄຟລ໌ແລ້ວ';
+
+  @override
+  String get couldNotOpenImagePicker => 'ເປີດຕົວເລືອກຮູບບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get noQrImageConfigured => 'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າຮູບ QR';
+
+  @override
+  String get photosPermissionBlocked =>
+      'ການເຂົ້າເຖິງຮູບພາບຖືກບລັອກ. ກະລຸນາເປີດການຕັ້ງຄ່າເພື່ອອະນຸຍາດ.';
+
+  @override
+  String get photoPermissionRequired =>
+      'ຕ້ອງການສິດເຂົ້າເຖິງຮູບພາບເພື່ອບັນທຶກ QR';
+
+  @override
+  String get storagePermissionRequired =>
+      'ຕ້ອງການສິດເຂົ້າເຖິງບ່ອນເກັບຂໍ້ມູນເພື່ອບັນທຶກ QR';
+
+  @override
+  String get qrSavedToGallery => 'ບັນທຶກ QR ໃສ່ຄັງຮູບແລ້ວ ✓';
+
+  @override
+  String get couldNotSaveQr => 'ບັນທຶກ QR ບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get cannotFindSaveDirectory => 'ຫາບ່ອນບັນທຶກບໍ່ພົບ';
+
+  @override
+  String get couldNotSaveQrDownloads =>
+      'ບັນທຶກ QR ໃສ່ Downloads ບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String qrSavedTo(String path) {
+    return 'ບັນທຶກ QR ໃສ່ $path ແລ້ວ';
+  }
+
+  @override
+  String get itemRunOut => 'ສິນຄ້ານີ້ໝົດແລ້ວ ບໍ່ສາມາດສັ່ງໄດ້.';
+
+  @override
+  String get couponApplied => 'ໃຊ້ຄູປອງສຳເລັດແລ້ວ!';
+
+  @override
+  String get phoneNumberRequiredTitle => 'ຕ້ອງການເບີໂທລະສັບ';
+
+  @override
+  String get verifiedPhoneRequired =>
+      'ຕ້ອງມີເບີໂທລະສັບທີ່ຢືນຢັນແລ້ວກ່ອນສັ່ງຊື້. ກະລຸນາອັບເດດໂປຣໄຟລ໌ຂອງທ່ານ.';
+
+  @override
+  String get updateProfile => 'ອັບເດດໂປຣໄຟລ໌';
+
+  @override
+  String get branchClosed =>
+      'ສາຂານີ້ປິດຢູ່ໃນຂະນະນີ້. ກະລຸນາເລືອກສາຂາອື່ນ ຫຼື ສັ່ງພາຍຫຼັງ.';
+
+  @override
+  String get howReceiveOrder => 'ທ່ານຕ້ອງການຮັບອໍເດີແບບໃດ?';
+
+  @override
+  String get riderDelivery => 'ຈັດສົ່ງໂດຍໄຣເດີ';
+
+  @override
+  String get comePickUpMyself => 'ມາຮັບເອງ';
+
+  @override
+  String get deliveryPlace => 'ສະຖານທີ່ຈັດສົ່ງ';
+
+  @override
+  String get addFavoritePlaceBeforeOrder =>
+      'ກະລຸນາເພີ່ມສະຖານທີ່ທີ່ມັກກ່ອນຢືນຢັນອໍເດີ.';
+
+  @override
+  String get selectDeliveryPlace => 'ເລືອກສະຖານທີ່ຈັດສົ່ງ';
+
+  @override
+  String get paymentBreakdown => 'ລາຍລະອຽດການຊຳລະ';
+
+  @override
+  String get subtotal => 'ຍອດຍ່ອຍ';
+
+  @override
+  String get discount => 'ສ່ວນຫຼຸດ';
+
+  @override
+  String get pointsRequired => 'ຄະແນນທີ່ຕ້ອງໃຊ້';
+
+  @override
+  String get totalPayment => 'ຍອດຊຳລະທັງໝົດ';
+
+  @override
+  String deliveryFeeKm(String km) {
+    return 'ຄ່າຈັດສົ່ງ ($km ກມ)';
+  }
+
+  @override
+  String addMoreForFreeDelivery(String amount) {
+    return 'ເພີ່ມອີກ ₭$amount ເພື່ອຮັບການຈັດສົ່ງຟຣີ!';
+  }
+
+  @override
+  String get notEnoughPointsRedeem => 'ຄະແນນບໍ່ພໍສຳລັບແລກສິນຄ້າເຫຼົ່ານີ້.';
+
+  @override
+  String get payTransfer => 'ໂອນເງິນ';
+
+  @override
+  String get payAtStore => 'ຈ່າຍທີ່ຮ້ານ';
+
+  @override
+  String get orderCreatedProofUploaded =>
+      'ສ້າງອໍເດີແລ້ວ. ອັບໂຫຼດຫຼັກຖານການໂອນແລ້ວ.';
+
+  @override
+  String get orderCreatedProofLocal =>
+      'ສ້າງອໍເດີແລ້ວ. ບັນທຶກຫຼັກຖານການໂອນໄວ້ໃນເຄື່ອງແລ້ວ.';
+
+  @override
+  String get orderCreatedPayAtStore => 'ສ້າງອໍເດີແລ້ວ. ກະລຸນາຈ່າຍທີ່ຮ້ານ.';
+
+  @override
+  String get failedToPlaceOrder =>
+      'ສັ່ງຊື້ບໍ່ສຳເລັດ. ກະລຸນາກວດການເຊື່ອມຕໍ່ ແລ້ວລອງໃໝ່.';
+
+  @override
+  String get phoneNumberRequiredLower => 'ຕ້ອງການເບີໂທລະສັບ';
+
+  @override
+  String get addPhoneBeforeOrder =>
+      'ກະລຸນາເພີ່ມເບີໂທລະສັບກ່ອນສັ່ງຊື້. ຈຳເປັນສຳລັບການຢືນຢັນຕົວຕົນ ແລະ ໃຫ້ຮ້ານຕິດຕໍ່ທ່ານໄດ້ເມື່ອຈຳເປັນ.';
+
+  @override
+  String get addPhone => 'ເພີ່ມເບີໂທ';
+
+  @override
+  String get profileUpdated => 'ອັບເດດໂປຣໄຟລ໌ແລ້ວ';
+
+  @override
+  String get couldNotSaveProfileConnection =>
+      'ບັນທຶກໂປຣໄຟລ໌ບໍ່ໄດ້. ກະລຸນາກວດການເຊື່ອມຕໍ່ ແລ້ວລອງໃໝ່.';
+
+  @override
+  String get couldNotSaveProfile => 'ບັນທຶກໂປຣໄຟລ໌ບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get deleteAccountTitle => 'ລຶບບັນຊີ?';
+
+  @override
+  String get accountDeleted => 'ບັນຊີຂອງທ່ານຖືກລຶບແລ້ວ.';
+
+  @override
+  String get couldNotDeleteAccount => 'ລຶບບັນຊີບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get editProfile => 'ແກ້ໄຂໂປຣໄຟລ໌';
+
+  @override
+  String get fullNameCaps => 'ຊື່ ແລະ ນາມສະກຸນ';
+
+  @override
+  String get yourFullName => 'ຊື່ເຕັມຂອງທ່ານ';
+
+  @override
+  String get phoneCaps => 'ເບີໂທລະສັບ';
+
+  @override
+  String get phoneExample => 'ຕົວຢ່າງ: 20XXXXXXXX';
+
+  @override
+  String get dateOfBirthCaps => 'ວັນເດືອນປີເກີດ';
+
+  @override
+  String get saveChanges => 'ບັນທຶກການປ່ຽນແປງ';
+
+  @override
+  String get phoneNumberIsRequired => 'ຕ້ອງປ້ອນເບີໂທລະສັບ';
+
+  @override
+  String get phoneMustStartWith20 =>
+      'ເບີໂທຕ້ອງຂຶ້ນຕົ້ນດ້ວຍ 20 ແລະ ມີ 10 ຫຼັກພໍດີ (ຕົວຢ່າງ: 20XXXXXXXX)';
+
+  @override
+  String get verifyAndSave => 'ຢືນຢັນ & ບັນທຶກ';
+
+  @override
+  String get otpVerificationFailed => 'ຢືນຢັນລະຫັດ OTP ບໍ່ສຳເລັດ';
+
+  @override
+  String get failedToResendOtp => 'ສົ່ງລະຫັດ OTP ໃໝ່ບໍ່ສຳເລັດ';
+
+  @override
+  String get logout => 'ອອກຈາກລະບົບ';
+
+  @override
+  String get loggingOut => 'ກຳລັງອອກຈາກລະບົບ...';
+
+  @override
+  String get deleteAccount => 'ລຶບບັນຊີ';
+
+  @override
+  String get deletingAccount => 'ກຳລັງລຶບບັນຊີ...';
+
+  @override
+  String get clientIdCopied => 'ຄັດລອກ Client ID ແລ້ວ!';
+
+  @override
+  String rewardPointsLabel(String points) {
+    return 'ຄະແນນສະສົມ: $points';
+  }
+
+  @override
+  String get rewardsCatalog => 'ລາຍການລາງວັນ';
+
+  @override
+  String get noRewardsAvailable => 'ຍັງບໍ່ມີລາງວັນໃນຂະນະນີ້.';
+
+  @override
+  String get notEnoughPoints => 'ຄະແນນບໍ່ພໍ!';
+
+  @override
+  String get redeemRewardTitle => 'ແລກລາງວັນ?';
+
+  @override
+  String redeemConfirm(String points, String product) {
+    return 'ທ່ານຕ້ອງການແລກ $points ຄະແນນເປັນບັດສ່ວນຫຼຸດສຳລັບ $product ບໍ?';
+  }
+
+  @override
+  String get customerNotLoggedIn => 'ລູກຄ້າຍັງບໍ່ໄດ້ເຂົ້າສູ່ລະບົບຢ່າງຖືກຕ້ອງ.';
+
+  @override
+  String get voucherCreated => 'ສ້າງບັດສ່ວນຫຼຸດສຳເລັດແລ້ວ!';
+
+  @override
+  String get redeem => 'ແລກ';
+
+  @override
+  String get claimedSuccessfully => 'ຮັບລາງວັນສຳເລັດແລ້ວ!';
+
+  @override
+  String get rewardClaimedEnjoy => 'ທ່ານໄດ້ຮັບລາງວັນແລ້ວ. ຂໍໃຫ້ມ່ວນຊື່ນ!';
+
+  @override
+  String get scanQrAtCounter => 'ສະແກນ QR ນີ້ທີ່ເຄົາເຕີເພື່ອຮັບລາງວັນຂອງທ່ານ.';
+
+  @override
+  String get myVouchers => 'ບັດສ່ວນຫຼຸດຂອງຂ້ອຍ';
+
+  @override
+  String get notLoggedIn => 'ຍັງບໍ່ໄດ້ເຂົ້າສູ່ລະບົບ.';
+
+  @override
+  String get voucherActive => 'ໃຊ້ໄດ້';
+
+  @override
+  String get redeemPoints => 'ແລກຄະແນນ';
+
+  @override
+  String get convertPointsIntoItems => 'ແລກຄະແນນຂອງທ່ານເປັນສິນຄ້າຟຣີ';
+
+  @override
+  String get viewClaimVouchers => 'ເບິ່ງ ແລະ ໃຊ້ບັດສ່ວນຫຼຸດທີ່ບັນທຶກໄວ້';
+
+  @override
+  String get ranking => 'ອັນດັບ';
+
+  @override
+  String get seeTop50 => 'ເບິ່ງຕາຕະລາງອັນດັບ 50 ອັນດັບທຳອິດ';
+
+  @override
+  String get customerSupport => 'ຝ່າຍບໍລິການລູກຄ້າ';
+
+  @override
+  String get supportChannels => 'Facebook & WhatsApp (ຈາກການຕັ້ງຄ່າຮ້ານ)';
+
+  @override
+  String pointsSuffix(String points) {
+    return '$points ຄະແນນ';
+  }
+
+  @override
+  String get couldNotUpdateNotifications =>
+      'ອັບເດດການຕັ້ງຄ່າການແຈ້ງເຕືອນບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get notifications => 'ການແຈ້ງເຕືອນ';
+
+  @override
+  String get orderUpdatesOnDevice => 'ການອັບເດດອໍເດີໃນເຄື່ອງນີ້';
+
+  @override
+  String get pushAlertsOff => 'ການແຈ້ງເຕືອນຖືກປິດຢູ່';
+
+  @override
+  String get customization => 'ປັບແຕ່ງ';
+
+  @override
+  String get totalPrice => 'ລາຄາລວມ';
+
+  @override
+  String get addToCart => 'ເພີ່ມໃສ່ກະຕ່າ';
+
+  @override
+  String get navHome => 'ໜ້າຫຼັກ';
+
+  @override
+  String get navCart => 'ກະຕ່າ';
+
+  @override
+  String get navHistory => 'ປະຫວັດ';
+
+  @override
+  String get navProfile => 'ໂປຣໄຟລ໌';
+
+  @override
+  String get errorLoadingProducts => 'ໂຫຼດສິນຄ້າຜິດພາດ';
+
+  @override
+  String get allProducts => 'ສິນຄ້າທັງໝົດ';
+
+  @override
+  String get noItemsFound => 'ບໍ່ພົບລາຍການ';
+
+  @override
+  String get recommendedProducts => 'ສິນຄ້າແນະນຳ';
+
+  @override
+  String get recommendedBadge => '⭐ ແນະນຳ';
+
+  @override
+  String get mostPopular => 'ນິຍົມທີ່ສຸດ';
+
+  @override
+  String get freshPicksToday => 'ລາຍການສົດໃໝ່ສຳລັບທ່ານມື້ນີ້';
+
+  @override
+  String get bestSeller => 'ຂາຍດີທີ່ສຸດ';
+
+  @override
+  String get promoBadge => 'ໂປຣໂມຊັນ';
+
+  @override
+  String get selectItemToPreview => 'ເລືອກລາຍການ\nເພື່ອເບິ່ງຕົວຢ່າງ';
+
+  @override
+  String get noToppingsSelected => 'ບໍ່ໄດ້ເລືອກເຄື່ອງເສີມ';
+
+  @override
+  String toppingsFor(String product) {
+    return 'ເຄື່ອງເສີມສຳລັບ $product';
+  }
+
+  @override
+  String get cartEmpty => 'ກະຕ່າຂອງທ່ານຫວ່າງເປົ່າ';
+
+  @override
+  String get addItemsFromHome => 'ເພີ່ມລາຍການຈາກໜ້າຫຼັກ';
+
+  @override
+  String get enterCouponCode => 'ປ້ອນລະຫັດຄູປອງ';
+
+  @override
+  String get couponApplied2 => 'ໃຊ້ແລ້ວ';
+
+  @override
+  String get checkout => 'ຊຳລະເງິນ';
+
+  @override
+  String addedToCart(String name) {
+    return 'ເພີ່ມ $name ໃສ່ກະຕ່າແລ້ວ';
+  }
+
+  @override
+  String addedToCartQty(String qty, String name) {
+    return 'ເພີ່ມ $name $qty ລາຍການໃສ່ກະຕ່າແລ້ວ';
+  }
+
+  @override
+  String discountWithCode(String code) {
+    return 'ສ່ວນຫຼຸດ ($code)';
+  }
+
+  @override
+  String get noOrderHistory => 'ຍັງບໍ່ມີປະຫວັດການສັ່ງຊື້';
+
+  @override
+  String get completedOrdersHere => 'ອໍເດີທີ່ສຳເລັດແລ້ວຈະສະແດງຢູ່ນີ້.';
+
+  @override
+  String get paymentMethodLabel => 'ວິທີການຊຳລະ';
+
+  @override
+  String get trackRider => 'ຕິດຕາມໄຣເດີ';
+
+  @override
+  String get viewChatHistory => 'ເບິ່ງປະຫວັດການສົນທະນາ';
+
+  @override
+  String get chatWithRider => 'ສົນທະນາກັບໄຣເດີ';
+
+  @override
+  String get viewOrderDetails => 'ເບິ່ງລາຍລະອຽດອໍເດີ';
+
+  @override
+  String get statusComplete => 'ສຳເລັດ';
+
+  @override
+  String get statusDelivered => 'ຈັດສົ່ງແລ້ວ';
+
+  @override
+  String get statusRiderArrived => 'ໄຣເດີມາຮອດແລ້ວ';
+
+  @override
+  String get statusOnTheWay => 'ກຳລັງເດີນທາງ';
+
+  @override
+  String get statusPreparing => 'ກຳລັງກຽມ';
+
+  @override
+  String get statusCancelled => 'ຍົກເລີກແລ້ວ';
+
+  @override
+  String get statusWaitingTransfer => 'ລໍຖ້າການຢືນຢັນການໂອນ';
+
+  @override
+  String get statusOrderConfirmed => 'ຢືນຢັນອໍເດີແລ້ວ';
+
+  @override
+  String get statusRiderOnWay => 'ໄຣເດີກຳລັງເດີນທາງມາ';
+
+  @override
+  String get statusPreparingYourOrder => 'ກຳລັງກຽມອໍເດີຂອງທ່ານ';
+
+  @override
+  String get statusTransferVerified => 'ຢືນຢັນການໂອນແລ້ວ, ກຳລັງກຽມອໍເດີ';
+
+  @override
+  String get statusArrived => 'ມາຮອດແລ້ວ';
+
+  @override
+  String get deliveryProgress => 'ຄວາມຄືບໜ້າການຈັດສົ່ງ';
+
+  @override
+  String get arrivingSoon => 'ໃກ້ຮອດແລ້ວ';
+
+  @override
+  String get deliveryLocation => 'ຕຳແໜ່ງຈັດສົ່ງ';
+
+  @override
+  String get liveRiderTracking => 'ຕິດຕາມໄຣເດີແບບສົດ';
+
+  @override
+  String get liveBadge => 'ສົດ';
+
+  @override
+  String get fetchingRiderLocation => 'ກຳລັງດຶງຕຳແໜ່ງໄຣເດີ…';
+
+  @override
+  String get noLocationData => 'ຍັງບໍ່ມີຂໍ້ມູນຕຳແໜ່ງ';
+
+  @override
+  String get riderLocationWillAppear => 'ຕຳແໜ່ງໄຣເດີຈະສະແດງຢູ່ນີ້ເມື່ອມີຂໍ້ມູນ';
+
+  @override
+  String get riderLocation => 'ຕຳແໜ່ງໄຣເດີ';
+
+  @override
+  String etaLabel(String eta) {
+    return 'ຄາດວ່າຈະຮອດ: $eta';
+  }
+
+  @override
+  String minutesShort(String minutes) {
+    return '$minutes ນາທີ';
+  }
+
+  @override
+  String hoursMinutesShort(String hours, String minutes) {
+    return '$hours ຊມ $minutes ນທ';
+  }
 }

@@ -547,5 +547,302 @@
   },
   "usePromotionPrice": "Use Promotion Price in POS",
   "promotionalPricesApplied": "Promotional prices will be applied",
-  "normalPricesApplied": "Normal base prices will be applied"
+  "normalPricesApplied": "Normal base prices will be applied",
+  "sessionExpired": "Session expired. Please login again.",
+  "close": "Close",
+  "add": "Add",
+  "delete": "Delete",
+  "refresh": "Refresh",
+  "optional": "Optional",
+  "total": "Total",
+  "status": "Status",
+  "date": "Date",
+  "quantity": "Quantity",
+  "selectedLocation": "Selected location",
+  "couldNotSearchPlaces": "Could not search for places. Please check your connection.",
+  "couldNotReadAddress": "Could not read the selected address. Please try again.",
+  "addFavoritePlace": "Add favorite place",
+  "searchAddressOrPlace": "Search address or place",
+  "nameThisPlace": "Name this place, e.g. House",
+  "placeHouse": "House",
+  "placeWork": "Work",
+  "placeFriendHouse": "Friend house",
+  "locationServicesDisabled": "Location services are disabled. Please enable them in Settings.",
+  "locationPermissionDenied": "Location permission denied.",
+  "locationPermissionPermanentlyDenied": "Location permission permanently denied. Please enable it in Settings.",
+  "couldNotGetLocation": "Could not get current location. Please allow location access and try again.",
+  "moveMapToPlacePin": "Move the map to place the pin",
+  "readingSelectedAddress": "Reading selected address...",
+  "addSelectedPlace": "Add selected place",
+  "addDeliveryPlaces": "Add delivery places for self order",
+  "favoritePlaces": "Favorite places",
+  "noFavoritePlaces": "No favorite places saved yet.",
+  "deletePlaceTitle": "Delete place?",
+  "removePlaceConfirm": "Remove \"{name}\" from your favorites?",
+  "@removePlaceConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "placeSavedCount": "{label}  •  {count} saved",
+  "@placeSavedCount": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "profileImageUpdated": "Profile image updated",
+  "couldNotOpenImagePicker": "Could not open the image picker. Please try again.",
+  "noQrImageConfigured": "No QR image configured yet",
+  "photosPermissionBlocked": "Photos permission is blocked. Open Settings to allow access.",
+  "photoPermissionRequired": "Photo permission is required to save QR",
+  "storagePermissionRequired": "Storage permission is required to save QR",
+  "qrSavedToGallery": "QR saved to gallery ✓",
+  "couldNotSaveQr": "Could not save QR code. Please try again.",
+  "cannotFindSaveDirectory": "Cannot find save directory",
+  "couldNotSaveQrDownloads": "Could not save QR to Downloads. Please try again.",
+  "qrSavedTo": "QR saved to {path}",
+  "@qrSavedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "itemRunOut": "This item is run out and cannot be ordered.",
+  "couponApplied": "Coupon applied successfully!",
+  "phoneNumberRequiredTitle": "Phone Number Required",
+  "verifiedPhoneRequired": "A verified phone number is required before placing an order. Please update your profile.",
+  "updateProfile": "Update Profile",
+  "branchClosed": "This branch is currently closed. Please choose another branch or order later.",
+  "howReceiveOrder": "How will you receive your order?",
+  "riderDelivery": "Rider delivery",
+  "comePickUpMyself": "Come pick up myself",
+  "deliveryPlace": "Delivery place",
+  "addFavoritePlaceBeforeOrder": "Please add a favorite place before confirming the order.",
+  "selectDeliveryPlace": "Select a delivery place",
+  "paymentBreakdown": "Payment Breakdown",
+  "subtotal": "Subtotal",
+  "discount": "Discount",
+  "pointsRequired": "Points Required",
+  "totalPayment": "Total Payment",
+  "deliveryFeeKm": "Delivery Fee ({km} km)",
+  "@deliveryFeeKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "addMoreForFreeDelivery": "Add ₭{amount} more to get free delivery!",
+  "@addMoreForFreeDelivery": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "notEnoughPointsRedeem": "Not enough points to redeem these items.",
+  "payTransfer": "Transfer",
+  "payAtStore": "Pay At Store",
+  "orderCreatedProofUploaded": "Order created. Transfer proof uploaded.",
+  "orderCreatedProofLocal": "Order created. Transfer proof saved locally.",
+  "orderCreatedPayAtStore": "Order created. Please pay at the store.",
+  "failedToPlaceOrder": "Failed to place order. Please check your connection and try again.",
+  "phoneNumberRequiredLower": "Phone number required",
+  "addPhoneBeforeOrder": "Please add your phone number before placing an order. This is required for customer verification and so the store can contact you if needed.",
+  "addPhone": "Add phone",
+  "profileUpdated": "Profile updated",
+  "couldNotSaveProfileConnection": "Could not save profile. Please check your connection and try again.",
+  "couldNotSaveProfile": "Could not save profile. Please try again.",
+  "deleteAccountTitle": "Delete account?",
+  "accountDeleted": "Your account has been deleted.",
+  "couldNotDeleteAccount": "Could not delete account. Please try again.",
+  "editProfile": "Edit profile",
+  "fullNameCaps": "FULL NAME",
+  "yourFullName": "Your Full Name",
+  "phoneCaps": "PHONE",
+  "phoneExample": "e.g. 20XXXXXXXX",
+  "dateOfBirthCaps": "DATE OF BIRTH",
+  "saveChanges": "Save Changes",
+  "phoneNumberIsRequired": "Phone number is required",
+  "phoneMustStartWith20": "Phone number must start with 20 and be exactly 10 digits long (e.g. 20XXXXXXXX)",
+  "verifyAndSave": "VERIFY & SAVE",
+  "otpVerificationFailed": "OTP verification failed",
+  "failedToResendOtp": "Failed to resend OTP",
+  "logout": "Logout",
+  "loggingOut": "Logging out...",
+  "deleteAccount": "Delete account",
+  "deletingAccount": "Deleting account...",
+  "clientIdCopied": "Client ID copied to clipboard!",
+  "rewardPointsLabel": "Reward points: {points}",
+  "@rewardPointsLabel": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "rewardsCatalog": "Rewards Catalog",
+  "noRewardsAvailable": "No rewards available at the moment.",
+  "notEnoughPoints": "Not enough points!",
+  "redeemRewardTitle": "Redeem Reward?",
+  "redeemConfirm": "Do you want to convert {points} points into a voucher for {product}?",
+  "@redeemConfirm": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "customerNotLoggedIn": "Customer not logged in properly.",
+  "voucherCreated": "Voucher created successfully!",
+  "redeem": "Redeem",
+  "claimedSuccessfully": "Claimed Successfully!",
+  "rewardClaimedEnjoy": "Your reward has been claimed. Enjoy!",
+  "scanQrAtCounter": "Scan this QR code at the counter to claim your reward.",
+  "myVouchers": "My Vouchers",
+  "notLoggedIn": "Not logged in.",
+  "voucherActive": "ACTIVE",
+  "redeemPoints": "Redeem points",
+  "convertPointsIntoItems": "Convert your points into free items",
+  "viewClaimVouchers": "View and claim your saved vouchers",
+  "ranking": "Ranking",
+  "seeTop50": "See Top 50 rewards leaderboard",
+  "customerSupport": "Customer support",
+  "supportChannels": "Facebook & WhatsApp (from store settings)",
+  "pointsSuffix": "{points} Pts",
+  "@pointsSuffix": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "couldNotUpdateNotifications": "Could not update notification settings. Please try again.",
+  "notifications": "Notifications",
+  "orderUpdatesOnDevice": "Order updates on this device",
+  "pushAlertsOff": "Push alerts are turned off",
+  "customization": "Customization",
+  "totalPrice": "Total Price",
+  "addToCart": "Add to Cart",
+  "navHome": "Home",
+  "navCart": "Cart",
+  "navHistory": "History",
+  "navProfile": "Profile",
+  "errorLoadingProducts": "Error loading products",
+  "allProducts": "All Products",
+  "noItemsFound": "No items found",
+  "recommendedProducts": "Recommended Products",
+  "recommendedBadge": "⭐ Recommended",
+  "mostPopular": "Most Popular",
+  "freshPicksToday": "Fresh picks for you today",
+  "bestSeller": "Best Seller",
+  "promoBadge": "PROMO",
+  "selectItemToPreview": "Select an item\nto preview",
+  "noToppingsSelected": "No Toppings Selected",
+  "toppingsFor": "Toppings for {product}",
+  "@toppingsFor": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "cartEmpty": "Your cart is empty",
+  "addItemsFromHome": "Add items from Home",
+  "enterCouponCode": "Enter coupon code",
+  "couponApplied2": "Applied",
+  "checkout": "Checkout",
+  "addedToCart": "{name} added to cart",
+  "@addedToCart": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addedToCartQty": "{qty} {name} added to cart",
+  "@addedToCartQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "discountWithCode": "Discount ({code})",
+  "@discountWithCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "noOrderHistory": "No order history yet",
+  "completedOrdersHere": "Your completed orders will show up here.",
+  "paymentMethodLabel": "Payment method",
+  "trackRider": "Track Rider",
+  "viewChatHistory": "View Chat History",
+  "chatWithRider": "Chat with Rider",
+  "viewOrderDetails": "View order details",
+  "statusComplete": "Complete",
+  "statusDelivered": "Delivered",
+  "statusRiderArrived": "Rider arrived",
+  "statusOnTheWay": "On the way",
+  "statusPreparing": "Preparing",
+  "statusCancelled": "Cancelled",
+  "statusWaitingTransfer": "Waiting transfer verification",
+  "statusOrderConfirmed": "Order confirmed",
+  "statusRiderOnWay": "Rider is on the way",
+  "statusPreparingYourOrder": "Preparing your order",
+  "statusTransferVerified": "Transfer verified, preparing order",
+  "statusArrived": "Arrived",
+  "deliveryProgress": "Delivery progress",
+  "arrivingSoon": "Arriving soon",
+  "deliveryLocation": "Delivery location",
+  "liveRiderTracking": "Live Rider Tracking",
+  "liveBadge": "LIVE",
+  "fetchingRiderLocation": "Fetching rider location…",
+  "noLocationData": "No location data yet",
+  "riderLocationWillAppear": "Rider location will appear here once available",
+  "riderLocation": "Rider location",
+  "etaLabel": "ETA: {eta}",
+  "@etaLabel": {
+    "placeholders": {
+      "eta": {
+        "type": "String"
+      }
+    }
+  },
+  "minutesShort": "{minutes} min",
+  "@minutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "hoursMinutesShort": "{hours}h {minutes}m",
+  "@hoursMinutesShort": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  }
 }

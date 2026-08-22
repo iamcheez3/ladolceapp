@@ -799,4 +799,599 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get normalPricesApplied => 'Normal base prices will be applied';
+
+  @override
+  String get sessionExpired => 'Session expired. Please login again.';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get refresh => 'Refresh';
+
+  @override
+  String get optional => 'Optional';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get status => 'Status';
+
+  @override
+  String get date => 'Date';
+
+  @override
+  String get quantity => 'Quantity';
+
+  @override
+  String get selectedLocation => 'Selected location';
+
+  @override
+  String get couldNotSearchPlaces =>
+      'Could not search for places. Please check your connection.';
+
+  @override
+  String get couldNotReadAddress =>
+      'Could not read the selected address. Please try again.';
+
+  @override
+  String get addFavoritePlace => 'Add favorite place';
+
+  @override
+  String get searchAddressOrPlace => 'Search address or place';
+
+  @override
+  String get nameThisPlace => 'Name this place, e.g. House';
+
+  @override
+  String get placeHouse => 'House';
+
+  @override
+  String get placeWork => 'Work';
+
+  @override
+  String get placeFriendHouse => 'Friend house';
+
+  @override
+  String get locationServicesDisabled =>
+      'Location services are disabled. Please enable them in Settings.';
+
+  @override
+  String get locationPermissionDenied => 'Location permission denied.';
+
+  @override
+  String get locationPermissionPermanentlyDenied =>
+      'Location permission permanently denied. Please enable it in Settings.';
+
+  @override
+  String get couldNotGetLocation =>
+      'Could not get current location. Please allow location access and try again.';
+
+  @override
+  String get moveMapToPlacePin => 'Move the map to place the pin';
+
+  @override
+  String get readingSelectedAddress => 'Reading selected address...';
+
+  @override
+  String get addSelectedPlace => 'Add selected place';
+
+  @override
+  String get addDeliveryPlaces => 'Add delivery places for self order';
+
+  @override
+  String get favoritePlaces => 'Favorite places';
+
+  @override
+  String get noFavoritePlaces => 'No favorite places saved yet.';
+
+  @override
+  String get deletePlaceTitle => 'Delete place?';
+
+  @override
+  String removePlaceConfirm(String name) {
+    return 'Remove \"$name\" from your favorites?';
+  }
+
+  @override
+  String placeSavedCount(String label, String count) {
+    return '$label  •  $count saved';
+  }
+
+  @override
+  String get profileImageUpdated => 'Profile image updated';
+
+  @override
+  String get couldNotOpenImagePicker =>
+      'Could not open the image picker. Please try again.';
+
+  @override
+  String get noQrImageConfigured => 'No QR image configured yet';
+
+  @override
+  String get photosPermissionBlocked =>
+      'Photos permission is blocked. Open Settings to allow access.';
+
+  @override
+  String get photoPermissionRequired =>
+      'Photo permission is required to save QR';
+
+  @override
+  String get storagePermissionRequired =>
+      'Storage permission is required to save QR';
+
+  @override
+  String get qrSavedToGallery => 'QR saved to gallery ✓';
+
+  @override
+  String get couldNotSaveQr => 'Could not save QR code. Please try again.';
+
+  @override
+  String get cannotFindSaveDirectory => 'Cannot find save directory';
+
+  @override
+  String get couldNotSaveQrDownloads =>
+      'Could not save QR to Downloads. Please try again.';
+
+  @override
+  String qrSavedTo(String path) {
+    return 'QR saved to $path';
+  }
+
+  @override
+  String get itemRunOut => 'This item is run out and cannot be ordered.';
+
+  @override
+  String get couponApplied => 'Coupon applied successfully!';
+
+  @override
+  String get phoneNumberRequiredTitle => 'Phone Number Required';
+
+  @override
+  String get verifiedPhoneRequired =>
+      'A verified phone number is required before placing an order. Please update your profile.';
+
+  @override
+  String get updateProfile => 'Update Profile';
+
+  @override
+  String get branchClosed =>
+      'This branch is currently closed. Please choose another branch or order later.';
+
+  @override
+  String get howReceiveOrder => 'How will you receive your order?';
+
+  @override
+  String get riderDelivery => 'Rider delivery';
+
+  @override
+  String get comePickUpMyself => 'Come pick up myself';
+
+  @override
+  String get deliveryPlace => 'Delivery place';
+
+  @override
+  String get addFavoritePlaceBeforeOrder =>
+      'Please add a favorite place before confirming the order.';
+
+  @override
+  String get selectDeliveryPlace => 'Select a delivery place';
+
+  @override
+  String get paymentBreakdown => 'Payment Breakdown';
+
+  @override
+  String get subtotal => 'Subtotal';
+
+  @override
+  String get discount => 'Discount';
+
+  @override
+  String get pointsRequired => 'Points Required';
+
+  @override
+  String get totalPayment => 'Total Payment';
+
+  @override
+  String deliveryFeeKm(String km) {
+    return 'Delivery Fee ($km km)';
+  }
+
+  @override
+  String addMoreForFreeDelivery(String amount) {
+    return 'Add ₭$amount more to get free delivery!';
+  }
+
+  @override
+  String get notEnoughPointsRedeem =>
+      'Not enough points to redeem these items.';
+
+  @override
+  String get payTransfer => 'Transfer';
+
+  @override
+  String get payAtStore => 'Pay At Store';
+
+  @override
+  String get orderCreatedProofUploaded =>
+      'Order created. Transfer proof uploaded.';
+
+  @override
+  String get orderCreatedProofLocal =>
+      'Order created. Transfer proof saved locally.';
+
+  @override
+  String get orderCreatedPayAtStore =>
+      'Order created. Please pay at the store.';
+
+  @override
+  String get failedToPlaceOrder =>
+      'Failed to place order. Please check your connection and try again.';
+
+  @override
+  String get phoneNumberRequiredLower => 'Phone number required';
+
+  @override
+  String get addPhoneBeforeOrder =>
+      'Please add your phone number before placing an order. This is required for customer verification and so the store can contact you if needed.';
+
+  @override
+  String get addPhone => 'Add phone';
+
+  @override
+  String get profileUpdated => 'Profile updated';
+
+  @override
+  String get couldNotSaveProfileConnection =>
+      'Could not save profile. Please check your connection and try again.';
+
+  @override
+  String get couldNotSaveProfile => 'Could not save profile. Please try again.';
+
+  @override
+  String get deleteAccountTitle => 'Delete account?';
+
+  @override
+  String get accountDeleted => 'Your account has been deleted.';
+
+  @override
+  String get couldNotDeleteAccount =>
+      'Could not delete account. Please try again.';
+
+  @override
+  String get editProfile => 'Edit profile';
+
+  @override
+  String get fullNameCaps => 'FULL NAME';
+
+  @override
+  String get yourFullName => 'Your Full Name';
+
+  @override
+  String get phoneCaps => 'PHONE';
+
+  @override
+  String get phoneExample => 'e.g. 20XXXXXXXX';
+
+  @override
+  String get dateOfBirthCaps => 'DATE OF BIRTH';
+
+  @override
+  String get saveChanges => 'Save Changes';
+
+  @override
+  String get phoneNumberIsRequired => 'Phone number is required';
+
+  @override
+  String get phoneMustStartWith20 =>
+      'Phone number must start with 20 and be exactly 10 digits long (e.g. 20XXXXXXXX)';
+
+  @override
+  String get verifyAndSave => 'VERIFY & SAVE';
+
+  @override
+  String get otpVerificationFailed => 'OTP verification failed';
+
+  @override
+  String get failedToResendOtp => 'Failed to resend OTP';
+
+  @override
+  String get logout => 'Logout';
+
+  @override
+  String get loggingOut => 'Logging out...';
+
+  @override
+  String get deleteAccount => 'Delete account';
+
+  @override
+  String get deletingAccount => 'Deleting account...';
+
+  @override
+  String get clientIdCopied => 'Client ID copied to clipboard!';
+
+  @override
+  String rewardPointsLabel(String points) {
+    return 'Reward points: $points';
+  }
+
+  @override
+  String get rewardsCatalog => 'Rewards Catalog';
+
+  @override
+  String get noRewardsAvailable => 'No rewards available at the moment.';
+
+  @override
+  String get notEnoughPoints => 'Not enough points!';
+
+  @override
+  String get redeemRewardTitle => 'Redeem Reward?';
+
+  @override
+  String redeemConfirm(String points, String product) {
+    return 'Do you want to convert $points points into a voucher for $product?';
+  }
+
+  @override
+  String get customerNotLoggedIn => 'Customer not logged in properly.';
+
+  @override
+  String get voucherCreated => 'Voucher created successfully!';
+
+  @override
+  String get redeem => 'Redeem';
+
+  @override
+  String get claimedSuccessfully => 'Claimed Successfully!';
+
+  @override
+  String get rewardClaimedEnjoy => 'Your reward has been claimed. Enjoy!';
+
+  @override
+  String get scanQrAtCounter =>
+      'Scan this QR code at the counter to claim your reward.';
+
+  @override
+  String get myVouchers => 'My Vouchers';
+
+  @override
+  String get notLoggedIn => 'Not logged in.';
+
+  @override
+  String get voucherActive => 'ACTIVE';
+
+  @override
+  String get redeemPoints => 'Redeem points';
+
+  @override
+  String get convertPointsIntoItems => 'Convert your points into free items';
+
+  @override
+  String get viewClaimVouchers => 'View and claim your saved vouchers';
+
+  @override
+  String get ranking => 'Ranking';
+
+  @override
+  String get seeTop50 => 'See Top 50 rewards leaderboard';
+
+  @override
+  String get customerSupport => 'Customer support';
+
+  @override
+  String get supportChannels => 'Facebook & WhatsApp (from store settings)';
+
+  @override
+  String pointsSuffix(String points) {
+    return '$points Pts';
+  }
+
+  @override
+  String get couldNotUpdateNotifications =>
+      'Could not update notification settings. Please try again.';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get orderUpdatesOnDevice => 'Order updates on this device';
+
+  @override
+  String get pushAlertsOff => 'Push alerts are turned off';
+
+  @override
+  String get customization => 'Customization';
+
+  @override
+  String get totalPrice => 'Total Price';
+
+  @override
+  String get addToCart => 'Add to Cart';
+
+  @override
+  String get navHome => 'Home';
+
+  @override
+  String get navCart => 'Cart';
+
+  @override
+  String get navHistory => 'History';
+
+  @override
+  String get navProfile => 'Profile';
+
+  @override
+  String get errorLoadingProducts => 'Error loading products';
+
+  @override
+  String get allProducts => 'All Products';
+
+  @override
+  String get noItemsFound => 'No items found';
+
+  @override
+  String get recommendedProducts => 'Recommended Products';
+
+  @override
+  String get recommendedBadge => '⭐ Recommended';
+
+  @override
+  String get mostPopular => 'Most Popular';
+
+  @override
+  String get freshPicksToday => 'Fresh picks for you today';
+
+  @override
+  String get bestSeller => 'Best Seller';
+
+  @override
+  String get promoBadge => 'PROMO';
+
+  @override
+  String get selectItemToPreview => 'Select an item\nto preview';
+
+  @override
+  String get noToppingsSelected => 'No Toppings Selected';
+
+  @override
+  String toppingsFor(String product) {
+    return 'Toppings for $product';
+  }
+
+  @override
+  String get cartEmpty => 'Your cart is empty';
+
+  @override
+  String get addItemsFromHome => 'Add items from Home';
+
+  @override
+  String get enterCouponCode => 'Enter coupon code';
+
+  @override
+  String get couponApplied2 => 'Applied';
+
+  @override
+  String get checkout => 'Checkout';
+
+  @override
+  String addedToCart(String name) {
+    return '$name added to cart';
+  }
+
+  @override
+  String addedToCartQty(String qty, String name) {
+    return '$qty $name added to cart';
+  }
+
+  @override
+  String discountWithCode(String code) {
+    return 'Discount ($code)';
+  }
+
+  @override
+  String get noOrderHistory => 'No order history yet';
+
+  @override
+  String get completedOrdersHere => 'Your completed orders will show up here.';
+
+  @override
+  String get paymentMethodLabel => 'Payment method';
+
+  @override
+  String get trackRider => 'Track Rider';
+
+  @override
+  String get viewChatHistory => 'View Chat History';
+
+  @override
+  String get chatWithRider => 'Chat with Rider';
+
+  @override
+  String get viewOrderDetails => 'View order details';
+
+  @override
+  String get statusComplete => 'Complete';
+
+  @override
+  String get statusDelivered => 'Delivered';
+
+  @override
+  String get statusRiderArrived => 'Rider arrived';
+
+  @override
+  String get statusOnTheWay => 'On the way';
+
+  @override
+  String get statusPreparing => 'Preparing';
+
+  @override
+  String get statusCancelled => 'Cancelled';
+
+  @override
+  String get statusWaitingTransfer => 'Waiting transfer verification';
+
+  @override
+  String get statusOrderConfirmed => 'Order confirmed';
+
+  @override
+  String get statusRiderOnWay => 'Rider is on the way';
+
+  @override
+  String get statusPreparingYourOrder => 'Preparing your order';
+
+  @override
+  String get statusTransferVerified => 'Transfer verified, preparing order';
+
+  @override
+  String get statusArrived => 'Arrived';
+
+  @override
+  String get deliveryProgress => 'Delivery progress';
+
+  @override
+  String get arrivingSoon => 'Arriving soon';
+
+  @override
+  String get deliveryLocation => 'Delivery location';
+
+  @override
+  String get liveRiderTracking => 'Live Rider Tracking';
+
+  @override
+  String get liveBadge => 'LIVE';
+
+  @override
+  String get fetchingRiderLocation => 'Fetching rider location…';
+
+  @override
+  String get noLocationData => 'No location data yet';
+
+  @override
+  String get riderLocationWillAppear =>
+      'Rider location will appear here once available';
+
+  @override
+  String get riderLocation => 'Rider location';
+
+  @override
+  String etaLabel(String eta) {
+    return 'ETA: $eta';
+  }
+
+  @override
+  String minutesShort(String minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String hoursMinutesShort(String hours, String minutes) {
+    return '${hours}h ${minutes}m';
+  }
 }
