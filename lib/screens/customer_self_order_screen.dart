@@ -2539,46 +2539,22 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   /// for its own kitchen notes, so the cashier and kitchen ticket render it
   /// exactly as a staff-entered note.
   Future<void> _editItemNote(CartItem item) async {
-    final controller = TextEditingController(text: item.kitchenNote);
+    // The dialog owns its TextEditingController. Creating it here and disposing
+    // it once showDialog returns pulls it out from under the TextField while the
+    // route is still animating out, which breaks the dialog's teardown and
+    // trips InheritedElement's `_dependents.isEmpty` assertion.
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_l10n?.noteForKitchen ?? 'Note for the kitchen'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          maxLength: 200,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(
-            hintText:
-                _l10n?.kitchenNoteHint ??
-                'Less sugar, no ice, extra spicy...',
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          if (item.kitchenNote.trim().isNotEmpty)
-            TextButton(
-              // Empty string means "clear it"; null (dismiss) means "cancel".
-              onPressed: () => Navigator.pop(ctx, ''),
-              child: Text(
-                _l10n?.remove ?? 'Remove',
-                style: const TextStyle(color: Colors.red),
-              ),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(_l10n?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(_l10n?.save ?? 'Save'),
-          ),
-        ],
+      builder: (ctx) => _ItemNoteDialog(
+        initialNote: item.kitchenNote,
+        title: _l10n?.noteForKitchen ?? 'Note for the kitchen',
+        hint:
+            _l10n?.kitchenNoteHint ?? 'Less sugar, no ice, extra spicy...',
+        removeLabel: _l10n?.remove ?? 'Remove',
+        cancelLabel: _l10n?.cancel ?? 'Cancel',
+        saveLabel: _l10n?.save ?? 'Save',
       ),
     );
-    controller.dispose();
     if (result == null) return; // dismissed / cancelled
     if (!mounted) return;
     setState(() => item.kitchenNote = result.trim());
@@ -8152,6 +8128,81 @@ class _QtyStepper extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Note editor for one cart line.
+///
+/// A StatefulWidget purely so the controller's lifetime is tied to the dialog's
+/// own element: it is disposed in [dispose], after the route has finished
+/// tearing down, rather than by the caller the instant showDialog resolves.
+class _ItemNoteDialog extends StatefulWidget {
+  final String initialNote;
+  final String title;
+  final String hint;
+  final String removeLabel;
+  final String cancelLabel;
+  final String saveLabel;
+
+  const _ItemNoteDialog({
+    required this.initialNote,
+    required this.title,
+    required this.hint,
+    required this.removeLabel,
+    required this.cancelLabel,
+    required this.saveLabel,
+  });
+
+  @override
+  State<_ItemNoteDialog> createState() => _ItemNoteDialogState();
+}
+
+class _ItemNoteDialogState extends State<_ItemNoteDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialNote,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLines: 3,
+        maxLength: 200,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: InputDecoration(
+          hintText: widget.hint,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        if (widget.initialNote.trim().isNotEmpty)
+          TextButton(
+            // Empty string means "clear it"; null (dismiss) means "cancel".
+            onPressed: () => Navigator.pop(context, ''),
+            child: Text(
+              widget.removeLabel,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(widget.cancelLabel),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: Text(widget.saveLabel),
+        ),
+      ],
     );
   }
 }
