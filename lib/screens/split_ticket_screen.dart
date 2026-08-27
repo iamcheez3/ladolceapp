@@ -347,7 +347,7 @@ class _TicketColumn extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    line.product.name,
+                                    line.product.displayName,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w500,
                                         fontSize: 14),

@@ -315,7 +315,7 @@ class _ComboLineCard extends StatelessWidget {
               items: allProducts.map((p) {
                 return DropdownMenuItem<int>(
                   value: p.id,
-                  child: Text(p.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                  child: Text(p.displayName, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
                 );
               }).toList(),
               onChanged: (val) {

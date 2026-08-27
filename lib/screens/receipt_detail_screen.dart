@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/bilingual_name.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
@@ -294,7 +295,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                               children: [
                                 Expanded(
                                   flex: 3,
-                                  child: Text(line['product_name'] ?? (AppLocalizations.of(context)?.item ?? 'Item'),
+                                  child: Text(bilingualName(line, fallback: AppLocalizations.of(context)?.item ?? 'Item'),
                                       style: const TextStyle(fontWeight: FontWeight.w500)),
                                 ),
                                 Expanded(

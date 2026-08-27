@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/bilingual_name.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
@@ -896,7 +897,10 @@ class _LineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = line['product_name']?.toString() ?? (AppLocalizations.of(context)?.item ?? 'Item');
+    final name = bilingualName(
+      line,
+      fallback: AppLocalizations.of(context)?.item ?? 'Item',
+    );
     final qty = line['qty'] ?? line['quantity'] ?? 1;
     final subtotal = line['subtotal'] ??
         line['price_subtotal'] ??

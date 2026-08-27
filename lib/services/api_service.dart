@@ -2732,7 +2732,12 @@ class ApiService {
               if (img != null && img.isNotEmpty) 'image_base64': img,
             }),
           )
-          .timeout(const Duration(seconds: 5));
+          // The avatar rides in this body as base64, so the budget has to
+          // scale with it: a flat 5s could never carry one and the save
+          // failed silently as "best-effort".
+          .timeout(
+            Duration(seconds: (img != null && img.isNotEmpty) ? 60 : 5),
+          );
 
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {

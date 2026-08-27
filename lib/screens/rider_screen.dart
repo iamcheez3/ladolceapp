@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../utils/bilingual_name.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -656,7 +657,11 @@ class _RiderScreenState extends State<RiderScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          line['product_name'] ?? (AppLocalizations.of(context)?.item ?? 'Item'),
+                          bilingualName(
+                            line,
+                            fallback:
+                                AppLocalizations.of(context)?.item ?? 'Item',
+                          ),
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                       ),

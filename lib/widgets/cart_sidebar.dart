@@ -518,7 +518,7 @@ class _CartItemRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.product.name,
+                    item.product.displayName,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,

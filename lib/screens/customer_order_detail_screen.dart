@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../utils/bilingual_name.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 
 import 'package:flutter/material.dart';
@@ -249,7 +250,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
           double.tryParse((line['qty'] ?? 0).toString()) ?? 0;
       final subtotal =
           double.tryParse((line['subtotal'] ?? 0).toString()) ?? 0.0;
-      final productName = (line['product_name'] ?? 'Item').toString();
+      final productName = bilingualName(line, fallback: 'Item');
       final isLast = i == lines.length - 1;
 
       out.add(

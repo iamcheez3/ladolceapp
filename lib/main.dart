@@ -12,6 +12,7 @@ import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/maintenance_screen.dart';
+import 'models/product.dart';
 import 'services/maintenance_service.dart';
 import 'services/user_activity_service.dart';
 
@@ -103,6 +104,9 @@ class _PosAppState extends State<PosApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep product naming in step with the chosen language. Set here so it is
+    // applied on first build and again on every setLocale.
+    Product.useLaoNames = _locale?.languageCode == 'lo';
     return MaterialApp(
       navigatorKey: MaintenanceService().navigatorKey,
       title: 'LaDolce POS',

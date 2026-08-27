@@ -1,3 +1,5 @@
+import '../utils/bilingual_name.dart';
+
 class ComboLine {
   final int id;
   final int productId;
@@ -15,7 +17,7 @@ class ComboLine {
     return ComboLine(
       id: json['id'],
       productId: json['product_id'],
-      productName: json['product_name'] ?? 'Unknown',
+      productName: bilingualName(json, fallback: 'Unknown'),
       qty: json['qty'] ?? 1,
     );
   }

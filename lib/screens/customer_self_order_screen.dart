@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../utils/bilingual_name.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' show sin, cos, sqrt, asin, pi;
@@ -1431,7 +1432,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     try {
       final picked = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 75,
+        // Avatars render at a few hundred px; sending a full 12MP photo as
+        // base64 inside a JSON body is what made this save fail.
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
       );
       if (picked == null) return;
       final prefs = await SharedPreferences.getInstance();
@@ -3472,15 +3477,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 .pickImage(
                                                   source: ImageSource.gallery,
                                                   // Any source size is
-                                                  // accepted, but downscale
-                                                  // before upload: a raw 12MP
-                                                  // photo is several MB and was
-                                                  // timing out on mobile data.
-                                                  // 1600px stays readable for
-                                                  // a transfer slip.
-                                                  maxWidth: 1600,
-                                                  maxHeight: 1600,
-                                                  imageQuality: 80,
+                                                  // accepted. Downscaling is
+                                                  // not a restriction, it is
+                                                  // what makes the upload
+                                                  // finish: a raw 12MP photo is
+                                                  // several MB and timed out on
+                                                  // mobile data. 2000px keeps a
+                                                  // transfer slip sharp.
+                                                  maxWidth: 2000,
+                                                  maxHeight: 2000,
+                                                  imageQuality: 85,
                                                 );
                                             if (picked != null) {
                                               setSheetState(
@@ -4120,7 +4126,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            product.name,
+                                            product.displayName,
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
@@ -4184,7 +4190,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
               content: Text(
-                'Do you want to convert ${product.pointPrice} points into a voucher for ${product.name}?',
+                'Do you want to convert ${product.pointPrice} points into a voucher for ${product.displayName}?',
               ),
               actions: [
                 TextButton(
@@ -4493,8 +4499,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  v['product_name'] ??
-                                                      (_l10n?.unknown ?? 'Unknown'),
+                                                  bilingualName(
+                                                    v,
+                                                    fallback:
+                                                        _l10n?.unknown ??
+                                                        'Unknown',
+                                                  ),
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.w900,
                                                     fontSize: 16,
@@ -4885,7 +4895,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                product.name,
+                                                product.displayName,
                                                 style: const TextStyle(
                                                   fontSize: 28,
                                                   fontWeight: FontWeight.w900,
@@ -5128,7 +5138,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          '$qty ${product.name} added to cart',
+                                          '$qty ${product.displayName} added to cart',
                                         ),
                                         backgroundColor: _brandNavy,
                                         behavior: SnackBarBehavior.floating,
@@ -5659,7 +5669,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     isSmall ? 10 : 14,
                                   ),
                                   child: Text(
-                                    product.name,
+                                    product.displayName,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -5691,7 +5701,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            '${product.name} added to cart',
+                                            '${product.displayName} added to cart',
                                           ),
                                           backgroundColor: _brandNavy,
                                           duration: const Duration(
@@ -5844,7 +5854,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    product.name,
+                                    product.displayName,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -5914,7 +5924,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                             ).showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  '${product.name} added to cart',
+                                                  '${product.displayName} added to cart',
                                                 ),
                                                 backgroundColor: _brandNavy,
                                                 duration: const Duration(
@@ -6165,7 +6175,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            product.name,
+                            product.displayName,
                             maxLines: isWide ? 2 : 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -6235,7 +6245,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          '${product.name} added to cart',
+                                          '${product.displayName} added to cart',
                                         ),
                                         backgroundColor: _brandNavy,
                                         duration: const Duration(
@@ -6462,7 +6472,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  product.name,
+                                  product.displayName,
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w900,
@@ -6630,7 +6640,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('${product.name} added to cart'),
+                                content: Text('${product.displayName} added to cart'),
                                 backgroundColor: _brandNavy,
                                 duration: const Duration(milliseconds: 900),
                               ),
@@ -6696,7 +6706,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Toppings for ${product.name}',
+                            'Toppings for ${product.displayName}',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -6872,7 +6882,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item.product.name,
+                            item.product.displayName,
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,

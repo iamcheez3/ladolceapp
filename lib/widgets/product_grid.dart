@@ -30,7 +30,9 @@ class ProductGrid extends StatelessWidget {
         itemCount: products.length,
         itemBuilder: (context, index) {
           final product = products[index];
-          final initial = product.name.trim().isNotEmpty ? product.name.trim()[0].toUpperCase() : '?';
+          final initial = product.displayName.trim().isNotEmpty
+              ? product.displayName.trim()[0].toUpperCase()
+              : '?';
           final textScale = MediaQuery.textScalerOf(context).scale(1.0);
           final isCompactText = textScale > 1.1;
           final imageBytes = product.decodedImageBytes;
@@ -118,7 +120,7 @@ class ProductGrid extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                product.name,
+                                product.displayName,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: nameSize,

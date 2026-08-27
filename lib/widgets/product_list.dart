@@ -21,7 +21,9 @@ class ProductList extends StatelessWidget {
         itemCount: products.length,
         itemBuilder: (context, index) {
           final product = products[index];
-          final initial = product.name.trim().isNotEmpty ? product.name.trim()[0].toUpperCase() : '?';
+          final initial = product.displayName.trim().isNotEmpty
+              ? product.displayName.trim()[0].toUpperCase()
+              : '?';
           final imageBytes = product.decodedImageBytes;
 
           return InkWell(
@@ -73,7 +75,7 @@ class ProductList extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          product.name,
+                          product.displayName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

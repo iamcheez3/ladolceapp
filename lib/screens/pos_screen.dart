@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/bilingual_name.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -819,8 +820,8 @@ class _PosScreenState extends State<PosScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    _l10n?.selectToppingsFor(product.name) ??
-        'Select Toppings for ${product.name}',
+                    _l10n?.selectToppingsFor(product.displayName) ??
+        'Select Toppings for ${product.displayName}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -2078,9 +2079,7 @@ class _PosScreenState extends State<PosScreen> {
                                           tabProducts = tabProducts
                                               .where(
                                                 (p) =>
-                                                    p.name
-                                                        .toLowerCase()
-                                                        .contains(query) ||
+                                                    p.matchesQuery(query) ||
                                                     p.category
                                                         .toLowerCase()
                                                         .contains(query) ||
@@ -4255,7 +4254,11 @@ class _PosScreenState extends State<PosScreen> {
                     const SizedBox(height: 16),
                     Text('Customer: ${claimedData!['customer_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Text('Product: ${claimedData!['product_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      _l10n?.voucherProduct(bilingualName(claimedData!)) ??
+                          'Product: ${bilingualName(claimedData!)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 16),
                     Text(_l10n?.giveItemToCustomer ?? 'Please give this item to the customer.'),
                   ],

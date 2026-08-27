@@ -1,3 +1,5 @@
+import '../utils/bilingual_name.dart';
+
 class OpenTicket {
   final int id;
   final String name;
@@ -109,7 +111,7 @@ class TicketLine {
   factory TicketLine.fromJson(Map<String, dynamic> json) {
     return TicketLine(
       productId: json['product_id'],
-      productName: json['product_name'],
+      productName: bilingualName(json),
       qty: (json['qty'] ?? 1).toInt(),
       priceUnit: (json['price_unit'] ?? 0).toDouble(),
       toppingIds: (json['topping_ids'] as List<dynamic>? ?? const [])

@@ -318,8 +318,10 @@ class _ProductCard extends StatelessWidget {
                           ? Image.network(product.imageUrl!, fit: BoxFit.cover)
                           : Center(
                               child: Text(
-                                product.name.isNotEmpty
-                                    ? product.name.substring(0, 1).toUpperCase()
+                                product.displayName.isNotEmpty
+                                    ? product.displayName
+                                          .substring(0, 1)
+                                          .toUpperCase()
                                     : '?',
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -336,7 +338,7 @@ class _ProductCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        product.name,
+                        product.displayName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,

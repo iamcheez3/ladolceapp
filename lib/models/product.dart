@@ -5,7 +5,14 @@ import 'combo.dart';
 
 class Product {
   final int id;
+
+  /// Odoo's canonical (English) name. Kept as-is for search, receipts that
+  /// must match invoicing, and as the fallback when no Lao name is set.
   final String name;
+
+  /// `product.template.name_lo` from the backend. The API always ships it,
+  /// falling back to [name] server-side when the field is blank.
+  final String? nameLo;
   final double price;
   final String category;
   final String? imageUrl;
@@ -17,6 +24,32 @@ class Product {
 
   static bool disablePromotionPrice = false;
   static bool isCustomerMode = false;
+
+  /// Mirrors the app locale, set from PosApp when the language changes.
+  /// A static keeps this in step with [disablePromotionPrice] and
+  /// [isCustomerMode] above, and avoids threading a locale through every
+  /// product widget.
+  static bool useLaoNames = false;
+
+  /// The name to show the user: Lao when the app is in Lao and the product has
+  /// one, English otherwise. Never blank — falls back to [name].
+  String get displayName {
+    if (useLaoNames) {
+      final lao = nameLo?.trim() ?? '';
+      if (lao.isNotEmpty) return lao;
+    }
+    return name;
+  }
+
+  /// True when [query] matches either language, so searching in Lao mode still
+  /// finds a product typed in English and vice versa.
+  bool matchesQuery(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    if (name.toLowerCase().contains(q)) return true;
+    final lao = nameLo?.trim().toLowerCase() ?? '';
+    return lao.isNotEmpty && lao.contains(q);
+  }
 
   double get effectivePrice {
     if (isCustomerMode) {
@@ -64,6 +97,7 @@ class Product {
   Product({
     required this.id,
     required this.name,
+    this.nameLo,
     required this.price,
     required this.category,
     this.imageUrl,
@@ -106,6 +140,7 @@ class Product {
     return Product(
       id: json['id'],
       name: json['name'] ?? 'Unnamed Product',
+      nameLo: json['name_lo'] is String ? json['name_lo'] as String : null,
       price: (json['list_price'] ?? 0.0).toDouble(),
       category: leafCategoryName(json['category'] ?? 'Uncategorized'),
       imageUrl: rawUrl,

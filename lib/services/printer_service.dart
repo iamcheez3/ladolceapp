@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../utils/bilingual_name.dart';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:ui' show TextAlign;
@@ -1170,7 +1171,9 @@ class PrinterService {
           idx++;
           try {
             final m = (line is Map) ? Map<String, dynamic>.from(line) : const <String, dynamic>{};
-            final rawName = m['product_name']?.toString() ?? 'Item';
+            // Printed in whatever language the POS is set to; the backend
+            // ships both spellings on every line.
+            final rawName = bilingualName(m, fallback: 'Item');
             final qty = _asInt(m['qty'], fallback: 1);
             final subtotal = _asDouble(m['subtotal']);
 
@@ -1371,7 +1374,9 @@ class PrinterService {
           idx++;
           try {
             final m = (line is Map) ? Map<String, dynamic>.from(line) : const <String, dynamic>{};
-            final rawName = m['product_name']?.toString() ?? 'Item';
+            // Printed in whatever language the POS is set to; the backend
+            // ships both spellings on every line.
+            final rawName = bilingualName(m, fallback: 'Item');
             final qty = _asInt(m['qty'], fallback: 1);
             final subtotal = _asDouble(m['subtotal']);
 
