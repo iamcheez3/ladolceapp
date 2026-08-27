@@ -130,9 +130,9 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _summaryRow('Amount', '₭${amount.toStringAsFixed(2)}', boldValue: true),
+                      _summaryRow(AppLocalizations.of(context)?.amount ?? 'Amount', '₭${amount.toStringAsFixed(2)}', boldValue: true),
                       const SizedBox(height: 8),
-                      _summaryRow('Payment', payMethod),
+                      _summaryRow(AppLocalizations.of(context)?.payment ?? 'Payment', payMethod),
                       const SizedBox(height: 8),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -159,11 +159,11 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                       ),
                       if (dateFmt != '-') ...[
                         const SizedBox(height: 8),
-                        _summaryRow('Date', dateFmt),
+                        _summaryRow(AppLocalizations.of(context)?.date ?? 'Date', dateFmt),
                       ],
                       if (hasLocalProof || hasServerProof) ...[
                         const SizedBox(height: 22),
-                        _sectionTitle('TRANSFER PROOF'),
+                        _sectionTitle(AppLocalizations.of(context)?.transferProof ?? 'TRANSFER PROOF'),
                         const SizedBox(height: 10),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
@@ -215,7 +215,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                       const SizedBox(height: 22),
                       const Divider(color: _lineMuted, height: 1, thickness: 1),
                       const SizedBox(height: 14),
-                      _sectionTitle('ORDER ITEMS'),
+                      _sectionTitle(AppLocalizations.of(context)?.orderItems ?? 'ORDER ITEMS'),
                       const SizedBox(height: 12),
                       if (lines.isEmpty)
                         Padding(

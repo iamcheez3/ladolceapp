@@ -339,11 +339,11 @@ class _RiderScreenState extends State<RiderScreen> {
     switch (_selectedTabIndex) {
       case 0:
         return _currentOrders.isEmpty
-            ? _buildEmpty('No current orders', 'Active orders will appear here')
+            ? _buildEmpty(AppLocalizations.of(context)?.noCurrentOrders ?? 'No current orders', 'Active orders will appear here')
             : _buildOrderList(_currentOrders);
       case 1:
         return _historyOrders.isEmpty
-            ? _buildEmpty('No history yet', 'Completed orders will appear here')
+            ? _buildEmpty(AppLocalizations.of(context)?.noHistoryYet ?? 'No history yet', 'Completed orders will appear here')
             : _buildOrderList(_historyOrders, isHistory: true);
       case 2:
         return _buildDashboard();

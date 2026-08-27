@@ -2366,4 +2366,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get proofUploadFailed =>
       'Order placed, but the transfer proof could not be uploaded. Please show it to the staff.';
+
+  @override
+  String get dateColon => 'Date:';
+
+  @override
+  String get cashierColon => 'Cashier:';
+
+  @override
+  String get tableColon => 'Table:';
+
+  @override
+  String get paymentColon => 'Payment:';
 }

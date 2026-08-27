@@ -134,7 +134,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       if (mounted) {
         setState(() => _isSending = false);
         _inputCtrl.text = text;
-        _showError('Failed to send message. Please try again.');
+        _showError(
+        AppLocalizations.of(context)?.failedToSendMessagePleaseTry ??
+            'Failed to send message. Please try again.');
       }
     }
   }
@@ -196,7 +198,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           _isSending = false;
           _uploadingLabel = null;
         });
-        _showError('Failed to send image. Please try again.');
+        _showError(
+        AppLocalizations.of(context)?.failedToSendImagePleaseTry ??
+            'Failed to send image. Please try again.');
       }
     }
   }

@@ -4405,6 +4405,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Order placed, but the transfer proof could not be uploaded. Please show it to the staff.'**
   String get proofUploadFailed;
+
+  /// No description provided for @dateColon.
+  ///
+  /// In en, this message translates to:
+  /// **'Date:'**
+  String get dateColon;
+
+  /// No description provided for @cashierColon.
+  ///
+  /// In en, this message translates to:
+  /// **'Cashier:'**
+  String get cashierColon;
+
+  /// No description provided for @tableColon.
+  ///
+  /// In en, this message translates to:
+  /// **'Table:'**
+  String get tableColon;
+
+  /// No description provided for @paymentColon.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment:'**
+  String get paymentColon;
 }
 
 class _AppLocalizationsDelegate

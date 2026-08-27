@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../utils/bilingual_name.dart';
+import '../main.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' show sin, cos, sqrt, asin, pi;
@@ -1542,7 +1543,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
       final categorySet = products.map((p) => p.category).toSet();
       final categories = [
-        Category(id: 'All', name: (_l10n?.allItems ?? 'All Items')),
+        // Name doubles as the value compared against _selectedCategory, so it
+        // stays English; the chip localises the label at render time.
+        Category(id: 'All', name: 'All Items'),
         ...categorySet.map((name) => Category(id: name, name: name)),
       ];
 
@@ -4727,6 +4730,49 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
+  /// Compact EN / Lao switch. PosApp.setLocale persists the choice and
+  /// rebuilds the app, so product names, the UI and the Lao font all follow
+  /// immediately — no reload, because the catalog already carries both names.
+  Widget _languageToggle() {
+    final isLao = Localizations.localeOf(context).languageCode == 'lo';
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _langChip('EN', !isLao, const Locale('en', '')),
+          _langChip('ລາວ', isLao, const Locale('lo', '')),
+        ],
+      ),
+    );
+  }
+
+  Widget _langChip(String label, bool selected, Locale locale) {
+    return GestureDetector(
+      onTap: selected ? null : () => PosApp.setLocale(context, locale),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? _brandNavy : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : const Color(0xFF64748B),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _profileMenuTile({
     required String title,
     required String subtitle,
@@ -5438,7 +5484,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           child: _buildPopularSlider(isSmall: isSmall, isWide: isWide),
         ),
       SliverToBoxAdapter(
-        child: _buildSectionHeader('All Products', isSmall: isSmall),
+        child: _buildSectionHeader(
+          _l10n?.allProducts ?? 'All Products',
+          isSmall: isSmall,
+        ),
       ),
     ];
 
@@ -5558,7 +5607,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Recommended Products', isSmall: isSmall),
+        _buildSectionHeader(
+          _l10n?.recommendedProducts ?? 'Recommended Products',
+          isSmall: isSmall,
+        ),
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -5781,7 +5833,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Most Popular', isSmall: isSmall),
+        _buildSectionHeader(
+          _l10n?.mostPopular ?? 'Most Popular',
+          isSmall: isSmall,
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: cardHeight,
@@ -6055,8 +6110,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         itemBuilder: (context, index) {
           final category = _categories[index];
           final selected = category.name == _selectedCategory;
+          // Display only: the underlying name stays English so filtering and
+          // the _selectedCategory sentinel keep matching in either language.
+          // Keyed off the sentinel name, not id: server categories are built as
+          // Category(id: name, name: name), so a real category called "All"
+          // would otherwise collide with the synthetic one.
+          final label = category.name == 'All Items'
+              ? (_l10n?.allItems ?? 'All Items')
+              : category.name;
           return ChoiceChip(
-            label: Text(category.name),
+            label: Text(label),
             selected: selected,
             onSelected: (_) =>
                 setState(() => _selectedCategory = category.name),
@@ -7324,7 +7387,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _historyMetaRow('Payment method', pay),
+                    _historyMetaRow(_l10n?.paymentMethodLabel ?? 'Payment method', pay),
                     const SizedBox(height: 6),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -7417,7 +7480,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     ],
                     if (dateLabel != '-') ...[
                       const SizedBox(height: 6),
-                      _historyMetaRow('Date', dateLabel),
+                      _historyMetaRow(_l10n?.date ?? 'Date', dateLabel),
                     ],
                     const SizedBox(height: 12),
                     Center(
@@ -7956,6 +8019,29 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ),
                                   );
                                 },
+                              ),
+                              _profileMenuTile(
+                                title: _l10n?.language ?? 'Language',
+                                subtitle:
+                                    Localizations.localeOf(
+                                          context,
+                                        ).languageCode ==
+                                        'lo'
+                                    ? 'ລາວ'
+                                    : (_l10n?.english ?? 'English'),
+                                icon: Icons.language_outlined,
+                                trailing: _languageToggle(),
+                                // Tapping the row flips to the other language,
+                                // so the whole tile behaves as the switch.
+                                onTap: () => PosApp.setLocale(
+                                  context,
+                                  Localizations.localeOf(
+                                            context,
+                                          ).languageCode ==
+                                          'lo'
+                                      ? const Locale('en', '')
+                                      : const Locale('lo', ''),
+                                ),
                               ),
                               _profileMenuTile(
                                 title: _l10n?.customerSupport ?? (_l10n?.customerSupport ?? 'Customer support'),

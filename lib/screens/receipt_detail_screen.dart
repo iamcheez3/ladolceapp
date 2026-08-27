@@ -46,7 +46,9 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
   Future<void> _reprintReceipt() async {
     if (_receiptData == null) return;
     if (!printerService.isConfigured) {
-      _snack('No printer configured. Set up a printer in Settings first.', Colors.orange);
+      _snack(
+        AppLocalizations.of(context)?.noPrinterConfiguredSettings ??
+            'No printer configured. Set up a printer in Settings first.', Colors.orange);
       return;
     }
     setState(() => _isActionLoading = true);
@@ -122,7 +124,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
 
     if (confirmed != true) return;
     if (pinCtrl.text.trim().isEmpty) {
-      _snack('Admin PIN is required.', Colors.orange);
+      _snack(AppLocalizations.of(context)?.adminPinIsRequired ?? 'Admin PIN is required.', Colors.orange);
       return;
     }
 
@@ -260,11 +262,11 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                       const SizedBox(height: 8),
 
                       // ── Meta ──────────────────────────────────────────
-                      _metaRow('Date:', data['date_order'] ?? ''),
-                      _metaRow('Cashier:', data['cashier'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')),
+                      _metaRow(AppLocalizations.of(context)?.dateColon ?? 'Date:', data['date_order'] ?? ''),
+                      _metaRow(AppLocalizations.of(context)?.cashierColon ?? 'Cashier:', data['cashier'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')),
                       if ((data['table']?.toString() ?? '').isNotEmpty)
-                        _metaRow('Table:', data['table'].toString()),
-                      _metaRow('Payment:', data['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')),
+                        _metaRow(AppLocalizations.of(context)?.tableColon ?? 'Table:', data['table'].toString()),
+                      _metaRow(AppLocalizations.of(context)?.paymentColon ?? 'Payment:', data['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')),
 
                       const SizedBox(height: 16),
                       const Divider(),

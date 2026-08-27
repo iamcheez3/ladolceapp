@@ -1153,5 +1153,9 @@
   "addNote": "Add note",
   "noteForKitchen": "Note for the kitchen",
   "tapItemToAddNote": "Tap an item to add a note",
-  "proofUploadFailed": "Order placed, but the transfer proof could not be uploaded. Please show it to the staff."
+  "proofUploadFailed": "Order placed, but the transfer proof could not be uploaded. Please show it to the staff.",
+  "dateColon": "Date:",
+  "cashierColon": "Cashier:",
+  "tableColon": "Table:",
+  "paymentColon": "Payment:"
 }

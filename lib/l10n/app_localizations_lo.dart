@@ -2337,4 +2337,16 @@ class AppLocalizationsLo extends AppLocalizations {
   @override
   String get proofUploadFailed =>
       'ສັ່ງຊື້ສຳເລັດແລ້ວ ແຕ່ອັບໂຫຼດຫຼັກຖານການໂອນບໍ່ໄດ້. ກະລຸນາສະແດງໃຫ້ພະນັກງານເບິ່ງ.';
+
+  @override
+  String get dateColon => 'ວັນທີ:';
+
+  @override
+  String get cashierColon => 'ພະນັກງານ:';
+
+  @override
+  String get tableColon => 'ໂຕະ:';
+
+  @override
+  String get paymentColon => 'ການຊຳລະ:';
 }
