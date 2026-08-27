@@ -662,7 +662,7 @@ class PrinterService {
     for (final item in cartItems) {
       await _emitRow(
         printer,
-        '${item.quantity}x ${item.product.name}',
+        '${item.quantity}x ${item.product.displayName}',
         'LAK ${item.totalPrice.toStringAsFixed(2)}',
         dots: dots,
         bold: true,
@@ -825,7 +825,7 @@ class PrinterService {
       for (final item in cartItems) {
         await _emitRow(
           printer,
-          '${item.quantity}x ${item.product.name}',
+          '${item.quantity}x ${item.product.displayName}',
           'LAK${item.totalPrice.toStringAsFixed(2)}',
           dots: dots,
           bold: true,
@@ -931,7 +931,7 @@ class PrinterService {
           for (int q = 0; q < i.quantity; q++) {
             await _emitLine(
               printer,
-              '1x ${i.product.name}',
+              '1x ${i.product.displayName}',
               dots: dots,
               bold: true,
               large: true,
@@ -961,6 +961,8 @@ class PrinterService {
         for (final i in items) {
           final toppingNames = i.selectedToppings.map((t) => t.name).toList();
           final note = i.kitchenNote.trim();
+          // Key on the canonical English name so switching language never
+          // changes how lines group; only the printed label follows the locale.
           final key = [
             i.product.name,
             toppingNames.join('|'),
@@ -969,7 +971,7 @@ class PrinterService {
           final row = map.putIfAbsent(
             key,
             () => {
-              'name': i.product.name,
+              'name': i.product.displayName,
               'qty': 0,
               'toppings': toppingNames,
               'note': note,
@@ -981,7 +983,7 @@ class PrinterService {
       } else {
         for (final i in items) {
           rows.add({
-            'name': i.product.name,
+            'name': i.product.displayName,
             'qty': i.quantity,
             'toppings': i.selectedToppings.map((t) => t.name).toList(),
             'note': i.kitchenNote.trim(),

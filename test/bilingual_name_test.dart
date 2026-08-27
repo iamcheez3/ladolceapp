@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ladolce/models/product.dart';
+import 'package:ladolce/services/escpos_text_image.dart';
 import 'package:ladolce/utils/bilingual_name.dart';
 
 /// The backend ships `name`/`name_lo` (and `product_name`/`product_name_lo`)
@@ -48,6 +49,24 @@ void main() {
 
     test('an empty query matches everything', () {
       expect(p.matchesQuery('  '), isTrue);
+    });
+  });
+
+  group('printing', () {
+    test('a Lao POS produces item lines that must be rasterised', () {
+      // Printed lines now follow the app language. ESC/POS encodes with latin1,
+      // so a Lao name has to take the bitmap path or the whole print aborts.
+      Product.useLaoNames = true;
+      final line =
+          '2x ${make(name: 'Iced Latte', nameLo: 'ລາເຕ້ເຢັນ').displayName}';
+      expect(escPosNeedsImage(line), isTrue);
+    });
+
+    test('an English POS keeps the fast native-text path', () {
+      Product.useLaoNames = false;
+      final line =
+          '2x ${make(name: 'Iced Latte', nameLo: 'ລາເຕ້ເຢັນ').displayName}';
+      expect(escPosNeedsImage(line), isFalse);
     });
   });
 
