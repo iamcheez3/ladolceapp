@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import '../utils/image_mime.dart';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'http_client_wrapper.dart' as http;
@@ -3057,8 +3058,22 @@ class ApiService {
         if (partnerId != null) {
           request.fields['partner_id'] = partnerId.toString();
         }
-        request.files
-            .add(await http.MultipartFile.fromPath('proof', imagePath));
+        // Declare the real image type. Left unset, MultipartFile sends
+        // application/octet-stream, Odoo stores that as the attachment's
+        // mimetype, and /web/image then refuses to serve it as an image — the
+        // proof uploads fine but shows as broken everywhere.
+        final proofType = await resolveImageMediaType(imagePath);
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'proof',
+            imagePath,
+            filename: imageFilenameFor(
+              proofType.mimeType,
+              prefix: 'order_${orderId}_proof',
+            ),
+            contentType: proofType,
+          ),
+        );
 
         final streamed =
             await request.send().timeout(const Duration(seconds: 60));
@@ -4059,7 +4074,18 @@ class ApiService {
       final authHdrs = await _authHeaders(json: false);
       final request = http.MultipartRequest('POST', url);
       authHdrs.forEach((k, v) => request.headers[k] = v);
-      request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+      final imageType = await resolveImageMediaType(imagePath);
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'image',
+          imagePath,
+          filename: imageFilenameFor(
+            imageType.mimeType,
+            prefix: 'chat_$orderId',
+          ),
+          contentType: imageType,
+        ),
+      );
       if (caption.isNotEmpty) request.fields['caption'] = caption;
       final streamed = await request.send().timeout(const Duration(seconds: 60));
       final body = await streamed.stream.bytesToString();
