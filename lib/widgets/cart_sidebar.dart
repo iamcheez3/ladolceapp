@@ -289,9 +289,16 @@ class CartSidebar extends StatelessWidget {
           
           ?promoBanner,
 
-          // Totals and Charge
+          // Totals and Charge. Kept above the home indicator / navigation
+          // bar when the cart is shown as a bottom sheet (sheets do not pad
+          // the bottom; on the tablet rail SafeArea already did).
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              16 + MediaQuery.paddingOf(context).bottom,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
