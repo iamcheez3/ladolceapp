@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/l10n_ext.dart';
+import 'dispose_with.dart';
 
 /// A paginated, optimized customer selection bottom sheet with server-side search.
 /// 
@@ -201,70 +202,74 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
           }
         });
         
-        return AlertDialog(
-          title: Text(context.l10n.newCustomer),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                focusNode: nameFocusNode,
-                decoration: InputDecoration(
-                  labelText: context.l10n.name,
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person_outline),
+        return DisposeWith(
+          onDispose: () {
+            nameController.dispose();
+            phoneController.dispose();
+            nameFocusNode.dispose();
+          },
+          child: AlertDialog(
+            title: Text(context.l10n.newCustomer),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  focusNode: nameFocusNode,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.name,
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) {
+                    // Move focus to phone field
+                    FocusScope.of(ctx).nextFocus();
+                  },
                 ),
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) {
-                  // Move focus to phone field
-                  FocusScope.of(ctx).nextFocus();
-                },
+                const SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.phone,
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => Navigator.of(ctx).pop(true),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(context.l10n.cancel),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneController,
-                decoration: InputDecoration(
-                  labelText: context.l10n.phone,
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone_outlined),
+              ElevatedButton(
+                onPressed: () {
+                  if (nameController.text.trim().isNotEmpty) {
+                    Navigator.of(ctx).pop(true);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF001460),
+                  foregroundColor: Colors.white,
                 ),
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => Navigator.of(ctx).pop(true),
+                child: Text(context.l10n.save),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(context.l10n.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.trim().isNotEmpty) {
-                  Navigator.of(ctx).pop(true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF001460),
-                foregroundColor: Colors.white,
-              ),
-              child: Text(context.l10n.save),
-            ),
-          ],
         );
       },
     );
     
-    // Dispose controllers after dialog closes
+    // Read now: the controllers are disposed once the dialog has closed.
     final name = nameController.text.trim();
     final phone = phoneController.text.trim();
-    nameController.dispose();
-    phoneController.dispose();
-    nameFocusNode.dispose();
     
     if (result == true && name.isNotEmpty) {
       try {

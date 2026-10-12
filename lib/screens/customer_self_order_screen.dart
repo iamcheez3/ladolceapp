@@ -38,6 +38,7 @@ import 'order_chat_screen.dart';
 import '../utils/l10n_ext.dart';
 import '../widgets/topping_picker.dart';
 import '../widgets/free_items_banner.dart';
+import '../widgets/dispose_with.dart';
 import '../models/free_promotion.dart';
 import '../main.dart';
 
@@ -2208,108 +2209,112 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          backgroundColor: Colors.transparent,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final dialogWidth = constraints.maxWidth.clamp(0.0, 420.0);
-              final screenH = MediaQuery.sizeOf(context).height;
-              final orientation = MediaQuery.orientationOf(context);
-              final heightFrac = orientation == Orientation.landscape
-                  ? 0.38
-                  : 0.5;
-              final adHeight = (screenH * heightFrac).clamp(140.0, 460.0);
-              return SizedBox(
-                width: dialogWidth,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        height: adHeight,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: PageView.builder(
-                            controller: adPageController,
-                            itemCount: _adImageDataUrls.length,
-                            itemBuilder: (context, index) {
-                              final bytes = _bytesFromDataUrl(
-                                _adImageDataUrls[index],
-                              );
-                              if (bytes == null) {
-                                return Container(color: Colors.white);
-                              }
-                              return Image.memory(bytes, fit: BoxFit.cover);
-                            },
+        return DisposeWith(
+          onDispose: () {
+            adPageController.dispose();
+            dontShowToday.dispose();
+          },
+          child: Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+            backgroundColor: Colors.transparent,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final dialogWidth = constraints.maxWidth.clamp(0.0, 420.0);
+                final screenH = MediaQuery.sizeOf(context).height;
+                final orientation = MediaQuery.orientationOf(context);
+                final heightFrac = orientation == Orientation.landscape
+                    ? 0.38
+                    : 0.5;
+                final adHeight = (screenH * heightFrac).clamp(140.0, 460.0);
+                return SizedBox(
+                  width: dialogWidth,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: adHeight,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: PageView.builder(
+                              controller: adPageController,
+                              itemCount: _adImageDataUrls.length,
+                              itemBuilder: (context, index) {
+                                final bytes = _bytesFromDataUrl(
+                                  _adImageDataUrls[index],
+                                );
+                                if (bytes == null) {
+                                  return Container(color: Colors.white);
+                                }
+                                return Image.memory(bytes, fit: BoxFit.cover);
+                              },
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: dontShowToday,
-                        builder: (context, checked, _) {
-                          return Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.96),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Checkbox(
-                                  value: checked,
-                                  onChanged: (value) =>
-                                      dontShowToday.value = value ?? false,
-                                  activeColor: _brandNavy,
-                                ),
-                                const Expanded(
-                                  child: Text(
-                                    "Don't show again today",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
+                        const SizedBox(height: 10),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: dontShowToday,
+                          builder: (context, checked, _) {
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.96),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: checked,
+                                    onChanged: (value) =>
+                                        dontShowToday.value = value ?? false,
+                                    activeColor: _brandNavy,
+                                  ),
+                                  const Expanded(
+                                    child: Text(
+                                      "Don't show again today",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      Material(
-                        color: Colors.white.withOpacity(0.45),
-                        borderRadius: BorderRadius.circular(28),
-                        child: InkWell(
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        Material(
+                          color: Colors.white.withOpacity(0.45),
                           borderRadius: BorderRadius.circular(28),
-                          onTap: () =>
-                              Navigator.of(context).pop(dontShowToday.value),
-                          child: const SizedBox(
-                            width: 56,
-                            height: 56,
-                            child: Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 34,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(28),
+                            onTap: () =>
+                                Navigator.of(context).pop(dontShowToday.value),
+                            child: const SizedBox(
+                              width: 56,
+                              height: 56,
+                              child: Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 34,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         );
       },
     );
-    adPageController.dispose();
-    dontShowToday.dispose();
     if ((shouldSuppressToday ?? false) && mounted) {
       await prefs.setString(_adSuppressDatePrefsKey, todayKey);
     }

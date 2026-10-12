@@ -14,6 +14,8 @@ import '../widgets/customer_selection_sheet.dart';
 import '../widgets/skeleton_loaders.dart';
 import '../widgets/topping_picker.dart';
 import '../widgets/free_items_banner.dart';
+import '../widgets/ticket_name_dialog.dart';
+import '../widgets/dispose_with.dart';
 import '../models/free_promotion.dart';
 import '../screens/tickets_screen.dart';
 import '../screens/receipt_history_screen.dart';
@@ -1049,65 +1051,12 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
-  /// "Custom name" / "Rename" dialog. Returns the trimmed name, or null.
-  Future<String?> _promptTicketName(
-    BuildContext context, {
-    required String title,
-    required String help,
-    String initial = '',
-  }) async {
-    final controller = TextEditingController(text: initial);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              maxLength: 40,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: ctx.l10n.ticketNameLabel,
-                hintText: ctx.l10n.ticketNameHint,
-                border: const OutlineInputBorder(),
-              ),
-              onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
-            ),
-            Text(help, style: TextStyle(color: Colors.grey.shade700)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(ctx.l10n.cancel),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _brandNavy,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text(ctx.l10n.save),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (name == null || name.isEmpty) return null;
-    return name;
-  }
-
   /// Ticket options → Rename: the name replaces the table, which is freed
   /// for a new order.
   Future<void> _renameActiveTicket(BuildContext context) async {
     final orderId = _activeTicketId;
     if (orderId == null) return;
-    final name = await _promptTicketName(
+    final name = await showTicketNameDialog(
       context,
       title: context.l10n.renameTicketTitle,
       help: context.l10n.renameTicketHelp,
@@ -3179,230 +3128,490 @@ class _PosScreenState extends State<PosScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final bd = _cartBreakdown();
-          final total = bd.totalDue;
-          final splitSum = rows.fold<double>(0, (a, r) => a + r.value);
-          final splitCash = rows
-              .where((r) => r.method.isCash)
-              .fold<double>(0, (a, r) => a + r.value);
-          final splitShort = split && splitSum + 0.005 < total;
-          final splitOverpayNotCash =
-              split && splitSum - total > splitCash + 0.005;
-          final canCharge =
-              !split ||
-              (rows.isNotEmpty && !splitShort && !splitOverpayNotCash);
-          final isCash =
-              _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
-              false;
-          final amtReceived =
-              double.tryParse(amountReceivedCtrl.text.replaceAll(',', '')) ??
-              0.0;
-          final changeAmount = amtReceived >= total ? amtReceived - total : 0.0;
+      builder: (context) => DisposeWith(
+        onDispose: () {
+          for (final r in rows) {
+            r.amount.dispose();
+          }
+        },
+        child: StatefulBuilder(
+          builder: (context, setSheetState) {
+            final bd = _cartBreakdown();
+            final total = bd.totalDue;
+            final splitSum = rows.fold<double>(0, (a, r) => a + r.value);
+            final splitCash = rows
+                .where((r) => r.method.isCash)
+                .fold<double>(0, (a, r) => a + r.value);
+            final splitShort = split && splitSum + 0.005 < total;
+            final splitOverpayNotCash =
+                split && splitSum - total > splitCash + 0.005;
+            final canCharge =
+                !split ||
+                (rows.isNotEmpty && !splitShort && !splitOverpayNotCash);
+            final isCash =
+                _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
+                false;
+            final amtReceived =
+                double.tryParse(amountReceivedCtrl.text.replaceAll(',', '')) ??
+                0.0;
+            final changeAmount = amtReceived >= total
+                ? amtReceived - total
+                : 0.0;
 
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: LaDolcePosUi.modalBottomPadding(context),
-            ),
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.92,
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: LaDolcePosUi.modalBottomPadding(context),
               ),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F7FA),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── Header ────────────────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    child: Row(
-                      children: [
-                        // X button (left)
-                        InkWell(
-                          onTap: () => Navigator.pop(context),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 18,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          context.l10n.charge,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ── Total Card ────────────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.92,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF5F7FA),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── Header ────────────────────────────────────────────────
+                    Padding(
                       padding: const EdgeInsets.symmetric(
-                        vertical: 24,
-                        horizontal: 20,
+                        horizontal: 16,
+                        vertical: 14,
                       ),
-                      decoration: BoxDecoration(
-                        color: _brandNavy,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
+                      child: Row(
                         children: [
-                          Text(
-                            context.l10n.totalAmount,
-                            style: TextStyle(
-                              color: Colors.white60,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                          // X button (left)
+                          InkWell(
+                            onTap: () => Navigator.pop(context),
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 18,
+                                color: Colors.black54,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const Spacer(),
                           Text(
-                            'K${fmt.format(total)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 36,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
+                            context.l10n.charge,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
 
-                  // ── Scrollable content ────────────────────────────────────
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                      children: [
-                        // Transfer lock notice
-                        if (isTransferTicket)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Text(
-                              _activeTicketPaymentMethodName.isNotEmpty
-                                  ? context.l10n.transferTicketFixedTo(
-                                      _activeTicketPaymentMethodName,
-                                    )
-                                  : context.l10n.transferTicketFixed,
-                              style: TextStyle(
-                                color: Colors.blue.shade900,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-
-                        // ── Select Discount Dropdown ──────────────────────
-                        if (_discountConfig.enabled) ...[
-                          Text(
-                            context.l10n.selectDiscount,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<PosDiscountOption?>(
-                                value: _selectedDiscountOption,
-                                hint: Text(context.l10n.noDiscount),
-                                isExpanded: true,
-                                items: [
-                                  DropdownMenuItem<PosDiscountOption?>(
-                                    value: null,
-                                    child: Text(context.l10n.noDiscount),
-                                  ),
-                                  ..._discountConfig.options.map((opt) {
-                                    String valStr = '';
-                                    if (opt.value == null) {
-                                      valStr = opt.type == 'percentage'
-                                          ? '(Custom %)'
-                                          : '(Custom Amount)';
-                                    } else {
-                                      valStr = opt.type == 'percentage'
-                                          ? '(${opt.value!.toStringAsFixed(0)}%)'
-                                          : '(₭${opt.value!.toStringAsFixed(0)})';
-                                    }
-                                    return DropdownMenuItem<PosDiscountOption?>(
-                                      value: opt,
-                                      child: Text('${opt.name} $valStr'),
-                                    );
-                                  }),
-                                ],
-                                onChanged: (opt) {
-                                  setSheetState(() {
-                                    _selectedDiscountOption = opt;
-                                    if (opt == null || !opt.isManual) {
-                                      _pendingDiscountManualValue = null;
-                                      manualDiscountCtrl.clear();
-                                    }
-                                  });
-                                  setState(() {
-                                    _selectedDiscountOption = opt;
-                                    if (opt == null || !opt.isManual) {
-                                      _pendingDiscountManualValue = null;
-                                    }
-                                  });
-                                  _recomputeDiscount(
-                                    manualValue: _pendingDiscountManualValue,
-                                  );
-                                  final newTotal = _cartBreakdown().totalDue;
-                                  amountReceivedCtrl.text = newTotal
-                                      .toStringAsFixed(0);
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (_selectedDiscountOption != null &&
-                              _selectedDiscountOption!.isManual) ...[
+                    // ── Total Card ────────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 24,
+                          horizontal: 20,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _brandNavy,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          children: [
                             Text(
-                              _selectedDiscountOption!.type == 'percentage'
-                                  ? context.l10n.enterDiscountPercentage
-                                  : context.l10n.enterDiscountAmount,
+                              context.l10n.totalAmount,
                               style: TextStyle(
+                                color: Colors.white60,
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                             const SizedBox(height: 8),
+                            Text(
+                              'K${fmt.format(total)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 36,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // ── Scrollable content ────────────────────────────────────
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                        children: [
+                          // Transfer lock notice
+                          if (isTransferTicket)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Text(
+                                _activeTicketPaymentMethodName.isNotEmpty
+                                    ? context.l10n.transferTicketFixedTo(
+                                        _activeTicketPaymentMethodName,
+                                      )
+                                    : context.l10n.transferTicketFixed,
+                                style: TextStyle(
+                                  color: Colors.blue.shade900,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+
+                          // ── Select Discount Dropdown ──────────────────────
+                          if (_discountConfig.enabled) ...[
+                            Text(
+                              context.l10n.selectDiscount,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<PosDiscountOption?>(
+                                  value: _selectedDiscountOption,
+                                  hint: Text(context.l10n.noDiscount),
+                                  isExpanded: true,
+                                  items: [
+                                    DropdownMenuItem<PosDiscountOption?>(
+                                      value: null,
+                                      child: Text(context.l10n.noDiscount),
+                                    ),
+                                    ..._discountConfig.options.map((opt) {
+                                      String valStr = '';
+                                      if (opt.value == null) {
+                                        valStr = opt.type == 'percentage'
+                                            ? '(Custom %)'
+                                            : '(Custom Amount)';
+                                      } else {
+                                        valStr = opt.type == 'percentage'
+                                            ? '(${opt.value!.toStringAsFixed(0)}%)'
+                                            : '(₭${opt.value!.toStringAsFixed(0)})';
+                                      }
+                                      return DropdownMenuItem<
+                                        PosDiscountOption?
+                                      >(
+                                        value: opt,
+                                        child: Text('${opt.name} $valStr'),
+                                      );
+                                    }),
+                                  ],
+                                  onChanged: (opt) {
+                                    setSheetState(() {
+                                      _selectedDiscountOption = opt;
+                                      if (opt == null || !opt.isManual) {
+                                        _pendingDiscountManualValue = null;
+                                        manualDiscountCtrl.clear();
+                                      }
+                                    });
+                                    setState(() {
+                                      _selectedDiscountOption = opt;
+                                      if (opt == null || !opt.isManual) {
+                                        _pendingDiscountManualValue = null;
+                                      }
+                                    });
+                                    _recomputeDiscount(
+                                      manualValue: _pendingDiscountManualValue,
+                                    );
+                                    final newTotal = _cartBreakdown().totalDue;
+                                    amountReceivedCtrl.text = newTotal
+                                        .toStringAsFixed(0);
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (_selectedDiscountOption != null &&
+                                _selectedDiscountOption!.isManual) ...[
+                              Text(
+                                _selectedDiscountOption!.type == 'percentage'
+                                    ? context.l10n.enterDiscountPercentage
+                                    : context.l10n.enterDiscountAmount,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 16),
+                                      child: Text(
+                                        _selectedDiscountOption!.type ==
+                                                'percentage'
+                                            ? '% '
+                                            : '₭ ',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black45,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: manualDiscountCtrl,
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                        decoration: InputDecoration(
+                                          border: InputBorder.none,
+                                          hintText:
+                                              _selectedDiscountOption!.type ==
+                                                  'percentage'
+                                              ? 'e.g. 10'
+                                              : 'e.g. 5000',
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                vertical: 12,
+                                                horizontal: 4,
+                                              ),
+                                        ),
+                                        onChanged: (v) {
+                                          final val = double.tryParse(v);
+                                          setSheetState(() {
+                                            _pendingDiscountManualValue = val;
+                                          });
+                                          setState(() {
+                                            _pendingDiscountManualValue = val;
+                                          });
+                                          _recomputeDiscount(manualValue: val);
+                                          final newTotal =
+                                              _cartBreakdown().totalDue;
+                                          amountReceivedCtrl.text = newTotal
+                                              .toStringAsFixed(0);
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+                            const SizedBox(height: 12),
+                          ],
+
+                          // ── Payment Method Label ──────────────────────────
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  context.l10n.selectPaymentMethod,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              if (!isTransferTicket &&
+                                  _paymentMethods.isNotEmpty)
+                                TextButton.icon(
+                                  onPressed: () => setSheetState(() {
+                                    split = !split;
+                                    if (split && rows.isEmpty) {
+                                      final first =
+                                          _paymentMethods
+                                              .where(
+                                                (m) =>
+                                                    m.id ==
+                                                    _selectedPaymentMethod?.id,
+                                              )
+                                              .firstOrNull ??
+                                          _paymentMethods.first;
+                                      rows.add(_SplitRow(first, total));
+                                    }
+                                  }),
+                                  icon: Icon(
+                                    split
+                                        ? Icons.close
+                                        : Icons.call_split_rounded,
+                                    size: 20,
+                                  ),
+                                  label: Text(
+                                    split
+                                        ? context.l10n.singlePayment
+                                        : context.l10n.splitPayment,
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: _brandNavy,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          if (split)
+                            ..._buildSplitRows(
+                              context,
+                              rows,
+                              total: total,
+                              sum: splitSum,
+                              short: splitShort,
+                              overpayNotCash: splitOverpayNotCash,
+                              fmt: fmt,
+                              setSheetState: setSheetState,
+                            ),
+
+                          // ── Payment Method Pills ──────────────────────────
+                          if (split)
+                            const SizedBox.shrink()
+                          else if (_paymentMethods.isEmpty)
+                            Text(
+                              context.l10n.noPaymentMethods,
+                              style: TextStyle(color: Colors.grey),
+                            )
+                          else
+                            LayoutBuilder(
+                              builder: (ctx, constraints) {
+                                final locked =
+                                    isTransferTicket &&
+                                    _activeTicketPaymentMethodId != null;
+                                return GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                                        maxCrossAxisExtent: 240,
+                                        mainAxisExtent: 88,
+                                        crossAxisSpacing: 10,
+                                        mainAxisSpacing: 10,
+                                      ),
+                                  itemCount: _paymentMethods.length,
+                                  itemBuilder: (context, i) {
+                                    final m = _paymentMethods[i];
+                                    final isSelected =
+                                        _selectedPaymentMethod?.id == m.id;
+                                    final isCashMethod = m.name
+                                        .toLowerCase()
+                                        .contains('cash');
+
+                                    return InkWell(
+                                      onTap: locked
+                                          ? null
+                                          : () => setSheetState(
+                                              () => _selectedPaymentMethod = m,
+                                            ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? _brandNavy
+                                                : Colors.grey.shade300,
+                                            width: isSelected ? 2 : 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              isCashMethod
+                                                  ? Icons.point_of_sale_rounded
+                                                  : Icons.credit_card_rounded,
+                                              color: isSelected
+                                                  ? _brandNavy
+                                                  : Colors.black38,
+                                              size: 24,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                m.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w600,
+                                                  color: isSelected
+                                                      ? _brandNavy
+                                                      : Colors.black54,
+                                                ),
+                                              ),
+                                            ),
+                                            if (locked)
+                                              const Icon(
+                                                Icons.lock_outline_rounded,
+                                                size: 16,
+                                                color: Colors.black26,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+
+                          const SizedBox(height: 24),
+
+                          // ── Cash Input ────────────────────────────────────
+                          if (isCash && !split) ...[
+                            Text(
+                              context.l10n.amountReceived,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
                             Container(
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -3411,15 +3620,12 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 16),
+                                  const Padding(
+                                    padding: EdgeInsets.only(left: 16),
                                     child: Text(
-                                      _selectedDiscountOption!.type ==
-                                              'percentage'
-                                          ? '% '
-                                          : '₭ ',
-                                      style: const TextStyle(
-                                        fontSize: 16,
+                                      'K ',
+                                      style: TextStyle(
+                                        fontSize: 20,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.black45,
                                       ),
@@ -3427,362 +3633,122 @@ class _PosScreenState extends State<PosScreen> {
                                   ),
                                   Expanded(
                                     child: TextField(
-                                      controller: manualDiscountCtrl,
+                                      controller: amountReceivedCtrl,
                                       keyboardType:
                                           const TextInputType.numberWithOptions(
                                             decimal: true,
                                           ),
                                       style: const TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 20,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.black87,
                                       ),
-                                      decoration: InputDecoration(
+                                      decoration: const InputDecoration(
                                         border: InputBorder.none,
-                                        hintText:
-                                            _selectedDiscountOption!.type ==
-                                                'percentage'
-                                            ? 'e.g. 10'
-                                            : 'e.g. 5000',
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              vertical: 12,
-                                              horizontal: 4,
-                                            ),
+                                        contentPadding: EdgeInsets.symmetric(
+                                          vertical: 16,
+                                          horizontal: 4,
+                                        ),
                                       ),
-                                      onChanged: (v) {
-                                        final val = double.tryParse(v);
-                                        setSheetState(() {
-                                          _pendingDiscountManualValue = val;
-                                        });
-                                        setState(() {
-                                          _pendingDiscountManualValue = val;
-                                        });
-                                        _recomputeDiscount(manualValue: val);
-                                        final newTotal =
-                                            _cartBreakdown().totalDue;
-                                        amountReceivedCtrl.text = newTotal
-                                            .toStringAsFixed(0);
+                                      onChanged: (_) => setSheetState(() {}),
+                                    ),
+                                  ),
+                                  if (amountReceivedCtrl.text.isNotEmpty)
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.cancel_rounded,
+                                        color: Colors.black26,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        amountReceivedCtrl.clear();
+                                        setSheetState(() {});
                                       },
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Change Due row
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    context.l10n.changeDue,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ),
+                                  Text(
+                                    'K${fmt.format(changeAmount)}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: changeAmount > 0
+                                          ? Colors.green.shade700
+                                          : Colors.black87,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 24),
                           ],
-                          const SizedBox(height: 12),
+
+                          if (_isCharging)
+                            const Center(child: CircularProgressIndicator()),
                         ],
-
-                        // ── Payment Method Label ──────────────────────────
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                context.l10n.selectPaymentMethod,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                            if (!isTransferTicket && _paymentMethods.isNotEmpty)
-                              TextButton.icon(
-                                onPressed: () => setSheetState(() {
-                                  split = !split;
-                                  if (split && rows.isEmpty) {
-                                    final first =
-                                        _paymentMethods
-                                            .where(
-                                              (m) =>
-                                                  m.id ==
-                                                  _selectedPaymentMethod?.id,
-                                            )
-                                            .firstOrNull ??
-                                        _paymentMethods.first;
-                                    rows.add(_SplitRow(first, total));
-                                  }
-                                }),
-                                icon: Icon(
-                                  split
-                                      ? Icons.close
-                                      : Icons.call_split_rounded,
-                                  size: 20,
-                                ),
-                                label: Text(
-                                  split
-                                      ? context.l10n.singlePayment
-                                      : context.l10n.splitPayment,
-                                ),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: _brandNavy,
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        if (split)
-                          ..._buildSplitRows(
-                            context,
-                            rows,
-                            total: total,
-                            sum: splitSum,
-                            short: splitShort,
-                            overpayNotCash: splitOverpayNotCash,
-                            fmt: fmt,
-                            setSheetState: setSheetState,
-                          ),
-
-                        // ── Payment Method Pills ──────────────────────────
-                        if (split)
-                          const SizedBox.shrink()
-                        else if (_paymentMethods.isEmpty)
-                          Text(
-                            context.l10n.noPaymentMethods,
-                            style: TextStyle(color: Colors.grey),
-                          )
-                        else
-                          LayoutBuilder(
-                            builder: (ctx, constraints) {
-                              final locked =
-                                  isTransferTicket &&
-                                  _activeTicketPaymentMethodId != null;
-                              return GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    const SliverGridDelegateWithMaxCrossAxisExtent(
-                                      maxCrossAxisExtent: 240,
-                                      mainAxisExtent: 88,
-                                      crossAxisSpacing: 10,
-                                      mainAxisSpacing: 10,
-                                    ),
-                                itemCount: _paymentMethods.length,
-                                itemBuilder: (context, i) {
-                                  final m = _paymentMethods[i];
-                                  final isSelected =
-                                      _selectedPaymentMethod?.id == m.id;
-                                  final isCashMethod = m.name
-                                      .toLowerCase()
-                                      .contains('cash');
-
-                                  return InkWell(
-                                    onTap: locked
-                                        ? null
-                                        : () => setSheetState(
-                                            () => _selectedPaymentMethod = m,
-                                          ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                        horizontal: 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? _brandNavy
-                                              : Colors.grey.shade300,
-                                          width: isSelected ? 2 : 1,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            isCashMethod
-                                                ? Icons.point_of_sale_rounded
-                                                : Icons.credit_card_rounded,
-                                            color: isSelected
-                                                ? _brandNavy
-                                                : Colors.black38,
-                                            size: 24,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              m.name,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.w700
-                                                    : FontWeight.w600,
-                                                color: isSelected
-                                                    ? _brandNavy
-                                                    : Colors.black54,
-                                              ),
-                                            ),
-                                          ),
-                                          if (locked)
-                                            const Icon(
-                                              Icons.lock_outline_rounded,
-                                              size: 16,
-                                              color: Colors.black26,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-
-                        const SizedBox(height: 24),
-
-                        // ── Cash Input ────────────────────────────────────
-                        if (isCash && !split) ...[
-                          Text(
-                            context.l10n.amountReceived,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Row(
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 16),
-                                  child: Text(
-                                    'K ',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black45,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: TextField(
-                                    controller: amountReceivedCtrl,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        vertical: 16,
-                                        horizontal: 4,
-                                      ),
-                                    ),
-                                    onChanged: (_) => setSheetState(() {}),
-                                  ),
-                                ),
-                                if (amountReceivedCtrl.text.isNotEmpty)
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.cancel_rounded,
-                                      color: Colors.black26,
-                                      size: 20,
-                                    ),
-                                    onPressed: () {
-                                      amountReceivedCtrl.clear();
-                                      setSheetState(() {});
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Change Due row
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  context.l10n.changeDue,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                                Text(
-                                  'K${fmt.format(changeAmount)}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: changeAmount > 0
-                                        ? Colors.green.shade700
-                                        : Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-
-                        if (_isCharging)
-                          const Center(child: CircularProgressIndicator()),
-                      ],
+                      ),
                     ),
-                  ),
 
-                  // ── Charge Button ─────────────────────────────────────────
-                  if (!_isCharging)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      child: ElevatedButton(
-                        onPressed: canCharge
-                            ? () => _processCheckout(
-                                context,
-                                setSheetState,
-                                true,
-                                bd,
-                                buildPlan(total),
-                              )
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF22C55E),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                    // ── Charge Button ─────────────────────────────────────────
+                    if (!_isCharging)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: ElevatedButton(
+                          onPressed: canCharge
+                              ? () => _processCheckout(
+                                  context,
+                                  setSheetState,
+                                  true,
+                                  bd,
+                                  buildPlan(total),
+                                )
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF22C55E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
                           ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          context.l10n.chargeAmount(fmt.format(total)),
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
+                          child: Text(
+                            context.l10n.chargeAmount(fmt.format(total)),
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
-    ).whenComplete(() {
-      for (final r in rows) {
-        r.amount.dispose();
-      }
-    });
+    );
   }
 
   List<Widget> _buildSplitRows(
@@ -4387,7 +4353,7 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        final name = await _promptTicketName(
+                        final name = await showTicketNameDialog(
                           context,
                           title: context.l10n.customName,
                           help: context.l10n.customNameHelp,
@@ -4812,225 +4778,230 @@ class _PosScreenState extends State<PosScreen> {
         Map<String, dynamic>? claimedData;
         String? errorText;
 
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            if (claimedData != null) {
+        return DisposeWith(
+          onDispose: () {
+            codeController.dispose();
+            scannerController.dispose();
+          },
+          child: StatefulBuilder(
+            builder: (context, setDialogState) {
+              if (claimedData != null) {
+                return AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: Text(
+                    context.l10n.rewardClaimed,
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 64,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Customer: ${claimedData!['customer_name']}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Product: ${claimedData!['product_name']}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(context.l10n.giveItemToCustomer),
+                    ],
+                  ),
+                  actions: [
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(context.l10n.done),
+                    ),
+                  ],
+                );
+              }
+
               return AlertDialog(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
                 title: Text(
-                  context.l10n.rewardClaimed,
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  context.l10n.claimRewardVoucher,
+                  style: TextStyle(fontWeight: FontWeight.w900),
                 ),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 64,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Customer: ${claimedData!['customer_name']}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Product: ${claimedData!['product_name']}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(context.l10n.giveItemToCustomer),
-                  ],
-                ),
-                actions: [
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text(context.l10n.done),
-                  ),
-                ],
-              );
-            }
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(
-                context.l10n.claimRewardVoucher,
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isScanning)
-                    SizedBox(
-                      height: 250,
-                      width: 250,
-                      child: Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: MobileScanner(
-                              controller: scannerController,
-                              onDetect: (capture) {
-                                final List<Barcode> barcodes = capture.barcodes;
-                                if (barcodes.isNotEmpty &&
-                                    barcodes.first.rawValue != null) {
-                                  final code = barcodes.first.rawValue!;
-                                  setDialogState(() {
-                                    codeController.text = code;
-                                    isScanning = false;
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                              ),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.black54,
-                              ),
-                              onPressed: () {
-                                setDialogState(() => isScanning = false);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else ...[
-                    const Text(
-                      'Enter or scan the customer\'s reward voucher code:',
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: codeController,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.voucherCode,
-                        errorText: errorText,
-                        border: const OutlineInputBorder(),
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
+                    if (isScanning)
+                      SizedBox(
+                        height: 250,
+                        width: 250,
+                        child: Stack(
                           children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.qr_code_scanner,
-                                color: Colors.blue,
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: MobileScanner(
+                                controller: scannerController,
+                                onDetect: (capture) {
+                                  final List<Barcode> barcodes =
+                                      capture.barcodes;
+                                  if (barcodes.isNotEmpty &&
+                                      barcodes.first.rawValue != null) {
+                                    final code = barcodes.first.rawValue!;
+                                    setDialogState(() {
+                                      codeController.text = code;
+                                      isScanning = false;
+                                    });
+                                  }
+                                },
                               ),
-                              onPressed: () {
-                                setDialogState(() {
-                                  isScanning = true;
-                                  errorText = null;
-                                });
-                              },
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => codeController.clear(),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.black54,
+                                ),
+                                onPressed: () {
+                                  setDialogState(() => isScanning = false);
+                                },
+                              ),
                             ),
                           ],
                         ),
+                      )
+                    else ...[
+                      const Text(
+                        'Enter or scan the customer\'s reward voucher code:',
                       ),
-                      textCapitalization: TextCapitalization.characters,
-                      onSubmitted: (val) async {
-                        if (val.trim().isEmpty) return;
-                        setDialogState(() {
-                          isClaiming = true;
-                          errorText = null;
-                        });
-                        try {
-                          final res = await _apiService.claimVoucher(
-                            val.trim(),
-                          );
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: codeController,
+                        decoration: InputDecoration(
+                          labelText: context.l10n.voucherCode,
+                          errorText: errorText,
+                          border: const OutlineInputBorder(),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.qr_code_scanner,
+                                  color: Colors.blue,
+                                ),
+                                onPressed: () {
+                                  setDialogState(() {
+                                    isScanning = true;
+                                    errorText = null;
+                                  });
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () => codeController.clear(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        textCapitalization: TextCapitalization.characters,
+                        onSubmitted: (val) async {
+                          if (val.trim().isEmpty) return;
                           setDialogState(() {
-                            claimedData = res;
-                            isClaiming = false;
+                            isClaiming = true;
+                            errorText = null;
                           });
-                        } catch (e) {
-                          setDialogState(() {
-                            errorText = e
-                                .toString()
-                                .replaceAll('Exception:', '')
-                                .trim();
-                            isClaiming = false;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isClaiming ? null : () => Navigator.pop(ctx),
-                  child: Text(
-                    context.l10n.cancel,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                if (!isScanning)
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _brandNavy,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: isClaiming
-                        ? null
-                        : () async {
-                            if (codeController.text.trim().isEmpty) return;
+                          try {
+                            final res = await _apiService.claimVoucher(
+                              val.trim(),
+                            );
                             setDialogState(() {
-                              isClaiming = true;
-                              errorText = null;
+                              claimedData = res;
+                              isClaiming = false;
                             });
-                            try {
-                              final res = await _apiService.claimVoucher(
-                                codeController.text.trim(),
-                              );
-                              setDialogState(() {
-                                claimedData = res;
-                                isClaiming = false;
-                              });
-                            } catch (e) {
-                              setDialogState(() {
-                                errorText = e
-                                    .toString()
-                                    .replaceAll('Exception:', '')
-                                    .trim();
-                                isClaiming = false;
-                              });
-                            }
-                          },
-                    child: isClaiming
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(context.l10n.claim),
+                          } catch (e) {
+                            setDialogState(() {
+                              errorText = e
+                                  .toString()
+                                  .replaceAll('Exception:', '')
+                                  .trim();
+                              isClaiming = false;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isClaiming ? null : () => Navigator.pop(ctx),
+                    child: Text(
+                      context.l10n.cancel,
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
-              ],
-            );
-          },
+                  if (!isScanning)
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _brandNavy,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: isClaiming
+                          ? null
+                          : () async {
+                              if (codeController.text.trim().isEmpty) return;
+                              setDialogState(() {
+                                isClaiming = true;
+                                errorText = null;
+                              });
+                              try {
+                                final res = await _apiService.claimVoucher(
+                                  codeController.text.trim(),
+                                );
+                                setDialogState(() {
+                                  claimedData = res;
+                                  isClaiming = false;
+                                });
+                              } catch (e) {
+                                setDialogState(() {
+                                  errorText = e
+                                      .toString()
+                                      .replaceAll('Exception:', '')
+                                      .trim();
+                                  isClaiming = false;
+                                });
+                              }
+                            },
+                      child: isClaiming
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(context.l10n.claim),
+                    ),
+                ],
+              );
+            },
+          ),
         );
       },
-    ).then((_) {
-      scannerController.dispose();
-    });
+    );
   }
 }
 
