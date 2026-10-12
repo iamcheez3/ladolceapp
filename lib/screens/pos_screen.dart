@@ -4347,41 +4347,28 @@ class _PosScreenState extends State<PosScreen> {
                   Padding(
                     padding: EdgeInsets.fromLTRB(
                       isMobile ? 12 : 24,
-                      isMobile ? 12 : 18,
+                      isMobile ? 12 : 20,
                       isMobile ? 12 : 24,
                       0,
                     ),
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final name = await showTicketNameDialog(
-                          context,
-                          title: context.l10n.customName,
-                          help: context.l10n.customNameHelp,
-                        );
-                        if (name == null || !context.mounted) return;
-                        _processOpenTicket(
-                          context,
-                          setDialogState,
-                          null,
-                          label: name,
-                        );
-                      },
-                      icon: const Icon(Icons.badge_rounded),
-                      label: Text(
-                        context.l10n.customName,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _brandNavy,
-                        side: const BorderSide(color: _brandNavy, width: 2),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
+                    child: _CustomNameTile(
+                      compact: isMobile,
+                      onTap: _isOpeningTicket
+                          ? null
+                          : () async {
+                              final name = await showTicketNameDialog(
+                                context,
+                                title: context.l10n.customName,
+                                help: context.l10n.customNameHelp,
+                              );
+                              if (name == null || !context.mounted) return;
+                              _processOpenTicket(
+                                context,
+                                setDialogState,
+                                null,
+                                label: name,
+                              );
+                            },
                     ),
                   ),
 
@@ -5001,6 +4988,85 @@ class _PosScreenState extends State<PosScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// "Custom name" at the top of Select Table: a full-width tile in the style
+/// of the table cards below it.
+class _CustomNameTile extends StatelessWidget {
+  final bool compact;
+  final VoidCallback? onTap;
+
+  const _CustomNameTile({required this.compact, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const navy = LaDolcePosUi.navy;
+    return Material(
+      color: navy.withValues(alpha: 0.04),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(compact ? 16 : 20),
+        side: BorderSide(color: navy.withValues(alpha: 0.22), width: 1.5),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 12 : 16,
+            vertical: compact ? 10 : 14,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(compact ? 8 : 10),
+                decoration: BoxDecoration(
+                  color: navy.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.badge_rounded,
+                  color: navy,
+                  size: compact ? 20 : 24,
+                ),
+              ),
+              SizedBox(width: compact ? 12 : 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      context.l10n.customName,
+                      style: TextStyle(
+                        fontSize: compact ? 15 : 16,
+                        fontWeight: FontWeight.w800,
+                        color: navy,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      context.l10n.customNameHelp,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: compact ? 12 : 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: navy.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
