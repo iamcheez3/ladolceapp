@@ -12,6 +12,7 @@ import '../widgets/product_list.dart';
 import '../widgets/cart_sidebar.dart';
 import '../widgets/customer_selection_sheet.dart';
 import '../widgets/skeleton_loaders.dart';
+import '../widgets/topping_picker.dart';
 import '../screens/tickets_screen.dart';
 import '../screens/receipt_history_screen.dart';
 import '../screens/manage_items_screen.dart';
@@ -613,11 +614,16 @@ class _PosScreenState extends State<PosScreen> {
         }
       });
 
+      // A background refresh must reach the server: without forceRefresh
+      // these return the cached copy, so edits only showed after a restart.
       final products = await _apiService.fetchProducts(
         branchId: branchId,
         limit: 100,
+        forceRefresh: backgroundRefresh,
       );
-      final rawCombos = await _apiService.fetchCombos();
+      final rawCombos = await _apiService.fetchCombos(
+        forceRefresh: backgroundRefresh,
+      );
       final combos = rawCombos
           .map((c) => Product.fromCombo(Combo.fromJson(c)))
           .toList();
@@ -625,8 +631,12 @@ class _PosScreenState extends State<PosScreen> {
       // Inject combos so they appear in POS
       products.addAll(combos);
 
-      final tables = await _apiService.fetchTables();
-      final methods = await _apiService.fetchPaymentMethods();
+      final tables = await _apiService.fetchTables(
+        forceRefresh: backgroundRefresh,
+      );
+      final methods = await _apiService.fetchPaymentMethods(
+        forceRefresh: backgroundRefresh,
+      );
 
       final Set<String> uniqueCategories = products
           .map((p) => p.category)
@@ -782,104 +792,14 @@ class _PosScreenState extends State<PosScreen> {
     onUpdated?.call();
   }
 
-  void _showToppingsSelection(Product product) {
-    List<Topping> selectedToppings = [];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                24,
-                24,
-                24 + LaDolcePosUi.modalBottomPadding(context),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    context.l10n.selectToppingsFor(product.displayName),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: product.toppings.length,
-                      itemBuilder: (context, index) {
-                        final topping = product.toppings[index];
-                        final isSelected = selectedToppings.contains(topping);
-                        return CheckboxListTile(
-                          title: Text(topping.name),
-                          subtitle: topping.extraPrice > 0
-                              ? Text(
-                                  '+₭${topping.extraPrice.toStringAsFixed(2)}',
-                                )
-                              : Text(context.l10n.free),
-                          value: isSelected,
-                          activeColor: _brandNavy,
-                          onChanged: (bool? value) {
-                            setSheetState(() {
-                              if (value == true) {
-                                selectedToppings.add(topping);
-                              } else {
-                                selectedToppings.remove(topping);
-                              }
-                            });
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _addDirectlyToCart(
-                              product,
-                              [],
-                            ); // Skip toppings completely
-                          },
-                          child: Text(context.l10n.addWithoutToppings),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _brandNavy,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _addDirectlyToCart(product, selectedToppings);
-                          },
-                          child: Text(context.l10n.addToOrder),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+  Future<void> _showToppingsSelection(Product product) async {
+    final picked = await showToppingPickerSheet(
+      context,
+      title: context.l10n.selectToppingsFor(product.displayName),
+      toppings: product.toppings,
     );
+    if (picked == null || !mounted) return;
+    _addDirectlyToCart(product, picked);
   }
 
   void _updateQuantity(CartItem item, int newQuantity) {
@@ -1810,7 +1730,13 @@ class _PosScreenState extends State<PosScreen> {
                             MaterialPageRoute(
                               builder: (_) => const ManageItemsScreen(),
                             ),
-                          );
+                          ).then((_) {
+                            // Show edited products, toppings and groups
+                            // without restarting the POS.
+                            if (mounted) {
+                              _fetchOdooProducts(backgroundRefresh: true);
+                            }
+                          });
                         },
                       ),
                       _drawerItem(

@@ -38,9 +38,11 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     });
 
     try {
-      final productsFuture = _apiService.fetchProducts();
-      final categoriesFuture = _apiService.fetchCategories();
-      final toppingsFuture = _apiService.fetchToppings();
+      // Admin editing needs the server's copy (POS-only flags, topping
+      // groups); the caches only cover being offline.
+      final productsFuture = _apiService.fetchProducts(forceRefresh: true);
+      final categoriesFuture = _apiService.fetchCategories(forceRefresh: true);
+      final toppingsFuture = _apiService.fetchToppings(forceRefresh: true);
 
       final products = await productsFuture;
       final categories = await categoriesFuture;

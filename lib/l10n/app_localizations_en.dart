@@ -2378,4 +2378,94 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paymentColon => 'Payment:';
+
+  @override
+  String get toppingGroups => 'Topping groups';
+
+  @override
+  String get noGroupAddOn => 'No group (add-on)';
+
+  @override
+  String get addGroup => 'Add group';
+
+  @override
+  String get groupNameHint => 'Group name (e.g. Size)';
+
+  @override
+  String get laoNameOptional => 'Lao name (optional)';
+
+  @override
+  String get pickOne => 'Pick 1';
+
+  @override
+  String get pickOneHint => 'Pick one, e.g. Hot / Iced / Frappe';
+
+  @override
+  String get pickMany => 'Pick many';
+
+  @override
+  String get pickManyHint => 'Pick many, e.g. extra shot + oat milk';
+
+  @override
+  String get requiredLabel => 'Required';
+
+  @override
+  String get requiredHint => 'An option must be chosen before adding the item';
+
+  @override
+  String get noGroupsYet => 'No groups yet';
+
+  @override
+  String get noGroupsYetHint =>
+      'Groups put toppings under headings like Type (Hot / Iced), Taste or Size (M / L).';
+
+  @override
+  String get deleteGroup => 'Delete group';
+
+  @override
+  String deleteGroupConfirm(String name) {
+    return 'Delete \"$name\"? Its toppings stay, as add-ons.';
+  }
+
+  @override
+  String get groupSaved => 'Group saved';
+
+  @override
+  String get groupDeleted => 'Group deleted';
+
+  @override
+  String couldNotSaveGroup(String error) {
+    return 'Could not save the group: $error';
+  }
+
+  @override
+  String get selectedByDefault => 'Selected by default';
+
+  @override
+  String get selectedByDefaultHint => 'Ticked when the item is added';
+
+  @override
+  String pleaseChooseGroups(String groups) {
+    return 'Please choose: $groups';
+  }
+
+  @override
+  String get addOns => 'Add-ons';
+
+  @override
+  String get posOnly => 'POS only';
+
+  @override
+  String get posOnlyHint =>
+      'Hidden in self-order; only the cashier can sell it';
+
+  @override
+  String get posOnlyCategory => 'POS only (hide in self-order)';
+
+  @override
+  String get posOnlyCategoryHint =>
+      'Products of this category show in the cashier POS but not in the customer app';
+
+  @override
+  String get selectAllShort => 'All';
 }

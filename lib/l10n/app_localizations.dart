@@ -4429,6 +4429,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Payment:'**
   String get paymentColon;
+
+  /// No description provided for @toppingGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Topping groups'**
+  String get toppingGroups;
+
+  /// No description provided for @noGroupAddOn.
+  ///
+  /// In en, this message translates to:
+  /// **'No group (add-on)'**
+  String get noGroupAddOn;
+
+  /// No description provided for @addGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add group'**
+  String get addGroup;
+
+  /// No description provided for @groupNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name (e.g. Size)'**
+  String get groupNameHint;
+
+  /// No description provided for @laoNameOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Lao name (optional)'**
+  String get laoNameOptional;
+
+  /// No description provided for @pickOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick 1'**
+  String get pickOne;
+
+  /// No description provided for @pickOneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick one, e.g. Hot / Iced / Frappe'**
+  String get pickOneHint;
+
+  /// No description provided for @pickMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick many'**
+  String get pickMany;
+
+  /// No description provided for @pickManyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick many, e.g. extra shot + oat milk'**
+  String get pickManyHint;
+
+  /// No description provided for @requiredLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get requiredLabel;
+
+  /// No description provided for @requiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'An option must be chosen before adding the item'**
+  String get requiredHint;
+
+  /// No description provided for @noGroupsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No groups yet'**
+  String get noGroupsYet;
+
+  /// No description provided for @noGroupsYetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups put toppings under headings like Type (Hot / Iced), Taste or Size (M / L).'**
+  String get noGroupsYetHint;
+
+  /// No description provided for @deleteGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group'**
+  String get deleteGroup;
+
+  /// No description provided for @deleteGroupConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? Its toppings stay, as add-ons.'**
+  String deleteGroupConfirm(String name);
+
+  /// No description provided for @groupSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Group saved'**
+  String get groupSaved;
+
+  /// No description provided for @groupDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Group deleted'**
+  String get groupDeleted;
+
+  /// No description provided for @couldNotSaveGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the group: {error}'**
+  String couldNotSaveGroup(String error);
+
+  /// No description provided for @selectedByDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected by default'**
+  String get selectedByDefault;
+
+  /// No description provided for @selectedByDefaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked when the item is added'**
+  String get selectedByDefaultHint;
+
+  /// No description provided for @pleaseChooseGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Please choose: {groups}'**
+  String pleaseChooseGroups(String groups);
+
+  /// No description provided for @addOns.
+  ///
+  /// In en, this message translates to:
+  /// **'Add-ons'**
+  String get addOns;
+
+  /// No description provided for @posOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'POS only'**
+  String get posOnly;
+
+  /// No description provided for @posOnlyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden in self-order; only the cashier can sell it'**
+  String get posOnlyHint;
+
+  /// No description provided for @posOnlyCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'POS only (hide in self-order)'**
+  String get posOnlyCategory;
+
+  /// No description provided for @posOnlyCategoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Products of this category show in the cashier POS but not in the customer app'**
+  String get posOnlyCategoryHint;
+
+  /// No description provided for @selectAllShort.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get selectAllShort;
 }
 
 class _AppLocalizationsDelegate

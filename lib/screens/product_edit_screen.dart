@@ -5,6 +5,10 @@ import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
 import '../utils/l10n_ext.dart';
+import '../widgets/topping_picker.dart';
+
+/// How the customer self-order app treats a product.
+enum _SelfOrderMode { available, runOut, posOnly }
 
 class ProductEditScreen extends StatefulWidget {
   final Product? product;
@@ -29,7 +33,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _priceController;
   late int? _selectedCategoryId;
-  late bool _blockSelfOrder;
+  late _SelfOrderMode _selfOrderMode;
   late List<int> _selectedToppingIds;
   bool _isSaving = false;
 
@@ -40,8 +44,14 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     super.initState();
     final product = widget.product;
     _nameController = TextEditingController(text: product?.name ?? '');
-    _priceController = TextEditingController(text: product?.price.toString() ?? '');
-    _blockSelfOrder = product?.blockSelfOrder ?? false;
+    _priceController = TextEditingController(
+      text: product?.price.toString() ?? '',
+    );
+    _selfOrderMode = (product?.hideInSelfOrder ?? false)
+        ? _SelfOrderMode.posOnly
+        : (product?.blockSelfOrder ?? false)
+        ? _SelfOrderMode.runOut
+        : _SelfOrderMode.available;
 
     if (product != null) {
       final cat = widget.categories.firstWhere(
@@ -84,7 +94,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         listPrice: price,
         categoryId: _selectedCategoryId,
         toppingIds: _selectedToppingIds,
-        blockSelfOrder: _blockSelfOrder,
+        blockSelfOrder: _selfOrderMode == _SelfOrderMode.runOut,
+        hideInSelfOrder: _selfOrderMode == _SelfOrderMode.posOnly,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -99,7 +110,10 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.errorWithMessage(e.toString())), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(context.l10n.errorWithMessage(e.toString())),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -109,7 +123,9 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.product!.name : context.l10n.addProduct),
+        title: Text(
+          widget.isEditing ? widget.product!.name : context.l10n.addProduct,
+        ),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -163,12 +179,15 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                       hintText: context.l10n.listPrice,
                       prefixIcon: const Icon(Icons.attach_money, size: 20),
                     ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<int>(
-                    decoration: LaDolcePosUi.input(hintText: context.l10n.category),
+                    decoration: LaDolcePosUi.input(
+                      hintText: context.l10n.category,
+                    ),
                     value: _selectedCategoryId,
                     items: widget.categories.map((c) {
                       return DropdownMenuItem<int>(
@@ -187,8 +206,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.shopping_cart_outlined,
-                          size: 18, color: LaDolcePosUi.mutedText),
+                      Icon(
+                        Icons.shopping_cart_outlined,
+                        size: 18,
+                        color: LaDolcePosUi.mutedText,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         context.l10n.customerSelfOrder,
@@ -205,8 +227,10 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     iconColor: Colors.green,
                     title: context.l10n.tableAvailable,
                     subtitle: context.l10n.customersCanSelectAndOrder,
-                    isSelected: !_blockSelfOrder,
-                    onTap: () => setState(() => _blockSelfOrder = false),
+                    isSelected: _selfOrderMode == _SelfOrderMode.available,
+                    onTap: () => setState(
+                      () => _selfOrderMode = _SelfOrderMode.available,
+                    ),
                   ),
                   const Divider(height: 1, indent: 44),
                   _buildSelfOrderTile(
@@ -214,8 +238,19 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     iconColor: Colors.orange,
                     title: context.l10n.runOutBlocked,
                     subtitle: context.l10n.shownAsRunOutCannotAdd,
-                    isSelected: _blockSelfOrder,
-                    onTap: () => setState(() => _blockSelfOrder = true),
+                    isSelected: _selfOrderMode == _SelfOrderMode.runOut,
+                    onTap: () =>
+                        setState(() => _selfOrderMode = _SelfOrderMode.runOut),
+                  ),
+                  const Divider(height: 1, indent: 44),
+                  _buildSelfOrderTile(
+                    icon: Icons.visibility_off_outlined,
+                    iconColor: Colors.deepPurple,
+                    title: context.l10n.posOnly,
+                    subtitle: context.l10n.posOnlyHint,
+                    isSelected: _selfOrderMode == _SelfOrderMode.posOnly,
+                    onTap: () =>
+                        setState(() => _selfOrderMode = _SelfOrderMode.posOnly),
                   ),
                 ],
               ),
@@ -224,8 +259,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.extension_outlined,
-                          size: 18, color: LaDolcePosUi.mutedText),
+                      Icon(
+                        Icons.extension_outlined,
+                        size: 18,
+                        color: LaDolcePosUi.mutedText,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         context.l10n.availableToppings,
@@ -249,49 +287,10 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                       ),
                     )
                   else
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: widget.toppings.map((t) {
-                        final isSelected =
-                            _selectedToppingIds.contains(t.id);
-                        return FilterChip(
-                          label: Text(
-                            t.name,
-                            style: TextStyle(
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              fontSize: 13,
-                              color: isSelected
-                                  ? _productAccent
-                                  : LaDolcePosUi.text,
-                            ),
-                          ),
-                          selected: isSelected,
-                          selectedColor:
-                              _productAccent.withValues(alpha: 0.12),
-                          checkmarkColor: _productAccent,
-                          side: BorderSide(
-                            color: isSelected
-                                ? _productAccent.withValues(alpha: 0.4)
-                                : LaDolcePosUi.border,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          onSelected: (bool selected) {
-                            setState(() {
-                              if (selected) {
-                                _selectedToppingIds.add(t.id);
-                              } else {
-                                _selectedToppingIds.remove(t.id);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
+                    for (final section in ToppingRules.sections(
+                      widget.toppings,
+                    ))
+                      _buildToppingSection(section),
                 ],
               ),
               const SizedBox(height: 32),
@@ -314,6 +313,88 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// "Milk · Pick 1 · Required   All", then the group's options as chips.
+  Widget _buildToppingSection(ToppingSection section) {
+    final ids = section.options.map((t) => t.id).toList();
+    final allSelected = ids.every(_selectedToppingIds.contains);
+    final parts = section.isGroup
+        ? [
+            section.title,
+            section.multiple ? context.l10n.pickMany : context.l10n.pickOne,
+            if (section.required) context.l10n.requiredLabel,
+          ]
+        : [context.l10n.noGroupAddOn];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  parts.join(' · '),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: LaDolcePosUi.mutedText,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _selectedToppingIds.removeWhere(ids.contains);
+                  if (!allSelected) _selectedToppingIds.addAll(ids);
+                }),
+                child: Text(context.l10n.selectAllShort),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [for (final t in section.options) _buildToppingChip(t)],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToppingChip(Topping t) {
+    final isSelected = _selectedToppingIds.contains(t.id);
+    final price = t.extraPrice > 0
+        ? ' +₭${t.extraPrice.toStringAsFixed(0)}'
+        : '';
+    return FilterChip(
+      label: Text(
+        '${t.displayName}$price',
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          fontSize: 13,
+          color: isSelected ? _productAccent : LaDolcePosUi.text,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: _productAccent.withValues(alpha: 0.12),
+      checkmarkColor: _productAccent,
+      side: BorderSide(
+        color: isSelected
+            ? _productAccent.withValues(alpha: 0.4)
+            : LaDolcePosUi.border,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      onSelected: (bool selected) {
+        setState(() {
+          if (selected) {
+            _selectedToppingIds.add(t.id);
+          } else {
+            _selectedToppingIds.remove(t.id);
+          }
+        });
+      },
     );
   }
 
@@ -355,12 +436,9 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         child: Row(
           children: [
             Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_off,
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
               size: 22,
-              color:
-                  isSelected ? _productAccent : LaDolcePosUi.mutedText,
+              color: isSelected ? _productAccent : LaDolcePosUi.mutedText,
             ),
             const SizedBox(width: 12),
             Icon(icon, size: 20, color: iconColor),

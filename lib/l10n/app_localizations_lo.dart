@@ -2349,4 +2349,93 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get paymentColon => 'ການຊຳລະ:';
+
+  @override
+  String get toppingGroups => 'ກຸ່ມເຄື່ອງເສີມ';
+
+  @override
+  String get noGroupAddOn => 'ບໍ່ມີກຸ່ມ (ເຄື່ອງເສີມ)';
+
+  @override
+  String get addGroup => 'ເພີ່ມກຸ່ມ';
+
+  @override
+  String get groupNameHint => 'ຊື່ກຸ່ມ (ເຊັ່ນ ຂະໜາດ)';
+
+  @override
+  String get laoNameOptional => 'ຊື່ພາສາລາວ (ບໍ່ບັງຄັບ)';
+
+  @override
+  String get pickOne => 'ເລືອກ 1';
+
+  @override
+  String get pickOneHint => 'ເລືອກອັນດຽວ ເຊັ່ນ ຮ້ອນ / ເຢັນ / ປັ່ນ';
+
+  @override
+  String get pickMany => 'ເລືອກຫຼາຍ';
+
+  @override
+  String get pickManyHint => 'ເລືອກໄດ້ຫຼາຍ ເຊັ່ນ ເພີ່ມຊັອດ + ນົມໂອ໊ດ';
+
+  @override
+  String get requiredLabel => 'ບັງຄັບເລືອກ';
+
+  @override
+  String get requiredHint => 'ຕ້ອງເລືອກໜຶ່ງຕົວເລືອກກ່ອນເພີ່ມລາຍການ';
+
+  @override
+  String get noGroupsYet => 'ຍັງບໍ່ມີກຸ່ມ';
+
+  @override
+  String get noGroupsYetHint =>
+      'ກຸ່ມຈະຈັດເຄື່ອງເສີມໄວ້ໃຕ້ຫົວຂໍ້ ເຊັ່ນ ປະເພດ (ຮ້ອນ / ເຢັນ), ລົດຊາດ ຫຼື ຂະໜາດ (M / L).';
+
+  @override
+  String get deleteGroup => 'ລຶບກຸ່ມ';
+
+  @override
+  String deleteGroupConfirm(String name) {
+    return 'ລຶບ \"$name\" ບໍ? ເຄື່ອງເສີມໃນກຸ່ມຈະຍັງຢູ່ ເປັນເຄື່ອງເສີມທົ່ວໄປ.';
+  }
+
+  @override
+  String get groupSaved => 'ບັນທຶກກຸ່ມແລ້ວ';
+
+  @override
+  String get groupDeleted => 'ລຶບກຸ່ມແລ້ວ';
+
+  @override
+  String couldNotSaveGroup(String error) {
+    return 'ບັນທຶກກຸ່ມບໍ່ໄດ້: $error';
+  }
+
+  @override
+  String get selectedByDefault => 'ເລືອກໄວ້ກ່ອນ';
+
+  @override
+  String get selectedByDefaultHint => 'ຈະຖືກຕິກໄວ້ເມື່ອເພີ່ມລາຍການ';
+
+  @override
+  String pleaseChooseGroups(String groups) {
+    return 'ກະລຸນາເລືອກ: $groups';
+  }
+
+  @override
+  String get addOns => 'ເຄື່ອງເສີມ';
+
+  @override
+  String get posOnly => 'ສະເພາະ POS';
+
+  @override
+  String get posOnlyHint => 'ບໍ່ສະແດງໃນແອັບລູກຄ້າ; ຂາຍໄດ້ສະເພາະແຄັດເຊຍ';
+
+  @override
+  String get posOnlyCategory => 'ສະເພາະ POS (ບໍ່ສະແດງໃນແອັບລູກຄ້າ)';
+
+  @override
+  String get posOnlyCategoryHint =>
+      'ສິນຄ້າໃນໝວດນີ້ສະແດງໃນ POS ແຕ່ບໍ່ສະແດງໃນແອັບລູກຄ້າ';
+
+  @override
+  String get selectAllShort => 'ທັງໝົດ';
 }

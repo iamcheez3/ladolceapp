@@ -24,6 +24,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
   final ApiService _apiService = ApiService();
   late final TextEditingController _nameController;
   late bool _showInApp;
+  late bool _posOnly;
   bool _isSaving = false;
 
   static const Color _accent = Colors.blue;
@@ -33,6 +34,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.category?['name'] ?? '');
     _showInApp = widget.category?['pos_show_in_app'] ?? true;
+    _posOnly = widget.category?['hide_in_self_order'] == true;
   }
 
   @override
@@ -57,6 +59,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
         id: widget.category?['id'],
         name: name,
         showInApp: _showInApp,
+        hideInSelfOrder: _posOnly,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -174,6 +177,58 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                             value: _showInApp,
                             activeColor: _accent,
                             onChanged: (v) => setState(() => _showInApp = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm),
+                        border: Border.all(
+                          color: Colors.deepPurple.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.visibility_off_outlined,
+                            color: _posOnly
+                                ? Colors.deepPurple
+                                : LaDolcePosUi.mutedText,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  context.l10n.posOnlyCategory,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: _posOnly
+                                        ? LaDolcePosUi.text
+                                        : LaDolcePosUi.mutedText,
+                                  ),
+                                ),
+                                Text(
+                                  context.l10n.posOnlyCategoryHint,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: LaDolcePosUi.mutedText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _posOnly,
+                            activeThumbColor: Colors.deepPurple,
+                            onChanged: (v) => setState(() => _posOnly = v),
                           ),
                         ],
                       ),

@@ -1157,5 +1157,53 @@
   "dateColon": "Date:",
   "cashierColon": "Cashier:",
   "tableColon": "Table:",
-  "paymentColon": "Payment:"
+  "paymentColon": "Payment:",
+  "toppingGroups": "Topping groups",
+  "noGroupAddOn": "No group (add-on)",
+  "addGroup": "Add group",
+  "groupNameHint": "Group name (e.g. Size)",
+  "laoNameOptional": "Lao name (optional)",
+  "pickOne": "Pick 1",
+  "pickOneHint": "Pick one, e.g. Hot / Iced / Frappe",
+  "pickMany": "Pick many",
+  "pickManyHint": "Pick many, e.g. extra shot + oat milk",
+  "requiredLabel": "Required",
+  "requiredHint": "An option must be chosen before adding the item",
+  "noGroupsYet": "No groups yet",
+  "noGroupsYetHint": "Groups put toppings under headings like Type (Hot / Iced), Taste or Size (M / L).",
+  "deleteGroup": "Delete group",
+  "deleteGroupConfirm": "Delete \"{name}\"? Its toppings stay, as add-ons.",
+  "@deleteGroupConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "groupSaved": "Group saved",
+  "groupDeleted": "Group deleted",
+  "couldNotSaveGroup": "Could not save the group: {error}",
+  "@couldNotSaveGroup": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "selectedByDefault": "Selected by default",
+  "selectedByDefaultHint": "Ticked when the item is added",
+  "pleaseChooseGroups": "Please choose: {groups}",
+  "@pleaseChooseGroups": {
+    "placeholders": {
+      "groups": {
+        "type": "String"
+      }
+    }
+  },
+  "addOns": "Add-ons",
+  "posOnly": "POS only",
+  "posOnlyHint": "Hidden in self-order; only the cashier can sell it",
+  "posOnlyCategory": "POS only (hide in self-order)",
+  "posOnlyCategoryHint": "Products of this category show in the cashier POS but not in the customer app",
+  "selectAllShort": "All"
 }

@@ -3,8 +3,10 @@ import '../services/api_service.dart';
 import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import 'manage_topping_groups_screen.dart';
 import 'topping_edit_screen.dart';
 import '../utils/l10n_ext.dart';
+import '../widgets/topping_picker.dart';
 
 class ManageToppingsScreen extends StatefulWidget {
   const ManageToppingsScreen({super.key});
@@ -34,7 +36,7 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
     });
 
     try {
-      final data = await _apiService.fetchToppings();
+      final data = await _apiService.fetchToppings(forceRefresh: true);
       if (mounted) {
         setState(() {
           _toppings = data.map((json) => Topping.fromJson(json)).toList();
@@ -54,9 +56,7 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
   void _openToppingScreen({Topping? topping}) {
     Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => ToppingEditScreen(topping: topping),
-      ),
+      MaterialPageRoute(builder: (_) => ToppingEditScreen(topping: topping)),
     ).then((saved) {
       if (saved == true) _fetchToppings();
     });
@@ -90,14 +90,20 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
       _fetchToppings();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.toppingDeleted), backgroundColor: Colors.orange),
+          SnackBar(
+            content: Text(context.l10n.toppingDeleted),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.errorWithMessage(e.toString())), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(context.l10n.errorWithMessage(e.toString())),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -111,6 +117,17 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            icon: const Icon(Icons.view_agenda_outlined, size: 20),
+            label: Text(context.l10n.toppingGroups),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ManageToppingGroupsScreen(),
+              ),
+            ).then((_) => _fetchToppings()),
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: context.l10n.addTopping,
@@ -122,77 +139,116 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64, height: 64,
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 32),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: _fetchToppings,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: Text(context.l10n.retry),
-                            style: LaDolcePosUi.primaryButtonStyle(),
-                          ),
-                        ],
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(
+                          Icons.error_outline_rounded,
+                          color: Colors.red,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: _fetchToppings,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: Text(context.l10n.retry),
+                        style: LaDolcePosUi.primaryButtonStyle(),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : _toppings.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: _accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(
+                          Icons.eco_outlined,
+                          color: _accent.withValues(alpha: 0.5),
+                          size: 40,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        context.l10n.noToppingsYet,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        context.l10n.addYourFirstToppingToGet,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: LaDolcePosUi.mutedText,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(context.l10n.addTopping),
+                        onPressed: () => _openToppingScreen(),
+                        style: LaDolcePosUi.primaryButtonStyle(),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : ListView(
+                padding: const EdgeInsets.only(top: 8, bottom: 88),
+                children: [
+                  for (final section in ToppingRules.sections(_toppings)) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+                      child: Text(
+                        section.isGroup
+                            ? section.title
+                            : context.l10n.noGroupAddOn,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: LaDolcePosUi.navy,
+                        ),
                       ),
                     ),
-                  )
-                : _toppings.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 80, height: 80,
-                                decoration: BoxDecoration(
-                                  color: _accent.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Icon(Icons.eco_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(context.l10n.noToppingsYet, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 6),
-                              Text(context.l10n.addYourFirstToppingToGet,
-                                  style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText)),
-                              const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.add, size: 18),
-                                label: Text(context.l10n.addTopping),
-                                onPressed: () => _openToppingScreen(),
-                                style: LaDolcePosUi.primaryButtonStyle(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 8, bottom: 88),
-                        itemCount: _toppings.length,
-                        itemBuilder: (context, index) {
-                          final topping = _toppings[index];
-                          return _ToppingCard(
-                            topping: topping,
-                            accent: _accent,
-                            onTap: () => _openToppingScreen(topping: topping),
-                            onDelete: () => _deleteTopping(topping.id),
-                          );
-                        },
+                    for (final topping in section.options)
+                      _ToppingCard(
+                        topping: topping,
+                        accent: _accent,
+                        onTap: () => _openToppingScreen(topping: topping),
+                        onDelete: () => _deleteTopping(topping.id),
                       ),
+                  ],
+                ],
+              ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: LaDolcePosUi.navy,
@@ -256,14 +312,20 @@ class _ToppingCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        topping.name,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                        topping.displayName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: topping.extraPrice > 0
                               ? accent.withValues(alpha: 0.1)
@@ -272,12 +334,14 @@ class _ToppingCard extends StatelessWidget {
                         ),
                         child: Text(
                           topping.extraPrice > 0
-                              ? '+\$${topping.extraPrice.toStringAsFixed(2)}'
+                              ? '+₭${topping.extraPrice.toStringAsFixed(0)}'
                               : context.l10n.free,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: topping.extraPrice > 0 ? accent : LaDolcePosUi.mutedText,
+                            color: topping.extraPrice > 0
+                                ? accent
+                                : LaDolcePosUi.mutedText,
                           ),
                         ),
                       ),
@@ -285,7 +349,8 @@ class _ToppingCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   child: IconButton(
                     icon: const Icon(Icons.delete_outline_rounded, size: 20),
                     color: Colors.red.withValues(alpha: 0.7),

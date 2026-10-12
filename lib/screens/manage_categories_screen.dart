@@ -33,7 +33,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
     });
 
     try {
-      final data = await _apiService.fetchCategories();
+      final data = await _apiService.fetchCategories(forceRefresh: true);
       if (mounted) {
         setState(() {
           _categories = data;

@@ -13,6 +13,7 @@ import '../models/product.dart';
 import '../models/table.dart';
 import '../models/payment_method.dart';
 import '../models/ticket.dart';
+import '../models/topping.dart';
 import '../models/pos_tax_config.dart';
 import '../models/chat_message.dart';
 import 'network_service.dart';
@@ -2679,45 +2680,167 @@ class ApiService {
     }
   }
 
-  Future<dynamic> addTopping(String name, double extraPrice) async {
-    final base = await getBaseUrl();
-    try {
-      final url = Uri.parse('$base/pos/toppings');
-      final response = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'name': name, 'extra_price': extraPrice}),
-          )
-          .timeout(const Duration(seconds: 5));
+  /// `user_id` + `session_id` for endpoints behind `@require_session()`, in
+  /// case the session cookie does not reach the server (tunnels, proxies).
+  Future<Map<String, String>> _sessionFields() async {
+    final user = await getCachedUser();
+    final userId = (user != null && user['user_id'] != null)
+        ? (user['user_id'] is int
+              ? user['user_id'] as int
+              : int.tryParse(user['user_id']?.toString() ?? '') ?? 0)
+        : 0;
+    final sid = await getCachedSessionId() ?? '';
+    return {
+      if (userId > 0) 'user_id': '$userId',
+      if (sid.isNotEmpty) 'session_id': sid,
+    };
+  }
 
-      final jsonResp = jsonDecode(response.body);
-      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
-        final data = jsonResp['data'];
-        await _updateCacheList('cached_toppings', data);
-        return data;
-      }
-      throw Exception(jsonResp['message'] ?? 'Failed to add topping');
-    } catch (e) {
-      throw Exception('Network error: Cannot add topping');
+  /// Creates a topping, or updates it when [id] is given (the backend used to
+  /// only create, so editing made a duplicate). Needs the login session:
+  /// without it the server answers 401.
+  Future<Map<String, dynamic>> saveTopping({
+    int? id,
+    required String name,
+    String nameLo = '',
+    double extraPrice = 0.0,
+    int? groupId,
+    bool isDefault = false,
+  }) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/toppings');
+    final response = await http
+        .post(
+          url,
+          headers: await _authHeaders(json: true),
+          body: jsonEncode({
+            if (id != null) 'id': id,
+            'name': name,
+            'name_lo': nameLo,
+            'extra_price': extraPrice,
+            'group_id': groupId,
+            'is_default': groupId != null && isDefault,
+            ...await _sessionFields(),
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+      final data = Map<String, dynamic>.from(jsonResp['data'] as Map);
+      await _updateCacheList('cached_toppings', data);
+      return data;
     }
+    throw Exception(
+      (jsonResp is Map ? jsonResp['message'] : null) ??
+          'Failed to save topping (${response.statusCode})',
+    );
   }
 
   Future<void> deleteTopping(int id) async {
     final base = await getBaseUrl();
-    try {
-      final url = Uri.parse('$base/pos/toppings/$id');
-      final response = await http
-          .delete(url)
-          .timeout(const Duration(seconds: 5));
-      final jsonResp = jsonDecode(response.body);
-      if (response.statusCode != 200 || jsonResp['status'] != 'success') {
-        throw Exception(jsonResp['message'] ?? 'Failed to delete topping');
-      }
-      await _removeFromCacheList('cached_toppings', id);
-    } catch (e) {
-      throw Exception('Network error: Cannot delete topping');
+    final url = Uri.parse(
+      '$base/pos/toppings/$id',
+    ).replace(queryParameters: await _sessionFields());
+    final response = await http
+        .delete(url, headers: await _authHeaders(json: true))
+        .timeout(const Duration(seconds: 8));
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode != 200 || jsonResp['status'] != 'success') {
+      throw Exception(
+        (jsonResp is Map ? jsonResp['message'] : null) ??
+            'Failed to delete topping (${response.statusCode})',
+      );
     }
+    await _removeFromCacheList('cached_toppings', id);
+  }
+
+  /// Topping groups ("Type", "Taste", "Size"). Backend: `/api/pos/topping_groups`.
+  Future<List<ToppingGroup>> fetchToppingGroups({
+    bool forceRefresh = false,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<ToppingGroup> parse(dynamic raw) => (raw as List)
+        .whereType<Map>()
+        .map((g) => ToppingGroup.fromJson(Map<String, dynamic>.from(g)))
+        .toList();
+    if (!forceRefresh) {
+      final cached = prefs.getString('cached_topping_groups');
+      if (cached != null) return parse(jsonDecode(cached));
+    }
+    final base = await getBaseUrl();
+    try {
+      final response = await http
+          .get(Uri.parse('$base/pos/topping_groups'))
+          .timeout(const Duration(seconds: 6));
+      final jsonResp = jsonDecode(response.body);
+      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+        await prefs.setString(
+          'cached_topping_groups',
+          jsonEncode(jsonResp['data']),
+        );
+        return parse(jsonResp['data']);
+      }
+      throw Exception('Failed to load topping groups');
+    } catch (_) {
+      final cached = prefs.getString('cached_topping_groups');
+      if (cached != null) return parse(jsonDecode(cached));
+      rethrow;
+    }
+  }
+
+  /// Creates a group, or updates it when [id] is given.
+  Future<ToppingGroup> saveToppingGroup({
+    int? id,
+    required String name,
+    String nameLo = '',
+    required bool multiple,
+    required bool required,
+  }) async {
+    final base = await getBaseUrl();
+    final response = await http
+        .post(
+          Uri.parse('$base/pos/topping_groups'),
+          headers: await _authHeaders(json: true),
+          body: jsonEncode({
+            if (id != null) 'id': id,
+            'name': name,
+            'name_lo': nameLo,
+            'selection_type': multiple ? 'multiple' : 'single',
+            'required': required,
+            ...await _sessionFields(),
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+      final data = Map<String, dynamic>.from(jsonResp['data'] as Map);
+      await _updateCacheList('cached_topping_groups', data);
+      return ToppingGroup.fromJson(data);
+    }
+    throw Exception(
+      (jsonResp is Map ? jsonResp['message'] : null) ??
+          'Failed to save group (${response.statusCode})',
+    );
+  }
+
+  /// Deletes a group; its toppings stay, as plain add-ons.
+  Future<void> deleteToppingGroup(int id) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse(
+      '$base/pos/topping_groups/$id',
+    ).replace(queryParameters: await _sessionFields());
+    final response = await http
+        .delete(url, headers: await _authHeaders(json: true))
+        .timeout(const Duration(seconds: 8));
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode != 200 || jsonResp['status'] != 'success') {
+      throw Exception(
+        (jsonResp is Map ? jsonResp['message'] : null) ??
+            'Failed to delete group (${response.statusCode})',
+      );
+    }
+    await _removeFromCacheList('cached_topping_groups', id);
   }
 
   Future<List<dynamic>> fetchCategories({bool forceRefresh = false}) async {
@@ -2754,6 +2877,7 @@ class ApiService {
     int? id,
     required String name,
     required bool showInApp,
+    bool? hideInSelfOrder,
   }) async {
     final base = await getBaseUrl();
     try {
@@ -2766,6 +2890,8 @@ class ApiService {
               'id': id,
               'name': name,
               'pos_show_in_app': showInApp,
+              if (hideInSelfOrder != null)
+                'hide_in_self_order': hideInSelfOrder,
             }),
           )
           .timeout(const Duration(seconds: 5));
@@ -2882,6 +3008,7 @@ class ApiService {
     int? categoryId,
     List<int>? toppingIds,
     bool blockSelfOrder = false,
+    bool hideInSelfOrder = false,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/products');
@@ -2889,6 +3016,7 @@ class ApiService {
       'name': name,
       'list_price': listPrice,
       'block_self_order': blockSelfOrder,
+      'hide_in_self_order': hideInSelfOrder,
     };
     if (id != null) bodyData['id'] = id;
     if (categoryId != null) bodyData['categ_id'] = categoryId;

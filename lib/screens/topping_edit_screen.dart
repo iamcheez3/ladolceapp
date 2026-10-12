@@ -19,21 +19,50 @@ class ToppingEditScreen extends StatefulWidget {
 class _ToppingEditScreenState extends State<ToppingEditScreen> {
   final ApiService _apiService = ApiService();
   late final TextEditingController _nameController;
+  late final TextEditingController _nameLoController;
   late final TextEditingController _priceController;
   bool _isSaving = false;
+  List<ToppingGroup> _groups = [];
+  int? _groupId;
+  bool _isDefault = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.topping?.name ?? '');
-    _priceController = TextEditingController(
-      text: widget.topping != null ? widget.topping!.extraPrice.toString() : '',
+    final t = widget.topping;
+    _nameController = TextEditingController(text: t?.name ?? '');
+    // The backend echoes the English name when no Lao name is saved.
+    _nameLoController = TextEditingController(
+      text: (t == null || t.nameLo == t.name) ? '' : t.nameLo,
     );
+    _priceController = TextEditingController(
+      text: t != null ? t.extraPrice.toStringAsFixed(0) : '',
+    );
+    _groupId = t?.groupId;
+    _isDefault = t?.isDefault ?? false;
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final groups = await _apiService.fetchToppingGroups(forceRefresh: true);
+      groups.sort((a, b) => a.sequence.compareTo(b.sequence));
+      if (!mounted) return;
+      setState(() {
+        _groups = groups;
+        if (_groupId != null && !groups.any((g) => g.id == _groupId)) {
+          _groupId = null;
+        }
+      });
+    } catch (_) {
+      // Without groups the topping can still be saved as a plain add-on.
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _nameLoController.dispose();
     _priceController.dispose();
     super.dispose();
   }
@@ -44,16 +73,23 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
     final price = double.tryParse(priceStr) ?? 0.0;
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.nameIsRequired)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.nameIsRequired)));
       return;
     }
 
     setState(() => _isSaving = true);
 
     try {
-      await _apiService.addTopping(name, price);
+      await _apiService.saveTopping(
+        id: widget.topping?.id,
+        name: name,
+        nameLo: _nameLoController.text.trim(),
+        extraPrice: price,
+        groupId: _groupId,
+        isDefault: _isDefault,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -68,7 +104,10 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
       debugPrint('[ToppingEdit] save failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.couldNotSaveToppingPleaseTry), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(context.l10n.couldNotSaveToppingPleaseTry),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -78,7 +117,9 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.topping!.name : context.l10n.addTopping),
+        title: Text(
+          widget.isEditing ? widget.topping!.name : context.l10n.addTopping,
+        ),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -87,15 +128,26 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
               child: Padding(
                 padding: EdgeInsets.only(right: 16),
                 child: SizedBox(
-                  width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             )
           else
             TextButton(
               onPressed: _save,
-              child: Text(context.l10n.save, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text(
+                context.l10n.save,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
             ),
         ],
       ),
@@ -132,13 +184,77 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
                     ),
                     const SizedBox(height: 14),
                     TextField(
+                      controller: _nameLoController,
+                      decoration: LaDolcePosUi.input(
+                        hintText: context.l10n.laoNameOptional,
+                        prefixIcon: const Icon(Icons.translate, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
                       controller: _priceController,
                       decoration: LaDolcePosUi.input(
                         hintText: context.l10n.extraPriceOptional,
-                        prefixIcon: const Icon(Icons.attach_money, size: 20),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text(
+                            '₭',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: LaDolcePosUi.card,
+                  borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
+                  border: Border.all(color: LaDolcePosUi.border),
+                ),
+                child: Column(
+                  children: [
+                    DropdownButtonFormField<int?>(
+                      initialValue: _groupId,
+                      isExpanded: true,
+                      decoration: LaDolcePosUi.input(
+                        hintText: context.l10n.toppingGroups,
+                        prefixIcon: const Icon(
+                          Icons.view_agenda_outlined,
+                          size: 20,
+                        ),
+                      ),
+                      items: [
+                        DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text(context.l10n.noGroupAddOn),
+                        ),
+                        for (final g in _groups)
+                          DropdownMenuItem<int?>(
+                            value: g.id,
+                            child: Text(g.displayName),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() => _groupId = v),
+                    ),
+                    if (_groupId != null)
+                      SwitchListTile(
+                        value: _isDefault,
+                        contentPadding: const EdgeInsets.only(top: 8),
+                        activeThumbColor: LaDolcePosUi.navy,
+                        title: Text(context.l10n.selectedByDefault),
+                        subtitle: Text(context.l10n.selectedByDefaultHint),
+                        onChanged: (v) => setState(() => _isDefault = v),
+                      ),
                   ],
                 ),
               ),
@@ -147,8 +263,12 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
                 onPressed: _isSaving ? null : _save,
                 icon: _isSaving
                     ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.save_outlined, size: 20),
                 label: Text(_isSaving ? 'Saving...' : context.l10n.saveTopping),
