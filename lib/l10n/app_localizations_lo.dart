@@ -2438,4 +2438,60 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get selectAllShort => 'ທັງໝົດ';
+
+  @override
+  String get customName => 'ຕັ້ງຊື່ເອງ';
+
+  @override
+  String get ticketNameLabel => 'ຊື່ບິນ';
+
+  @override
+  String get ticketNameHint => 'ເຊັ່ນ ຊື່ລູກຄ້າ';
+
+  @override
+  String get customNameHelp => 'ບັນທຶກອໍເດີນີ້ດ້ວຍຊື່ ແທນໂຕະ.';
+
+  @override
+  String get renameTicket => 'ປ່ຽນຊື່';
+
+  @override
+  String get renameTicketTitle => 'ປ່ຽນຊື່ບິນ';
+
+  @override
+  String get renameTicketHelp => 'ໂຕະຈະຫວ່າງ ແລະ ສະແດງຊື່ນີ້ແທນ.';
+
+  @override
+  String ticketRenamed(String name) {
+    return 'ປ່ຽນຊື່ບິນເປັນ $name ແລ້ວ';
+  }
+
+  @override
+  String ticketSavedAs(String name) {
+    return 'ບັນທຶກບິນເປັນ $name ແລ້ວ';
+  }
+
+  @override
+  String orderRefused(String reason) {
+    return 'ເຊີບເວີບໍ່ຮັບອໍເດີນີ້: $reason';
+  }
+
+  @override
+  String get gridView => 'ມຸມມອງຕາຕະລາງ';
+
+  @override
+  String get listView => 'ມຸມມອງລາຍການ';
+
+  @override
+  String ticketItemsCount(String count) {
+    return '$count ລາຍການ';
+  }
+
+  @override
+  String get ticketOneItem => '1 ລາຍການ';
+
+  @override
+  String get readyDone => 'ພ້ອມແລ້ວ';
+
+  @override
+  String get justNow => 'ຫາກໍ່';
 }

@@ -26,6 +26,14 @@ class OpenTicket {
   final double discountValue;
   final double discountAmount;
 
+  /// Name the cashier gave the ticket instead of a table ("Custom name" /
+  /// "Rename"). The backend already puts it in [tableName].
+  final String ticketLabel;
+
+  /// `delivery_status`; `ready` once the cashier pressed "Order Ready" on a
+  /// pickup self-order.
+  final String deliveryStatus;
+
   OpenTicket({
     required this.id,
     required this.name,
@@ -50,6 +58,8 @@ class OpenTicket {
     this.discountType = '',
     this.discountValue = 0.0,
     this.discountAmount = 0.0,
+    this.ticketLabel = '',
+    this.deliveryStatus = 'none',
   });
 
   factory OpenTicket.fromJson(Map<String, dynamic> json) {
@@ -87,6 +97,8 @@ class OpenTicket {
       discountType: (json['discount_type'] ?? '').toString(),
       discountValue: (json['discount_value'] ?? 0).toDouble(),
       discountAmount: (json['discount_amount'] ?? 0).toDouble(),
+      ticketLabel: json['ticket_label'] is String ? json['ticket_label'] : '',
+      deliveryStatus: (json['delivery_status'] ?? 'none').toString(),
     );
   }
 }
@@ -103,6 +115,10 @@ class TicketLine {
   final List<int> toppingIds;
   final String note;
 
+  /// Free item of a "Buy X get Y free" promotion.
+  final bool isFreePromo;
+  final int? promotionId;
+
   TicketLine({
     required this.productId,
     required this.productName,
@@ -111,6 +127,8 @@ class TicketLine {
     required this.priceUnit,
     this.toppingIds = const [],
     this.note = '',
+    this.isFreePromo = false,
+    this.promotionId,
   });
 
   /// Line label in the app's current language.
@@ -129,6 +147,10 @@ class TicketLine {
           .where((id) => id > 0)
           .toList(),
       note: (json['note'] ?? '').toString(),
+      isFreePromo: json['is_free_promo'] == true,
+      promotionId: json['promotion_id'] is num
+          ? (json['promotion_id'] as num).toInt()
+          : null,
     );
   }
 }

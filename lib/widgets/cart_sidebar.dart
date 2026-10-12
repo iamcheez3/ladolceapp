@@ -142,10 +142,13 @@ class CartSidebar extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              Text(
-                                '${selectedCustomer!['reward_points']} pts',
-                                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
-                              ),
+                              // A customer restored from a saved ticket has
+                              // no points loaded.
+                              if (selectedCustomer!['reward_points'] != null)
+                                Text(
+                                  '${selectedCustomer!['reward_points']} pts',
+                                  style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                                ),
                             ],
                           )
                         : Text(

@@ -1205,5 +1205,49 @@
   "posOnlyHint": "Hidden in self-order; only the cashier can sell it",
   "posOnlyCategory": "POS only (hide in self-order)",
   "posOnlyCategoryHint": "Products of this category show in the cashier POS but not in the customer app",
-  "selectAllShort": "All"
+  "selectAllShort": "All",
+  "customName": "Custom name",
+  "ticketNameLabel": "Ticket name",
+  "ticketNameHint": "e.g. customer name",
+  "customNameHelp": "Save this order under a name instead of a table.",
+  "renameTicket": "Rename",
+  "renameTicketTitle": "Rename ticket",
+  "renameTicketHelp": "The table is freed and this name is shown instead.",
+  "ticketRenamed": "Ticket renamed to {name}",
+  "@ticketRenamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ticketSavedAs": "Ticket saved as {name}",
+  "@ticketSavedAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "orderRefused": "The server refused this order: {reason}",
+  "@orderRefused": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "gridView": "Grid view",
+  "listView": "List view",
+  "ticketItemsCount": "{count} items",
+  "@ticketItemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "ticketOneItem": "1 item",
+  "readyDone": "Ready",
+  "justNow": "just now"
 }

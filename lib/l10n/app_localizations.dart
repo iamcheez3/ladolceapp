@@ -4591,6 +4591,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All'**
   String get selectAllShort;
+
+  /// No description provided for @customName.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom name'**
+  String get customName;
+
+  /// No description provided for @ticketNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticket name'**
+  String get ticketNameLabel;
+
+  /// No description provided for @ticketNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. customer name'**
+  String get ticketNameHint;
+
+  /// No description provided for @customNameHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Save this order under a name instead of a table.'**
+  String get customNameHelp;
+
+  /// No description provided for @renameTicket.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get renameTicket;
+
+  /// No description provided for @renameTicketTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename ticket'**
+  String get renameTicketTitle;
+
+  /// No description provided for @renameTicketHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The table is freed and this name is shown instead.'**
+  String get renameTicketHelp;
+
+  /// No description provided for @ticketRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticket renamed to {name}'**
+  String ticketRenamed(String name);
+
+  /// No description provided for @ticketSavedAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticket saved as {name}'**
+  String ticketSavedAs(String name);
+
+  /// No description provided for @orderRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The server refused this order: {reason}'**
+  String orderRefused(String reason);
+
+  /// No description provided for @gridView.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid view'**
+  String get gridView;
+
+  /// No description provided for @listView.
+  ///
+  /// In en, this message translates to:
+  /// **'List view'**
+  String get listView;
+
+  /// No description provided for @ticketItemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String ticketItemsCount(String count);
+
+  /// No description provided for @ticketOneItem.
+  ///
+  /// In en, this message translates to:
+  /// **'1 item'**
+  String get ticketOneItem;
+
+  /// No description provided for @readyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get readyDone;
+
+  /// No description provided for @justNow.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get justNow;
 }
 
 class _AppLocalizationsDelegate

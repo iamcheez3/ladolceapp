@@ -22,6 +22,9 @@ class ResumedTicket {
   final bool isOffline;
   final bool isSelfOrder;
   final String partnerName;
+  final int? partnerId;
+  final String customerPhone;
+  final String ticketLabel;
   final String deliveryPlaceName;
   final String deliveryPlaceAddress;
   final String discountType;
@@ -41,6 +44,9 @@ class ResumedTicket {
     this.isOffline = false,
     this.isSelfOrder = false,
     this.partnerName = '',
+    this.partnerId,
+    this.customerPhone = '',
+    this.ticketLabel = '',
     this.deliveryPlaceName = '',
     this.deliveryPlaceAddress = '',
     this.discountType = '',
@@ -69,6 +75,10 @@ class _DisplayTicket {
   final String note;
   final bool isSelfOrder;
   final String partnerName;
+  final int? partnerId;
+  final String customerPhone;
+  final String ticketLabel;
+  final String deliveryStatus;
   final String deliveryPlaceName;
   final String deliveryPlaceAddress;
   final String discountType;
@@ -92,12 +102,51 @@ class _DisplayTicket {
     this.note = '',
     this.isSelfOrder = false,
     this.partnerName = '',
+    this.partnerId,
+    this.customerPhone = '',
+    this.ticketLabel = '',
+    this.deliveryStatus = 'none',
     this.deliveryPlaceName = '',
     this.deliveryPlaceAddress = '',
     this.discountType = '',
     this.discountValue = 0.0,
     this.discountAmount = 0.0,
   });
+
+  factory _DisplayTicket.online(OpenTicket t) => _DisplayTicket(
+    id: t.id,
+    name: t.name,
+    tableId: t.tableId,
+    tableName: t.tableName,
+    amountTotal: t.amountTotal,
+    queueNumber: t.queueNumber,
+    paymentType: t.paymentType,
+    paymentMethodId: t.paymentMethodId,
+    paymentMethodName: t.paymentMethodName,
+    lines: t.lines,
+    isOffline: false,
+    openedAt: t.openedAt,
+    note: t.note,
+    isSelfOrder: t.isSelfOrder,
+    partnerName: t.partnerName,
+    partnerId: t.partnerId,
+    customerPhone: t.customerPhone,
+    ticketLabel: t.ticketLabel,
+    deliveryStatus: t.deliveryStatus,
+    deliveryPlaceName: t.deliveryPlaceName,
+    deliveryPlaceAddress: t.deliveryPlaceAddress,
+    discountType: t.discountType,
+    discountValue: t.discountValue,
+    discountAmount: t.discountAmount,
+  );
+
+  /// Table name, or the name the cashier gave the ticket.
+  String placeLabel(BuildContext context) {
+    if (ticketLabel.trim().isNotEmpty) return ticketLabel.trim();
+    if (tableName != null && tableName!.trim().isNotEmpty) return tableName!;
+    if (tableId != null) return 'Table #$tableId';
+    return context.l10n.noTable2;
+  }
 }
 
 class TicketsScreen extends StatefulWidget {
@@ -115,13 +164,18 @@ class _TicketsScreenState extends State<TicketsScreen> {
   String? _errorMessage;
   List<_DisplayTicket> _tickets = [];
   final Set<int> _notifyingReadyOrderIds = {};
+  final Set<int> _readyOrderIds = {};
   Timer? _tickTimer;
+  bool _listView = false;
+
+  static const _viewModeKey = 'open_tickets_list_view';
   late final Map<int, Product> _productById;
 
   @override
   void initState() {
     super.initState();
     _productById = {for (final p in widget.cachedProducts) p.id: p};
+    _loadViewMode();
     _fetchTickets(backgroundRefresh: false);
     // Rebuild every minute so duration badges stay current
     _tickTimer = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -134,6 +188,22 @@ class _TicketsScreenState extends State<TicketsScreen> {
     _tickTimer?.cancel();
     super.dispose();
   }
+
+  Future<void> _loadViewMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _listView = prefs.getBool(_viewModeKey) ?? false);
+  }
+
+  Future<void> _toggleViewMode() async {
+    setState(() => _listView = !_listView);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_viewModeKey, _listView);
+  }
+
+  bool _isReady(_DisplayTicket t) =>
+      t.deliveryStatus == 'ready' ||
+      (t.id != null && _readyOrderIds.contains(t.id));
 
   Future<void> _fetchTickets({required bool backgroundRefresh}) async {
     if (!backgroundRefresh) {
@@ -216,30 +286,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
           continue;
         }
 
-        combined.add(
-          _DisplayTicket(
-            id: t.id,
-            name: t.name,
-            tableId: t.tableId,
-            tableName: t.tableName,
-            amountTotal: t.amountTotal,
-            queueNumber: t.queueNumber,
-            paymentType: t.paymentType,
-            paymentMethodId: t.paymentMethodId,
-            paymentMethodName: t.paymentMethodName,
-            lines: t.lines,
-            isOffline: false,
-            openedAt: t.openedAt,
-            note: t.note,
-            isSelfOrder: t.isSelfOrder,
-            partnerName: t.partnerName,
-            deliveryPlaceName: t.deliveryPlaceName,
-            deliveryPlaceAddress: t.deliveryPlaceAddress,
-            discountType: t.discountType,
-            discountValue: t.discountValue,
-            discountAmount: t.discountAmount,
-          ),
-        );
+        combined.add(_DisplayTicket.online(t));
       }
     } catch (e) {
       debugPrint('[Tickets] fetchOpenTickets failed: $e');
@@ -279,30 +326,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
 
       for (final t in onlineTickets) {
         if (refreshed.any((existing) => existing.id == t.id)) continue;
-        refreshed.add(
-          _DisplayTicket(
-            id: t.id,
-            name: t.name,
-            tableId: t.tableId,
-            tableName: t.tableName,
-            amountTotal: t.amountTotal,
-            queueNumber: t.queueNumber,
-            paymentType: t.paymentType,
-            paymentMethodId: t.paymentMethodId,
-            paymentMethodName: t.paymentMethodName,
-            lines: t.lines,
-            isOffline: false,
-            openedAt: t.openedAt,
-            note: t.note,
-            isSelfOrder: t.isSelfOrder,
-            partnerName: t.partnerName,
-            deliveryPlaceName: t.deliveryPlaceName,
-            deliveryPlaceAddress: t.deliveryPlaceAddress,
-            discountType: t.discountType,
-            discountValue: t.discountValue,
-            discountAmount: t.discountAmount,
-          ),
-        );
+        refreshed.add(_DisplayTicket.online(t));
       }
 
       setState(() {
@@ -317,10 +341,14 @@ class _TicketsScreenState extends State<TicketsScreen> {
   Future<void> _resumeTicket(_DisplayTicket ticket) async {
     List<CartItem> cartItems = [];
     for (var line in ticket.lines) {
-      final product = widget.cachedProducts
-          .where((p) => p.id == line.productId)
-          .firstOrNull;
+      final product = _productById[line.productId];
       if (product != null) {
+        // Keep the line's choices: they print on receipts and decide
+        // whether a later item of the same kind merges with this line.
+        final toppings = [
+          for (final id in line.toppingIds)
+            ...product.toppings.where((t) => t.id == id),
+        ];
         cartItems.add(
           CartItem(
             product: product,
@@ -329,13 +357,20 @@ class _TicketsScreenState extends State<TicketsScreen> {
             isPrinted: true, // already sent to kitchen when originally saved
             priceUnitFromOrder: line.priceUnit,
             kitchenNote: line.note,
+            selectedToppings: toppings,
+            isFreePromo: line.isFreePromo,
+            promotionId: line.promotionId,
           ),
         );
       } else {
-        debugPrint('Product ${line.productId} not found in catalog. Creating dummy product for line.');
+        debugPrint(
+          'Product ${line.productId} not found in catalog. Creating dummy product for line.',
+        );
         final dummyProduct = Product(
           id: line.productId,
-          name: line.productName.isNotEmpty ? line.productName : 'Discount / Custom Item',
+          name: line.productName.isNotEmpty
+              ? line.productName
+              : 'Discount / Custom Item',
           nameLo: line.productNameLo,
           price: line.priceUnit,
           category: 'System',
@@ -348,6 +383,8 @@ class _TicketsScreenState extends State<TicketsScreen> {
             isPrinted: true,
             priceUnitFromOrder: line.priceUnit,
             kitchenNote: line.note,
+            isFreePromo: line.isFreePromo,
+            promotionId: line.promotionId,
           ),
         );
       }
@@ -380,6 +417,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
         isOffline: ticket.isOffline,
         isSelfOrder: ticket.isSelfOrder,
         partnerName: ticket.partnerName,
+        partnerId: ticket.partnerId,
+        customerPhone: ticket.customerPhone,
+        ticketLabel: ticket.ticketLabel,
         deliveryPlaceName: ticket.deliveryPlaceName,
         deliveryPlaceAddress: ticket.deliveryPlaceAddress,
         discountType: ticket.discountType,
@@ -397,6 +437,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
     try {
       await _apiService.notifySelfOrderReady(orderId);
       if (!mounted) return;
+      setState(() => _readyOrderIds.add(orderId));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${ticket.name} ready notification sent.'),
@@ -428,6 +469,13 @@ class _TicketsScreenState extends State<TicketsScreen> {
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: Icon(
+              _listView ? Icons.grid_view_rounded : Icons.view_list_rounded,
+            ),
+            tooltip: _listView ? context.l10n.gridView : context.l10n.listView,
+            onPressed: _toggleViewMode,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: context.l10n.refresh,
@@ -478,8 +526,16 @@ class _TicketsScreenState extends State<TicketsScreen> {
       );
     }
 
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    if (_listView) {
+      return ListView.builder(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
+        itemCount: _tickets.length,
+        itemBuilder: (context, index) => _buildTicketTile(_tickets[index]),
+      );
+    }
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 200,
         childAspectRatio: 0.85,
@@ -497,7 +553,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
   /// Returns a human-readable "open for" string, e.g. "5 min", "1h 23m".
   String _formatElapsed(DateTime openedAt) {
     final diff = DateTime.now().difference(openedAt);
-    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 1) return context.l10n.justNow;
     if (diff.inMinutes < 60) return '${diff.inMinutes} min';
     final h = diff.inHours;
     final m = diff.inMinutes % 60;
@@ -517,8 +573,6 @@ class _TicketsScreenState extends State<TicketsScreen> {
     final isSelfOrderTicket = ticket.isSelfOrder && !isOffline;
     final accentColor = isOffline ? Colors.orange : const Color(0xFF1E3A8A);
     final openedAt = ticket.openedAt;
-    final isNotifyingReady =
-        ticket.id != null && _notifyingReadyOrderIds.contains(ticket.id);
     final bodyIconSize = isSelfOrderTicket ? 20.0 : 28.0;
     final tableFontSize = isSelfOrderTicket ? 12.0 : 15.0;
     final itemFontSize = isSelfOrderTicket ? 10.0 : 11.0;
@@ -660,23 +714,21 @@ class _TicketsScreenState extends State<TicketsScreen> {
                         ),
                         SizedBox(height: isSelfOrderTicket ? 2 : 4),
                         Text(
-                          ticket.tableName ??
-                              (ticket.tableId != null
-                                  ? 'Table #${ticket.tableId}'
-                                  : context.l10n.noTable2),
+                          ticket.placeLabel(context),
                           style: TextStyle(
                             fontSize: tableFontSize,
                             fontWeight: FontWeight.bold,
                             color:
                                 ticket.tableName != null ||
-                                    ticket.tableId != null
+                                    ticket.tableId != null ||
+                                    ticket.ticketLabel.isNotEmpty
                                 ? Colors.black87
                                 : Colors.grey,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         Text(
-                          '${ticket.lines.length} item${ticket.lines.length == 1 ? '' : 's'}',
+                          _itemsLabel(ticket),
                           style: TextStyle(
                             fontSize: itemFontSize,
                             color: Colors.grey,
@@ -705,41 +757,182 @@ class _TicketsScreenState extends State<TicketsScreen> {
               ),
               if (isSelfOrderTicket) ...[
                 const SizedBox(height: 6),
-                SizedBox(
-                  height: 32,
-                  child: ElevatedButton.icon(
-                    onPressed: isNotifyingReady
-                        ? null
-                        : () => _notifySelfOrderReady(ticket),
-                    icon: isNotifyingReady
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(
-                            Icons.notifications_active_rounded,
-                            size: 15,
-                          ),
-                    label: FittedBox(
-                      child: Text(
-                        context.l10n.orderReady,
-                        style: TextStyle(fontSize: 12),
+                SizedBox(height: 32, child: _readyButton(ticket)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _itemsLabel(_DisplayTicket ticket) => ticket.lines.length == 1
+      ? context.l10n.ticketOneItem
+      : context.l10n.ticketItemsCount(ticket.lines.length.toString());
+
+  /// "Order Ready" for a self-order; once pressed (or already `ready` on the
+  /// server) an outlined "Ready ✓" that can be tapped to notify again.
+  Widget _readyButton(_DisplayTicket ticket) {
+    final isNotifyingReady =
+        ticket.id != null && _notifyingReadyOrderIds.contains(ticket.id);
+    if (_isReady(ticket) && !isNotifyingReady) {
+      return OutlinedButton.icon(
+        onPressed: () => _notifySelfOrderReady(ticket),
+        icon: const Icon(Icons.check_circle_rounded, size: 16),
+        label: FittedBox(child: Text('${context.l10n.readyDone} ✓')),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF059669),
+          side: const BorderSide(color: Color(0xFF059669), width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+    return ElevatedButton.icon(
+      onPressed: isNotifyingReady ? null : () => _notifySelfOrderReady(ticket),
+      icon: isNotifyingReady
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.notifications_active_rounded, size: 15),
+      label: FittedBox(
+        child: Text(context.l10n.orderReady, style: TextStyle(fontSize: 12)),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF059669),
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: Colors.green.shade100,
+        disabledForegroundColor: Colors.green.shade800,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  /// List row: table icon, place, "POS/2026/00200 · 2 items", time and note
+  /// chips; total and the ready button on the right.
+  Widget _buildTicketTile(_DisplayTicket ticket) {
+    final isOffline = ticket.isOffline;
+    final isSelfOrderTicket = ticket.isSelfOrder && !isOffline;
+    final accent = isOffline ? Colors.orange : const Color(0xFF1E3A8A);
+    final openedAt = ticket.openedAt;
+
+    Widget chip(String text, Color fg, Color bg, {IconData? icon}) => Container(
+      margin: const EdgeInsets.only(top: 6, right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 4),
+          ],
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: fg,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Card(
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: InkWell(
+        onTap: () => _resumeTicket(ticket),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: accent.withValues(alpha: 0.1),
+                child: Icon(
+                  isOffline ? Icons.cloud_off : Icons.table_restaurant,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ticket.placeLabel(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF059669),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.green.shade100,
-                      disabledForegroundColor: Colors.green.shade800,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                    Text(
+                      '${ticket.name} · ${_itemsLabel(ticket)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                    Wrap(
+                      children: [
+                        if (isOffline)
+                          chip(
+                            context.l10n.offline,
+                            Colors.orange,
+                            Colors.orange.shade100,
+                          )
+                        else if (openedAt != null)
+                          chip(
+                            '🕐 ${_formatElapsed(openedAt)}',
+                            _durationColor(openedAt),
+                            _durationColor(openedAt).withValues(alpha: 0.12),
+                          ),
+                        if (ticket.note.isNotEmpty)
+                          chip(
+                            ticket.note,
+                            Colors.orange.shade800,
+                            Colors.orange.shade50,
+                            icon: Icons.edit_note_rounded,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '₭${ticket.amountTotal.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: accent,
                     ),
                   ),
-                ),
-              ],
+                  if (isSelfOrderTicket) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(height: 36, child: _readyButton(ticket)),
+                  ],
+                ],
+              ),
             ],
           ),
         ),

@@ -32,6 +32,18 @@ class TransferProofUploadException implements Exception {
   String toString() => message;
 }
 
+/// The server refused an order (HTTP 4xx with a reason, e.g. a free item the
+/// promotion does not allow). Unlike a network failure this is not queued
+/// offline: the same payload would be refused on every retry.
+class OrderRejectedException implements Exception {
+  OrderRejectedException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class ApiService {
   /// Key used to store the dev IP override in SharedPreferences.
   static const String devBaseUrlKey = 'dev_base_url_override';
@@ -53,8 +65,11 @@ class ApiService {
 
   Future<Map<String, dynamic>> fetchMaintenanceStatus() async {
     try {
-      final response = await _network.get('/pos/maintenance/status',
-          requiresAuth: false, timeout: const Duration(seconds: 5));
+      final response = await _network.get(
+        '/pos/maintenance/status',
+        requiresAuth: false,
+        timeout: const Duration(seconds: 5),
+      );
       final jsonResponse = jsonDecode(response.body);
       if (jsonResponse['status'] == 'success') {
         return jsonResponse['data'];
@@ -69,8 +84,11 @@ class ApiService {
 
   Future<Map<String, dynamic>> fetchPrivacyPolicy() async {
     try {
-      final response = await _network.get('/privacy-policy',
-          requiresAuth: false, timeout: const Duration(seconds: 10));
+      final response = await _network.get(
+        '/privacy-policy',
+        requiresAuth: false,
+        timeout: const Duration(seconds: 10),
+      );
       return jsonDecode(response.body) as Map<String, dynamic>;
     } catch (e) {
       _d('[API ERROR] Failed to fetch privacy policy: $e');
@@ -91,10 +109,7 @@ class ApiService {
 
       final response = await _network.post(
         '/pos/heartbeat',
-        body: {
-          'user_id': userId,
-          if (isNewSession) 'is_login': true,
-        },
+        body: {'user_id': userId, if (isNewSession) 'is_login': true},
         timeout: const Duration(seconds: 5),
       );
 
@@ -121,14 +136,13 @@ class ApiService {
 
       final response = await _network.post(
         '/pos/app_active',
-        body: {
-          'user_id': userId,
-          'is_active': isActive,
-        },
+        body: {'user_id': userId, 'is_active': isActive},
         timeout: const Duration(seconds: 5),
       );
 
-      _d('[APP ACTIVE] Status $isActive sent for user $userId | API Status: ${response.statusCode}');
+      _d(
+        '[APP ACTIVE] Status $isActive sent for user $userId | API Status: ${response.statusCode}',
+      );
     } on NetworkException catch (e) {
       _d('[APP ACTIVE ERROR] $e');
     } catch (e) {
@@ -348,7 +362,9 @@ class ApiService {
   /// Returns cached products instantly (null if no cache)
   Future<List<Product>?> getCachedProducts({int? branchId}) async {
     final prefs = await SharedPreferences.getInstance();
-    final cacheKey = branchId != null ? 'cached_products_$branchId' : 'cached_products';
+    final cacheKey = branchId != null
+        ? 'cached_products_$branchId'
+        : 'cached_products';
     final cached = prefs.getString(cacheKey);
     if (cached == null) return null;
     final List<dynamic> data = jsonDecode(cached);
@@ -362,7 +378,9 @@ class ApiService {
     bool forceRefresh = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final cacheKey = branchId != null ? 'cached_products_$branchId' : 'cached_products';
+    final cacheKey = branchId != null
+        ? 'cached_products_$branchId'
+        : 'cached_products';
     if (!forceRefresh) {
       final cachedStr = prefs.getString(cacheKey);
       if (cachedStr != null) {
@@ -375,7 +393,9 @@ class ApiService {
 
     try {
       final queryParams = branchId != null ? '&branch_id=$branchId' : '';
-      final url = Uri.parse('$base/products?limit=$limit&offset=$offset$queryParams');
+      final url = Uri.parse(
+        '$base/products?limit=$limit&offset=$offset$queryParams',
+      );
       _d('==============================');
       _d('[API CALL] GET $url');
 
@@ -1272,9 +1292,7 @@ class ApiService {
   Future<Map<String, dynamic>> sendOtp(String phone) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/otp/send');
-    final payload = {
-      'phone': phone.trim(),
-    };
+    final payload = {'phone': phone.trim()};
 
     _d('==============================');
     _d('[API CALL] POST $url');
@@ -1305,10 +1323,7 @@ class ApiService {
   Future<Map<String, dynamic>> verifyOtp(String phone, String otpCode) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/otp/verify');
-    final payload = {
-      'phone': phone.trim(),
-      'otp_code': otpCode.trim(),
-    };
+    final payload = {'phone': phone.trim(), 'otp_code': otpCode.trim()};
 
     _d('==============================');
     _d('[API CALL] POST $url');
@@ -1374,10 +1389,9 @@ class ApiService {
       // Return a structured map so the caller can show a conflict dialog.
       if (response.statusCode == 409 &&
           (jsonResponse['status']?.toString() == 'conflict')) {
-        final conflictData =
-            (jsonResponse['data'] is Map)
-                ? Map<String, dynamic>.from(jsonResponse['data'] as Map)
-                : <String, dynamic>{};
+        final conflictData = (jsonResponse['data'] is Map)
+            ? Map<String, dynamic>.from(jsonResponse['data'] as Map)
+            : <String, dynamic>{};
         return {
           'status': 'conflict',
           'message': jsonResponse['message']?.toString() ?? 'Session conflict',
@@ -1386,74 +1400,74 @@ class ApiService {
       }
 
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-      final data = jsonResponse['data'];
-      final sessionId = jsonResponse['session_id'];
+        final data = jsonResponse['data'];
+        final sessionId = jsonResponse['session_id'];
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cached_user_session', sessionId ?? '');
-      await prefs.setString('cached_user_data', jsonEncode(data));
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_user_session', sessionId ?? '');
+        await prefs.setString('cached_user_data', jsonEncode(data));
 
-      // Cache branch from backend profile (cashier/admin)
-      try {
-        if (data is Map) {
-          final branchId = (data['branch_id'] is int)
-              ? data['branch_id'] as int
-              : int.tryParse(data['branch_id']?.toString() ?? '');
-          final branchName = (data['branch_name'] ?? '').toString();
-          if (branchId != null && branchId > 0) {
-            await setCachedBranch(branchId: branchId, branchName: branchName);
-          } else if (branchName.trim().isNotEmpty) {
-            await setCachedBranch(branchId: null, branchName: branchName);
+        // Cache branch from backend profile (cashier/admin)
+        try {
+          if (data is Map) {
+            final branchId = (data['branch_id'] is int)
+                ? data['branch_id'] as int
+                : int.tryParse(data['branch_id']?.toString() ?? '');
+            final branchName = (data['branch_name'] ?? '').toString();
+            if (branchId != null && branchId > 0) {
+              await setCachedBranch(branchId: branchId, branchName: branchName);
+            } else if (branchName.trim().isNotEmpty) {
+              await setCachedBranch(branchId: null, branchName: branchName);
+            }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
 
-      // Cashier: force POS name prompt once per login session.
-      try {
-        final role = (data is Map) ? (data['role']?.toString()) : null;
-        final sid = (sessionId ?? '').toString().trim();
-        if (role == 'cashier' && sid.isNotEmpty) {
-          await prefs.setString(_posIdentityPromptSessionKey, sid);
-        }
-      } catch (_) {}
-
-      // Customer: silently log device on login for audit trail.
-      // Backend requires non-empty `pos_name`, but customers don't pick a POS name,
-      // so use a stable label for self-order devices.
-      try {
-        final role = (data is Map) ? (data['role']?.toString()) : null;
-        if (role == 'customer' && data is Map) {
-          final userId = (data['user_id'] is int)
-              ? data['user_id'] as int
-              : int.tryParse(data['user_id']?.toString() ?? '') ?? 0;
-          final name = (data['name'] ?? 'Customer').toString();
-          if (userId > 0) {
-            Future(() async {
-              try {
-                await registerPosDevice(
-                  userId: userId,
-                  cashierName: name,
-                  posName: 'SelfOrder',
-                  branchId: await getCachedBranchId(),
-                  branchName: await getCachedBranchName(),
-                );
-              } catch (_) {}
-            });
+        // Cashier: force POS name prompt once per login session.
+        try {
+          final role = (data is Map) ? (data['role']?.toString()) : null;
+          final sid = (sessionId ?? '').toString().trim();
+          if (role == 'cashier' && sid.isNotEmpty) {
+            await prefs.setString(_posIdentityPromptSessionKey, sid);
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
 
-      return data;
-    } else {
-      final rawMsg = (jsonResponse['message'] ?? '').toString();
-      // Odoo answers "Access Denied" for bad credentials — show a friendly
-      // message instead of the raw (often nested) exception string.
-      if (response.statusCode == 401 ||
-          rawMsg.toLowerCase().contains('access denied')) {
-        throw Exception('Incorrect email or password');
+        // Customer: silently log device on login for audit trail.
+        // Backend requires non-empty `pos_name`, but customers don't pick a POS name,
+        // so use a stable label for self-order devices.
+        try {
+          final role = (data is Map) ? (data['role']?.toString()) : null;
+          if (role == 'customer' && data is Map) {
+            final userId = (data['user_id'] is int)
+                ? data['user_id'] as int
+                : int.tryParse(data['user_id']?.toString() ?? '') ?? 0;
+            final name = (data['name'] ?? 'Customer').toString();
+            if (userId > 0) {
+              Future(() async {
+                try {
+                  await registerPosDevice(
+                    userId: userId,
+                    cashierName: name,
+                    posName: 'SelfOrder',
+                    branchId: await getCachedBranchId(),
+                    branchName: await getCachedBranchName(),
+                  );
+                } catch (_) {}
+              });
+            }
+          }
+        } catch (_) {}
+
+        return data;
+      } else {
+        final rawMsg = (jsonResponse['message'] ?? '').toString();
+        // Odoo answers "Access Denied" for bad credentials — show a friendly
+        // message instead of the raw (often nested) exception string.
+        if (response.statusCode == 401 ||
+            rawMsg.toLowerCase().contains('access denied')) {
+          throw Exception('Incorrect email or password');
+        }
+        throw Exception(rawMsg.isNotEmpty ? rawMsg : 'Login failed');
       }
-      throw Exception(rawMsg.isNotEmpty ? rawMsg : 'Login failed');
-    }
     } on NetworkException catch (e) {
       throw Exception('Login failed: ${e.message}');
     } on Exception {
@@ -1637,7 +1651,8 @@ class ApiService {
       if (cn.isNotEmpty) 'customer_name': cn,
       if (cp.isNotEmpty) 'customer_phone': cp,
       if (note != null && note.isNotEmpty) 'note': note,
-      if (couponCode != null && couponCode.trim().isNotEmpty) 'coupon_code': couponCode.trim(),
+      if (couponCode != null && couponCode.trim().isNotEmpty)
+        'coupon_code': couponCode.trim(),
       if ((deliveryPlaceName ?? '').trim().isNotEmpty)
         'delivery_place_name': deliveryPlaceName!.trim(),
       if ((deliveryPlaceAddress ?? '').trim().isNotEmpty)
@@ -1686,8 +1701,11 @@ class ApiService {
         await _updateCacheList('cached_receipt_history', data);
         return data;
       } else {
+        _throwIfRejected(response.statusCode, jsonResponse);
         throw Exception(jsonResponse['message'] ?? 'Failed to submit order');
       }
+    } on OrderRejectedException {
+      rethrow;
     } catch (e) {
       _d(
         '[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e',
@@ -1729,6 +1747,15 @@ class ApiService {
     }
   }
 
+  /// 400 with a message = the server checked the order and said no.
+  void _throwIfRejected(int statusCode, dynamic jsonResponse) {
+    if (statusCode == 400 &&
+        jsonResponse is Map &&
+        (jsonResponse['message'] ?? '').toString().isNotEmpty) {
+      throw OrderRejectedException(jsonResponse['message'].toString());
+    }
+  }
+
   String _cleanOptionalText(String? value) {
     final text = value?.trim() ?? '';
     final lower = text.toLowerCase();
@@ -1746,12 +1773,14 @@ class ApiService {
     int? tableId,
     int? customerId,
     String? name,
+    String? ticketLabel,
     int? branchId,
     required List<Map<String, dynamic>> lines,
     String? discountType,
     double? discountValue,
   }) async {
     final base = await getBaseUrl();
+    final label = ticketLabel?.trim() ?? '';
     // Use explicitly provided branchId, or fall back to cashier's cached branch.
     final effectiveBranchId = (branchId != null && branchId > 0)
         ? branchId
@@ -1761,6 +1790,8 @@ class ApiService {
       if (tableId != null && tableId > 0) 'table_id': tableId,
       if (customerId != null && customerId > 0) 'partner_id': customerId,
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      // Saved under a name instead of a table ("Custom name").
+      if (label.isNotEmpty) 'ticket_label': label,
       if (effectiveBranchId != null && effectiveBranchId > 0)
         'branch_id': effectiveBranchId,
       'lines': lines,
@@ -1796,9 +1827,12 @@ class ApiService {
           'id': data['order_id'],
           'name': data['order_reference'],
           'table_id': tableId,
-          'table_name': tableId != null
+          'table_name': label.isNotEmpty
+              ? label
+              : tableId != null
               ? 'Table $tableId'
               : (name ?? 'Customer'),
+          if (label.isNotEmpty) 'ticket_label': label,
           'amount_total': _discountedTotal(
             subtotal,
             discountType,
@@ -1825,6 +1859,9 @@ class ApiService {
                   'qty': l['qty'],
                   'price_unit': l['price_unit'],
                   'topping_ids': l['topping_ids'] ?? [],
+                  if (l['is_free_promo'] == true) 'is_free_promo': true,
+                  if (l['promotion_id'] != null)
+                    'promotion_id': l['promotion_id'],
                 },
               )
               .toList(),
@@ -1835,8 +1872,11 @@ class ApiService {
         }
         return data;
       } else {
+        _throwIfRejected(response.statusCode, jsonResponse);
         throw Exception(jsonResponse['message'] ?? 'Failed to create order');
       }
+    } on OrderRejectedException {
+      rethrow;
     } catch (e) {
       final mockId = -DateTime.now().millisecondsSinceEpoch;
       await _queueOfflineOrder({
@@ -1855,7 +1895,12 @@ class ApiService {
         'id': mockId,
         'name': 'OFFLINE-MOCK', // Using static or mock name
         'table_id': tableId,
-        'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
+        'table_name': label.isNotEmpty
+            ? label
+            : tableId != null
+            ? 'Table $tableId'
+            : (name ?? 'Customer'),
+        if (label.isNotEmpty) 'ticket_label': label,
         'partner_id': customerId, // keeping for record
         'amount_total': _discountedTotal(subtotal, discountType, discountValue),
         'state': 'draft',
@@ -1875,6 +1920,9 @@ class ApiService {
                 'qty': l['qty'],
                 'price_unit': l['price_unit'],
                 'topping_ids': l['topping_ids'] ?? [],
+                if (l['is_free_promo'] == true) 'is_free_promo': true,
+                if (l['promotion_id'] != null)
+                  'promotion_id': l['promotion_id'],
               },
             )
             .toList(),
@@ -1895,12 +1943,16 @@ class ApiService {
     bool replaceAll = false,
     String? discountType,
     double? discountValue,
+    String? ticketLabel,
   }) async {
     final base = await getBaseUrl();
+    final label = ticketLabel?.trim();
     final payload = {
-      'table_id': tableId,
+      // Renaming releases the table (the server clears it).
+      'table_id': (label != null && label.isNotEmpty) ? null : tableId,
       'partner_id': customerId,
       'lines': lines,
+      if (label != null) 'ticket_label': label,
       if (replaceAll) 'replace_all': true,
       if (discountType != null &&
           discountValue != null &&
@@ -1938,6 +1990,19 @@ class ApiService {
           final index = list.indexWhere(
             (e) => e != null && e is Map && e['id'] == orderId,
           );
+          if (index >= 0 && label != null && list[index] is Map) {
+            final oldTable = list[index]['table_id'];
+            if (label.isNotEmpty) {
+              list[index]['ticket_label'] = label;
+              list[index]['table_name'] = label;
+              list[index]['table_id'] = null;
+              if (oldTable is int) {
+                await _markTableHasOpenOrder(oldTable, hasOpenOrder: false);
+              }
+            } else {
+              list[index]['ticket_label'] = '';
+            }
+          }
           if (index >= 0) {
             // Ensure existing cached tickets always keep an opened_at timestamp
             // so the Open Tickets screen can show the live duration badge.
@@ -1969,6 +2034,9 @@ class ApiService {
                       'qty': l['qty'],
                       'price_unit': l['price_unit'],
                       'topping_ids': l['topping_ids'] ?? [],
+                      if (l['is_free_promo'] == true) 'is_free_promo': true,
+                      if (l['promotion_id'] != null)
+                        'promotion_id': l['promotion_id'],
                     },
                   )
                   .toList();
@@ -1984,6 +2052,9 @@ class ApiService {
                     'qty': l['qty'],
                     'price_unit': l['price_unit'],
                     'topping_ids': l['topping_ids'] ?? [],
+                    if (l['is_free_promo'] == true) 'is_free_promo': true,
+                    if (l['promotion_id'] != null)
+                      'promotion_id': l['promotion_id'],
                   },
                 ),
               );
@@ -2011,8 +2082,11 @@ class ApiService {
         }
         return data;
       } else {
+        _throwIfRejected(response.statusCode, jsonResponse);
         throw Exception(jsonResponse['message'] ?? 'Failed to update order');
       }
+    } on OrderRejectedException {
+      rethrow;
     } catch (e) {
       await _queueOfflineOrder({
         'action': 'update',
@@ -2052,6 +2126,9 @@ class ApiService {
                     'qty': l['qty'],
                     'price_unit': l['price_unit'],
                     'topping_ids': l['topping_ids'] ?? [],
+                    if (l['is_free_promo'] == true) 'is_free_promo': true,
+                    if (l['promotion_id'] != null)
+                      'promotion_id': l['promotion_id'],
                   },
                 )
                 .toList();
@@ -2067,6 +2144,9 @@ class ApiService {
                   'qty': l['qty'],
                   'price_unit': l['price_unit'],
                   'topping_ids': l['topping_ids'] ?? [],
+                  if (l['is_free_promo'] == true) 'is_free_promo': true,
+                  if (l['promotion_id'] != null)
+                    'promotion_id': l['promotion_id'],
                 },
               ),
             );
@@ -2561,10 +2641,10 @@ class ApiService {
       pending = nextPending.toSet().toList();
     }
 
-    await prefs.setStringList('offline_orders', {
-      ...pending,
-      ...deferred,
-    }.toList());
+    await prefs.setStringList(
+      'offline_orders',
+      {...pending, ...deferred}.toList(),
+    );
     return syncedCount;
   }
 
@@ -2592,8 +2672,7 @@ class ApiService {
       'HTTP ${response.statusCode} (attempt $attempts): ${response.body}',
     );
 
-    final isPermanent =
-        response.statusCode >= 400 && response.statusCode < 500;
+    final isPermanent = response.statusCode >= 400 && response.statusCode < 500;
     if (!isPermanent) {
       // Server or network hiccup — worth another pass right away.
       return (keep: jsonEncode(task), retryNow: true);
@@ -3633,7 +3712,9 @@ class ApiService {
     bool forceRefresh = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final cacheKey = branchId != null ? 'cached_self_order_config_$branchId' : 'cached_self_order_config';
+    final cacheKey = branchId != null
+        ? 'cached_self_order_config_$branchId'
+        : 'cached_self_order_config';
     if (!forceRefresh) {
       final cachedStr = prefs.getString(cacheKey);
       if (cachedStr != null) {
@@ -3642,7 +3723,9 @@ class ApiService {
     }
     final base = await getBaseUrl();
     try {
-      final queryParams = branchId != null && branchId > 0 ? '?branch_id=$branchId' : '';
+      final queryParams = branchId != null && branchId > 0
+          ? '?branch_id=$branchId'
+          : '';
       final url = Uri.parse('$base/pos/self_order_config$queryParams');
       final response = await http.get(url).timeout(const Duration(seconds: 7));
       if (response.statusCode == 200) {
@@ -4400,7 +4483,10 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> validateCoupon(String code, {int? partnerId}) async {
+  Future<Map<String, dynamic>> validateCoupon(
+    String code, {
+    int? partnerId,
+  }) async {
     try {
       final base = await getBaseUrl();
       final response = await http.post(
@@ -4422,15 +4508,23 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> redeemVoucher(int partnerId, int productId) async {
+  Future<Map<String, dynamic>> redeemVoucher(
+    int partnerId,
+    int productId,
+  ) async {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/customer/redeem_voucher');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'partner_id': partnerId, 'product_id': productId}),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'partner_id': partnerId,
+              'product_id': productId,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['status'] == 'success') {
@@ -4462,11 +4556,13 @@ class ApiService {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/claim_voucher');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'code': code}),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'code': code}),
+          )
+          .timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['status'] == 'success') {
@@ -4601,7 +4697,9 @@ class ApiService {
       authHdrs.forEach((k, v) => request.headers[k] = v);
       request.files.add(await http.MultipartFile.fromPath('image', imagePath));
       if (caption.isNotEmpty) request.fields['caption'] = caption;
-      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
       final body = await streamed.stream.bytesToString();
       final json = jsonDecode(body) as Map<String, dynamic>;
       if (json['status'] == 'success') {

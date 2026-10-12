@@ -2468,4 +2468,62 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectAllShort => 'All';
+
+  @override
+  String get customName => 'Custom name';
+
+  @override
+  String get ticketNameLabel => 'Ticket name';
+
+  @override
+  String get ticketNameHint => 'e.g. customer name';
+
+  @override
+  String get customNameHelp =>
+      'Save this order under a name instead of a table.';
+
+  @override
+  String get renameTicket => 'Rename';
+
+  @override
+  String get renameTicketTitle => 'Rename ticket';
+
+  @override
+  String get renameTicketHelp =>
+      'The table is freed and this name is shown instead.';
+
+  @override
+  String ticketRenamed(String name) {
+    return 'Ticket renamed to $name';
+  }
+
+  @override
+  String ticketSavedAs(String name) {
+    return 'Ticket saved as $name';
+  }
+
+  @override
+  String orderRefused(String reason) {
+    return 'The server refused this order: $reason';
+  }
+
+  @override
+  String get gridView => 'Grid view';
+
+  @override
+  String get listView => 'List view';
+
+  @override
+  String ticketItemsCount(String count) {
+    return '$count items';
+  }
+
+  @override
+  String get ticketOneItem => '1 item';
+
+  @override
+  String get readyDone => 'Ready';
+
+  @override
+  String get justNow => 'just now';
 }

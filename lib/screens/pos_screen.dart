@@ -307,6 +307,9 @@ class _PosScreenState extends State<PosScreen> {
   int? _activeTicketId;
   String? _activeTicketName;
   int? _activeTicketTableId;
+
+  /// Name given instead of a table ("Custom name" / "Rename").
+  String _activeTicketLabel = '';
   int _activeTicketQueueNumber = 0;
   String _activeTicketPaymentType = '';
   int? _activeTicketPaymentMethodId;
@@ -822,6 +825,7 @@ class _PosScreenState extends State<PosScreen> {
       _activeTicketPaymentType = '';
       _activeTicketPaymentMethodId = null;
       _activeTicketPaymentMethodName = '';
+      _activeTicketLabel = '';
       _selectedCustomer = null;
       _discountBreakdown = DiscountBreakdown.none;
       _pendingDiscountManualValue = null;
@@ -842,6 +846,16 @@ class _PosScreenState extends State<PosScreen> {
       _activeTicketPartnerName = result.partnerName;
       _activeTicketDeliveryPlaceName = result.deliveryPlaceName;
       _activeTicketDeliveryPlaceAddress = result.deliveryPlaceAddress;
+      _activeTicketLabel = result.ticketLabel;
+      // The customer saved on the ticket comes back with it.
+      _selectedCustomer = result.partnerId != null
+          ? {
+              'id': result.partnerId,
+              'name': result.partnerName,
+              if (result.customerPhone.isNotEmpty)
+                'phone': result.customerPhone,
+            }
+          : null;
 
       if (result.discountType.isNotEmpty) {
         if (result.discountType == 'percentage') {
@@ -898,6 +912,10 @@ class _PosScreenState extends State<PosScreen> {
       'price_unit': _lineUnitPrice(item),
       'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
       if (note.isNotEmpty) 'note': note,
+      if (item.isFreePromo && item.promotionId != null) ...{
+        'is_free_promo': true,
+        'promotion_id': item.promotionId,
+      },
     };
   }
 
@@ -939,6 +957,109 @@ class _PosScreenState extends State<PosScreen> {
           content: Text(context.l10n.cannotClearTicket(e.toString())),
           backgroundColor: Colors.red,
         ),
+      );
+    }
+  }
+
+  /// "Custom name" / "Rename" dialog. Returns the trimmed name, or null.
+  Future<String?> _promptTicketName(
+    BuildContext context, {
+    required String title,
+    required String help,
+    String initial = '',
+  }) async {
+    final controller = TextEditingController(text: initial);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 40,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: ctx.l10n.ticketNameLabel,
+                hintText: ctx.l10n.ticketNameHint,
+                border: const OutlineInputBorder(),
+              ),
+              onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+            ),
+            Text(help, style: TextStyle(color: Colors.grey.shade700)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.l10n.cancel),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandNavy,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(ctx.l10n.save),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty) return null;
+    return name;
+  }
+
+  /// Ticket options → Rename: the name replaces the table, which is freed
+  /// for a new order.
+  Future<void> _renameActiveTicket(BuildContext context) async {
+    final orderId = _activeTicketId;
+    if (orderId == null) return;
+    final name = await _promptTicketName(
+      context,
+      title: context.l10n.renameTicketTitle,
+      help: context.l10n.renameTicketHelp,
+      initial: _activeTicketLabel,
+    );
+    if (name == null || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final renamedMsg = context.l10n.ticketRenamed(name);
+    final oldTableId = _activeTicketTableId;
+    try {
+      await _apiService.updateOrder(
+        orderId: orderId,
+        customerId: _selectedCustomer?['id'],
+        lines: const [],
+        ticketLabel: name,
+      );
+      if (!mounted) return;
+      setState(() {
+        _activeTicketLabel = name;
+        _activeTicketTableId = null;
+        if (oldTableId != null) {
+          final idx = _tables.indexWhere((t) => t.id == oldTableId);
+          if (idx >= 0) {
+            final t = _tables[idx];
+            _tables[idx] = PosTable(
+              id: t.id,
+              name: t.name,
+              capacity: t.capacity,
+              status: t.status,
+              hasOpenOrder: false,
+            );
+          }
+        }
+      });
+      messenger.showSnackBar(
+        SnackBar(content: Text(renamedMsg), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
       );
     }
   }
@@ -1403,6 +1524,9 @@ class _PosScreenState extends State<PosScreen> {
                   case 'move':
                     await _showMoveTicketDialog(context);
                     break;
+                  case 'rename':
+                    await _renameActiveTicket(context);
+                    break;
                   case 'drawer':
                     if (!printerService.isConfigured) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1507,6 +1631,15 @@ class _PosScreenState extends State<PosScreen> {
                     child: disablableTile(
                       Icons.open_in_new_rounded,
                       'Move ticket',
+                      enabled: hasTicket,
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'rename',
+                    enabled: hasTicket,
+                    child: disablableTile(
+                      Icons.drive_file_rename_outline_rounded,
+                      context.l10n.renameTicket,
                       enabled: hasTicket,
                     ),
                   ),
@@ -2074,7 +2207,7 @@ class _PosScreenState extends State<PosScreen> {
                     cartItems: _cartItems,
                     onUpdateQuantity: _updateQuantity,
                     onEditKitchenNote: _editCartItemKitchenNote,
-                    onClearCart: _clearCart,
+                    onClearCart: () => _handleClearTicket(context),
                     onViewTickets: () async {
                       final result = await Navigator.push<ResumedTicket>(
                         context,
@@ -2165,8 +2298,8 @@ class _PosScreenState extends State<PosScreen> {
                       setSheetState(() {});
                     },
                     onClearCart: () {
-                      _clearCart();
                       Navigator.pop(ctx);
+                      _handleClearTicket(context);
                     },
                     onViewTickets: () async {
                       Navigator.pop(ctx);
@@ -3816,6 +3949,48 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                   ),
 
+                  // Save under a name instead of a table.
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      isMobile ? 12 : 24,
+                      isMobile ? 12 : 18,
+                      isMobile ? 12 : 24,
+                      0,
+                    ),
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final name = await _promptTicketName(
+                          context,
+                          title: context.l10n.customName,
+                          help: context.l10n.customNameHelp,
+                        );
+                        if (name == null || !context.mounted) return;
+                        _processOpenTicket(
+                          context,
+                          setDialogState,
+                          null,
+                          label: name,
+                        );
+                      },
+                      icon: const Icon(Icons.badge_rounded),
+                      label: Text(
+                        context.l10n.customName,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _brandNavy,
+                        side: const BorderSide(color: _brandNavy, width: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+
                   // Content
                   Expanded(
                     child: _tables.isEmpty
@@ -4071,55 +4246,84 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
+  /// Opens a new ticket at [table], or under [label] with no table.
   Future<void> _processOpenTicket(
     BuildContext context,
     StateSetter setDialogState,
-    PosTable table,
-  ) async {
+    PosTable? table, {
+    String? label,
+  }) async {
     final lines = _cartItems.map(_orderLinePayload).toList();
 
     final cashierId = widget.cashierId;
+    final customer = _selectedCustomer;
 
     // --- Optimistic UI: update state immediately, no waiting ---
 
     // Mark table as open in local in-memory list right away.
-    try {
-      final idx = _tables.indexWhere((t) => t.id == table.id);
-      if (idx >= 0) {
-        final current = _tables[idx];
-        setState(() {
-          _tables[idx] = PosTable(
-            id: current.id,
-            name: current.name,
-            capacity: current.capacity,
-            status: current.status,
-            hasOpenOrder: true,
-          );
-        });
-      }
-    } catch (_) {}
+    if (table != null) {
+      try {
+        final idx = _tables.indexWhere((t) => t.id == table.id);
+        if (idx >= 0) {
+          final current = _tables[idx];
+          setState(() {
+            _tables[idx] = PosTable(
+              id: current.id,
+              name: current.name,
+              capacity: current.capacity,
+              status: current.status,
+              hasOpenOrder: true,
+            );
+          });
+        }
+      } catch (_) {}
+    }
 
     // Capture items for kitchen print before cart is cleared.
     final itemsForKitchen = List<CartItem>.from(_cartItems);
+    final messenger = ScaffoldMessenger.of(context);
+    final refusedMsg = context.l10n.orderRefused;
 
     // Close dialog and clear cart instantly — no waiting for server.
     _clearCart();
     if (context.mounted) Navigator.pop(context);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-          content: Text(context.l10n.ticketOpenedAt(table.name)),
+          content: Text(
+            table != null
+                ? context.l10n.ticketOpenedAt(table.name)
+                : context.l10n.ticketSavedAs(label ?? ''),
+          ),
           backgroundColor: Colors.green,
         ),
       );
+    }
+
+    void printKitchen(int? qn) {
+      if (!printerService.isConfigured) return;
+      _printOrderItemsToKitchen(
+            itemsForKitchen,
+            respectCategoryFilters: true,
+            queueNumber: qn,
+          )
+          .then((count) {
+            if (count > 0) {
+              for (final item in itemsForKitchen) {
+                item.isPrinted = true;
+              }
+            }
+          })
+          .catchError((_) {});
     }
 
     // Persist to server in background, then print kitchen with queue number.
     _apiService
         .createOrder(
           userId: cashierId,
-          tableId: table.id,
-          customerId: _selectedCustomer?['id'],
+          tableId: table?.id,
+          ticketLabel: label,
+          customerId: customer?['id'],
           lines: lines,
         )
         .then((response) {
@@ -4127,38 +4331,42 @@ class _PosScreenState extends State<PosScreen> {
           if (qn > 0) {
             _activeTicketQueueNumber = qn;
           }
-          if (printerService.isConfigured) {
-            _printOrderItemsToKitchen(
-                  itemsForKitchen,
-                  respectCategoryFilters: true,
-                  queueNumber: qn,
-                )
-                .then((count) {
-                  if (count > 0) {
-                    for (final item in itemsForKitchen) {
-                      item.isPrinted = true;
-                    }
-                  }
-                })
-                .catchError((_) {});
-          }
+          printKitchen(qn);
         })
-        .catchError((_) {
-          // Offline fallback: print without queue number
-          if (printerService.isConfigured) {
-            _printOrderItemsToKitchen(
-                  itemsForKitchen,
-                  respectCategoryFilters: true,
-                )
-                .then((count) {
-                  if (count > 0) {
-                    for (final item in itemsForKitchen) {
-                      item.isPrinted = true;
-                    }
-                  }
-                })
-                .catchError((_) {});
+        .catchError((Object e) {
+          if (e is OrderRejectedException) {
+            // Nothing was saved: give the cashier the items back to fix.
+            if (!mounted) return;
+            setState(() {
+              if (_cartItems.isEmpty) {
+                _cartItems = itemsForKitchen;
+                _selectedCustomer = customer;
+              }
+              if (table != null) {
+                final idx = _tables.indexWhere((t) => t.id == table.id);
+                if (idx >= 0) {
+                  final t = _tables[idx];
+                  _tables[idx] = PosTable(
+                    id: t.id,
+                    name: t.name,
+                    capacity: t.capacity,
+                    status: t.status,
+                    hasOpenOrder: false,
+                  );
+                }
+              }
+            });
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(refusedMsg(e.message)),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 6),
+              ),
+            );
+            return;
           }
+          // Offline fallback: print without queue number
+          printKitchen(null);
         });
     // No finally needed — _isOpeningTicket is no longer set because we never
     // show the spinner; the dialog is already dismissed above.
