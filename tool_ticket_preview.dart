@@ -1,14 +1,12 @@
-// Renders what a kitchen ticket would look like on paper, without a printer.
+// Renders what receipts and kitchen tickets look like on paper, without a
+// printer: the documents are drawn to ESC/POS bytes exactly as for a real
+// printer, then the bytes are decoded back into PNGs (bitmap lines pasted
+// as-is, the few printer-text rules drawn as text).
 //
-// The app talks ESC/POS over a socket, so this binds a local socket, prints a
-// ticket into it, then decodes the captured bytes back into a PNG: raster
-// blocks (all Lao text) are pasted as-is and ASCII runs are drawn as text.
-//
-// Run:  flutter test tool_ticket_preview.dart
-import 'dart:async';
-import 'dart:convert';
+// Run:  flutter test tool_ticket_preview.dart --dart-define=OUT_DIR=/tmp
 import 'dart:io';
 
+import 'package:esc_pos_utils/esc_pos_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -19,9 +17,6 @@ import 'package:ladolce/services/printer_service.dart';
 import 'package:ladolce/utils/localized_name.dart';
 
 const _outDir = String.fromEnvironment('OUT_DIR', defaultValue: '.');
-const _menuFile = String.fromEnvironment('MENU_FILE');
-const _paperWidthMm = 58;
-const _canvasWidth = 384;
 
 /// One printable chunk recovered from the ESC/POS stream.
 class _Block {
@@ -142,7 +137,7 @@ List<_Block> _decodeEscPos(List<int> bytes) {
   return blocks;
 }
 
-img.Image _compose(List<_Block> blocks) {
+img.Image _compose(List<_Block> blocks, int width) {
   const pad = 8;
   var height = pad * 2;
   for (final b in blocks) {
@@ -151,7 +146,7 @@ img.Image _compose(List<_Block> blocks) {
         : (b.doubleHeight ? 34 : 20);
   }
 
-  final canvas = img.Image(_canvasWidth, height);
+  final canvas = img.Image(width, height);
   img.fill(canvas, img.getColor(255, 255, 255));
   var y = pad;
 
@@ -159,14 +154,14 @@ img.Image _compose(List<_Block> blocks) {
     if (b.raster != null) {
       final src = b.raster!;
       final x = switch (b.align) {
-        1 => ((_canvasWidth - src.width) / 2).round(),
-        2 => _canvasWidth - src.width,
+        1 => ((width - src.width) / 2).round(),
+        2 => width - src.width,
         _ => 0,
       };
       for (var sy = 0; sy < src.height; sy++) {
         for (var sx = 0; sx < src.width; sx++) {
           final dx = x + sx;
-          if (dx < 0 || dx >= _canvasWidth) continue;
+          if (dx < 0 || dx >= width) continue;
           if (img.getRed(src.getPixel(sx, sy)) < 128) {
             canvas.setPixelRgba(dx, y + sy, 0, 0, 0);
           }
@@ -175,148 +170,146 @@ img.Image _compose(List<_Block> blocks) {
       y += src.height + 2;
       continue;
     }
-
-    final font = b.doubleHeight ? img.arial_24 : img.arial_14;
-    final text = b.text!;
-    final approxWidth = text.length * (b.doubleHeight ? 13 : 8);
-    final x = switch (b.align) {
-      1 => ((_canvasWidth - approxWidth) / 2).round().clamp(0, _canvasWidth),
-      2 => (_canvasWidth - approxWidth).clamp(0, _canvasWidth),
-      _ => 0,
-    };
-    img.drawString(canvas, font, x, y, text, color: img.getColor(0, 0, 0));
-    y += b.doubleHeight ? 34 : 20;
+    img.drawString(
+      canvas,
+      img.arial_14,
+      0,
+      y,
+      b.text!,
+      color: img.getColor(0, 0, 0),
+    );
+    y += 20;
   }
   return canvas;
 }
 
-/// Reads the menu to print from `MENU_FILE`, falling back to a small sample.
-///
-/// Each entry: {"name": "...", "name_lo": "...", "qty": 1, "note": "",
-/// "toppings": ["..."]} — only `name` is required.
-List<CartItem> _menuItems() {
-  var entries = const <Map<String, dynamic>>[
-    {'name': 'Almond chocolate croissant', 'name_lo': 'ຄົວຊອງຊັອກໂກແລດອາມອນ'},
-    {
-      'name': 'Honey coffee',
-      'name_lo': 'ກາເຟນໍ້າເຜິ້ງ',
-      'qty': 2,
-      'note': 'ຫວານໜ້ອຍ',
-      'toppings': ['Add cream cheese'],
-    },
-    // No Lao name saved, to show the English fallback.
-    {'name': 'Butter croissant'},
-  ];
+final _hot = Topping(
+  id: 1,
+  name: 'Hot',
+  nameLo: 'ຮ້ອນ',
+  groupId: 1,
+  groupName: 'Type',
+  groupSequence: 1,
+);
+final _sweet = Topping(
+  id: 2,
+  name: 'Sweet',
+  nameLo: 'ຫວານ',
+  groupId: 2,
+  groupName: 'Taste',
+  groupSequence: 2,
+);
+final _sizeM = Topping(
+  id: 3,
+  name: 'Size M',
+  nameLo: 'ຂະໜາດ M',
+  groupId: 3,
+  groupName: 'Size',
+  groupSequence: 3,
+);
 
-  if (_menuFile.isNotEmpty) {
-    final file = File(_menuFile);
-    if (file.existsSync()) {
-      final parsed = jsonDecode(file.readAsStringSync()) as List;
-      entries = parsed.cast<Map<String, dynamic>>().toList(growable: false);
-      // ignore: avoid_print
-      print('MENU: $_menuFile (${entries.length} items)');
-    } else {
-      // ignore: avoid_print
-      print('MENU: $_menuFile not found — using the built-in sample');
-    }
-  } else {
-    // ignore: avoid_print
-    print('MENU: built-in sample (pass --dart-define=MENU_FILE=... to change)');
+List<CartItem> _items() => [
+  CartItem(
+    product: Product(
+      id: 1,
+      name: 'Americano',
+      nameLo: 'ອາເມລິກາໂນ',
+      price: 30000,
+      category: 'Coffee',
+    ),
+    quantity: 2,
+    selectedToppings: [_sizeM, _sweet, _hot],
+  ),
+  CartItem(
+    product: Product(
+      id: 2,
+      name: 'Cappuccino',
+      nameLo: 'ກາປູຊີໂນ',
+      price: 35000,
+      category: 'Coffee',
+    ),
+    selectedToppings: [_hot],
+    isFreePromo: true,
+    promotionId: 1,
+    kitchenNote: 'ບໍ່ໃສ່ນ້ຳຕານ',
+  ),
+  CartItem(
+    product: Product(
+      id: 3,
+      name: 'Almond chocolate croissant',
+      nameLo: 'ຄົວຊອງຊັອກໂກແລດອາມອນ',
+      price: 46000,
+      category: 'Bakery',
+    ),
+  ),
+];
+
+Future<void> _loadPrintFont() async {
+  final loader = FontLoader(PrintRenderer.fontFamily);
+  for (final f in ['Regular', 'Bold']) {
+    final bytes = File('assets/fonts/NotoSerifLao-$f.ttf').readAsBytesSync();
+    loader.addFont(Future.value(ByteData.view(bytes.buffer)));
   }
-
-  var id = 1;
-  return entries.map((e) {
-    final toppings = (e['toppings'] as List?) ?? const [];
-    return CartItem(
-      product: Product(
-        id: id++,
-        name: (e['name'] ?? 'Item').toString(),
-        nameLo: (e['name_lo'] ?? '').toString(),
-        price: 0,
-        category: 'Preview',
-      ),
-      quantity: (e['qty'] as num?)?.toInt() ?? 1,
-      kitchenNote: (e['note'] ?? '').toString(),
-      selectedToppings: [
-        for (final t in toppings) Topping(id: id++, name: t.toString()),
-      ],
-    );
-  }).toList();
+  await loader.load();
 }
 
-Future<List<int>> _captureTicket({required String languageCode}) async {
-  final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-  final received = <int>[];
-  final firstData = Completer<void>();
-  server.listen((socket) {
-    socket.listen((chunk) {
-      received.addAll(chunk);
-      if (!firstData.isCompleted) firstData.complete();
-    });
-  });
-
-  final oldLanguage = DisplayLanguage.code;
-  DisplayLanguage.code = languageCode;
-  try {
-    await PrinterService().printOrderTicketDirect(
-      profile: PrinterProfile(
-        id: 'virtual',
-        name: 'bar',
-        ip: InternetAddress.loopbackIPv4.address,
-        port: server.port,
-        paperWidthMm: _paperWidthMm,
-      ),
-      items: _menuItems(),
-      cashierName: languageCode == 'lo' ? 'ນ້ອຍ' : 'cash',
-      queueNumber: 1,
-    );
-    await firstData.future.timeout(const Duration(seconds: 5));
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-  } finally {
-    DisplayLanguage.code = oldLanguage;
-    await server.close();
-  }
-  return received;
-}
-
-/// `flutter test` runs headless with no system fonts, so Lao would rasterise
-/// as tofu boxes here even when a device renders it correctly. Loading a real
-/// Lao face under the family name the printer asks for makes this preview
-/// represent a device that has the font (as Android does).
-Future<bool> _loadLaoFont() async {
-  const candidates = [
-    '/System/Library/Fonts/Supplemental/Lao Sangam MN.ttf',
-    '/System/Library/Fonts/Supplemental/NotoSansLao-Regular.ttf',
-    '/usr/share/fonts/truetype/noto/NotoSansLao-Regular.ttf',
-  ];
-  for (final path in candidates) {
-    final file = File(path);
-    if (!file.existsSync()) continue;
-    final bytes = file.readAsBytesSync();
-    final loader = FontLoader('Noto Sans Lao')
-      ..addFont(Future.value(ByteData.view(Uint8List.fromList(bytes).buffer)));
-    await loader.load();
-    // ignore: avoid_print
-    print('LAO FONT: $path');
-    return true;
-  }
+Future<void> _write(String name, List<PrintLine> lines) async {
+  final bytes = await PrintRenderer(PaperSize.mm80).render(lines);
+  final canvas = _compose(_decodeEscPos(bytes), PaperSize.mm80.width);
+  final path = '$_outDir/$name.png';
+  File(path).writeAsBytesSync(img.encodePng(canvas));
   // ignore: avoid_print
-  print('LAO FONT: none found — Lao will render as tofu boxes');
-  return false;
+  print('WROTE $path');
 }
 
 void main() {
-  testWidgets('render kitchen ticket previews', (tester) async {
-    await _loadLaoFont();
+  testWidgets('render print previews', (tester) async {
+    await _loadPrintFont();
     await tester.runAsync(() async {
-      for (final lang in ['lo', 'en']) {
-        final bytes = await _captureTicket(languageCode: lang);
-        final canvas = _compose(_decodeEscPos(bytes));
-        final path = '$_outDir/kitchen_ticket_$lang.png';
-        File(path).writeAsBytesSync(img.encodePng(canvas));
-        // ignore: avoid_print
-        print('WROTE $path  (${bytes.length} bytes captured)');
-      }
+      DisplayLanguage.code = 'lo';
+      await _write(
+        'receipt_lo',
+        PrintLayouts.receipt(
+          items: _items(),
+          subtotal: 106000,
+          tax: 0,
+          total: 106000,
+          cashierName: 'Sith Cashier',
+          headerText: 'LaDolce\nLaDolce Main, Vientiane',
+          payments: const [
+            ReceiptPayment('Transfer (BCEL OnePay)', 100000),
+            ReceiptPayment('Cash', 10000),
+          ],
+          changeAmount: 4000,
+          customer: const ReceiptCustomer(
+            name: 'test',
+            pointsEarned: 10,
+            totalPoints: 125,
+          ),
+        ),
+      );
+      await _write(
+        'kitchen_ticket_lo',
+        PrintLayouts.orderTicket(
+          items: _items(),
+          cashierName: 'Sith Cashier',
+          queueNumber: 18,
+        ),
+      );
+      DisplayLanguage.code = 'en';
+      await _write(
+        'bill_en',
+        PrintLayouts.bill(
+          items: _items(),
+          subtotal: 106000,
+          tax: 0,
+          total: 106000,
+          cashierName: 'Sith Cashier',
+          ticketName: 'T 4',
+          headerText: 'LaDolce\nLaDolce Main, Vientiane',
+          queueNumber: 18,
+        ),
+      );
     });
   });
 }

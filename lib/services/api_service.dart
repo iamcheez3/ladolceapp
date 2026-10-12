@@ -1009,6 +1009,17 @@ class ApiService {
     throw Exception('Failed to load bill template');
   }
 
+  /// Template for a print job: always asks the server first, so a header,
+  /// footer or logo edited in the backend shows on the next print (the cached
+  /// copy used to win forever). The cache is only the offline fallback.
+  Future<Map<String, dynamic>?> fetchBillTemplateForPrint(String type) async {
+    try {
+      return await fetchBillTemplate(type: type, forceRefresh: true);
+    } catch (_) {
+      return getCachedBillTemplate(type: type);
+    }
+  }
+
   /// List templates for selection in POS.
   /// Backend: GET `/api/pos/bill_templates?type=bill|receipt|refund`
   Future<List<Map<String, dynamic>>> fetchBillTemplates({

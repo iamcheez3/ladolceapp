@@ -158,11 +158,7 @@ class _PosScreenState extends State<PosScreen> {
     int? queueNumber,
   }) async {
     int printedCount = 0;
-    Map<String, dynamic>? tpl;
-    try {
-      tpl = await _apiService.fetchBillTemplate(type: 'kitchen');
-    } catch (_) {}
-    final headerText = (tpl?['header_text'] ?? '').toString();
+    final tpl = await _apiService.fetchBillTemplateForPrint('kitchen');
     final footerText = (tpl?['footer_text'] ?? '').toString();
     for (final p in _resolveOrderPrinters()) {
       final toPrint = respectCategoryFilters
@@ -173,7 +169,6 @@ class _PosScreenState extends State<PosScreen> {
         profile: p,
         items: toPrint,
         cashierName: widget.cashierName,
-        headerText: headerText,
         footerText: footerText,
         queueNumber: queueNumber,
       );
@@ -1304,10 +1299,9 @@ class _PosScreenState extends State<PosScreen> {
                     }
                     {
                       final bd = _cartBreakdown();
-                      Map<String, dynamic>? tpl;
-                      try {
-                        tpl = await _apiService.fetchBillTemplate(type: 'bill');
-                      } catch (_) {}
+                      final tpl = await _apiService.fetchBillTemplateForPrint(
+                        'bill',
+                      );
                       final headerText = (tpl?['header_text'] ?? '').toString();
                       final footerText = (tpl?['footer_text'] ?? '').toString();
                       final subLabel = bd.taxActive && _taxConfig.inclusive
@@ -3599,10 +3593,7 @@ class _PosScreenState extends State<PosScreen> {
     Future(() async {
       // Print receipt from local cart snapshot (no server data needed).
       if (printReceipt && printerService.isConfigured) {
-        Map<String, dynamic>? tpl;
-        try {
-          tpl = await _apiService.fetchBillTemplate(type: 'receipt');
-        } catch (_) {}
+        final tpl = await _apiService.fetchBillTemplateForPrint('receipt');
         final headerText = (tpl?['header_text'] ?? '').toString();
         final footerText = (tpl?['footer_text'] ?? '').toString();
         final receiptPrinters = printerService.profiles

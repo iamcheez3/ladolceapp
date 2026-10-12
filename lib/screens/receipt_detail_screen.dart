@@ -144,10 +144,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
         // Best-effort: print refund bill immediately after refund.
         if (printerService.isConfigured) {
           try {
-            Map<String, dynamic>? tpl;
-            try {
-              tpl = await _apiService.fetchBillTemplate(type: 'refund');
-            } catch (_) {}
+            final tpl = await _apiService.fetchBillTemplateForPrint('refund');
             final headerText = (tpl?['header_text'] ?? '').toString();
             final footerText = (tpl?['footer_text'] ?? '').toString();
 

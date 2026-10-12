@@ -127,6 +127,14 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  fonts:
+    # Print font for receipts and kitchen tickets (Lao + Latin, SIL OFL,
+    # see assets/fonts/OFL.txt). Bundled so printing never needs the network.
+    - family: NotoSerifLao
+      fonts:
+        - asset: assets/fonts/NotoSerifLao-Regular.ttf
+        - asset: assets/fonts/NotoSerifLao-Bold.ttf
+          weight: 700
 
 flutter_icons:
   android: true

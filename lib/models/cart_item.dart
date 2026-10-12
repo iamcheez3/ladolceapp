@@ -5,6 +5,7 @@ class CartItem {
   final Product product;
   int quantity;
   bool isSaved;
+
   /// true once this line has been sent to the kitchen/bar printer.
   /// The save-ticket flow only prints lines where isPrinted == false,
   /// then flips this to true. Charge does NOT re-print order tickets.
@@ -21,6 +22,11 @@ class CartItem {
   bool isRedeemed;
   int pointPrice;
 
+  /// Free item of a "Buy X get Y free" promotion: the whole line, choices
+  /// included, costs nothing. The server checks it against [promotionId].
+  final bool isFreePromo;
+  final int? promotionId;
+
   CartItem({
     required this.product,
     this.quantity = 1,
@@ -31,10 +37,12 @@ class CartItem {
     this.priceUnitFromOrder,
     this.isRedeemed = false,
     this.pointPrice = 0,
+    this.isFreePromo = false,
+    this.promotionId,
   });
 
   double get totalPrice {
-    if (isRedeemed) return 0.0;
+    if (isRedeemed || isFreePromo) return 0.0;
     if (priceUnitFromOrder != null) {
       return priceUnitFromOrder! * quantity;
     }
