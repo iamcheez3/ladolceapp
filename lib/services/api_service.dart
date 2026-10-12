@@ -14,6 +14,7 @@ import '../models/table.dart';
 import '../models/payment_method.dart';
 import '../models/ticket.dart';
 import '../models/topping.dart';
+import '../models/free_promotion.dart';
 import '../models/pos_tax_config.dart';
 import '../models/chat_message.dart';
 import 'network_service.dart';
@@ -549,6 +550,36 @@ class ApiService {
         return data.map((json) => PaymentMethod.fromJson(json)).toList();
       }
       return [];
+    }
+  }
+
+  /// Running "Buy X get Y free" promotions for [branchId].
+  /// Backend: `GET /api/pos/promotions/free_items?branch_id=`.
+  Future<List<FreePromotion>> fetchFreePromotions({int? branchId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'cached_free_promotions_${branchId ?? 0}';
+    List<FreePromotion> parse(dynamic raw) => (raw as List)
+        .whereType<Map>()
+        .map((p) => FreePromotion.fromJson(Map<String, dynamic>.from(p)))
+        .toList();
+    try {
+      final base = await getBaseUrl();
+      final url = Uri.parse('$base/pos/promotions/free_items').replace(
+        queryParameters: (branchId != null && branchId > 0)
+            ? {'branch_id': '$branchId'}
+            : null,
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      final jsonResponse = jsonDecode(response.body);
+      if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
+        await prefs.setString(key, jsonEncode(jsonResponse['data']));
+        return parse(jsonResponse['data']);
+      }
+      // 404 = a server from before free-item promotions.
+      return const [];
+    } catch (_) {
+      final cached = prefs.getString(key);
+      return cached == null ? const [] : parse(jsonDecode(cached));
     }
   }
 
@@ -1635,6 +1666,7 @@ class ApiService {
     double? discountValue,
     String? couponCode,
     double? deliveryFee,
+    List<Map<String, dynamic>>? payments,
   }) async {
     final base = await getBaseUrl();
     final cn = customerName?.trim() ?? '';
@@ -1670,6 +1702,7 @@ class ApiService {
         'discount_value': discountValue,
       },
       if (deliveryFee != null && deliveryFee > 0) 'delivery_fee': deliveryFee,
+      if (payments != null && payments.length > 1) 'payments': payments,
     };
 
     try {
@@ -2179,11 +2212,14 @@ class ApiService {
     int? paymentMethodId,
     String? discountType,
     double? discountValue,
+    List<Map<String, dynamic>>? payments,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/pay');
     final payload = {
       'payment_method_id': paymentMethodId,
+      // Split payment: [{payment_method_id, amount}, ...].
+      if (payments != null && payments.length > 1) 'payments': payments,
       if (discountType != null &&
           discountValue != null &&
           discountValue > 0) ...{

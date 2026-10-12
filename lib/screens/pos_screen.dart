@@ -13,6 +13,8 @@ import '../widgets/cart_sidebar.dart';
 import '../widgets/customer_selection_sheet.dart';
 import '../widgets/skeleton_loaders.dart';
 import '../widgets/topping_picker.dart';
+import '../widgets/free_items_banner.dart';
+import '../models/free_promotion.dart';
 import '../screens/tickets_screen.dart';
 import '../screens/receipt_history_screen.dart';
 import '../screens/manage_items_screen.dart';
@@ -192,6 +194,9 @@ class _PosScreenState extends State<PosScreen> {
   List<PosTable> _tables = [];
   List<PaymentMethod> _paymentMethods = [];
   PaymentMethod? _selectedPaymentMethod;
+
+  /// Running "Buy X get Y free" promotions for this branch.
+  List<FreePromotion> _freePromotions = [];
 
   Widget _drawerItem({
     required IconData icon,
@@ -640,6 +645,9 @@ class _PosScreenState extends State<PosScreen> {
       final methods = await _apiService.fetchPaymentMethods(
         forceRefresh: backgroundRefresh,
       );
+      final promotions = await _apiService.fetchFreePromotions(
+        branchId: branchId,
+      );
 
       final Set<String> uniqueCategories = products
           .map((p) => p.category)
@@ -655,6 +663,7 @@ class _PosScreenState extends State<PosScreen> {
           _products = products;
           _tables = tables;
           _paymentMethods = methods;
+          _freePromotions = promotions;
           if (_paymentMethods.isNotEmpty && _selectedPaymentMethod == null) {
             _selectedPaymentMethod = _paymentMethods.first;
           }
@@ -717,6 +726,7 @@ class _PosScreenState extends State<PosScreen> {
       // Check if there's already a NEW (unsaved) item with EXACTLY the same toppings
       final existingNewIndex = _cartItems.indexWhere((item) {
         if (item.product.id != product.id || item.isSaved) return false;
+        if (item.isFreePromo) return false;
         if (item.kitchenNote.trim().isNotEmpty) return false;
 
         // Compare toppings exactly
@@ -806,6 +816,22 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   void _updateQuantity(CartItem item, int newQuantity) {
+    if (item.isFreePromo && newQuantity > item.quantity) {
+      final promo = _freePromotions
+          .where((p) => p.id == item.promotionId)
+          .firstOrNull;
+      if (promo == null || promo.availableQty(_cartItems) <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.l10n.noMoreFreeItems(promo?.name ?? item.promotionName),
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
     setState(() {
       if (newQuantity <= 0) {
         _cartItems.remove(item);
@@ -813,6 +839,68 @@ class _PosScreenState extends State<PosScreen> {
         item.quantity = newQuantity;
       }
     });
+  }
+
+  /// 🎁 banner while the cart has free items left to choose.
+  Widget? _freeItemsBanner(BuildContext context, {VoidCallback? onChanged}) {
+    final open = promotionsWithFreeItems(_freePromotions, _cartItems);
+    if (open.isEmpty) return null;
+    final promo = open.first;
+    return FreeItemsBanner(
+      promotion: promo,
+      count: promo.availableQty(_cartItems),
+      buttonLabel: context.l10n.addFree,
+      onPressed: () async {
+        await _chooseFreeItem(promo);
+        onChanged?.call();
+      },
+    );
+  }
+
+  /// "Add free": the cashier picks the free item (and its choices, also free).
+  Future<void> _chooseFreeItem(FreePromotion promo) async {
+    final product = await showFreeItemPicker(
+      context,
+      promotion: promo,
+      products: _products,
+    );
+    if (product == null || !mounted) return;
+    var toppings = <Topping>[];
+    if (product.toppings.isNotEmpty) {
+      final picked = await showToppingPickerSheet(
+        context,
+        title: context.l10n.selectToppingsFor(product.displayName),
+        toppings: product.toppings,
+      );
+      if (picked == null || !mounted) return;
+      toppings = picked;
+    }
+    if (promo.availableQty(_cartItems) <= 0) return;
+    setState(() {
+      _cartItems.add(
+        CartItem(
+          product: product,
+          selectedToppings: toppings,
+          isFreePromo: true,
+          promotionId: promo.id,
+          promotionName: promo.name,
+        ),
+      );
+    });
+  }
+
+  /// False (with a message) when the cart has more free items than its
+  /// paid items allow — the server would refuse the order.
+  bool _checkFreeItems(BuildContext context) {
+    final over = overusedPromotion(_freePromotions, _cartItems);
+    if (over == null) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.tooManyFreeItems(over.name)),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return false;
   }
 
   void _clearCart() {
@@ -2233,6 +2321,7 @@ class _PosScreenState extends State<PosScreen> {
                     taxConfig: _taxConfig,
                     selectedDiscountOption: _selectedDiscountOption,
                     discountManualValue: _pendingDiscountManualValue,
+                    promoBanner: _freeItemsBanner(context),
                   ),
                 ),
             ],
@@ -2334,6 +2423,10 @@ class _PosScreenState extends State<PosScreen> {
                     taxConfig: _taxConfig,
                     selectedDiscountOption: _selectedDiscountOption,
                     discountManualValue: _pendingDiscountManualValue,
+                    promoBanner: _freeItemsBanner(
+                      context,
+                      onChanged: () => setSheetState(() {}),
+                    ),
                   ),
                 ),
               ),
@@ -3022,6 +3115,66 @@ class _PosScreenState extends State<PosScreen> {
 
     final fmt = NumberFormat('#,##0.00');
 
+    // Split payment: one row per method, e.g. BCEL 30,000 + Cash 7,000.
+    var split = false;
+    final rows = <_SplitRow>[];
+
+    _ChargePlan buildPlan(double total) {
+      if (!split) {
+        final m = _selectedPaymentMethod;
+        final received =
+            double.tryParse(amountReceivedCtrl.text.replaceAll(',', '')) ?? 0.0;
+        final isCash = m?.isCash ?? false;
+        return _ChargePlan(
+          method: m,
+          receiptRows: m == null
+              ? const []
+              : [
+                  ReceiptPayment(
+                    m.name,
+                    isCash && received > total ? received : total,
+                  ),
+                ],
+          change: isCash && received > total ? received - total : 0.0,
+          serverPayments: const [],
+          openDrawer: m?.opensCashDrawer ?? false,
+        );
+      }
+      final used = rows.where((r) => r.value > 0).toList();
+      final sum = used.fold<double>(0, (a, r) => a + r.value);
+      final change = sum > total ? sum - total : 0.0;
+      // The server records what stays in the till: the change comes off
+      // the cash rows (only cash may be more than the bill).
+      var giveBack = change;
+      final net = <Map<String, dynamic>>[];
+      for (final r in used.reversed) {
+        var amount = r.value;
+        if (r.method.isCash && giveBack > 0) {
+          final cut = amount < giveBack ? amount : giveBack;
+          amount -= cut;
+          giveBack -= cut;
+        }
+        if (amount > 0.005) {
+          net.insert(0, {'payment_method_id': r.method.id, 'amount': amount});
+        }
+      }
+      net.sort(
+        (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
+      );
+      final mainId = net.isNotEmpty ? net.first['payment_method_id'] : null;
+      return _ChargePlan(
+        method:
+            _paymentMethods.where((m) => m.id == mainId).firstOrNull ??
+            _selectedPaymentMethod,
+        receiptRows: [
+          for (final r in used) ReceiptPayment(r.method.name, r.value),
+        ],
+        change: change,
+        serverPayments: net,
+        openDrawer: used.any((r) => r.method.opensCashDrawer),
+      );
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -3030,6 +3183,16 @@ class _PosScreenState extends State<PosScreen> {
         builder: (context, setSheetState) {
           final bd = _cartBreakdown();
           final total = bd.totalDue;
+          final splitSum = rows.fold<double>(0, (a, r) => a + r.value);
+          final splitCash = rows
+              .where((r) => r.method.isCash)
+              .fold<double>(0, (a, r) => a + r.value);
+          final splitShort = split && splitSum + 0.005 < total;
+          final splitOverpayNotCash =
+              split && splitSum - total > splitCash + 0.005;
+          final canCharge =
+              !split ||
+              (rows.isNotEmpty && !splitShort && !splitOverpayNotCash);
           final isCash =
               _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
               false;
@@ -3312,18 +3475,70 @@ class _PosScreenState extends State<PosScreen> {
                         ],
 
                         // ── Payment Method Label ──────────────────────────
-                        Text(
-                          context.l10n.selectPaymentMethod,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                context.l10n.selectPaymentMethod,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            if (!isTransferTicket && _paymentMethods.isNotEmpty)
+                              TextButton.icon(
+                                onPressed: () => setSheetState(() {
+                                  split = !split;
+                                  if (split && rows.isEmpty) {
+                                    final first =
+                                        _paymentMethods
+                                            .where(
+                                              (m) =>
+                                                  m.id ==
+                                                  _selectedPaymentMethod?.id,
+                                            )
+                                            .firstOrNull ??
+                                        _paymentMethods.first;
+                                    rows.add(_SplitRow(first, total));
+                                  }
+                                }),
+                                icon: Icon(
+                                  split
+                                      ? Icons.close
+                                      : Icons.call_split_rounded,
+                                  size: 20,
+                                ),
+                                label: Text(
+                                  split
+                                      ? context.l10n.singlePayment
+                                      : context.l10n.splitPayment,
+                                ),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: _brandNavy,
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 12),
 
+                        if (split)
+                          ..._buildSplitRows(
+                            context,
+                            rows,
+                            total: total,
+                            sum: splitSum,
+                            short: splitShort,
+                            overpayNotCash: splitOverpayNotCash,
+                            fmt: fmt,
+                            setSheetState: setSheetState,
+                          ),
+
                         // ── Payment Method Pills ──────────────────────────
-                        if (_paymentMethods.isEmpty)
+                        if (split)
+                          const SizedBox.shrink()
+                        else if (_paymentMethods.isEmpty)
                           Text(
                             context.l10n.noPaymentMethods,
                             style: TextStyle(color: Colors.grey),
@@ -3421,7 +3636,7 @@ class _PosScreenState extends State<PosScreen> {
                         const SizedBox(height: 24),
 
                         // ── Cash Input ────────────────────────────────────
-                        if (isCash) ...[
+                        if (isCash && !split) ...[
                           Text(
                             context.l10n.amountReceived,
                             style: TextStyle(
@@ -3529,8 +3744,15 @@ class _PosScreenState extends State<PosScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       child: ElevatedButton(
-                        onPressed: () =>
-                            _processCheckout(context, setSheetState, true, bd),
+                        onPressed: canCharge
+                            ? () => _processCheckout(
+                                context,
+                                setSheetState,
+                                true,
+                                bd,
+                                buildPlan(total),
+                              )
+                            : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF22C55E),
                           foregroundColor: Colors.white,
@@ -3556,7 +3778,169 @@ class _PosScreenState extends State<PosScreen> {
           );
         },
       ),
-    );
+    ).whenComplete(() {
+      for (final r in rows) {
+        r.amount.dispose();
+      }
+    });
+  }
+
+  List<Widget> _buildSplitRows(
+    BuildContext context,
+    List<_SplitRow> rows, {
+    required double total,
+    required double sum,
+    required bool short,
+    required bool overpayNotCash,
+    required NumberFormat fmt,
+    required StateSetter setSheetState,
+  }) {
+    final change = sum > total ? sum - total : 0.0;
+    return [
+      for (final r in rows)
+        Padding(
+          key: ObjectKey(r),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: r.method.id,
+                      isExpanded: true,
+                      items: [
+                        for (final m in _paymentMethods)
+                          DropdownMenuItem<int>(
+                            value: m.id,
+                            child: Text(
+                              m.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: (id) => setSheetState(() {
+                        r.method =
+                            _paymentMethods
+                                .where((m) => m.id == id)
+                                .firstOrNull ??
+                            r.method;
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: r.amount,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  decoration: InputDecoration(
+                    prefixText: 'K ',
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onChanged: (_) => setSheetState(() {}),
+                ),
+              ),
+              if (rows.length > 1)
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  color: Colors.red.shade400,
+                  onPressed: () => setSheetState(() {
+                    rows.remove(r);
+                    WidgetsBinding.instance.addPostFrameCallback(
+                      (_) => r.amount.dispose(),
+                    );
+                  }),
+                ),
+            ],
+          ),
+        ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => setSheetState(() {
+            final usedIds = rows.map((r) => r.method.id).toSet();
+            final next =
+                _paymentMethods
+                    .where((m) => !usedIds.contains(m.id))
+                    .firstOrNull ??
+                _paymentMethods.first;
+            final left = total - sum;
+            rows.add(_SplitRow(next, left > 0.005 ? left : null));
+          }),
+          icon: const Icon(Icons.add),
+          label: Text(context.l10n.addPayment),
+          style: TextButton.styleFrom(foregroundColor: _brandNavy),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: short || overpayNotCash
+              ? Colors.red.shade50
+              : Colors.green.shade50,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: overpayNotCash
+            ? Text(
+                context.l10n.onlyCashOverpay,
+                style: TextStyle(
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w700,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    short
+                        ? context.l10n.remainingAmount('')
+                        : context.l10n.changeDue,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: short
+                          ? Colors.red.shade700
+                          : Colors.green.shade800,
+                    ),
+                  ),
+                  Text(
+                    'K${fmt.format(short ? total - sum : change)}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: short
+                          ? Colors.red.shade700
+                          : Colors.green.shade800,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+      const SizedBox(height: 24),
+    ];
   }
 
   Future<void> _processCheckout(
@@ -3564,6 +3948,7 @@ class _PosScreenState extends State<PosScreen> {
     StateSetter setDialogState,
     bool printReceipt,
     CartBreakdown bd,
+    _ChargePlan plan,
   ) async {
     final subtotalRowLabel = bd.taxActive && _taxConfig.inclusive
         ? context.l10n.amountExclVat
@@ -3571,6 +3956,8 @@ class _PosScreenState extends State<PosScreen> {
     final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
         ? context.l10n.vatPercentLabel(_taxConfig.percentLabel)
         : null;
+
+    if (!_checkFreeItems(context)) return;
 
     // Only new (unsaved) lines need to be pushed — saved ones are already on server
     final newLines = _cartItems
@@ -3595,15 +3982,17 @@ class _PosScreenState extends State<PosScreen> {
 
     // Snapshot everything needed for background work before clearing cart/state.
     final snapshotCart = List<CartItem>.from(_cartItems);
-    final snapshotPaymentMethod = _selectedPaymentMethod;
+    final snapshotPaymentMethod = plan.method ?? _selectedPaymentMethod;
     final snapshotActiveTicketId = _activeTicketId;
     final snapshotActiveTicketTableId = _activeTicketTableId;
     final snapshotActiveTicketPaymentType = _activeTicketPaymentType;
     final snapshotActiveTicketQueueNumber = _activeTicketQueueNumber;
     final snapshotDiscountType = _appliedDiscountType;
     final snapshotDiscountValue = _appliedDiscountValue;
-    final isCash =
-        snapshotPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
+    final snapshotCustomer = _selectedCustomer;
+    final payments = plan.serverPayments.isEmpty ? null : plan.serverPayments;
+    final messenger = ScaffoldMessenger.of(context);
+    final refusedMsg = context.l10n.paymentRefused;
 
     // --- Optimistic UI: update local state and close dialog immediately ---
 
@@ -3640,7 +4029,7 @@ class _PosScreenState extends State<PosScreen> {
     _clearCart();
     if (context.mounted) Navigator.pop(context);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(context.l10n.orderPaidSuccessfully),
           backgroundColor: Colors.green,
@@ -3648,84 +4037,122 @@ class _PosScreenState extends State<PosScreen> {
       );
     }
 
-    // --- Background: print receipt from local snapshot, then sync to server ---
-    Future(() async {
-      // Print receipt from local cart snapshot (no server data needed).
-      if (printReceipt && printerService.isConfigured) {
-        final tpl = await _apiService.fetchBillTemplateForPrint('receipt');
-        final headerText = (tpl?['header_text'] ?? '').toString();
-        final footerText = (tpl?['footer_text'] ?? '').toString();
-        final receiptPrinters = printerService.profiles
-            .where((p) => p.printReceiptsAndBills)
-            .toList();
-        for (final p in receiptPrinters) {
-          await printerService.printReceiptToProfile(
-            p,
-            cartItems: snapshotCart,
-            subtotal: bd.baseAmount,
-            tax: bd.taxAmount,
-            total: bd.totalDue,
-            cashierName: widget.cashierName,
-            subtotalRowLabel: subtotalRowLabel,
-            taxRowLabel: taxLab,
-            headerText: headerText,
-            footerText: footerText,
-            discountAmount: bd.discount.discountAmount,
-            queueNumber: snapshotActiveTicketQueueNumber,
-          );
-        }
-        if (isCash) {
-          await printerService.openCashDrawer();
-        }
-      }
-
-      // Sync to server (handles online success + offline queue internally).
-      try {
-        if (snapshotActiveTicketId != null) {
-          if (snapshotActiveTicketId < 0) {
-            // Offline mock ticket — purge old tasks and queue a paid submit.
-            await _apiService.purgeOfflineTasksForOrder(snapshotActiveTicketId);
-            await _apiService.submitOrder(
-              userId: cashierId,
-              partnerId: _selectedCustomer?['id'],
-              tableId: snapshotActiveTicketTableId,
-              paymentMethodId: snapshotPaymentMethod?.id,
-              paymentType: snapshotActiveTicketPaymentType.isNotEmpty
-                  ? snapshotActiveTicketPaymentType
-                  : 'pay_at_store',
-              isPaid: true,
-              lines: allLines,
-              discountType: snapshotDiscountType,
-              discountValue: snapshotDiscountValue,
-            );
-          } else {
-            if (newLines.isNotEmpty) {
-              await _apiService.updateOrder(
-                orderId: snapshotActiveTicketId,
-                customerId: _selectedCustomer?['id'],
-                lines: newLines,
-                discountType: snapshotDiscountType,
-                discountValue: snapshotDiscountValue,
-              );
-            }
-            await _apiService.payOrder(
-              orderId: snapshotActiveTicketId,
-              paymentMethodId: snapshotPaymentMethod?.id,
-              discountType: snapshotDiscountType,
-              discountValue: snapshotDiscountValue,
-            );
-          }
-        } else {
-          await _apiService.submitOrder(
-            userId: cashierId,
-            partnerId: _selectedCustomer?['id'],
-            isPaid: true,
-            paymentMethodId: snapshotPaymentMethod?.id,
-            lines: allLines,
+    /// Pays on the server (online, or queued offline). Returns the order id
+    /// the receipt can be read back from, when there is one.
+    Future<int?> syncToServer() async {
+      if (snapshotActiveTicketId != null && snapshotActiveTicketId > 0) {
+        if (newLines.isNotEmpty) {
+          await _apiService.updateOrder(
+            orderId: snapshotActiveTicketId,
+            customerId: snapshotCustomer?['id'],
+            lines: newLines,
             discountType: snapshotDiscountType,
             discountValue: snapshotDiscountValue,
           );
         }
+        await _apiService.payOrder(
+          orderId: snapshotActiveTicketId,
+          paymentMethodId: snapshotPaymentMethod?.id,
+          discountType: snapshotDiscountType,
+          discountValue: snapshotDiscountValue,
+          payments: payments,
+        );
+        return snapshotActiveTicketId;
+      }
+      if (snapshotActiveTicketId != null) {
+        // Offline mock ticket — purge old tasks and queue a paid submit.
+        await _apiService.purgeOfflineTasksForOrder(snapshotActiveTicketId);
+      }
+      final data = await _apiService.submitOrder(
+        userId: cashierId,
+        partnerId: snapshotCustomer?['id'],
+        tableId: snapshotActiveTicketTableId,
+        paymentMethodId: snapshotPaymentMethod?.id,
+        paymentType: snapshotActiveTicketPaymentType.isNotEmpty
+            ? snapshotActiveTicketPaymentType
+            : 'pay_at_store',
+        isPaid: true,
+        lines: allLines,
+        discountType: snapshotDiscountType,
+        discountValue: snapshotDiscountValue,
+        payments: payments,
+      );
+      final id = data['id'] ?? data['order_id'];
+      return id is int && id > 0 ? id : null;
+    }
+
+    Future<void> printNow(ReceiptCustomer? customer) async {
+      if (!printReceipt || !printerService.isConfigured) return;
+      final tpl = await _apiService.fetchBillTemplateForPrint('receipt');
+      final headerText = (tpl?['header_text'] ?? '').toString();
+      final footerText = (tpl?['footer_text'] ?? '').toString();
+      final receiptPrinters = printerService.profiles
+          .where((p) => p.printReceiptsAndBills)
+          .toList();
+      for (final p in receiptPrinters) {
+        await printerService.printReceiptToProfile(
+          p,
+          cartItems: snapshotCart,
+          subtotal: bd.baseAmount,
+          tax: bd.taxAmount,
+          total: bd.totalDue,
+          cashierName: widget.cashierName,
+          subtotalRowLabel: subtotalRowLabel,
+          taxRowLabel: taxLab,
+          headerText: headerText,
+          footerText: footerText,
+          discountAmount: bd.discount.discountAmount,
+          queueNumber: snapshotActiveTicketQueueNumber,
+          payments: plan.receiptRows,
+          changeAmount: plan.change,
+          customer: customer,
+        );
+      }
+    }
+
+    void alertRefused(OrderRejectedException e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(refusedMsg(e.message)),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 10),
+        ),
+      );
+    }
+
+    // --- Background: drawer, server, receipt ---
+    Future(() async {
+      // Any payment row with a method ticked "Open cash drawer" opens it.
+      if (plan.openDrawer && printerService.isConfigured) {
+        await printerService.openCashDrawer();
+      }
+      try {
+        if (snapshotCustomer == null) {
+          // Fast path: print from the local snapshot, then sync.
+          await printNow(null);
+          await syncToServer();
+          return;
+        }
+        // Points earned and the new balance come from the server, so pay
+        // first and read the receipt back before printing.
+        int? orderId;
+        try {
+          orderId = await syncToServer();
+        } on OrderRejectedException catch (e) {
+          alertRefused(e);
+        } catch (_) {}
+        var customer = ReceiptCustomer(
+          name: (snapshotCustomer['name'] ?? '').toString(),
+        );
+        if (orderId != null) {
+          try {
+            final receipt = await _apiService.fetchOrderReceipt(orderId);
+            customer = PrintLayouts.customerFromRaw(receipt) ?? customer;
+          } catch (_) {}
+        }
+        await printNow(customer);
+      } on OrderRejectedException catch (e) {
+        alertRefused(e);
       } catch (_) {
         // Server calls failed — offline queue already handles retry.
       }
@@ -3735,6 +4162,7 @@ class _PosScreenState extends State<PosScreen> {
   /// Save current cart to existing ticket (update) or new ticket (table dialog)
   Future<void> _saveCurrentTicket(BuildContext context) async {
     if (_cartItems.isEmpty || _isSaving) return; // guard against double-tap
+    if (!_checkFreeItems(context)) return;
 
     if (_activeTicketId != null) {
       // Only send the NEW (unsaved) items — saved items are already on the server
@@ -4604,4 +5032,37 @@ class _PosScreenState extends State<PosScreen> {
       scannerController.dispose();
     });
   }
+}
+
+/// One row of a split payment on the charge screen.
+class _SplitRow {
+  _SplitRow(this.method, [double? amount])
+    : amount = TextEditingController(
+        text: amount == null ? '' : amount.toStringAsFixed(0),
+      );
+
+  PaymentMethod method;
+  final TextEditingController amount;
+
+  double get value => double.tryParse(amount.text.replaceAll(',', '')) ?? 0.0;
+}
+
+/// How a charge is paid: what the receipt shows (amounts handed over, and the
+/// change) and what the server stores (amounts kept, change taken off cash).
+class _ChargePlan {
+  final PaymentMethod? method;
+  final List<ReceiptPayment> receiptRows;
+  final double change;
+
+  /// `[{payment_method_id, amount}]` for a split payment, else empty.
+  final List<Map<String, dynamic>> serverPayments;
+  final bool openDrawer;
+
+  const _ChargePlan({
+    required this.method,
+    required this.receiptRows,
+    required this.change,
+    required this.serverPayments,
+    required this.openDrawer,
+  });
 }

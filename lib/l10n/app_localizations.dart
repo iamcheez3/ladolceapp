@@ -4687,6 +4687,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'just now'**
   String get justNow;
+
+  /// No description provided for @splitPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Split payment'**
+  String get splitPayment;
+
+  /// No description provided for @singlePayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Single payment'**
+  String get singlePayment;
+
+  /// No description provided for @addPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add payment'**
+  String get addPayment;
+
+  /// No description provided for @remainingAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining: {amount}'**
+  String remainingAmount(String amount);
+
+  /// No description provided for @onlyCashOverpay.
+  ///
+  /// In en, this message translates to:
+  /// **'Only cash can be more than the total'**
+  String get onlyCashOverpay;
+
+  /// No description provided for @paymentRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment not recorded, the server refused it: {reason}'**
+  String paymentRefused(String reason);
+
+  /// No description provided for @freeItemsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{promo}: {count} free item(s)'**
+  String freeItemsAvailable(String promo, String count);
+
+  /// No description provided for @addFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Add free'**
+  String get addFree;
+
+  /// No description provided for @chooseFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose'**
+  String get chooseFree;
+
+  /// No description provided for @chooseFreeItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the free item ({promo})'**
+  String chooseFreeItem(String promo);
+
+  /// No description provided for @freeUpper.
+  ///
+  /// In en, this message translates to:
+  /// **'FREE'**
+  String get freeUpper;
+
+  /// No description provided for @tooManyFreeItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many free items for {promo}. Remove one first.'**
+  String tooManyFreeItems(String promo);
+
+  /// No description provided for @noMoreFreeItems.
+  ///
+  /// In en, this message translates to:
+  /// **'No more free items for {promo}'**
+  String noMoreFreeItems(String promo);
 }
 
 class _AppLocalizationsDelegate

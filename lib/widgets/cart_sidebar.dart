@@ -24,6 +24,9 @@ class CartSidebar extends StatelessWidget {
   final PosDiscountOption? selectedDiscountOption;
   final double? discountManualValue;
 
+  /// Shown above the totals, e.g. the 🎁 free-item banner.
+  final Widget? promoBanner;
+
   const CartSidebar({
     super.key,
     required this.cartItems,
@@ -39,6 +42,7 @@ class CartSidebar extends StatelessWidget {
     this.taxConfig = PosTaxConfig.disabled,
     this.selectedDiscountOption,
     this.discountManualValue,
+    this.promoBanner,
   });
 
   @override
@@ -283,6 +287,8 @@ class CartSidebar extends StatelessWidget {
                   }),
           ),
           
+          ?promoBanner,
+
           // Totals and Charge
           Container(
             padding: const EdgeInsets.all(16),
@@ -538,10 +544,30 @@ class _CartItemRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    '₭${item.product.effectivePrice.toStringAsFixed(2)} each',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                  ),
+                  if (item.isFreePromo)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF81C784)),
+                      ),
+                      child: Text(
+                        item.promotionName.isEmpty
+                            ? '🎁 ${context.l10n.freeUpper}'
+                            : '🎁 ${context.l10n.freeUpper} · ${item.promotionName}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF2E7D32),
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      '₭${item.product.effectivePrice.toStringAsFixed(2)} each',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
                   if (item.selectedToppings.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Wrap(
@@ -556,7 +582,9 @@ class _CartItemRow extends StatelessWidget {
                             border: Border.all(color: Colors.orange.withOpacity(0.3)),
                           ),
                           child: Text(
-                            '+ ${topping.name} (₭${topping.extraPrice.toStringAsFixed(2)})',
+                            item.isFreePromo || topping.extraPrice <= 0
+                                ? '+ ${topping.displayName}'
+                                : '+ ${topping.displayName} (₭${topping.extraPrice.toStringAsFixed(2)})',
                             style: TextStyle(fontSize: 10, color: Colors.orange[800]),
                           ),
                         );
@@ -597,11 +625,13 @@ class _CartItemRow extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerRight,
                 child: Text(
-                  '₭${item.totalPrice.toStringAsFixed(2)}',
+                  item.isFreePromo
+                      ? context.l10n.freeUpper
+                      : '₭${item.totalPrice.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
-                    color: priceColor,
+                    color: item.isFreePromo ? const Color(0xFF2E7D32) : priceColor,
                   ),
                 ),
               ),

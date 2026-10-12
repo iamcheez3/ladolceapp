@@ -2526,4 +2526,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get justNow => 'just now';
+
+  @override
+  String get splitPayment => 'Split payment';
+
+  @override
+  String get singlePayment => 'Single payment';
+
+  @override
+  String get addPayment => 'Add payment';
+
+  @override
+  String remainingAmount(String amount) {
+    return 'Remaining: $amount';
+  }
+
+  @override
+  String get onlyCashOverpay => 'Only cash can be more than the total';
+
+  @override
+  String paymentRefused(String reason) {
+    return 'Payment not recorded, the server refused it: $reason';
+  }
+
+  @override
+  String freeItemsAvailable(String promo, String count) {
+    return '$promo: $count free item(s)';
+  }
+
+  @override
+  String get addFree => 'Add free';
+
+  @override
+  String get chooseFree => 'Choose';
+
+  @override
+  String chooseFreeItem(String promo) {
+    return 'Choose the free item ($promo)';
+  }
+
+  @override
+  String get freeUpper => 'FREE';
+
+  @override
+  String tooManyFreeItems(String promo) {
+    return 'Too many free items for $promo. Remove one first.';
+  }
+
+  @override
+  String noMoreFreeItems(String promo) {
+    return 'No more free items for $promo';
+  }
 }

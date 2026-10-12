@@ -763,5 +763,18 @@
   "ticketItemsCount": "{count} ລາຍການ",
   "ticketOneItem": "1 ລາຍການ",
   "readyDone": "ພ້ອມແລ້ວ",
-  "justNow": "ຫາກໍ່"
+  "justNow": "ຫາກໍ່",
+  "splitPayment": "ແຍກຈ່າຍ",
+  "singlePayment": "ຈ່າຍທາງດຽວ",
+  "addPayment": "ເພີ່ມການຈ່າຍ",
+  "remainingAmount": "ຍັງຂາດ: {amount}",
+  "onlyCashOverpay": "ມີແຕ່ເງິນສົດທີ່ຈ່າຍເກີນຍອດໄດ້",
+  "paymentRefused": "ບໍ່ໄດ້ບັນທຶກການຈ່າຍ ເຊີບເວີບໍ່ຮັບ: {reason}",
+  "freeItemsAvailable": "{promo}: ຟຣີ {count} ລາຍການ",
+  "addFree": "ເພີ່ມຂອງແຖມ",
+  "chooseFree": "ເລືອກ",
+  "chooseFreeItem": "ເລືອກຂອງແຖມ ({promo})",
+  "freeUpper": "ຟຣີ",
+  "tooManyFreeItems": "ຂອງແຖມເກີນສິດຂອງ {promo}. ກະລຸນາລຶບອອກກ່ອນ.",
+  "noMoreFreeItems": "ໝົດສິດຂອງແຖມຂອງ {promo} ແລ້ວ"
 }

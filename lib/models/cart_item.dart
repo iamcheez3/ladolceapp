@@ -27,6 +27,9 @@ class CartItem {
   final bool isFreePromo;
   final int? promotionId;
 
+  /// For display only ("FREE · 2 free 1"); a reopened ticket does not know it.
+  final String promotionName;
+
   CartItem({
     required this.product,
     this.quantity = 1,
@@ -39,6 +42,7 @@ class CartItem {
     this.pointPrice = 0,
     this.isFreePromo = false,
     this.promotionId,
+    this.promotionName = '',
   });
 
   double get totalPrice {

@@ -1249,5 +1249,63 @@
   },
   "ticketOneItem": "1 item",
   "readyDone": "Ready",
-  "justNow": "just now"
+  "justNow": "just now",
+  "splitPayment": "Split payment",
+  "singlePayment": "Single payment",
+  "addPayment": "Add payment",
+  "remainingAmount": "Remaining: {amount}",
+  "@remainingAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "onlyCashOverpay": "Only cash can be more than the total",
+  "paymentRefused": "Payment not recorded, the server refused it: {reason}",
+  "@paymentRefused": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "freeItemsAvailable": "{promo}: {count} free item(s)",
+  "@freeItemsAvailable": {
+    "placeholders": {
+      "promo": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "addFree": "Add free",
+  "chooseFree": "Choose",
+  "chooseFreeItem": "Choose the free item ({promo})",
+  "@chooseFreeItem": {
+    "placeholders": {
+      "promo": {
+        "type": "String"
+      }
+    }
+  },
+  "freeUpper": "FREE",
+  "tooManyFreeItems": "Too many free items for {promo}. Remove one first.",
+  "@tooManyFreeItems": {
+    "placeholders": {
+      "promo": {
+        "type": "String"
+      }
+    }
+  },
+  "noMoreFreeItems": "No more free items for {promo}",
+  "@noMoreFreeItems": {
+    "placeholders": {
+      "promo": {
+        "type": "String"
+      }
+    }
+  }
 }

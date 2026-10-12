@@ -2494,4 +2494,55 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get justNow => 'ຫາກໍ່';
+
+  @override
+  String get splitPayment => 'ແຍກຈ່າຍ';
+
+  @override
+  String get singlePayment => 'ຈ່າຍທາງດຽວ';
+
+  @override
+  String get addPayment => 'ເພີ່ມການຈ່າຍ';
+
+  @override
+  String remainingAmount(String amount) {
+    return 'ຍັງຂາດ: $amount';
+  }
+
+  @override
+  String get onlyCashOverpay => 'ມີແຕ່ເງິນສົດທີ່ຈ່າຍເກີນຍອດໄດ້';
+
+  @override
+  String paymentRefused(String reason) {
+    return 'ບໍ່ໄດ້ບັນທຶກການຈ່າຍ ເຊີບເວີບໍ່ຮັບ: $reason';
+  }
+
+  @override
+  String freeItemsAvailable(String promo, String count) {
+    return '$promo: ຟຣີ $count ລາຍການ';
+  }
+
+  @override
+  String get addFree => 'ເພີ່ມຂອງແຖມ';
+
+  @override
+  String get chooseFree => 'ເລືອກ';
+
+  @override
+  String chooseFreeItem(String promo) {
+    return 'ເລືອກຂອງແຖມ ($promo)';
+  }
+
+  @override
+  String get freeUpper => 'ຟຣີ';
+
+  @override
+  String tooManyFreeItems(String promo) {
+    return 'ຂອງແຖມເກີນສິດຂອງ $promo. ກະລຸນາລຶບອອກກ່ອນ.';
+  }
+
+  @override
+  String noMoreFreeItems(String promo) {
+    return 'ໝົດສິດຂອງແຖມຂອງ $promo ແລ້ວ';
+  }
 }
