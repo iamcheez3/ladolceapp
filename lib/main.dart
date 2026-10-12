@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:upgrader/upgrader.dart';
 import 'utils/localized_name.dart';
+import 'utils/phantom_touch_filter.dart';
 import 'utils/responsive_layout.dart';
 import 'screens/loading_screen.dart';
 import 'screens/login_screen.dart';
@@ -17,8 +18,9 @@ import 'services/maintenance_service.dart';
 import 'services/user_activity_service.dart';
 
 void main() async {
-  // Ensure bindings are initialized before loading dotenv
-  WidgetsFlutterBinding.ensureInitialized();
+  // Ensure bindings are initialized before loading dotenv. The app binding
+  // also ignores the phantom (0, 0) touch that closes menus on iPad.
+  PosAppBinding.ensureInitialized();
   // Keep app boot resilient if `.env` wasn't created yet in a fresh clone.
   try {
     await dotenv.load(fileName: '.env');
