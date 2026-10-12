@@ -2577,4 +2577,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String noMoreFreeItems(String promo) {
     return 'No more free items for $promo';
   }
+
+  @override
+  String get historyToday => 'Today';
+
+  @override
+  String get historyChooseDates => 'Choose dates';
+
+  @override
+  String get historyAll => 'All';
+
+  @override
+  String get statusReadyForPickup => 'Ready for pickup';
+
+  @override
+  String get noOrdersInRange => 'No orders on these days';
 }

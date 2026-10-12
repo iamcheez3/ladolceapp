@@ -776,5 +776,10 @@
   "chooseFreeItem": "ເລືອກຂອງແຖມ ({promo})",
   "freeUpper": "ຟຣີ",
   "tooManyFreeItems": "ຂອງແຖມເກີນສິດຂອງ {promo}. ກະລຸນາລຶບອອກກ່ອນ.",
-  "noMoreFreeItems": "ໝົດສິດຂອງແຖມຂອງ {promo} ແລ້ວ"
+  "noMoreFreeItems": "ໝົດສິດຂອງແຖມຂອງ {promo} ແລ້ວ",
+  "historyToday": "ມື້ນີ້",
+  "historyChooseDates": "ເລືອກວັນທີ",
+  "historyAll": "ທັງໝົດ",
+  "statusReadyForPickup": "ພ້ອມໃຫ້ມາຮັບ",
+  "noOrdersInRange": "ບໍ່ມີອໍເດີໃນວັນທີ່ເລືອກ"
 }

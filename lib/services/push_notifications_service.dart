@@ -38,6 +38,13 @@ class PushNotificationsService {
 
   static final AudioPlayer _alarmPlayer = AudioPlayer();
   static Timer? _alarmStopTimer;
+
+  static final StreamController<Map<String, dynamic>> _messages =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  /// Data of every push received while the app is open, muted or not —
+  /// screens refresh from it (e.g. "Ready for pickup" without pulling down).
+  static Stream<Map<String, dynamic>> get messages => _messages.stream;
   static bool _alarmRunning = false;
 
   static bool _initialized = false;
@@ -214,6 +221,7 @@ class PushNotificationsService {
 
     // Show a local notification when a push arrives in foreground
     FirebaseMessaging.onMessage.listen((message) async {
+      _messages.add(Map<String, dynamic>.from(message.data));
       try {
         if (await _isCustomerNotificationsMuted()) {
           return;

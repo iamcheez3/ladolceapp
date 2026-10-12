@@ -3298,10 +3298,23 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchCustomerOrders(int partnerId) async {
+  /// The customer's orders, optionally only those dated [from]–[to] (whole
+  /// days, both included; the server reads them in Lao time).
+  Future<List<Map<String, dynamic>>> fetchCustomerOrders(
+    int partnerId, {
+    DateTime? from,
+    DateTime? to,
+  }) async {
     final base = await getBaseUrl();
+    String day(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
     try {
-      final url = Uri.parse('$base/pos/my_orders?partner_id=$partnerId');
+      final url = Uri.parse('$base/pos/my_orders').replace(
+        queryParameters: {
+          'partner_id': '$partnerId',
+          if (from != null) 'date_from': day(from),
+          if (to != null) 'date_to': day(to),
+        },
+      );
       final response = await http.get(url).timeout(const Duration(seconds: 7));
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);

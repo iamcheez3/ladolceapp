@@ -27,6 +27,9 @@ class CustomerOrderDetailScreen extends StatelessWidget {
   String _statusLabel(BuildContext context, String rawState, String paymentMethod, {String? deliveryStatus}) {
     final ds = (deliveryStatus ?? '').toLowerCase().trim();
     if (ds == 'delivered') return context.l10n.delivered;
+    if (ds == 'ready' && rawState != 'paid') {
+      return context.l10n.statusReadyForPickup;
+    }
     if (rawState == 'waiting_transfer_review') {
       return context.l10n.waitingReview;
     }

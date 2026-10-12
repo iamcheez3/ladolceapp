@@ -4765,6 +4765,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No more free items for {promo}'**
   String noMoreFreeItems(String promo);
+
+  /// No description provided for @historyToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get historyToday;
+
+  /// No description provided for @historyChooseDates.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose dates'**
+  String get historyChooseDates;
+
+  /// No description provided for @historyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get historyAll;
+
+  /// No description provided for @statusReadyForPickup.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for pickup'**
+  String get statusReadyForPickup;
+
+  /// No description provided for @noOrdersInRange.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders on these days'**
+  String get noOrdersInRange;
 }
 
 class _AppLocalizationsDelegate

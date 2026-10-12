@@ -36,6 +36,9 @@ import '../widgets/skeleton_loaders.dart';
 import 'login_screen.dart';
 import 'order_chat_screen.dart';
 import '../utils/l10n_ext.dart';
+import '../widgets/topping_picker.dart';
+import '../widgets/free_items_banner.dart';
+import '../models/free_promotion.dart';
 import '../main.dart';
 
 class _FavoritePlace {
@@ -319,6 +322,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   int _previewQty = 1;
   List<Topping> _previewToppings = [];
 
+  /// Running "Buy X get Y free" promotions for the chosen branch.
+  List<FreePromotion> _freePromotions = [];
+
   int? _customerId;
   String _customerName = '';
   String _customerPhone = '';
@@ -348,6 +354,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String? _selectedFavoritePlaceId;
 
   List<Map<String, dynamic>> _historyItems = [];
+
+  /// History shows today by default; "Choose dates" or "All" widen it.
+  _HistoryRange _historyRange = _HistoryRange.today;
+  DateTimeRange? _historyDates;
+  StreamSubscription<Map<String, dynamic>>? _pushSub;
   Timer? _riderLocationTimer;
   final Map<String, Map<String, dynamic>> _riderLocations = {};
 
@@ -364,6 +375,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     super.initState();
     Product.isCustomerMode = true;
     PushNotificationsService.setAppActive(true);
+    // "Order ready" and other order pushes: refresh the order list live.
+    _pushSub = PushNotificationsService.messages.listen((data) {
+      if (!mounted || data['type'] == 'self_order_new') return;
+      _loadHistory(forceRefresh: true);
+    });
     _customerName = widget.customerName;
     _cartItems.clear();
     _validateSingleDeviceSession();
@@ -523,6 +539,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   void dispose() {
     Product.isCustomerMode = false;
     PushNotificationsService.setAppActive(false);
+    _pushSub?.cancel();
     _recommendedAutoSlideTimer?.cancel();
     _recommendedPageController?.dispose();
     _noteController.dispose();
@@ -1541,6 +1558,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           .map((c) => Product.fromCombo(Combo.fromJson(c)))
           .toList();
       products.addAll(combos);
+      // "POS only" products (or categories) are for the cashier; the server
+      // refuses them in a self-order anyway.
+      products.removeWhere((p) => p.hideInSelfOrder);
+      final promotions = await _apiService.fetchFreePromotions(
+        branchId: _selectedBranchId,
+      );
 
       final categorySet = products.map((p) => p.category).toSet();
       final categories = [
@@ -1578,6 +1601,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
       setState(() {
         _products = products;
+        _freePromotions = promotions;
         _recommendedProducts = recommendedProducts;
         _popularProducts = popularProducts;
         _categories = categories;
@@ -1585,7 +1609,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _previewProduct = nextPreview;
         if (nextPreview?.id != oldPreviewId) {
           _previewQty = 1;
-          _previewToppings = [];
+          _previewToppings = _defaultToppings(nextPreview);
         }
       });
     } catch (e) {
@@ -1679,10 +1703,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   Future<void> _loadHistory({bool forceRefresh = false}) async {
     setState(() => _isLoadingHistory = true);
     try {
+      final (from, to) = _historyBounds();
       final List<Map<String, dynamic>> serverHistory;
       if (widget.partnerId != null) {
         serverHistory = await _apiService.fetchCustomerOrders(
           widget.partnerId!,
+          from: from,
+          to: to,
         );
       } else {
         serverHistory = await _apiService.fetchReceiptHistory(
@@ -1785,7 +1812,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         byKey[key] = merged;
       }
 
-      final all = byKey.values.toList();
+      final all = byKey.values.where(_inHistoryRange).toList();
       all.sort((a, b) {
         final aDate =
             DateTime.tryParse((a['date_order'] ?? '').toString()) ??
@@ -1811,6 +1838,115 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (!mounted) return;
       setState(() => _isLoadingHistory = false);
     }
+  }
+
+  /// Days the history shows (inclusive), or nulls for "All".
+  (DateTime?, DateTime?) _historyBounds() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return switch (_historyRange) {
+      _HistoryRange.today => (today, today),
+      _HistoryRange.custom => (_historyDates?.start, _historyDates?.end),
+      _HistoryRange.all => (null, null),
+    };
+  }
+
+  /// Local (not yet synced) entries follow the same date filter.
+  bool _inHistoryRange(Map<String, dynamic> item) {
+    final (from, to) = _historyBounds();
+    if (from == null || to == null) return true;
+    final raw = DateTime.tryParse((item['date_order'] ?? '').toString());
+    if (raw == null) return true;
+    // Odoo sends UTC without a zone; offline entries are already local.
+    final local = raw.isUtc ? raw.toLocal() : raw;
+    final day = DateTime(local.year, local.month, local.day);
+    return !day.isBefore(from) && !day.isAfter(to);
+  }
+
+  Future<void> _setHistoryRange(_HistoryRange range) async {
+    if (range == _HistoryRange.custom) {
+      final now = DateTime.now();
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2024),
+        lastDate: DateTime(now.year, now.month, now.day),
+        initialDateRange: _historyDates,
+        builder: (ctx, child) => Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: Theme.of(
+              ctx,
+            ).colorScheme.copyWith(primary: _brandNavy),
+          ),
+          child: child!,
+        ),
+      );
+      if (picked == null || !mounted) return;
+      _historyDates = picked;
+    }
+    setState(() => _historyRange = range);
+    await _loadHistory(forceRefresh: true);
+  }
+
+  Widget _historyFilterBar() {
+    Widget button(_HistoryRange range, String label, {IconData? icon}) {
+      final selected = _historyRange == range;
+      final style = selected
+          ? ElevatedButton.styleFrom(
+              backgroundColor: _brandNavy,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            )
+          : ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: _brandNavy,
+              elevation: 0,
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            );
+      return ElevatedButton(
+        onPressed: () => _setHistoryRange(range),
+        style: style,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 18),
+              const SizedBox(width: 6),
+            ],
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+          ],
+        ),
+      );
+    }
+
+    final dates = _historyDates;
+    final rangeLabel = _historyRange == _HistoryRange.custom && dates != null
+        ? '${DateFormat('MMM d').format(dates.start)} – ${DateFormat('MMM d').format(dates.end)}'
+        : context.l10n.historyChooseDates;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 10,
+        runSpacing: 8,
+        children: [
+          button(_HistoryRange.today, context.l10n.historyToday),
+          button(
+            _HistoryRange.custom,
+            rangeLabel,
+            icon: Icons.calendar_month_rounded,
+          ),
+          button(_HistoryRange.all, context.l10n.historyAll),
+        ],
+      ),
+    );
   }
 
   void _startRiderLocationPolling() {
@@ -2506,8 +2642,17 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     setState(() {
       _previewProduct = product;
       _previewQty = 1;
-      _previewToppings = [];
+      _previewToppings = _defaultToppings(product);
     });
+  }
+
+  /// Choices ticked when a product is opened (`is_default`).
+  List<Topping> _defaultToppings(Product? product) {
+    if (product == null) return [];
+    return ToppingRules.picked(
+      product.toppings,
+      ToppingRules.defaults(product.toppings),
+    );
   }
 
   void _addToCart(
@@ -2520,6 +2665,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     final selectedIds = selectedToppings.map((t) => t.id).toSet();
     final index = _cartItems.indexWhere((item) {
       if (item.product.id != product.id) return false;
+      if (item.isFreePromo) return false;
       if (item.isRedeemed != isRedeemed) return false;
       if (item.selectedToppings.length != selectedToppings.length) return false;
       final itemIds = item.selectedToppings.map((t) => t.id).toSet();
@@ -2550,6 +2696,22 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _updateQuantity(CartItem item, int quantity) {
+    if (item.isFreePromo && quantity > item.quantity) {
+      final promo = _freePromotions
+          .where((p) => p.id == item.promotionId)
+          .firstOrNull;
+      if (promo == null || promo.availableQty(_cartItems) <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.l10n.noMoreFreeItems(promo?.name ?? item.promotionName),
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
     setState(() {
       if (quantity <= 0) {
         _cartItems.remove(item);
@@ -2620,6 +2782,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _showCheckoutOptions() {
+    final overused = overusedPromotion(_freePromotions, _cartItems);
+    if (overused != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.tooManyFreeItems(overused.name)),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     if (_cartItems.isEmpty || _isPlacingOrder) return;
 
     if (_customerPhone.trim().isEmpty) {
@@ -3729,11 +3901,19 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             (item) => {
               'product_id': item.product.id,
               'qty': item.quantity,
-              'price_unit': item.isRedeemed ? 0.0 : item.product.effectivePrice,
+              // Paid choices (Size L +₭5000) are part of the unit price;
+              // only the base price used to be sent.
+              'price_unit': item.isRedeemed || item.isFreePromo
+                  ? 0.0
+                  : item.totalPrice / item.quantity,
               'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
               'note': item.kitchenNote.trim(),
               'is_redeemed': item.isRedeemed,
               'point_cost': item.isRedeemed ? item.pointPrice : 0,
+              if (item.isFreePromo && item.promotionId != null) ...{
+                'is_free_promo': true,
+                'promotion_id': item.promotionId,
+              },
             },
           )
           .toList();
@@ -3895,7 +4075,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(context.l10n.failedToPlaceOrder),
+          content: Text(
+            e is OrderRejectedException
+                ? context.l10n.orderRefused(e.message)
+                : context.l10n.failedToPlaceOrder,
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -4965,7 +5149,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       return;
     }
     int qty = 1;
-    List<Topping> selectedToppings = [];
+    var selectedIds = ToppingRules.defaults(product.toppings);
+    final hasGroups = product.toppings.any((t) => t.hasGroup);
 
     showModalBottomSheet(
       context: context,
@@ -4975,6 +5160,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final selectedToppings = ToppingRules.picked(
+              product.toppings,
+              selectedIds,
+            );
+            final missing = ToppingRules.missingRequired(
+              product.toppings,
+              selectedIds,
+            );
             final totalPrice =
                 (product.effectivePrice +
                     selectedToppings.fold(
@@ -5105,109 +5298,23 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
                                     // Toppings Section
                                     if (product.toppings.isNotEmpty) ...[
-                                      Text(
-                                        context.l10n.customization,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                          color: _brandNavy,
+                                      if (!hasGroups) ...[
+                                        Text(
+                                          context.l10n.customization,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: _brandNavy,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      ListView.separated(
-                                        shrinkWrap: true,
-                                        physics:
-                                            const NeverScrollableScrollPhysics(),
-                                        itemCount: product.toppings.length,
-                                        separatorBuilder: (context, index) =>
-                                            const SizedBox(height: 12),
-                                        itemBuilder: (context, index) {
-                                          final topping =
-                                              product.toppings[index];
-                                          final isSelected = selectedToppings
-                                              .any((t) => t.id == topping.id);
-
-                                          return InkWell(
-                                            onTap: () {
-                                              setSheetState(() {
-                                                if (isSelected) {
-                                                  selectedToppings.removeWhere(
-                                                    (t) => t.id == topping.id,
-                                                  );
-                                                } else {
-                                                  selectedToppings.add(topping);
-                                                }
-                                              });
-                                            },
-                                            child: Container(
-                                              padding: const EdgeInsets.all(16),
-                                              decoration: BoxDecoration(
-                                                color: isSelected
-                                                    ? const Color(0xFFEFF6FF)
-                                                    : Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                border: Border.all(
-                                                  color: isSelected
-                                                      ? _brandNavy
-                                                      : const Color(0xFFE2E8F0),
-                                                  width: isSelected ? 2 : 1,
-                                                ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          topping.name,
-                                                          style: TextStyle(
-                                                            fontSize: 15,
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color: isSelected
-                                                                ? _brandNavy
-                                                                : _textPrimaryDark,
-                                                          ),
-                                                        ),
-                                                        if (topping.extraPrice >
-                                                            0)
-                                                          Text(
-                                                            '+₭${topping.extraPrice.toStringAsFixed(0)}',
-                                                            style: TextStyle(
-                                                              fontSize: 13,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              color: isSelected
-                                                                  ? _brandNavy
-                                                                        .withOpacity(
-                                                                          0.7,
-                                                                        )
-                                                                  : Colors.grey,
-                                                            ),
-                                                          ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  if (isSelected)
-                                                    const Icon(
-                                                      Icons.check_circle,
-                                                      color: _brandNavy,
-                                                    )
-                                                  else
-                                                    const Icon(
-                                                      Icons.add_circle_outline,
-                                                      color: Color(0xFFCBD5E1),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        },
+                                        const SizedBox(height: 16),
+                                      ],
+                                      ToppingPicker(
+                                        toppings: product.toppings,
+                                        selected: selectedIds,
+                                        onChanged: (next) => setSheetState(
+                                          () => selectedIds = next,
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -5287,40 +5394,58 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               child: SizedBox(
                                 height: 56,
                                 child: ElevatedButton(
-                                  onPressed: () {
-                                    _addToCart(
-                                      product,
-                                      quantity: qty,
-                                      selectedToppings: selectedToppings,
-                                      isRedeemed: false,
-                                    );
-                                    Navigator.pop(ctx);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          context.l10n.addedToCartQty(
-                                            qty.toString(),
-                                            product.displayName,
-                                          ),
-                                        ),
-                                        backgroundColor: _brandNavy,
-                                        behavior: SnackBarBehavior.floating,
-                                        duration: const Duration(
-                                          milliseconds: 1500,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  onPressed: missing.isNotEmpty
+                                      ? null
+                                      : () {
+                                          _addToCart(
+                                            product,
+                                            quantity: qty,
+                                            selectedToppings: selectedToppings,
+                                            isRedeemed: false,
+                                          );
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                context.l10n.addedToCartQty(
+                                                  qty.toString(),
+                                                  product.displayName,
+                                                ),
+                                              ),
+                                              backgroundColor: _brandNavy,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                              duration: const Duration(
+                                                milliseconds: 1500,
+                                              ),
+                                            ),
+                                          );
+                                        },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _brandNavy,
                                     foregroundColor: Colors.white,
+                                    disabledBackgroundColor: const Color(
+                                      0xFFE2E8F0,
+                                    ),
+                                    disabledForegroundColor: const Color(
+                                      0xFFEA580C,
+                                    ),
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
                                   child: Text(
-                                    context.l10n.addToCart,
+                                    missing.isNotEmpty
+                                        ? context.l10n.pleaseChooseGroups(
+                                            missing
+                                                .map((g) => g.title)
+                                                .join(', '),
+                                          )
+                                        : context.l10n.addToCart,
+                                    textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w900,
@@ -6813,6 +6938,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     onPressed: previewBlocked
                         ? null
                         : () {
+                            final missing = ToppingRules.missingRequired(
+                              product.toppings,
+                              _previewToppings.map((t) => t.id).toSet(),
+                            );
+                            if (missing.isNotEmpty) {
+                              _openToppingsPickerForPreview(product);
+                              return;
+                            }
                             _addToCart(
                               product,
                               quantity: _previewQty,
@@ -6862,7 +6995,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       return;
     }
     if (product.toppings.isEmpty) return;
-    final temp = List<Topping>.from(_previewToppings);
+    var tempIds = _previewToppings.map((t) => t.id).toSet();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -6905,65 +7038,36 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      context.l10n.optional,
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
                     const SizedBox(height: 10),
                     Expanded(
-                      child: ListView.separated(
-                        itemCount: product.toppings.length,
-                        separatorBuilder: (_, _) =>
-                            const Divider(height: 1, color: _brandDivider),
-                        itemBuilder: (context, index) {
-                          final topping = product.toppings[index];
-                          final selected = temp.any((t) => t.id == topping.id);
-                          return CheckboxListTile(
-                            value: selected,
-                            onChanged: (val) {
-                              setSheetState(() {
-                                if (val == true) {
-                                  temp.add(topping);
-                                } else {
-                                  temp.removeWhere((t) => t.id == topping.id);
-                                }
-                              });
-                            },
-                            activeColor: _brandNavy,
-                            title: Text(
-                              topping.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: _brandNavy,
-                              ),
-                            ),
-                            subtitle: Text(
-                              topping.extraPrice > 0
-                                  ? '+₭${topping.extraPrice.toStringAsFixed(2)}'
-                                  : context.l10n.free,
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          );
-                        },
+                      child: SingleChildScrollView(
+                        child: ToppingPicker(
+                          toppings: product.toppings,
+                          selected: tempIds,
+                          onChanged: (next) =>
+                              setSheetState(() => tempIds = next),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          setState(
-                            () => _previewToppings = List<Topping>.from(temp),
-                          );
-                          Navigator.pop(ctx);
-                        },
+                        onPressed:
+                            ToppingRules.missingRequired(
+                              product.toppings,
+                              tempIds,
+                            ).isNotEmpty
+                            ? null
+                            : () {
+                                setState(
+                                  () => _previewToppings = ToppingRules.picked(
+                                    product.toppings,
+                                    tempIds,
+                                  ),
+                                );
+                                Navigator.pop(ctx);
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _brandNavy,
                           foregroundColor: Colors.white,
@@ -6986,6 +7090,55 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         );
       },
     );
+  }
+
+  /// 🎁 "2 free 1: 1 free item(s)  [Choose]" while the cart earned free items.
+  Widget? _customerFreeItemsBanner() {
+    final open = promotionsWithFreeItems(_freePromotions, _cartItems);
+    if (open.isEmpty) return null;
+    final promo = open.first;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: FreeItemsBanner(
+        promotion: promo,
+        count: promo.availableQty(_cartItems),
+        buttonLabel: context.l10n.chooseFree,
+        onPressed: () => _chooseFreeItem(promo),
+      ),
+    );
+  }
+
+  /// The customer picks the free item; its choices are free too.
+  Future<void> _chooseFreeItem(FreePromotion promo) async {
+    final product = await showFreeItemPicker(
+      context,
+      promotion: promo,
+      products: _products.where((p) => !p.blockSelfOrder).toList(),
+      titleColor: _brandNavy,
+    );
+    if (product == null || !mounted) return;
+    var toppings = <Topping>[];
+    if (product.toppings.isNotEmpty) {
+      final picked = await showToppingPickerSheet(
+        context,
+        title: context.l10n.selectToppingsFor(product.displayName),
+        toppings: product.toppings,
+      );
+      if (picked == null || !mounted) return;
+      toppings = picked;
+    }
+    if (promo.availableQty(_cartItems) <= 0) return;
+    setState(() {
+      _cartItems.add(
+        CartItem(
+          product: product,
+          selectedToppings: toppings,
+          isFreePromo: true,
+          promotionId: promo.id,
+          promotionName: promo.name,
+        ),
+      );
+    });
   }
 
   Widget _buildCartTab({bool isSmall = false}) {
@@ -7087,30 +7240,44 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 ),
                               ],
                               const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  if (item.product.promotionPrice != null) ...[
+                              if (item.isFreePromo)
+                                Text(
+                                  '🎁 ${context.l10n.freeUpper}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                    color: _brandNavy,
+                                  ),
+                                )
+                              else
+                                Row(
+                                  children: [
+                                    if (item.product.promotionPrice !=
+                                        null) ...[
+                                      Text(
+                                        '₭${item.product.price.toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                          color: Colors.grey.shade400,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
                                     Text(
-                                      '₭${item.product.price.toStringAsFixed(0)}',
+                                      // Unit price with the paid choices.
+                                      '₭${(item.totalPrice / item.quantity).toStringAsFixed(0)}',
                                       style: TextStyle(
-                                        decoration: TextDecoration.lineThrough,
-                                        color: Colors.grey.shade400,
-                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            item.product.promotionPrice != null
+                                            ? Colors.red
+                                            : _brandNavy,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
                                   ],
-                                  Text(
-                                    '₭${item.product.effectivePrice.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: item.product.promotionPrice != null
-                                          ? Colors.red
-                                          : _brandNavy,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
                             ],
                           ),
                         ),
@@ -7230,6 +7397,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              ?_customerFreeItemsBanner(),
               // Coupon Section
               Row(
                 children: [
@@ -7411,6 +7579,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   Widget _buildHistoryTab({bool isSmall = false}) {
+    return Column(
+      children: [
+        _historyFilterBar(),
+        Expanded(child: _buildHistoryList(isSmall: isSmall)),
+      ],
+    );
+  }
+
+  Widget _buildHistoryList({bool isSmall = false}) {
     if (_isLoadingHistory) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -7429,7 +7606,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                context.l10n.noOrderHistory,
+                _historyRange == _HistoryRange.all
+                    ? context.l10n.noOrderHistory
+                    : context.l10n.noOrdersInRange,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -7703,6 +7882,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       bg = const Color(0xFFDCFCE7);
       fg = const Color(0xFF166534);
       text = context.l10n.statusComplete;
+    } else if (ds == 'ready') {
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF166534);
+      text = context.l10n.statusReadyForPickup;
     } else if (ds == 'delivered') {
       bg = const Color(0xFFDCFCE7);
       fg = const Color(0xFF166534);
@@ -7755,6 +7938,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       return context.l10n.statusComplete;
     }
     final ds = (deliveryStatus ?? '').toLowerCase();
+    if (ds == 'ready') return context.l10n.statusReadyForPickup;
     if (ds == 'delivered') return context.l10n.statusDelivered;
     if (ds == 'arrived') return context.l10n.statusRiderArrived;
     if (ds == 'on_the_way') return context.l10n.statusRiderOnWay;
@@ -9958,3 +10142,6 @@ class _RiderTrackingSheetState extends State<_RiderTrackingSheet> {
     );
   }
 }
+
+/// Which days the customer's order history shows.
+enum _HistoryRange { today, custom, all }

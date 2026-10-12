@@ -1307,5 +1307,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "historyToday": "Today",
+  "historyChooseDates": "Choose dates",
+  "historyAll": "All",
+  "statusReadyForPickup": "Ready for pickup",
+  "noOrdersInRange": "No orders on these days"
 }

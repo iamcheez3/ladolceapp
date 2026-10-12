@@ -2545,4 +2545,19 @@ class AppLocalizationsLo extends AppLocalizations {
   String noMoreFreeItems(String promo) {
     return 'ໝົດສິດຂອງແຖມຂອງ $promo ແລ້ວ';
   }
+
+  @override
+  String get historyToday => 'ມື້ນີ້';
+
+  @override
+  String get historyChooseDates => 'ເລືອກວັນທີ';
+
+  @override
+  String get historyAll => 'ທັງໝົດ';
+
+  @override
+  String get statusReadyForPickup => 'ພ້ອມໃຫ້ມາຮັບ';
+
+  @override
+  String get noOrdersInRange => 'ບໍ່ມີອໍເດີໃນວັນທີ່ເລືອກ';
 }
