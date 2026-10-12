@@ -23,6 +23,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
   late final TextEditingController _priceController;
   bool _isSaving = false;
   List<ToppingGroup> _groups = [];
+  bool _groupsLoaded = false;
   int? _groupId;
   bool _isDefault = false;
 
@@ -50,6 +51,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
       if (!mounted) return;
       setState(() {
         _groups = groups;
+        _groupsLoaded = true;
         if (_groupId != null && !groups.any((g) => g.id == _groupId)) {
           _groupId = null;
         }
@@ -224,6 +226,9 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
                 child: Column(
                   children: [
                     DropdownButtonFormField<int?>(
+                      // Starts again once the groups arrive, from the group
+                      // checked against them.
+                      key: ValueKey(_groupsLoaded),
                       initialValue: _groupId,
                       isExpanded: true,
                       decoration: LaDolcePosUi.input(
@@ -242,6 +247,15 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
                           DropdownMenuItem<int?>(
                             value: g.id,
                             child: Text(g.displayName),
+                          ),
+                        // The topping's own group until the list has loaded
+                        // (or if it fails to): a value without an item is an
+                        // error.
+                        if (_groupId != null &&
+                            !_groups.any((g) => g.id == _groupId))
+                          DropdownMenuItem<int?>(
+                            value: _groupId,
+                            child: Text(widget.topping?.groupDisplayName ?? ''),
                           ),
                       ],
                       onChanged: (v) => setState(() => _groupId = v),
