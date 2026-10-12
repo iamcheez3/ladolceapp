@@ -6,6 +6,7 @@ import '../models/ticket.dart';
 import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../services/api_service.dart';
+import '../utils/l10n_ext.dart';
 
 /// Result object returned when a ticket is resumed
 class ResumedTicket {
@@ -244,7 +245,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
       debugPrint('[Tickets] fetchOpenTickets failed: $e');
       if (combined.isEmpty) {
         setState(() {
-          _errorMessage = 'Could not load tickets. Please check your connection and try again.';
+          _errorMessage = context.l10n.couldNotLoadTicketsPleaseCheck;
           _isLoading = false;
         });
         return;
@@ -335,6 +336,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
         final dummyProduct = Product(
           id: line.productId,
           name: line.productName.isNotEmpty ? line.productName : 'Discount / Custom Item',
+          nameLo: line.productNameLo,
           price: line.priceUnit,
           category: 'System',
         );
@@ -405,8 +407,8 @@ class _TicketsScreenState extends State<TicketsScreen> {
       debugPrint('[Tickets] notifyReady failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not send notification. Please try again.'),
+        SnackBar(
+          content: Text(context.l10n.couldNotSendNotificationPleaseTry),
           backgroundColor: Colors.red,
         ),
       );
@@ -422,13 +424,13 @@ class _TicketsScreenState extends State<TicketsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Open Tickets'),
+        title: Text(context.l10n.openTickets),
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: context.l10n.refresh,
             onPressed: () => _fetchTickets(backgroundRefresh: true),
           ),
         ],
@@ -453,7 +455,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _fetchTickets(backgroundRefresh: false),
-              child: const Text('Retry'),
+              child: Text(context.l10n.retry),
             ),
           ],
         ),
@@ -461,14 +463,14 @@ class _TicketsScreenState extends State<TicketsScreen> {
     }
 
     if (_tickets.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.receipt_long, size: 64, color: Colors.grey),
             SizedBox(height: 12),
             Text(
-              'No open tickets',
+              context.l10n.noOpenTickets,
               style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
           ],
@@ -569,8 +571,8 @@ class _TicketsScreenState extends State<TicketsScreen> {
                     color: Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    '⚡ OFFLINE',
+                  child: Text(
+                    context.l10n.offline,
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.orange,
@@ -661,7 +663,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
                           ticket.tableName ??
                               (ticket.tableId != null
                                   ? 'Table #${ticket.tableId}'
-                                  : 'No Table'),
+                                  : context.l10n.noTable2),
                           style: TextStyle(
                             fontSize: tableFontSize,
                             fontWeight: FontWeight.bold,
@@ -719,9 +721,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
                             Icons.notifications_active_rounded,
                             size: 15,
                           ),
-                    label: const FittedBox(
+                    label: FittedBox(
                       child: Text(
-                        'Order Ready',
+                        context.l10n.orderReady,
                         style: TextStyle(fontSize: 12),
                       ),
                     ),

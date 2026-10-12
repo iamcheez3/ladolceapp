@@ -4,6 +4,7 @@ import '../models/product.dart';
 import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../utils/l10n_ext.dart';
 
 class ProductEditScreen extends StatefulWidget {
   final Product? product;
@@ -69,7 +70,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
 
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valid name and price are required')),
+        SnackBar(content: Text(context.l10n.validNameAndPriceAreRequired)),
       );
       return;
     }
@@ -87,8 +88,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Product saved successfully'),
+          SnackBar(
+            content: Text(context.l10n.productSavedSuccessfully),
             backgroundColor: Colors.green,
           ),
         );
@@ -98,7 +99,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(context.l10n.errorWithMessage(e.toString())), backgroundColor: Colors.red),
         );
       }
     }
@@ -108,7 +109,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.product!.name : 'Add Product'),
+        title: Text(widget.isEditing ? widget.product!.name : context.l10n.addProduct),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -129,8 +130,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
           else
             TextButton(
               onPressed: _save,
-              child: const Text(
-                'Save',
+              child: Text(
+                context.l10n.save,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -151,7 +152,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   TextField(
                     controller: _nameController,
                     decoration: LaDolcePosUi.input(
-                      hintText: 'Product Name*',
+                      hintText: context.l10n.productName,
                       prefixIcon: const Icon(Icons.label_outline, size: 20),
                     ),
                   ),
@@ -159,7 +160,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   TextField(
                     controller: _priceController,
                     decoration: LaDolcePosUi.input(
-                      hintText: 'List Price*',
+                      hintText: context.l10n.listPrice,
                       prefixIcon: const Icon(Icons.attach_money, size: 20),
                     ),
                     keyboardType:
@@ -167,7 +168,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<int>(
-                    decoration: LaDolcePosUi.input(hintText: 'Category'),
+                    decoration: LaDolcePosUi.input(hintText: context.l10n.category),
                     value: _selectedCategoryId,
                     items: widget.categories.map((c) {
                       return DropdownMenuItem<int>(
@@ -189,8 +190,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                       Icon(Icons.shopping_cart_outlined,
                           size: 18, color: LaDolcePosUi.mutedText),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Customer self-order',
+                      Text(
+                        context.l10n.customerSelfOrder,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -202,8 +203,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   _buildSelfOrderTile(
                     icon: Icons.check_circle_outline,
                     iconColor: Colors.green,
-                    title: 'Available',
-                    subtitle: 'Customers can select and order',
+                    title: context.l10n.tableAvailable,
+                    subtitle: context.l10n.customersCanSelectAndOrder,
                     isSelected: !_blockSelfOrder,
                     onTap: () => setState(() => _blockSelfOrder = false),
                   ),
@@ -211,8 +212,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   _buildSelfOrderTile(
                     icon: Icons.remove_circle_outline,
                     iconColor: Colors.orange,
-                    title: 'Run out (blocked)',
-                    subtitle: 'Shown as run out; cannot add to cart',
+                    title: context.l10n.runOutBlocked,
+                    subtitle: context.l10n.shownAsRunOutCannotAdd,
                     isSelected: _blockSelfOrder,
                     onTap: () => setState(() => _blockSelfOrder = true),
                   ),
@@ -226,8 +227,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                       Icon(Icons.extension_outlined,
                           size: 18, color: LaDolcePosUi.mutedText),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Available Toppings',
+                      Text(
+                        context.l10n.availableToppings,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -240,7 +241,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        'No toppings configured.',
+                        context.l10n.noToppingsConfigured,
                         style: TextStyle(
                           color: LaDolcePosUi.mutedText,
                           fontSize: 13,
@@ -306,7 +307,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         ),
                       )
                     : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : 'Save Product'),
+                label: Text(_isSaving ? 'Saving...' : context.l10n.saveProduct),
                 style: LaDolcePosUi.primaryButtonStyle(),
               ),
             ],

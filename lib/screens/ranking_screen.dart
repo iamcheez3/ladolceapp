@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/l10n_ext.dart';
 
 class RankingScreen extends StatefulWidget {
   final int? myRank;
@@ -279,7 +280,7 @@ class _RankingScreenState extends State<RankingScreen> {
       appBar: AppBar(
         backgroundColor: _brandNavy,
         foregroundColor: Colors.white,
-        title: const Text('Ranking'),
+        title: Text(context.l10n.ranking),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -296,7 +297,7 @@ class _RankingScreenState extends State<RankingScreen> {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
             children: [
               Text(
-                'Ranking',
+                context.l10n.ranking,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -304,8 +305,8 @@ class _RankingScreenState extends State<RankingScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Climb the adventure ladder!',
+              Text(
+                context.l10n.climbTheAdventureLadder,
                 style: TextStyle(
                   color: Color(0xFFDCE5FF),
                   fontWeight: FontWeight.w700,
@@ -326,7 +327,7 @@ class _RankingScreenState extends State<RankingScreen> {
                     Expanded(
                       child: Text(
                         myRank == null || myRank <= 0
-                            ? 'Your rank: -'
+                            ? context.l10n.yourRank
                             : 'Your rank: $myRank',
                         style: const TextStyle(
                           color: Colors.white,
@@ -357,8 +358,8 @@ class _RankingScreenState extends State<RankingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Cannot load ranking',
+                      Text(
+                        context.l10n.cannotLoadRanking,
                         style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 6),
@@ -370,7 +371,7 @@ class _RankingScreenState extends State<RankingScreen> {
                           backgroundColor: _brandNavy,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Retry'),
+                        child: Text(context.l10n.retry),
                       ),
                     ],
                   ),

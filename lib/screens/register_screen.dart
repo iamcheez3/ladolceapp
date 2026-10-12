@@ -7,6 +7,8 @@ import '../services/push_notifications_service.dart';
 import '../utils/responsive_layout.dart';
 import 'loading_screen.dart';
 import 'privacy_policy_screen.dart';
+import '../utils/l10n_ext.dart';
+import '../main.dart';
 
 class RegisterScreen extends StatefulWidget {
   final bool showStaffRoles;
@@ -100,9 +102,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return false;
     } catch (e) {
+      // Captured before any await: reading it off `context` afterwards is unsafe.
+      final l10n = context.l10n;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to send OTP: ${e.toString()}'),
+          content: Text(l10n.failedToSendOtpError(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -132,8 +136,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'OTP Verification',
+                        Text(
+                          context.l10n.otpVerification,
                           style: TextStyle(
                             color: _brandNavy,
                             fontSize: 20,
@@ -229,10 +233,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         onPressed: _isVerifyingOtp || _isSendingOtp
                             ? null
                             : () async {
+                                // Captured before any await: reading it off `context` afterwards is unsafe.
+                                final l10n = context.l10n;
                                 final enteredCode = otpController.text.trim();
                                 if (enteredCode.length != 6) {
                                   setDialogState(() {
-                                    _otpError = 'Please enter a 6-digit code';
+                                    _otpError =
+                                        context.l10n.pleaseEnterSixDigitCode;
                                   });
                                   return;
                                 }
@@ -268,7 +275,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     SnackBar(
                                       content: Text(
                                         response['message'] ??
-                                            'Registration successful',
+                                            l10n.registrationSuccessful,
                                       ),
                                       backgroundColor: Colors.green,
                                     ),
@@ -304,8 +311,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   strokeWidth: 2.2,
                                 ),
                               )
-                            : const Text(
-                                'VERIFY & REGISTER',
+                            : Text(
+                                context.l10n.verifyAndRegister,
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w900,
@@ -328,9 +335,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   _isSendingOtp = false;
                                   if (ok) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'OTP code resent successfully!',
+                                          context.l10n.otpResentSuccessfully,
                                         ),
                                         backgroundColor: Colors.green,
                                       ),
@@ -347,8 +354,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   color: _brandNavy,
                                 ),
                               )
-                            : const Text(
-                                'Resend Code',
+                            : Text(
+                                context.l10n.resendCode,
                                 style: TextStyle(
                                   color: _brandNavy,
                                   fontWeight: FontWeight.w800,
@@ -389,7 +396,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response['message'] ?? 'Registration successful'),
+          content: Text(
+            response['message'] ?? context.l10n.registrationSuccessful,
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -399,7 +408,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Registration Failed: ${e.toString()}'),
+          content: Text(context.l10n.registrationFailed(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -456,8 +465,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if ((_selectedRole == 'cashier' || _selectedRole == 'rider') &&
         (_selectedBranchId == null || _selectedBranchId! <= 0)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a branch before Google registration'),
+        SnackBar(
+          content: Text(context.l10n.selectBranchBeforeGoogle),
           backgroundColor: Colors.red,
         ),
       );
@@ -517,7 +526,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Google Registration Failed: ${e.toString()}'),
+          content: Text(context.l10n.googleRegistrationFailed(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -610,8 +619,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            'Create Account',
+                          Text(
+                            context.l10n.createAccountTitle,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: _brandNavy,
@@ -620,8 +629,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            'Join LaDolce and start ordering',
+                          Text(
+                            context.l10n.joinLaDolce,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Color(0xFF64748B),
@@ -629,10 +638,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 18),
+                          _LanguageSwitcher(
+                            activeLanguage: Localizations.localeOf(
+                              context,
+                            ).languageCode,
+                          ),
+                          const SizedBox(height: 28),
                           TextFormField(
                             controller: _nameController,
                             decoration: _inputDecoration(
-                              'Full Name',
+                              context.l10n.fullName,
                               Icons.badge_outlined,
                             ),
                             validator: (value) =>
@@ -654,13 +669,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             validator: (phone) {
                               final v = phone?.completeNumber.trim() ?? '';
                               if (_selectedRole == 'customer' && v.isEmpty) {
-                                return 'Phone number is required for customers';
+                                return context.l10n.phoneRequiredForCustomers;
                               }
                               if (v.isNotEmpty) {
                                 final numberOnly = phone?.number ?? '';
                                 if (numberOnly.length != 10 ||
                                     !numberOnly.startsWith('20')) {
-                                  return 'Phone must be 10 digits starting with 20';
+                                  return context.l10n.phoneMustBe10Digits;
                                 }
                               }
                               return null;
@@ -670,7 +685,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextFormField(
                             controller: _loginController,
                             decoration: _inputDecoration(
-                              'Email / Login',
+                              context.l10n.emailOrLogin,
                               Icons.email_outlined,
                             ),
                             validator: (value) => value!.isEmpty
@@ -683,7 +698,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             obscureText: _obscurePassword,
                             decoration:
                                 _inputDecoration(
-                                  'Password',
+                                  context.l10n.password,
                                   Icons.lock_outline,
                                 ).copyWith(
                                   suffixIcon: IconButton(
@@ -704,8 +719,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 16),
                           if (widget.showStaffRoles) ...[
-                            const Text(
-                              'Role',
+                            Text(
+                              context.l10n.role,
                               style: TextStyle(
                                 color: _brandNavy,
                                 fontWeight: FontWeight.w800,
@@ -716,7 +731,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               spacing: 10,
                               children: [
                                 ChoiceChip(
-                                  label: const Text('Customer'),
+                                  label: Text(context.l10n.roleCustomer),
                                   selected: _selectedRole == 'customer',
                                   selectedColor: _brandNavy,
                                   labelStyle: TextStyle(
@@ -735,7 +750,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   }),
                                 ),
                                 ChoiceChip(
-                                  label: const Text('Cashier'),
+                                  label: Text(context.l10n.roleCashier),
                                   selected: _selectedRole == 'cashier',
                                   selectedColor: _brandNavy,
                                   labelStyle: TextStyle(
@@ -753,7 +768,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   },
                                 ),
                                 ChoiceChip(
-                                  label: const Text('Rider'),
+                                  label: Text(context.l10n.roleRider),
                                   selected: _selectedRole == 'rider',
                                   selectedColor: _brandNavy,
                                   labelStyle: TextStyle(
@@ -776,8 +791,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (_selectedRole == 'cashier' ||
                               _selectedRole == 'rider') ...[
                             const SizedBox(height: 14),
-                            const Text(
-                              'Branch',
+                            Text(
+                              context.l10n.branch,
                               style: TextStyle(
                                 color: _brandNavy,
                                 fontWeight: FontWeight.w800,
@@ -821,7 +836,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     : (v) =>
                                           setState(() => _selectedBranchId = v),
                                 decoration: _inputDecoration(
-                                  'Select branch',
+                                  context.l10n.selectBranchHint,
                                   Icons.account_tree_outlined,
                                 ),
                                 validator: (v) {
@@ -829,7 +844,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       _selectedRole != 'rider')
                                     return null;
                                   if (v == null || v <= 0) {
-                                    return 'Please select a branch';
+                                    return context.l10n.pleaseSelectBranch;
                                   }
                                   return null;
                                 },
@@ -865,12 +880,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           fontWeight: FontWeight.w600,
                                         ),
                                     children: [
-                                      const TextSpan(
-                                        text:
-                                            'I agree to the Terms of Service and ',
-                                      ),
+                                      TextSpan(text: context.l10n.agreeToTerms),
                                       TextSpan(
-                                        text: 'Privacy Policy',
+                                        text: context.l10n.privacyPolicy,
                                         style: const TextStyle(
                                           color: _brandNavy,
                                           fontWeight: FontWeight.bold,
@@ -909,8 +921,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         strokeWidth: 2.2,
                                       ),
                                     )
-                                  : const Text(
-                                      'REGISTER',
+                                  : Text(
+                                      context.l10n.registerButton,
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w900,
@@ -921,7 +933,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (FirebaseAuthService.isGoogleAuthAvailable) ...[
                             const SizedBox(height: 12),
                             _GoogleAuthButton(
-                              label: 'Continue with Google',
+                              label: context.l10n.continueWithGoogle,
                               isLoading: _isLoading,
                               onPressed: _continueWithGoogle,
                             ),
@@ -956,6 +968,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: _brandNavy, width: 1.5),
+      ),
+    );
+  }
+}
+
+class _LanguageSwitcher extends StatelessWidget {
+  const _LanguageSwitcher({required this.activeLanguage});
+
+  final String activeLanguage;
+
+  static const _activeColor = Color(0xFF001460);
+  static const _inactiveColor = Color(0xFF94A3B8);
+
+  @override
+  Widget build(BuildContext context) {
+    Widget languageButton({
+      required String label,
+      required String languageCode,
+    }) {
+      final isActive = activeLanguage == languageCode;
+      return TextButton(
+        onPressed: isActive
+            ? null
+            : () => PosApp.setLocale(context, Locale(languageCode)),
+        style: TextButton.styleFrom(
+          foregroundColor: isActive ? _activeColor : _inactiveColor,
+          disabledForegroundColor: _activeColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+      );
+    }
+
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          languageButton(label: 'EN', languageCode: 'en'),
+          const SizedBox(
+            height: 24,
+            child: VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: Color(0xFFD7DEE9),
+            ),
+          ),
+          languageButton(label: 'ລາວ', languageCode: 'lo'),
+        ],
       ),
     );
   }

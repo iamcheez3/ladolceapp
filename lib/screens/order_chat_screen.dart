@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../models/chat_message.dart';
 import '../services/api_service.dart';
+import '../utils/l10n_ext.dart';
 
 /// Full-screen per-order chat between Customer ↔ Rider.
 ///
@@ -103,7 +104,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       if (mounted && !silent) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Could not load messages.';
+          _errorMessage = context.l10n.couldNotLoadMessages;
         });
       }
     }
@@ -133,7 +134,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       if (mounted) {
         setState(() => _isSending = false);
         _inputCtrl.text = text;
-        _showError('Failed to send message. Please try again.');
+        _showError(context.l10n.failedToSendMessagePleaseTry);
       }
     }
   }
@@ -195,7 +196,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           _isSending = false;
           _uploadingLabel = null;
         });
-        _showError('Failed to send image. Please try again.');
+        _showError(context.l10n.failedToSendImagePleaseTry);
       }
     }
   }
@@ -231,8 +232,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final msgDay = DateTime(dt.year, dt.month, dt.day);
-    if (msgDay == today) return 'Today';
-    if (msgDay == yesterday) return 'Yesterday';
+    if (msgDay == today) return context.l10n.today;
+    if (msgDay == yesterday) return context.l10n.yesterday;
     return DateFormat('d MMM yyyy').format(dt);
   }
 
@@ -258,7 +259,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined, color: _navy),
-              title: const Text('Choose from gallery'),
+              title: Text(context.l10n.chooseFromGallery),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
@@ -266,7 +267,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined, color: _navy),
-              title: const Text('Take a photo'),
+              title: Text(context.l10n.takeAPhoto),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.camera);
@@ -325,7 +326,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               Text(
                 widget.otherPartyName.isNotEmpty
                     ? widget.otherPartyName
-                    : (widget.currentRole == 'customer' ? 'Rider' : 'Customer'),
+                    : (widget.currentRole == 'customer' ? 'Rider' : context.l10n.roleCustomer),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -347,7 +348,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         IconButton(
           icon: const Icon(Icons.refresh, size: 22),
           onPressed: () => _loadChat(),
-          tooltip: 'Refresh',
+          tooltip: context.l10n.refresh,
         ),
       ],
     );
@@ -389,7 +390,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             const SizedBox(height: 12),
             Text(_errorMessage!, style: TextStyle(color: Colors.grey[600])),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _loadChat, child: const Text('Retry')),
+            ElevatedButton(onPressed: _loadChat, child: Text(context.l10n.retry)),
           ],
         ),
       );
@@ -402,7 +403,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             Icon(Icons.chat_bubble_outline, size: 56, color: Colors.grey[300]),
             const SizedBox(height: 16),
             Text(
-              'No messages yet',
+              context.l10n.noMessagesYet,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -411,7 +412,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start the conversation below',
+              context.l10n.startTheConversationBelow,
               style: TextStyle(fontSize: 13, color: Colors.grey[400]),
             ),
           ],
@@ -758,8 +759,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             children: [
               const Icon(Icons.image_outlined, size: 16, color: _navy),
               const SizedBox(width: 6),
-              const Text(
-                'Image ready to send',
+              Text(
+                context.l10n.imageReadyToSend,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -790,7 +791,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               Expanded(
                 child: TextField(
                   decoration: InputDecoration(
-                    hintText: 'Add a caption (optional)',
+                    hintText: context.l10n.addACaptionOptional,
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
@@ -824,7 +825,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             child: ElevatedButton.icon(
               onPressed: _isSending ? null : _sendImage,
               icon: const Icon(Icons.send_rounded, size: 16),
-              label: const Text('Send Image'),
+              label: Text(context.l10n.sendImage),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _navy,
                 foregroundColor: Colors.white,
@@ -876,7 +877,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   icon: const Icon(Icons.add_photo_alternate_outlined, size: 24),
                   color: _navy,
                   onPressed: _showImagePicker,
-                  tooltip: 'Send image',
+                  tooltip: context.l10n.sendImage2,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 40,
@@ -894,7 +895,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 keyboardType: TextInputType.multiline,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'Type a message…',
+                  hintText: context.l10n.typeAMessage,
                   hintStyle:
                       TextStyle(color: Colors.grey[400], fontSize: 14),
                   filled: true,
@@ -1004,14 +1005,14 @@ class _FullscreenImageScreen extends StatelessWidget {
                     child: CircularProgressIndicator(color: Colors.white),
                   );
                 },
-                errorBuilder: (_, __, ___) => const Center(
+                errorBuilder: (_, __, ___) => Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.broken_image, size: 64, color: Colors.white38),
                       SizedBox(height: 12),
                       Text(
-                        'Could not load image',
+                        context.l10n.couldNotLoadImage,
                         style: TextStyle(color: Colors.white54),
                       ),
                     ],

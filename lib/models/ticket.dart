@@ -1,3 +1,5 @@
+import '../utils/localized_name.dart';
+
 class OpenTicket {
   final int id;
   final String name;
@@ -92,6 +94,10 @@ class OpenTicket {
 class TicketLine {
   final int productId;
   final String productName;
+
+  /// Lao label from `product_name_lo`; see [displayProductName].
+  final String productNameLo;
+
   final int qty;
   final double priceUnit;
   final List<int> toppingIds;
@@ -100,16 +106,22 @@ class TicketLine {
   TicketLine({
     required this.productId,
     required this.productName,
+    this.productNameLo = '',
     required this.qty,
     required this.priceUnit,
     this.toppingIds = const [],
     this.note = '',
   });
 
+  /// Line label in the app's current language.
+  String get displayProductName =>
+      localizedName(productName, productNameLo, fallback: 'Item');
+
   factory TicketLine.fromJson(Map<String, dynamic> json) {
     return TicketLine(
       productId: json['product_id'],
       productName: json['product_name'],
+      productNameLo: (json['product_name_lo'] ?? '').toString(),
       qty: (json['qty'] ?? 1).toInt(),
       priceUnit: (json['price_unit'] ?? 0).toDouble(),
       toppingIds: (json['topping_ids'] as List<dynamic>? ?? const [])

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/pos_discount_config.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../utils/l10n_ext.dart';
 
 class DiscountConfigScreen extends StatefulWidget {
   final PosDiscountConfig initialConfig;
@@ -28,7 +29,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
     await cfg.save();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Discount settings saved'), backgroundColor: Colors.green),
+        SnackBar(content: Text(context.l10n.discountSettingsSaved), backgroundColor: Colors.green),
       );
       Navigator.pop(context, true);
     }
@@ -44,7 +45,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Discount Option'),
+          title: Text(context.l10n.addDiscountOption),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -52,17 +53,17 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                 TextField(
                   controller: nameCtrl,
                   decoration: LaDolcePosUi.input(
-                    hintText: 'Option Name',
+                    hintText: context.l10n.optionName,
                     prefixIcon: const Icon(Icons.label_outline, size: 20),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text('Discount Type', style: TextStyle(fontWeight: FontWeight.w700)),
+                Text(context.l10n.discountType, style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'percentage', label: Text('Percentage')),
-                    ButtonSegment(value: 'value', label: Text('Fixed Value')),
+                  segments: [
+                    ButtonSegment(value: 'percentage', label: Text(context.l10n.percentage)),
+                    ButtonSegment(value: 'value', label: Text(context.l10n.fixedValue)),
                   ],
                   selected: {optType},
                   onSelectionChanged: (sel) => setDialogState(() => optType = sel.first),
@@ -72,7 +73,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                   controller: valueCtrl,
                   decoration: InputDecoration(
                     labelText: optType == 'percentage' ? 'Percentage (%)' : 'Amount (₭)',
-                    hintText: 'Leave empty for manual input',
+                    hintText: context.l10n.leaveEmptyForManualInput,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm)),
                     suffixText: optType == 'percentage' ? '%' : null,
                     prefixText: optType == 'value' ? '₭ ' : null,
@@ -84,7 +85,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
             ElevatedButton(
               onPressed: () {
                 if (nameCtrl.text.trim().isEmpty) return;
@@ -97,7 +98,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                 setState(() => _options.add(newOpt));
                 Navigator.pop(ctx);
               },
-              child: const Text('Add'),
+              child: Text(context.l10n.add),
             ),
           ],
         ),
@@ -109,13 +110,13 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Discount Configuration'),
+        title: Text(context.l10n.discountConfiguration),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: _save,
-            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+            child: Text(context.l10n.save, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
           ),
         ],
       ),
@@ -156,11 +157,11 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Enable Discount', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                            Text(context.l10n.enableDiscount, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                             Text(
                               _enabled
-                                  ? 'Discount will appear in POS'
-                                  : 'Discount hidden',
+                                  ? context.l10n.discountWillAppearInPos
+                                  : context.l10n.discountHidden,
                               style: TextStyle(fontSize: 12, color: _enabled ? Colors.green : LaDolcePosUi.mutedText),
                             ),
                           ],
@@ -182,12 +183,12 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                 children: [
                   Icon(Icons.list_alt_outlined, size: 18, color: LaDolcePosUi.mutedText),
                   const SizedBox(width: 8),
-                  const Text('Discount Options', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  Text(context.l10n.discountOptions, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: _showAddOptionDialog,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add', style: TextStyle(fontSize: 13)),
+                    label: Text(context.l10n.add, style: TextStyle(fontSize: 13)),
                     style: TextButton.styleFrom(foregroundColor: LaDolcePosUi.navy),
                   ),
                 ],
@@ -202,7 +203,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                     borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
                     border: Border.all(color: LaDolcePosUi.border.withValues(alpha: 0.6)),
                   ),
-                  child: Text('No discount options added yet.',
+                  child: Text(context.l10n.noDiscountOptionsAddedYet,
                       style: TextStyle(color: LaDolcePosUi.mutedText, fontSize: 13)),
                 )
               else
@@ -255,7 +256,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                               color: Colors.red.withValues(alpha: 0.7),
                               onPressed: () => setState(() => _options.removeAt(i)),
                               padding: EdgeInsets.zero,
-                              tooltip: 'Remove',
+                              tooltip: context.l10n.remove,
                             ),
                           ),
                         ],
@@ -276,7 +277,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Tip: Leave the value blank to let cashiers enter a custom amount.',
+                        context.l10n.tipLeaveTheValueBlankTo,
                         style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
                       ),
                     ),

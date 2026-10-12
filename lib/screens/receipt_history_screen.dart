@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import 'receipt_detail_screen.dart';
 import '../theme/ladolce_pos_ui.dart';
+import '../utils/l10n_ext.dart';
 
 /// Paginated Receipt History Screen optimized for large datasets.
 ///
@@ -182,7 +183,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
       dateStr = (receipt['date_paid'] ?? '').toString();
     }
     
-    if (dateStr.isEmpty) return 'Unknown Date';
+    if (dateStr.isEmpty) return context.l10n.unknownDate;
     
     try {
       final dt = DateTime.parse(dateStr).toLocal();
@@ -191,11 +192,11 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
       final yesterday = today.subtract(const Duration(days: 1));
       final dateOnly = DateTime(dt.year, dt.month, dt.day);
 
-      if (dateOnly == today) return 'TODAY';
-      if (dateOnly == yesterday) return 'YESTERDAY';
+      if (dateOnly == today) return context.l10n.today2;
+      if (dateOnly == yesterday) return context.l10n.yesterday2;
       return DateFormat('MMMM d, yyyy').format(dt).toUpperCase();
     } catch (_) {
-      return 'Unknown Date';
+      return context.l10n.unknownDate;
     }
   }
 
@@ -236,8 +237,8 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'Receipts History',
+        title: Text(
+          context.l10n.receiptsHistory,
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         leading: const BackButton(color: Colors.white),
@@ -280,7 +281,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
             ElevatedButton.icon(
               onPressed: _fetchInitialReceipts,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.retry),
               style: LaDolcePosUi.primaryButtonStyle(),
             ),
           ],
@@ -306,10 +307,10 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
               child: Icon(Icons.receipt_long_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
             ),
             const SizedBox(height: 20),
-            const Text('No paid receipts yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(context.l10n.noPaidReceiptsYet, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Text(
-              'Completed orders will appear here',
+              context.l10n.completedOrdersWillAppearHere,
               style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText),
             ),
           ],
@@ -413,8 +414,8 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
         final id = _resolveReceiptId(receipt);
         if (id == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('This receipt is missing an order id. Please refresh and try again.'),
+            SnackBar(
+              content: Text(context.l10n.thisReceiptIsMissingAnOrder),
               backgroundColor: Colors.orange,
             ),
           );
@@ -518,8 +519,8 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                       color: Colors.orange.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
-                      'Unsynced',
+                    child: Text(
+                      context.l10n.unsynced,
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.orange),
                     ),
                   );
@@ -550,7 +551,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
             : ElevatedButton.icon(
                 onPressed: _hasMore ? _loadMoreReceipts : null,
                 icon: const Icon(Icons.expand_more, size: 18),
-                label: Text(_hasMore ? 'Load More' : 'No more receipts'),
+                label: Text(_hasMore ? 'Load More' : context.l10n.noMoreReceipts),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: LaDolcePosUi.navy,
                   foregroundColor: Colors.white,

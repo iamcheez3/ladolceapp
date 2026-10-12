@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
@@ -6,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../models/product.dart';
 import '../models/table.dart';
@@ -14,6 +16,20 @@ import '../models/ticket.dart';
 import '../models/pos_tax_config.dart';
 import '../models/chat_message.dart';
 import 'network_service.dart';
+
+/// Raised when a transfer proof could not be handed to the backend.
+///
+/// [isPermanent] separates "the server refused this payload" (retrying is
+/// pointless) from "the network gave out" (worth queueing for another go).
+class TransferProofUploadException implements Exception {
+  TransferProofUploadException(this.message, {this.isPermanent = false});
+
+  final String message;
+  final bool isPermanent;
+
+  @override
+  String toString() => message;
+}
 
 class ApiService {
   /// Key used to store the dev IP override in SharedPreferences.
@@ -2331,9 +2347,23 @@ class ApiService {
     // Multi-pass replay so that create actions can establish mock→real mappings
     // before update/pay are attempted.
     List<String> pending = List<String>.from(offlineQueue);
+    // Tasks the server rejected outright. Replaying them again inside this run
+    // only repeats the rejection, so they wait for the next launch instead.
+    final List<String> deferred = [];
     for (int pass = 0; pass < 3; pass++) {
       if (pending.isEmpty) break;
       final List<String> nextPending = [];
+
+      void handleFailure(Map<String, dynamic> task, http.Response response) {
+        final outcome = _offlineTaskAfterFailure(task, response);
+        final keep = outcome.keep;
+        if (keep == null) return;
+        if (outcome.retryNow) {
+          nextPending.add(keep);
+        } else {
+          deferred.add(keep);
+        }
+      }
 
       // Process create/submit first, then others in each pass.
       final decoded = pending.map((t) {
@@ -2378,7 +2408,7 @@ class ApiService {
               syncedCount++;
               continue;
             }
-            nextPending.add(taskJson);
+            handleFailure(task, response);
             continue;
           }
 
@@ -2430,6 +2460,14 @@ class ApiService {
                   realId ??= (jsonResp['id'] is int) ? jsonResp['id'] : null;
                 } catch (_) {}
 
+                // A slip may be waiting on this order's real id.
+                if (mockId < 0 && realId != null) {
+                  await _attachRealOrderIdToPendingProofs(
+                    mockId: mockId,
+                    realId: realId,
+                  );
+                }
+
                 if (action == 'create' && mockId < 0 && realId != null) {
                   mockToRealId[mockId] = realId;
                   _d('[OFFLINE SYNC] mapped mockId=$mockId -> realId=$realId');
@@ -2464,7 +2502,7 @@ class ApiService {
                 continue;
               }
             }
-            nextPending.add(taskJson);
+            handleFailure(task, response);
             continue;
           }
 
@@ -2480,7 +2518,7 @@ class ApiService {
               syncedCount++;
               continue;
             }
-            nextPending.add(taskJson);
+            handleFailure(task, response);
             continue;
           }
 
@@ -2496,7 +2534,7 @@ class ApiService {
               syncedCount++;
               continue;
             }
-            nextPending.add(taskJson);
+            handleFailure(task, response);
             continue;
           }
 
@@ -2511,8 +2549,89 @@ class ApiService {
       pending = nextPending.toSet().toList();
     }
 
-    await prefs.setStringList('offline_orders', pending);
+    await prefs.setStringList('offline_orders', {
+      ...pending,
+      ...deferred,
+    }.toList());
     return syncedCount;
+  }
+
+  static const int _maxOfflineTaskAttempts = 3;
+
+  /// Decides what happens to an offline task the server refused.
+  ///
+  /// Rejected tasks used to go straight back into the queue untouched, so a
+  /// permanently invalid payload was replayed on every launch forever — nine
+  /// rejected POSTs per sync, twice per app start, with the reason discarded.
+  /// Now the reason is kept for diagnosis and a 4xx is given a bounded number
+  /// of launches before being parked.
+  ({String? keep, bool retryNow}) _offlineTaskAfterFailure(
+    Map<String, dynamic> task,
+    http.Response response,
+  ) {
+    final attempts =
+        (int.tryParse((task['attempts'] ?? 0).toString()) ?? 0) + 1;
+    task['attempts'] = attempts;
+    task['last_status'] = response.statusCode;
+    task['last_error'] = response.body;
+
+    _d(
+      '[OFFLINE SYNC] task "${task['action']}" rejected with '
+      'HTTP ${response.statusCode} (attempt $attempts): ${response.body}',
+    );
+
+    final isPermanent =
+        response.statusCode >= 400 && response.statusCode < 500;
+    if (!isPermanent) {
+      // Server or network hiccup — worth another pass right away.
+      return (keep: jsonEncode(task), retryNow: true);
+    }
+
+    if (attempts >= _maxOfflineTaskAttempts) {
+      _d('[OFFLINE SYNC] parking task after $attempts rejections: $task');
+      unawaited(_parkFailedOfflineTask(task));
+      return (keep: null, retryNow: false);
+    }
+    return (keep: jsonEncode(task), retryNow: false);
+  }
+
+  /// Key holding offline tasks the backend kept rejecting.
+  ///
+  /// They are dropped from the live queue but kept here so the payload and the
+  /// server's reason stay available for diagnosis instead of vanishing.
+  static const String failedOfflineTasksKey = 'offline_orders_failed';
+
+  Future<void> _parkFailedOfflineTask(Map<String, dynamic> task) async {
+    try {
+      await _dropPendingProofForMock(
+        int.tryParse((task['mock_id'] ?? 0).toString()) ?? 0,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final parked = prefs.getStringList(failedOfflineTasksKey) ?? <String>[];
+      parked.insert(0, jsonEncode(task));
+      await prefs.setStringList(
+        failedOfflineTasksKey,
+        parked.take(20).toList(),
+      );
+    } catch (_) {
+      // Diagnostics only — never let this break the sync.
+    }
+  }
+
+  /// Offline tasks the backend rejected repeatedly, newest first.
+  Future<List<Map<String, dynamic>>> getFailedOfflineTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final parked = prefs.getStringList(failedOfflineTasksKey) ?? <String>[];
+    final out = <Map<String, dynamic>>[];
+    for (final raw in parked) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) out.add(Map<String, dynamic>.from(decoded));
+      } catch (_) {
+        // Ignore corrupt diagnostic rows.
+      }
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------------------
@@ -3027,31 +3146,346 @@ class ApiService {
     }
   }
 
+  /// Uploads a transfer proof image for [orderId].
+  ///
+  /// The old 15s budget was routinely too short for a phone photo on mobile
+  /// data, and the single silent attempt meant a timeout lost the slip for
+  /// good. Callers that can afford to wait should retry here; callers on the
+  /// checkout path should use `maxAttempts: 1` and hand failures to
+  /// [queuePendingTransferProof] instead of blocking the customer.
   Future<Map<String, dynamic>> uploadTransferProof({
     required int orderId,
     required String imagePath,
     int? partnerId,
+    int maxAttempts = 3,
+    Duration timeout = const Duration(seconds: 90),
   }) async {
     final base = await getBaseUrl();
-    try {
-      final url = Uri.parse('$base/pos/order/$orderId/transfer_proof');
-      final request = http.MultipartRequest('POST', url);
-      if (partnerId != null) {
-        request.fields['partner_id'] = partnerId.toString();
-      }
-      request.files.add(await http.MultipartFile.fromPath('proof', imagePath));
+    final url = Uri.parse('$base/pos/order/$orderId/transfer_proof');
+    String lastError = 'unknown error';
 
-      final streamed = await request.send().timeout(
-        const Duration(seconds: 15),
-      );
-      final body = await streamed.stream.bytesToString();
-      final jsonResp = jsonDecode(body);
-      if (streamed.statusCode == 200 && jsonResp['status'] == 'success') {
-        return Map<String, dynamic>.from(jsonResp['data']);
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        if (!await File(imagePath).exists()) {
+          throw TransferProofUploadException(
+            'Proof image is no longer on this device',
+            isPermanent: true,
+          );
+        }
+
+        final request = http.MultipartRequest('POST', url);
+        if (partnerId != null) {
+          request.fields['partner_id'] = partnerId.toString();
+        }
+        request.files.add(
+          await http.MultipartFile.fromPath('proof', imagePath),
+        );
+
+        final streamed = await request.send().timeout(timeout);
+        final body = await streamed.stream.bytesToString().timeout(
+          const Duration(seconds: 20),
+        );
+
+        _d(
+          '[PROOF UPLOAD] order=$orderId attempt=$attempt/$maxAttempts '
+          'status=${streamed.statusCode} body=$body',
+        );
+
+        Map<String, dynamic>? jsonResp;
+        try {
+          final decoded = jsonDecode(body);
+          if (decoded is Map) jsonResp = Map<String, dynamic>.from(decoded);
+        } catch (_) {
+          // Non-JSON body (proxy error page, HTML, ...) — handled below.
+        }
+
+        if (streamed.statusCode == 200 && jsonResp?['status'] == 'success') {
+          final data = jsonResp?['data'];
+          return data is Map
+              ? Map<String, dynamic>.from(data)
+              : <String, dynamic>{};
+        }
+
+        final message =
+            jsonResp?['message']?.toString() ??
+            'Server returned HTTP ${streamed.statusCode}';
+
+        // 4xx means this request will never succeed as-is; stop burning retries.
+        if (streamed.statusCode >= 400 && streamed.statusCode < 500) {
+          throw TransferProofUploadException(message, isPermanent: true);
+        }
+        lastError = message;
+      } on TransferProofUploadException {
+        rethrow;
+      } catch (e) {
+        lastError = e.toString();
+        _d('[PROOF UPLOAD] order=$orderId attempt=$attempt failed: $e');
       }
-      throw Exception(jsonResp['message'] ?? 'Failed to upload transfer proof');
+
+      if (attempt < maxAttempts) {
+        await Future.delayed(Duration(seconds: 2 * attempt));
+      }
+    }
+
+    throw TransferProofUploadException(lastError);
+  }
+
+  /// Copies a freshly picked proof image into app storage and returns the copy.
+  ///
+  /// `image_picker` returns a path inside the OS cache directory, which the
+  /// system may purge at any time. A queued retry can run minutes or a launch
+  /// later, so the file has to outlive the cache.
+  Future<String> persistProofImage(String sourcePath) async {
+    try {
+      final source = File(sourcePath);
+      if (!await source.exists()) return sourcePath;
+
+      final docs = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docs.path}/transfer_proofs');
+      if (!await dir.exists()) await dir.create(recursive: true);
+
+      final dot = sourcePath.lastIndexOf('.');
+      final ext = dot > 0 ? sourcePath.substring(dot) : '.jpg';
+      final target =
+          '${dir.path}/proof_${DateTime.now().millisecondsSinceEpoch}$ext';
+      await source.copy(target);
+      _d('[PROOF] persisted $sourcePath -> $target');
+      return target;
     } catch (e) {
-      throw Exception('Cannot upload transfer proof: $e');
+      _d('[PROOF] persist failed, falling back to picker path: $e');
+      return sourcePath;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // PENDING TRANSFER PROOFS
+  //
+  // A slip the customer attached must reach the POS even if the upload — or the
+  // order itself — could not go through at checkout time. Entries live in their
+  // own prefs key so that wiping the local order history cannot discard them.
+  // ---------------------------------------------------------------------------
+
+  static const String _pendingProofsKey = 'pending_transfer_proofs';
+  static const int _maxProofRetries = 8;
+
+  /// Records a proof that has not reached the backend yet.
+  ///
+  /// Pass [orderId] when the order already exists server-side. When the order
+  /// itself is still in the offline queue, pass its negative [mockId] instead:
+  /// [syncOfflineOrders] fills in the real id once the order lands.
+  Future<void> queuePendingTransferProof({
+    required String imagePath,
+    int orderId = 0,
+    int mockId = 0,
+    int? partnerId,
+    String? orderRef,
+    String? lastError,
+  }) async {
+    if (imagePath.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final queue = prefs.getStringList(_pendingProofsKey) ?? <String>[];
+
+    // One entry per image — re-queueing the same slip must not pile up.
+    queue.removeWhere((raw) {
+      try {
+        final m = jsonDecode(raw);
+        return m is Map && m['image_path'] == imagePath;
+      } catch (_) {
+        return true;
+      }
+    });
+
+    queue.add(
+      jsonEncode({
+        'order_id': orderId,
+        'mock_id': mockId,
+        'order_ref': orderRef ?? '',
+        'image_path': imagePath,
+        'partner_id': partnerId,
+        'attempts': 0,
+        'last_error': lastError ?? '',
+      }),
+    );
+    await prefs.setStringList(_pendingProofsKey, queue);
+    _d('[PROOF QUEUE] queued order=$orderId mock=$mockId path=$imagePath');
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingTransferProofs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final queue = prefs.getStringList(_pendingProofsKey) ?? <String>[];
+    final out = <Map<String, dynamic>>[];
+    for (final raw in queue) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) out.add(Map<String, dynamic>.from(decoded));
+      } catch (_) {
+        // Skip corrupt entries; they are pruned on the next sync.
+      }
+    }
+    return out;
+  }
+
+  /// Links queued proofs to the real order id once an offline order syncs.
+  Future<void> _attachRealOrderIdToPendingProofs({
+    required int mockId,
+    required int realId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final queue = prefs.getStringList(_pendingProofsKey) ?? <String>[];
+    if (queue.isEmpty) return;
+
+    var changed = false;
+    final updated = <String>[];
+    for (final raw in queue) {
+      try {
+        final m = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+        final entryMock = int.tryParse((m['mock_id'] ?? 0).toString()) ?? 0;
+        final entryOrder = int.tryParse((m['order_id'] ?? 0).toString()) ?? 0;
+        if (entryMock == mockId && entryOrder <= 0) {
+          m['order_id'] = realId;
+          m['attempts'] = 0;
+          changed = true;
+          _d('[PROOF QUEUE] mock $mockId resolved to order $realId');
+          updated.add(jsonEncode(m));
+          continue;
+        }
+      } catch (_) {
+        continue;
+      }
+      updated.add(raw);
+    }
+    if (changed) await prefs.setStringList(_pendingProofsKey, updated);
+  }
+
+  /// Retries every queued proof. Returns how many reached the server.
+  ///
+  /// Set [force] to ignore the retry cap — used by the customer's manual
+  /// "resend slip" action.
+  Future<int> syncPendingTransferProofs({bool force = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final queue = prefs.getStringList(_pendingProofsKey) ?? <String>[];
+    if (queue.isEmpty) {
+      await _pruneOldProofImages();
+      return 0;
+    }
+
+    var uploaded = 0;
+    final remaining = <String>[];
+
+    for (final raw in queue) {
+      Map<String, dynamic> entry;
+      try {
+        entry = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      } catch (_) {
+        continue; // corrupt — drop
+      }
+
+      final imagePath = (entry['image_path'] ?? '').toString();
+      final orderId = int.tryParse((entry['order_id'] ?? 0).toString()) ?? 0;
+      final attempts = int.tryParse((entry['attempts'] ?? 0).toString()) ?? 0;
+      final partnerId = int.tryParse((entry['partner_id'] ?? '').toString());
+
+      if (imagePath.isEmpty || !await File(imagePath).exists()) {
+        _d('[PROOF QUEUE] dropping entry, image gone: $imagePath');
+        continue;
+      }
+
+      // The order has not synced yet — hold the slip until it has a real id.
+      if (orderId <= 0) {
+        remaining.add(jsonEncode(entry));
+        continue;
+      }
+
+      if (!force && attempts >= _maxProofRetries) {
+        // Kept so the customer can still resend by hand.
+        remaining.add(jsonEncode(entry));
+        continue;
+      }
+
+      try {
+        await uploadTransferProof(
+          orderId: orderId,
+          imagePath: imagePath,
+          partnerId: partnerId,
+          maxAttempts: 1,
+        );
+        uploaded++;
+        _d('[PROOF QUEUE] uploaded proof for order $orderId');
+      } on TransferProofUploadException catch (e) {
+        if (e.isPermanent) {
+          _d('[PROOF QUEUE] dropping proof for order $orderId: $e');
+          continue;
+        }
+        entry['attempts'] = force ? 0 : attempts + 1;
+        entry['last_error'] = e.message;
+        remaining.add(jsonEncode(entry));
+      } catch (e) {
+        entry['attempts'] = force ? 0 : attempts + 1;
+        entry['last_error'] = e.toString();
+        remaining.add(jsonEncode(entry));
+      }
+    }
+
+    await prefs.setStringList(_pendingProofsKey, remaining);
+    await _pruneOldProofImages();
+    return uploaded;
+  }
+
+  /// Forgets the slip attached to an offline order that the backend has
+  /// rejected for good, so a dead order does not pin a file forever.
+  Future<void> _dropPendingProofForMock(int mockId) async {
+    if (mockId == 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    final queue = prefs.getStringList(_pendingProofsKey) ?? <String>[];
+    if (queue.isEmpty) return;
+
+    var changed = false;
+    final kept = <String>[];
+    for (final raw in queue) {
+      try {
+        final m = jsonDecode(raw);
+        if (m is Map &&
+            (int.tryParse((m['mock_id'] ?? 0).toString()) ?? 0) == mockId &&
+            (int.tryParse((m['order_id'] ?? 0).toString()) ?? 0) <= 0) {
+          changed = true;
+          _d('[PROOF QUEUE] dropping slip for dead offline order $mockId');
+          continue;
+        }
+      } catch (_) {
+        changed = true;
+        continue;
+      }
+      kept.add(raw);
+    }
+    if (changed) await prefs.setStringList(_pendingProofsKey, kept);
+  }
+
+  /// How long a persisted slip stays on disk once nothing is waiting on it.
+  static const int _proofRetentionDays = 30;
+
+  /// Deletes persisted slips nothing is waiting on any more, so the copies
+  /// [persistProofImage] makes cannot grow without bound.
+  Future<void> _pruneOldProofImages() async {
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docs.path}/transfer_proofs');
+      if (!await dir.exists()) return;
+
+      final keep = (await getPendingTransferProofs())
+          .map((e) => (e['image_path'] ?? '').toString())
+          .toSet();
+      final cutoff = DateTime.now().subtract(
+        const Duration(days: _proofRetentionDays),
+      );
+
+      await for (final entity in dir.list()) {
+        if (entity is! File) continue;
+        if (keep.contains(entity.path)) continue;
+        final stat = await entity.stat();
+        if (stat.modified.isBefore(cutoff)) await entity.delete();
+      }
+    } catch (e) {
+      _d('[PROOF] prune failed: $e');
     }
   }
 

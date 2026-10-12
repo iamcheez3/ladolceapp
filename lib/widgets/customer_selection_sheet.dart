@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/l10n_ext.dart';
 
 /// A paginated, optimized customer selection bottom sheet with server-side search.
 /// 
@@ -136,8 +137,8 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Search failed. Please try again.'),
+        SnackBar(
+          content: Text(context.l10n.searchFailedPleaseTryAgain),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -173,8 +174,8 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
         _isLoadingMore = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not load more. Please try again.'),
+        SnackBar(
+          content: Text(context.l10n.couldNotLoadMorePleaseTry),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -201,7 +202,7 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
         });
         
         return AlertDialog(
-          title: const Text('New Customer'),
+          title: Text(context.l10n.newCustomer),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -211,8 +212,8 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
               TextField(
                 controller: nameController,
                 focusNode: nameFocusNode,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
+                decoration: InputDecoration(
+                  labelText: context.l10n.name,
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person_outline),
                 ),
@@ -225,8 +226,8 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
               const SizedBox(height: 16),
               TextField(
                 controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Phone',
+                decoration: InputDecoration(
+                  labelText: context.l10n.phone,
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
@@ -239,7 +240,7 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
+              child: Text(context.l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -251,7 +252,7 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
                 backgroundColor: const Color(0xFF001460),
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Save'),
+              child: Text(context.l10n.save),
             ),
           ],
         );
@@ -287,8 +288,8 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
         if (!mounted) return;
         debugPrint('[CustomerSheet] create customer failed: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not create customer. Please try again.'),
+          SnackBar(
+            content: Text(context.l10n.couldNotCreateCustomerPleaseTry),
             backgroundColor: Colors.red,
           ),
         );
@@ -326,8 +327,8 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Select Customer',
+                      Text(
+                        context.l10n.selectCustomer,
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -336,7 +337,7 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
                       TextButton.icon(
                         onPressed: _isLoading ? null : _showCreateCustomerDialog,
                         icon: const Icon(Icons.add, size: 20),
-                        label: const Text('New'),
+                        label: Text(context.l10n.newLabel),
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF001460),
                         ),
@@ -354,7 +355,7 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 decoration: InputDecoration(
-                  hintText: 'Search by name or phone...',
+                  hintText: context.l10n.searchByNameOrPhone,
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
@@ -403,14 +404,14 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
 
   Widget _buildContent() {
     if (_isLoading && _customers.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
             Text(
-              'Loading customers...',
+              context.l10n.loadingCustomers,
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -431,7 +432,7 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
             const SizedBox(height: 16),
             Text(
               _searchQuery.isEmpty
-                  ? 'No customers found'
+                  ? context.l10n.noCustomersFound
                   : 'No customers match "$_searchQuery"',
               style: TextStyle(
                 color: Colors.grey.shade600,
@@ -444,7 +445,7 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
               Text(
                 _searchQuery.isEmpty
                     ? 'Type at least $_minSearchLength characters to search'
-                    : 'Add customer if not found',
+                    : context.l10n.addCustomerIfNotFound,
                 style: TextStyle(
                   color: Colors.grey.shade500,
                   fontSize: 13,
@@ -455,7 +456,7 @@ class _CustomerSelectionSheetState extends State<CustomerSelectionSheet> {
             ElevatedButton.icon(
               onPressed: _showCreateCustomerDialog,
               icon: const Icon(Icons.add),
-              label: const Text('Add Customer'),
+              label: Text(context.l10n.addCustomer2),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF001460),
                 foregroundColor: Colors.white,

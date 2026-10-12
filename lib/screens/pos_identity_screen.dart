@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/coffee_luxury_background.dart';
 import 'pin_screen.dart';
+import '../utils/l10n_ext.dart';
 
 class PosIdentityScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -114,8 +115,8 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Set POS Name',
+                        Text(
+                          context.l10n.setPosName,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
@@ -125,7 +126,7 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'This helps track which device was used when something happens.',
+                          context.l10n.thisHelpsTrackWhichDeviceWas,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.78),
@@ -139,7 +140,7 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                           onFieldSubmitted: (_) => _saveAndContinue(),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            labelText: 'POS name (ex: Counter-1, iPad-Bar, Android-Front)',
+                            labelText: context.l10n.posNameExCounter1Ipad,
                             labelStyle: TextStyle(
                               color: Colors.white.withValues(alpha: 0.72),
                             ),
@@ -171,9 +172,9 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                           ),
                           validator: (v) {
                             final s = v?.trim() ?? '';
-                            if (s.isEmpty) return 'Please enter a POS name';
-                            if (s.length < 2) return 'POS name is too short';
-                            if (s.length > 40) return 'POS name is too long';
+                            if (s.isEmpty) return context.l10n.pleaseEnterAPosName;
+                            if (s.length < 2) return context.l10n.posNameIsTooShort;
+                            if (s.length > 40) return context.l10n.posNameIsTooLong;
                             return null;
                           },
                         ),
@@ -199,7 +200,7 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
                                     ),
                                   )
                                 : const Icon(Icons.check_rounded),
-                            label: Text(_isSaving ? 'Saving…' : 'Continue'),
+                            label: Text(_isSaving ? 'Saving…' : context.l10n.continueLabel),
                           ),
                         ),
                         const SizedBox(height: 10),

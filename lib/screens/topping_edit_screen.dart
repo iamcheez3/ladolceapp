@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../utils/l10n_ext.dart';
 
 class ToppingEditScreen extends StatefulWidget {
   final Topping? topping;
@@ -44,7 +45,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name is required')),
+        SnackBar(content: Text(context.l10n.nameIsRequired)),
       );
       return;
     }
@@ -55,8 +56,8 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
       await _apiService.addTopping(name, price);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Topping saved successfully'),
+          SnackBar(
+            content: Text(context.l10n.toppingSavedSuccessfully),
             backgroundColor: Colors.green,
           ),
         );
@@ -67,7 +68,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
       debugPrint('[ToppingEdit] save failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save topping. Please try again.'), backgroundColor: Colors.red),
+          SnackBar(content: Text(context.l10n.couldNotSaveToppingPleaseTry), backgroundColor: Colors.red),
         );
       }
     }
@@ -77,7 +78,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.topping!.name : 'Add Topping'),
+        title: Text(widget.isEditing ? widget.topping!.name : context.l10n.addTopping),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -94,7 +95,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
           else
             TextButton(
               onPressed: _save,
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text(context.l10n.save, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
         ],
       ),
@@ -124,7 +125,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
                     TextField(
                       controller: _nameController,
                       decoration: LaDolcePosUi.input(
-                        hintText: 'Topping Name*',
+                        hintText: context.l10n.toppingName,
                         prefixIcon: const Icon(Icons.label_outline, size: 20),
                       ),
                       autofocus: !widget.isEditing,
@@ -133,7 +134,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
                     TextField(
                       controller: _priceController,
                       decoration: LaDolcePosUi.input(
-                        hintText: 'Extra Price (Optional)',
+                        hintText: context.l10n.extraPriceOptional,
                         prefixIcon: const Icon(Icons.attach_money, size: 20),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -150,7 +151,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : 'Save Topping'),
+                label: Text(_isSaving ? 'Saving...' : context.l10n.saveTopping),
                 style: LaDolcePosUi.primaryButtonStyle(),
               ),
             ],

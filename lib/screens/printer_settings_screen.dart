@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import 'printer_edit_screen.dart';
+import '../utils/l10n_ext.dart';
 
 class PrinterSettingsScreen extends StatefulWidget {
   const PrinterSettingsScreen({super.key});
@@ -53,7 +54,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       appBar: AppBar(
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
-        title: const Text('Printers'),
+        title: Text(context.l10n.printers),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -73,7 +74,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                           child: Icon(Icons.print_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
                         ),
                         const SizedBox(height: 20),
-                        const Text('No printers yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        Text(context.l10n.noPrintersYet, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 6),
                         Text(
                           'Tap + to add your first printer.\nConfigure receipts, orders, and category routing.',
@@ -83,7 +84,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
                           icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Add Printer'),
+                          label: Text(context.l10n.addPrinter),
                           onPressed: () => _openPrinterScreen(),
                           style: LaDolcePosUi.primaryButtonStyle(),
                         ),
@@ -188,7 +189,7 @@ class _PrinterCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                'Default',
+                                context.l10n.defaultLabel,
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: accent),
                               ),
                             ),

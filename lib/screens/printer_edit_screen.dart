@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../utils/l10n_ext.dart';
 
 class PrinterEditScreen extends StatefulWidget {
   final PrinterProfile? profile;
@@ -102,7 +103,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Printer saved'), backgroundColor: Colors.green),
+        SnackBar(content: Text(context.l10n.printerSaved), backgroundColor: Colors.green),
       );
       Navigator.pop(context, true);
     }
@@ -113,7 +114,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
     await printerService.deletePrinter(widget.profile!.id);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Printer deleted'), backgroundColor: Colors.orange),
+        SnackBar(content: Text(context.l10n.printerDeleted), backgroundColor: Colors.orange),
       );
       Navigator.pop(context, true);
     }
@@ -123,7 +124,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.profile!.name : 'Add Printer'),
+        title: Text(widget.isEditing ? widget.profile!.name : context.l10n.addPrinter),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -137,7 +138,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
           else
             TextButton(
               onPressed: _save,
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text(context.l10n.save, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
         ],
       ),
@@ -150,7 +151,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                 TextField(
                   controller: _nameCtrl,
                   decoration: LaDolcePosUi.input(
-                    hintText: 'Name',
+                    hintText: context.l10n.name,
                     prefixIcon: const Icon(Icons.label_outline, size: 20),
                   ),
                 ),
@@ -158,7 +159,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                 TextField(
                   controller: _ipCtrl,
                   decoration: LaDolcePosUi.input(
-                    hintText: 'Printer IP address',
+                    hintText: context.l10n.printerIpAddress,
                     prefixIcon: const Icon(Icons.router_outlined, size: 20),
                   ),
                 ),
@@ -167,14 +168,14 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                   controller: _portCtrl,
                   keyboardType: TextInputType.number,
                   decoration: LaDolcePosUi.input(
-                    hintText: 'Port',
+                    hintText: context.l10n.port,
                     prefixIcon: const Icon(Icons.numbers, size: 20),
                   ),
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<int>(
                   value: _paperWidth,
-                  decoration: LaDolcePosUi.input(hintText: 'Paper width'),
+                  decoration: LaDolcePosUi.input(hintText: context.l10n.paperWidth),
                   items: const [
                     DropdownMenuItem(value: 80, child: Text('80 mm')),
                     DropdownMenuItem(value: 58, child: Text('58 mm')),
@@ -185,48 +186,48 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                 _buildSwitchTile(
                   icon: Icons.receipt_outlined,
                   value: _asDefaultReceipt,
-                  title: 'Default printer for receipts',
+                  title: context.l10n.defaultPrinterForReceipts,
                   onChanged: (v) => setState(() => _asDefaultReceipt = v),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             _buildSection(
-              title: 'Advanced settings',
+              title: context.l10n.advancedSettings,
               children: [
                 _buildSwitchTile(
                   icon: Icons.receipt_long_outlined,
                   value: _printReceipts,
-                  title: 'Print receipts and bills',
+                  title: context.l10n.printReceiptsAndBills,
                   onChanged: (v) => setState(() => _printReceipts = v),
                 ),
                 const Divider(height: 1, indent: 44),
                 _buildSwitchTile(
                   icon: Icons.receipt_outlined,
                   value: _printOrders,
-                  title: 'Print orders',
+                  title: context.l10n.printOrders,
                   onChanged: (v) => setState(() => _printOrders = v),
                 ),
                 const Divider(height: 1, indent: 44),
                 _buildSwitchTile(
                   icon: Icons.article_outlined,
                   value: _singleItem,
-                  title: 'Print single item per order ticket',
+                  title: context.l10n.printSingleItemPerOrderTicket,
                   onChanged: (v) => setState(() => _singleItem = v),
                 ),
                 const Divider(height: 1, indent: 44),
                 _buildSwitchTile(
                   icon: Icons.copy_outlined,
                   value: _groupItems,
-                  title: 'Group identical items in order tickets',
+                  title: context.l10n.groupIdenticalItemsInOrderTickets,
                   onChanged: (v) => setState(() => _groupItems = v),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             _buildSection(
-              title: 'Category routing',
-              subtitle: 'If none selected, all categories will print on this printer.',
+              title: context.l10n.categoryRouting,
+              subtitle: context.l10n.ifNoneSelectedAllCategoriesWill,
               children: [
                 if (_loadingCats)
                   const Padding(
@@ -236,7 +237,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                 else if (_categories.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No categories found', style: TextStyle(color: LaDolcePosUi.mutedText, fontSize: 13)),
+                    child: Text(context.l10n.noCategoriesFound, style: TextStyle(color: LaDolcePosUi.mutedText, fontSize: 13)),
                   )
                 else
                   ..._categories.map((c) => CheckboxListTile(
@@ -276,7 +277,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(ok ? 'Printer test successful.' : 'Printer test failed.'),
+                          content: Text(ok ? 'Printer test successful.' : context.l10n.printerTestFailed),
                           backgroundColor: ok ? Colors.green : Colors.red,
                         ),
                       );
@@ -284,7 +285,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
               icon: _isTesting
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.print_outlined, size: 20),
-              label: Text(_isTesting ? 'Testing...' : 'Print Test'),
+              label: Text(_isTesting ? 'Testing...' : context.l10n.printTest),
               style: LaDolcePosUi.primaryButtonStyle(),
             ),
             if (widget.profile != null) ...[
@@ -292,7 +293,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
               OutlinedButton.icon(
                 onPressed: _delete,
                 icon: const Icon(Icons.delete_outline, size: 20),
-                label: const Text('Delete Printer'),
+                label: Text(context.l10n.deletePrinter),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red),

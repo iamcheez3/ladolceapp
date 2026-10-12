@@ -5,6 +5,7 @@ import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
 import 'product_edit_screen.dart';
+import '../utils/l10n_ext.dart';
 
 class ManageProductsScreen extends StatefulWidget {
   const ManageProductsScreen({super.key});
@@ -84,17 +85,17 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Product'),
-        content: const Text('Are you sure you want to delete this product?'),
+        title: Text(context.l10n.deleteProduct),
+        content: Text(context.l10n.areYouSureYouWantTo3),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           ElevatedButton(
             style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -108,8 +109,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       _fetchData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Product deleted'),
+          SnackBar(
+            content: Text(context.l10n.productDeleted),
             backgroundColor: Colors.orange,
           ),
         );
@@ -119,7 +120,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(context.l10n.errorWithMessage(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -131,13 +132,13 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Products'),
+        title: Text(context.l10n.manageProducts),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add Product',
+            tooltip: context.l10n.addProduct,
             onPressed: () => _openProductScreen(),
           ),
         ],
@@ -175,7 +176,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                           ElevatedButton.icon(
                             onPressed: _fetchData,
                             icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Retry'),
+                            label: Text(context.l10n.retry),
                             style: LaDolcePosUi.primaryButtonStyle(),
                           ),
                         ],
@@ -203,8 +204,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                                 ),
                               ),
                               const SizedBox(height: 20),
-                              const Text(
-                                'No products yet',
+                              Text(
+                                context.l10n.noProductsYet,
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
@@ -212,7 +213,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Add your first product to get started',
+                                context.l10n.addYourFirstProductToGet,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: LaDolcePosUi.mutedText,
@@ -221,7 +222,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                               const SizedBox(height: 24),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Add Product'),
+                                label: Text(context.l10n.addProduct),
                                 onPressed: () => _openProductScreen(),
                                 style: LaDolcePosUi.primaryButtonStyle(),
                               ),
@@ -387,8 +388,8 @@ class _ProductCard extends StatelessWidget {
                                   color: Colors.orange.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text(
-                                  'Blocked',
+                                child: Text(
+                                  context.l10n.blocked,
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
@@ -411,7 +412,7 @@ class _ProductCard extends StatelessWidget {
                     color: Colors.red.withValues(alpha: 0.7),
                     onPressed: onDelete,
                     padding: EdgeInsets.zero,
-                    tooltip: 'Delete',
+                    tooltip: context.l10n.delete,
                   ),
                 ),
               ],

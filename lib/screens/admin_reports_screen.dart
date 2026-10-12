@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import 'login_screen.dart';
 import 'ranking_screen.dart';
+import '../utils/l10n_ext.dart';
 
 class AdminReportsScreen extends StatefulWidget {
   /// When true, the screen acts as the admin's main landing page:
@@ -52,7 +53,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Forbidden (admin only)';
+        _error = context.l10n.forbiddenAdminOnly;
       });
       return;
     }
@@ -138,29 +139,29 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: !widget.asAdminHome,
-        title: const Text('Admin Reports'),
+        title: Text(context.l10n.adminReports),
         actions: [
           IconButton(
             onPressed: _pickRange,
             icon: const Icon(Icons.date_range_outlined),
-            tooltip: 'Select date range',
+            tooltip: context.l10n.selectDateRange,
           ),
           if (widget.asAdminHome)
             IconButton(
               onPressed: _openRanking,
               icon: const Icon(Icons.emoji_events_outlined),
-              tooltip: 'Ranking',
+              tooltip: context.l10n.ranking,
             ),
           IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
+            tooltip: context.l10n.refresh,
           ),
           if (widget.asAdminHome)
             IconButton(
               onPressed: _logout,
               icon: const Icon(Icons.lock_outline_rounded),
-              tooltip: 'Lock / Switch User',
+              tooltip: context.l10n.lockSwitchUser,
             ),
         ],
       ),
@@ -187,7 +188,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _load,
-              child: const Text('Retry'),
+              child: Text(context.l10n.retry),
             ),
           ],
         ),
@@ -214,19 +215,19 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         _filtersCard(grandTotal, salesByDay),
         const SizedBox(height: 12),
         _chartCard(
-          title: 'Sales by date',
+          title: context.l10n.salesByDate,
           child: _salesLineChart(salesByDay),
         ),
         const SizedBox(height: 12),
         _hourlyPeakCard(salesByHour),
         const SizedBox(height: 12),
         _chartCard(
-          title: 'Sales by payment type',
+          title: context.l10n.salesByPaymentType,
           child: _paymentTable(byPayment),
         ),
         const SizedBox(height: 12),
         _chartCard(
-          title: 'Sales by product (top)',
+          title: context.l10n.salesByProductTop,
           child: _simpleBarChart(
             byProduct
                 .take(12)
@@ -239,7 +240,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         ),
         const SizedBox(height: 12),
         _chartCard(
-          title: 'Branch ranking',
+          title: context.l10n.branchRanking,
           child: _branchRankingList(byBranch),
         ),
       ],
@@ -284,14 +285,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           DropdownButtonFormField<int?>(
             value: _selectedBranchId,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Branch',
+            decoration: InputDecoration(
+              labelText: context.l10n.branch,
               border: OutlineInputBorder(),
             ),
             items: [
-              const DropdownMenuItem<int?>(
+              DropdownMenuItem<int?>(
                 value: null,
-                child: Text('All branches'),
+                child: Text(context.l10n.allBranches),
               ),
               ..._branches.map((b) {
                 final id = (b['id'] is int)
@@ -441,7 +442,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   Widget _salesLineChart(List<Map> rows) {
     if (rows.isEmpty) {
-      return const Center(child: Text('No data'));
+      return Center(child: Text(context.l10n.noData));
     }
     final spots = <FlSpot>[];
     final labels = <String>[];
@@ -529,7 +530,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _simpleBarChart(List<_BarItem> items) {
-    if (items.isEmpty) return const Center(child: Text('No data'));
+    if (items.isEmpty) return Center(child: Text(context.l10n.noData));
     final maxV = items.map((e) => e.value).fold<double>(0, (a, b) => a > b ? a : b);
     return BarChart(
       BarChartData(
@@ -594,7 +595,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _branchRankingList(List<Map> rows) {
-    if (rows.isEmpty) return const Center(child: Text('No data'));
+    if (rows.isEmpty) return Center(child: Text(context.l10n.noData));
     final items = rows
         .map(
           (e) => _BarItem(
@@ -604,7 +605,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         )
         .where((e) => e.label.isNotEmpty)
         .toList();
-    if (items.isEmpty) return const Center(child: Text('No data'));
+    if (items.isEmpty) return Center(child: Text(context.l10n.noData));
     items.sort((a, b) => b.value.compareTo(a.value));
 
     return ListView.separated(
@@ -644,7 +645,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _paymentTable(List<Map> rows) {
-    if (rows.isEmpty) return const Center(child: Text('No data'));
+    if (rows.isEmpty) return Center(child: Text(context.l10n.noData));
 
     final items = rows
         .map((e) {
@@ -669,7 +670,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             itemBuilder: (ctx, i) {
               if (i == items.length) {
                 return _paymentDataRow(
-                  label: 'Total',
+                  label: context.l10n.total,
                   tx: totalTx,
                   amt: totalAmt,
                   isTotal: true,
@@ -689,21 +690,21 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _paymentHeaderRow() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Expanded(
             flex: 4,
             child: Text(
-              'Payment type',
+              context.l10n.paymentType,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black54),
             ),
           ),
           Expanded(
             flex: 3,
             child: Text(
-              'Transactions',
+              context.l10n.transactions,
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black54),
             ),
@@ -711,7 +712,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           Expanded(
             flex: 4,
             child: Text(
-              'Amount',
+              context.l10n.amount,
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black54),
             ),
@@ -765,11 +766,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const SizedBox(
+        child: SizedBox(
           height: 100,
           child: Center(
             child: Text(
-              'No hourly peak data available',
+              context.l10n.noHourlyPeakDataAvailable,
               style: TextStyle(color: Colors.black54),
             ),
           ),
@@ -798,8 +799,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Peak order hours',
+              Text(
+                context.l10n.peakOrderHours,
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
               ),
               // Segmented controls for switching modes
@@ -813,12 +814,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _toggleButton(
-                      label: 'Orders',
+                      label: context.l10n.orders,
                       active: _showHourlyOrders,
                       onTap: () => setState(() => _showHourlyOrders = true),
                     ),
                     _toggleButton(
-                      label: 'Revenue',
+                      label: context.l10n.revenue,
                       active: !_showHourlyOrders,
                       onTap: () => setState(() => _showHourlyOrders = false),
                     ),
@@ -980,8 +981,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     }
 
     if (topHours.isEmpty) {
-      return const Text(
-        'No order traffic recorded in this range.',
+      return Text(
+        context.l10n.noOrderTrafficRecordedInThis,
         style: TextStyle(
           fontSize: 11,
           color: Colors.black54,

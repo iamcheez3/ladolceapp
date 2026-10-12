@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../utils/localized_name.dart';
+import '../utils/l10n_ext.dart';
 
 class SelfOrdersReviewScreen extends StatefulWidget {
   const SelfOrdersReviewScreen({super.key});
@@ -18,6 +22,8 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
   // Track which cards have their item list expanded
   final Set<dynamic> _expandedOrders = {};
 
+  Timer? _refreshTimer;
+
   static const _navy = Color(0xFF1E3A8A);
   static const _surface = Color(0xFFF8FAFF);
 
@@ -25,25 +31,43 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
   void initState() {
     super.initState();
     _load();
+    // Orders keep arriving while this screen is open, and a transfer slip
+    // lands on its own request shortly after its order. Without a poll the
+    // cashier only ever sees the snapshot taken when they opened the screen.
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _load(showSpinner: false),
+    );
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool showSpinner = true}) async {
+    if (showSpinner) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final data = await _apiService.fetchPendingSelfOrders();
       if (!mounted) return;
       setState(() {
         _orders = data;
         _isLoading = false;
+        _error = null;
       });
     } catch (e) {
       debugPrint('[SelfOrders] load failed: $e');
       if (!mounted) return;
+      // A failed background poll must not blank out orders already on screen.
+      if (!showSpinner && _orders.isNotEmpty) return;
       setState(() {
-        _error = 'Could not load orders. Please check your connection and try again.';
+        _error = context.l10n.couldNotLoadOrdersPleaseCheck;
         _isLoading = false;
       });
     }
@@ -56,8 +80,8 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       await _apiService.confirmSelfOrderTransfer(orderId as int);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Transfer confirmed. Order moved to Open Tickets.'),
+        SnackBar(
+          content: Text(context.l10n.transferConfirmedOrderMovedToOpen),
           backgroundColor: Colors.green,
         ),
       );
@@ -66,7 +90,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       debugPrint('[SelfOrders] confirm failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not confirm order. Please try again.'), backgroundColor: Colors.red),
+        SnackBar(content: Text(context.l10n.couldNotConfirmOrderPleaseTry), backgroundColor: Colors.red),
       );
     }
   }
@@ -79,16 +103,16 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Reject Order?'),
+        title: Text(context.l10n.rejectOrder2),
         content: Text(
             'Are you sure you want to reject and cancel order ${order['name']}?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Keep')),
+              child: Text(context.l10n.keep)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject', style: TextStyle(color: Colors.red)),
+            child: Text(context.l10n.reject, style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -100,8 +124,8 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       await _apiService.rejectSelfOrder(orderId as int);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order rejected and cancelled.'),
+        SnackBar(
+          content: Text(context.l10n.orderRejectedAndCancelled),
           backgroundColor: Colors.orange,
         ),
       );
@@ -110,7 +134,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
       debugPrint('[SelfOrders] reject failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not reject order. Please try again.'), backgroundColor: Colors.red),
+        SnackBar(content: Text(context.l10n.couldNotRejectOrderPleaseTry), backgroundColor: Colors.red),
       );
     }
   }
@@ -152,7 +176,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                   final absUrl = (snapshot.data![0] as String?) ?? '';
                   final headers =
                       (snapshot.data![1] as Map<String, String>?) ?? const {};
-                  if (absUrl.isEmpty) return const Text('No proof image uploaded');
+                  if (absUrl.isEmpty) return Text(context.l10n.noProofImageUploaded);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -179,7 +203,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                                 );
                               },
                               errorBuilder: (_, _, _) =>
-                                  const Text('Cannot load proof image'),
+                                  Text(context.l10n.cannotLoadProofImage),
                             ),
                           ),
                         ),
@@ -193,7 +217,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                             headers: headers,
                           ),
                           icon: const Icon(Icons.zoom_out_map),
-                          label: const Text('Fullscreen'),
+                          label: Text(context.l10n.fullscreen),
                         ),
                       ),
                     ],
@@ -205,7 +229,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close'),
+                  child: Text(context.l10n.close),
                 ),
               ),
             ],
@@ -249,8 +273,8 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
               imageUrl,
               headers: headers,
               fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => const Text(
-                'Cannot load proof image',
+              errorBuilder: (_, _, _) => Text(
+                context.l10n.cannotLoadProofImage,
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -278,8 +302,8 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
     return Scaffold(
       backgroundColor: _surface,
       appBar: AppBar(
-        title: const Text(
-          'Self Orders Review',
+        title: Text(
+          context.l10n.selfOrdersReview,
           style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.3),
         ),
         backgroundColor: _navy,
@@ -289,19 +313,34 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
           IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
+            tooltip: context.l10n.refresh,
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _buildError()
-              : _orders.isEmpty
-                  ? _buildEmpty()
-                  : _buildList(),
+      body: RefreshIndicator(
+        onRefresh: () => _load(showSpinner: false),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? _scrollable(_buildError())
+                : _orders.isEmpty
+                    ? _scrollable(_buildEmpty())
+                    : _buildList(),
+      ),
     );
   }
+
+  /// Makes a non-list state scrollable so pull-to-refresh still works when
+  /// there is nothing to scroll.
+  Widget _scrollable(Widget child) => LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: child,
+          ),
+        ),
+      );
 
   Widget _buildError() => Center(
         child: Padding(
@@ -317,7 +356,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
               ElevatedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(context.l10n.retry),
                 style: ElevatedButton.styleFrom(backgroundColor: _navy,
                     foregroundColor: Colors.white),
               ),
@@ -334,7 +373,7 @@ class _SelfOrdersReviewScreenState extends State<SelfOrdersReviewScreen> {
                 color: Colors.grey.shade300),
             const SizedBox(height: 12),
             Text(
-              'No pending self orders',
+              context.l10n.noPendingSelfOrders,
               style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
             ),
           ],
@@ -393,12 +432,27 @@ class _OrderCard extends StatelessWidget {
 
   static const _navy = Color(0xFF1E3A8A);
 
+  bool get _hasProof =>
+      order['transfer_proof_uploaded'] == true ||
+      (order['transfer_proof_url'] ?? '').toString().trim().isNotEmpty;
+
+  /// Whether this card shows the pay-at-store actions instead of the transfer
+  /// review actions.
+  ///
+  /// Matching was exact and case-sensitive before, so any payment type that
+  /// was not literally `transfer` — including an empty one — was treated as
+  /// pay-at-store while its slip was still uploading, which hid View Proof.
   bool get _isPayAtStore {
-    final paymentType = (order['payment_type'] ?? '').toString();
-    final hasProof = order['transfer_proof_uploaded'] == true ||
-        ((order['transfer_proof_url'] ?? '').toString().isNotEmpty);
-    return paymentType == 'pay_at_store' ||
-        (paymentType != 'transfer' && !hasProof);
+    final paymentType = (order['payment_type'] ?? '')
+        .toString()
+        .toLowerCase()
+        .trim();
+    if (paymentType == 'pay_at_store') return true;
+    if (paymentType.contains('transfer')) return false;
+    if (_hasProof) return false;
+    final method = (order['payment_method'] ?? '').toString().toLowerCase();
+    if (method.contains('transfer')) return false;
+    return true;
   }
 
   bool get _hasDeliveryPlace {
@@ -428,7 +482,7 @@ class _OrderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ────────────────────────────────────────────────────────
-          _buildHeader(),
+          _buildHeader(context),
           const Divider(height: 1, color: Color(0xFFE8EDF5)),
           // ── Info row ──────────────────────────────────────────────────────
           _buildInfoSection(context),
@@ -448,14 +502,14 @@ class _OrderCard extends StatelessWidget {
           ],
           const Divider(height: 1, color: Color(0xFFE8EDF5)),
           // ── Actions ───────────────────────────────────────────────────────
-          _buildActions(),
+          _buildActions(context),
           const SizedBox(height: 4),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
       child: Row(
@@ -475,7 +529,7 @@ class _OrderCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  order['name']?.toString() ?? 'Order',
+                  order['name']?.toString() ?? context.l10n.order,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -494,22 +548,22 @@ class _OrderCard extends StatelessWidget {
             ),
           ),
           // Payment badge
-          _paymentBadge(),
+          _paymentBadge(context),
         ],
       ),
     );
   }
 
-  Widget _paymentBadge() {
+  Widget _paymentBadge(BuildContext context) {
     if (_isPayAtStore) {
       return _Badge(
-        label: 'Pay at Store',
+        label: context.l10n.payAtStore2,
         color: const Color(0xFF059669),
         icon: Icons.store_rounded,
       );
     }
     return _Badge(
-      label: 'Bank Transfer',
+      label: context.l10n.bankTransfer,
       color: const Color(0xFF2D55C0),
       icon: Icons.account_balance_rounded,
     );
@@ -542,16 +596,16 @@ class _OrderCard extends StatelessWidget {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Call Customer?'),
+                        title: Text(context.l10n.callCustomer),
                         content: Text('Do you want to call $phone?'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
+                            child: Text(context.l10n.cancel),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Call'),
+                            child: Text(context.l10n.call),
                           ),
                         ],
                       ),
@@ -608,8 +662,8 @@ class _OrderCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Customer place:',
+                  Text(
+                    context.l10n.customerPlace,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -649,7 +703,7 @@ class _OrderCard extends StatelessWidget {
                           }
                         },
                         icon: const Icon(Icons.map_outlined, size: 16),
-                        label: const Text('Open map'),
+                        label: Text(context.l10n.openMap),
                       ),
                     ),
                 ],
@@ -683,7 +737,7 @@ class _OrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Order Note / Pickup Time:',
+                    context.l10n.orderNotePickupTime,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -772,17 +826,36 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  Widget _buildActions() {
+  Widget _buildActions(BuildContext context) {
     if (_isPayAtStore) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
         child: Row(
           children: [
+            // A slip can turn up on an order the backend did not label as a
+            // transfer; never leave the cashier without a way to see it.
+            if (_hasProof) ...[
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onViewProof,
+                  icon: const Icon(Icons.image_search_rounded, size: 18),
+                  label: Text(context.l10n.viewProof),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _navy,
+                    side: const BorderSide(color: _navy),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: onReject,
                 icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Reject'),
+                label: Text(context.l10n.reject),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red),
@@ -798,7 +871,7 @@ class _OrderCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onConfirm,
                 icon: const Icon(Icons.done_all_rounded, size: 18),
-                label: const Text('Quick Confirm'),
+                label: Text(context.l10n.quickConfirm),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF059669),
                   foregroundColor: Colors.white,
@@ -824,7 +897,7 @@ class _OrderCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onViewProof,
                   icon: const Icon(Icons.image_search_rounded, size: 18),
-                  label: const Text('View Proof'),
+                  label: Text(context.l10n.viewProof),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _navy,
                     side: const BorderSide(color: _navy),
@@ -839,7 +912,7 @@ class _OrderCard extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onConfirm,
                   icon: const Icon(Icons.check_circle_rounded, size: 18),
-                  label: const Text('Confirm'),
+                  label: Text(context.l10n.confirm),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _navy,
                     foregroundColor: Colors.white,
@@ -857,7 +930,7 @@ class _OrderCard extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onReject,
               icon: const Icon(Icons.cancel_outlined, size: 18),
-              label: const Text('Reject Order'),
+              label: Text(context.l10n.rejectOrder),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
                 side: const BorderSide(color: Colors.red),
@@ -890,7 +963,7 @@ class _LineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = line['product_name']?.toString() ?? 'Item';
+    final name = localizedLineName(line);
     final qty = line['qty'] ?? line['quantity'] ?? 1;
     final subtotal = line['subtotal'] ??
         line['price_subtotal'] ??

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/ladolce_pos_ui.dart';
+import '../utils/l10n_ext.dart';
 
 class BillTemplateSettingsScreen extends StatefulWidget {
   const BillTemplateSettingsScreen({super.key});
@@ -117,7 +118,7 @@ class _BillTemplateSettingsScreenState
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved template settings.')),
+        SnackBar(content: Text(context.l10n.savedTemplateSettings)),
       );
       setState(() => _loading = false);
     } catch (e) {
@@ -163,7 +164,7 @@ class _BillTemplateSettingsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bill Templates'),
+        title: Text(context.l10n.billTemplates),
         backgroundColor: _navy,
         foregroundColor: Colors.white,
         actions: [
@@ -184,7 +185,7 @@ class _BillTemplateSettingsScreenState
                       const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: _load,
-                        child: const Text('Retry'),
+                        child: Text(context.l10n.retry),
                       ),
                     ],
                   ),
@@ -193,7 +194,7 @@ class _BillTemplateSettingsScreenState
                   padding: const EdgeInsets.all(16),
                   children: [
                     _dropdown(
-                      label: 'Bill (pre-receipt)',
+                      label: context.l10n.billPreReceipt,
                       items: _billTemplates,
                       value: _selectedBillId,
                       onChanged: (v) => setState(() => _selectedBillId = v),
@@ -205,7 +206,7 @@ class _BillTemplateSettingsScreenState
                     ),
                     const SizedBox(height: 20),
                     _dropdown(
-                      label: 'Receipt (paid)',
+                      label: context.l10n.receiptPaid,
                       items: _receiptTemplates,
                       value: _selectedReceiptId,
                       onChanged: (v) => setState(() => _selectedReceiptId = v),
@@ -218,7 +219,7 @@ class _BillTemplateSettingsScreenState
                     ),
                     const SizedBox(height: 20),
                     _dropdown(
-                      label: 'Refund / Void',
+                      label: context.l10n.refundVoid,
                       items: _refundTemplates,
                       value: _selectedRefundId,
                       onChanged: (v) => setState(() => _selectedRefundId = v),
@@ -231,7 +232,7 @@ class _BillTemplateSettingsScreenState
                     ),
                     const SizedBox(height: 20),
                     _dropdown(
-                      label: 'Kitchen / Order ticket',
+                      label: context.l10n.kitchenOrderTicket2,
                       items: _kitchenTemplates,
                       value: _selectedKitchenId,
                       onChanged: (v) => setState(() => _selectedKitchenId = v),
@@ -375,9 +376,9 @@ class _ReceiptPreview extends StatelessWidget {
     return rows;
   }
 
-  List<Widget> _buildKitchenBody() {
+  List<Widget> _buildKitchenBody(BuildContext context) {
     return [
-      _line(_center('Kitchen / Order Ticket'), bold: true),
+      _line(_center(context.l10n.kitchenOrderTicket), bold: true),
       _line(_hr()),
       if (_showQueueNumber) ...[
         _line(_center('Queue:'), small: true, color: Colors.grey[700]),
@@ -516,7 +517,7 @@ class _ReceiptPreview extends StatelessWidget {
             Icon(Icons.receipt_long_outlined, color: Colors.grey[400], size: 18),
             const SizedBox(width: 8),
             Text(
-              'No template selected — preview unavailable',
+              context.l10n.noTemplateSelectedPreviewUnavailable,
               style: TextStyle(color: Colors.grey[500], fontSize: 12),
             ),
           ],
@@ -534,7 +535,7 @@ class _ReceiptPreview extends StatelessWidget {
     contentRows.add(_line(_hr()));
 
     if (templateType == 'kitchen') {
-      contentRows.addAll(_buildKitchenBody());
+      contentRows.addAll(_buildKitchenBody(context));
     } else {
       contentRows.addAll(_buildItemsAndTotals(templateType));
     }

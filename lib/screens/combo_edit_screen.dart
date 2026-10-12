@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../utils/l10n_ext.dart';
 
 class ComboEditScreen extends StatefulWidget {
   final Map<String, dynamic>? combo;
@@ -81,13 +82,13 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
 
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valid name and price are required')),
+        SnackBar(content: Text(context.l10n.validNameAndPriceAreRequired)),
       );
       return;
     }
     if (_lines.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Combo must have at least one product')),
+        SnackBar(content: Text(context.l10n.comboMustHaveAtLeastOne)),
       );
       return;
     }
@@ -106,8 +107,8 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Combo saved successfully'),
+          SnackBar(
+            content: Text(context.l10n.comboSavedSuccessfully),
             backgroundColor: Colors.green,
           ),
         );
@@ -117,7 +118,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(context.l10n.errorWithMessage(e.toString())), backgroundColor: Colors.red),
         );
       }
     }
@@ -127,7 +128,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? widget.combo!['name'] : 'Add Combo'),
+        title: Text(widget.isEditing ? widget.combo!['name'] : context.l10n.addCombo),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
@@ -144,7 +145,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
           else
             TextButton(
               onPressed: _save,
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text(context.l10n.save, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
         ],
       ),
@@ -174,7 +175,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                     TextField(
                       controller: _nameController,
                       decoration: LaDolcePosUi.input(
-                        hintText: 'Combo Name*',
+                        hintText: context.l10n.comboName,
                         prefixIcon: const Icon(Icons.label_outline, size: 20),
                       ),
                       autofocus: !widget.isEditing,
@@ -183,7 +184,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                     TextField(
                       controller: _priceController,
                       decoration: LaDolcePosUi.input(
-                        hintText: 'Combo Fixed Price*',
+                        hintText: context.l10n.comboFixedPrice,
                         prefixIcon: const Icon(Icons.attach_money, size: 20),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -196,15 +197,15 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                 children: [
                   Icon(Icons.widgets_outlined, size: 18, color: LaDolcePosUi.mutedText),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Combo Items',
+                  Text(
+                    context.l10n.comboItems,
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: _addLine,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add Product', style: TextStyle(fontSize: 13)),
+                    label: Text(context.l10n.addProduct, style: TextStyle(fontSize: 13)),
                     style: TextButton.styleFrom(foregroundColor: _accent),
                   ),
                 ],
@@ -220,7 +221,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                     border: Border.all(color: LaDolcePosUi.border.withValues(alpha: 0.6)),
                   ),
                   child: Text(
-                    'No products added to this combo yet.',
+                    context.l10n.noProductsAddedToThisCombo,
                     style: TextStyle(color: LaDolcePosUi.mutedText, fontSize: 13),
                   ),
                 )
@@ -256,7 +257,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : 'Save Combo'),
+                label: Text(_isSaving ? 'Saving...' : context.l10n.saveCombo),
                 style: LaDolcePosUi.primaryButtonStyle(),
               ),
             ],
@@ -311,7 +312,7 @@ class _ComboLineCard extends StatelessWidget {
             flex: 3,
             child: DropdownButtonFormField<int>(
               value: line.productId,
-              decoration: LaDolcePosUi.input(hintText: 'Product'),
+              decoration: LaDolcePosUi.input(hintText: context.l10n.product),
               isExpanded: true,
               items: allProducts.map((p) {
                 return DropdownMenuItem<int>(
@@ -329,7 +330,7 @@ class _ComboLineCard extends StatelessWidget {
             width: 70,
             child: TextFormField(
               initialValue: line.qty.toString(),
-              decoration: LaDolcePosUi.input(hintText: 'Qty'),
+              decoration: LaDolcePosUi.input(hintText: context.l10n.qty),
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
               onChanged: (val) {

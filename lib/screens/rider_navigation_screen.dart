@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/http_client_wrapper.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/api_service.dart';
+import '../utils/l10n_ext.dart';
 
 class RiderNavigationScreen extends StatefulWidget {
   final int orderId;
@@ -348,7 +349,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Could not launch dialer')));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.couldNotLaunchDialer)));
     }
   }
 
@@ -361,8 +362,8 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not launch external maps application'),
+          SnackBar(
+            content: Text(context.l10n.couldNotLaunchExternalMapsApplication),
           ),
         );
       }
@@ -377,8 +378,8 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         if (!mounted) return;
         setState(() => _currentStatus = 'arrived');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Status updated to Arrived'),
+          SnackBar(
+            content: Text(context.l10n.statusUpdatedToArrived),
             backgroundColor: Colors.teal,
           ),
         );
@@ -387,8 +388,8 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
         if (!mounted) return;
         setState(() => _currentStatus = 'delivered');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Status updated to Complete / Delivered'),
+          SnackBar(
+            content: Text(context.l10n.statusUpdatedToCompleteDelivered),
             backgroundColor: Colors.green,
           ),
         );
@@ -411,7 +412,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
   }
 
   String _formatEta(double distKm) {
-    if (distKm < 0.1) return 'Arriving soon';
+    if (distKm < 0.1) return context.l10n.arrivingSoon;
     final hours = distKm / 40; // Assume average speed of 40 km/h
     final totalMinutes = (hours * 60).round();
     if (totalMinutes < 60) return '$totalMinutes min';
@@ -445,7 +446,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
           position: LatLng(_riderLat, _riderLng),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           anchor: const Offset(0.5, 0.5),
-          infoWindow: const InfoWindow(title: 'You (Rider)'),
+          infoWindow: InfoWindow(title: context.l10n.youRider),
         ),
       );
     }
@@ -481,12 +482,12 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                     ),
                   )
                 : const Icon(Icons.refresh),
-            tooltip: 'Refresh route',
+            tooltip: context.l10n.refreshRoute,
             onPressed: _isFetchingRoute ? null : _fetchRoute,
           ),
           IconButton(
             icon: const Icon(Icons.zoom_out_map),
-            tooltip: 'Fit route on screen',
+            tooltip: context.l10n.fitRouteOnScreen,
             onPressed: _zoomToIncludeMarkers,
           ),
         ],
@@ -654,10 +655,10 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                     ),
                     child: Text(
                       _currentStatus == 'arrived'
-                          ? 'Arrived'
+                          ? context.l10n.statusArrived
                           : _currentStatus == 'delivered'
-                          ? 'Delivered'
-                          : 'On The Way',
+                          ? context.l10n.statusDelivered
+                          : context.l10n.onTheWay,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -718,7 +719,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                         ),
                       ),
                       onPressed: _makePhoneCall,
-                      tooltip: 'Call Customer',
+                      tooltip: context.l10n.callCustomer2,
                     ),
                     const SizedBox(width: 10),
                   ],
@@ -735,7 +736,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                         ),
                       ),
                       onPressed: _openExternalMaps,
-                      tooltip: 'Open in External Google Maps app',
+                      tooltip: context.l10n.openInExternalGoogleMapsApp,
                     ),
                     const SizedBox(width: 10),
                   ],
@@ -749,7 +750,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                             child: ElevatedButton.icon(
                               onPressed: () => _handleStatusAction('arrived'),
                               icon: const Icon(Icons.location_on, size: 18),
-                              label: const Text('Arrived'),
+                              label: Text(context.l10n.statusArrived),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.teal,
                                 foregroundColor: Colors.white,
@@ -770,7 +771,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
                             child: ElevatedButton.icon(
                               onPressed: () => _handleStatusAction('complete'),
                               icon: const Icon(Icons.check_circle, size: 18),
-                              label: const Text('Complete'),
+                              label: Text(context.l10n.statusComplete),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,

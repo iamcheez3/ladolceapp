@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/api_service.dart';
+import '../utils/localized_name.dart';
+import '../utils/l10n_ext.dart';
 
 /// Full-screen order receipt / detail (customer self-order) — matches app reference styling.
 class CustomerOrderDetailScreen extends StatelessWidget {
@@ -22,19 +24,19 @@ class CustomerOrderDetailScreen extends StatelessWidget {
   final ApiService api;
   final Future<void> Function()? onRefresh;
 
-  String _statusLabel(String rawState, String paymentMethod, {String? deliveryStatus}) {
+  String _statusLabel(BuildContext context, String rawState, String paymentMethod, {String? deliveryStatus}) {
     final ds = (deliveryStatus ?? '').toLowerCase().trim();
-    if (ds == 'delivered') return 'DELIVERED';
+    if (ds == 'delivered') return context.l10n.delivered;
     if (rawState == 'waiting_transfer_review') {
-      return 'Waiting review';
+      return context.l10n.waitingReview;
     }
     if (rawState == 'draft' &&
         paymentMethod.toLowerCase().contains('transfer')) {
-      return 'Preparing';
+      return context.l10n.statusPreparing;
     }
-    if (rawState == 'draft') return 'Confirmed';
-    if (rawState == 'paid') return 'COMPLETE';
-    if (rawState == 'cancelled') return 'CANCELLED';
+    if (rawState == 'draft') return context.l10n.confirmed;
+    if (rawState == 'paid') return context.l10n.complete;
+    if (rawState == 'cancelled') return context.l10n.cancelled;
     return rawState.isEmpty ? '-' : rawState.toUpperCase();
   }
 
@@ -48,6 +50,10 @@ class CustomerOrderDetailScreen extends StatelessWidget {
     final proofUrl = item['transfer_proof_url']?.toString() ?? '';
     final hasLocalProof = proofPath.isNotEmpty;
     final hasServerProof = proofUrl.isNotEmpty;
+    // A slip only counts as delivered once the backend holds it — a local file
+    // means the customer picked it, not that the store ever received it.
+    final proofWaiting =
+        !hasServerProof && (item['proof_pending'] == true || hasLocalProof);
     final lines = ((item['lines'] as List?) ?? const []).cast<dynamic>();
     final rawState = (item['state'] ?? '').toString();
     final payMethod = (item['payment_method'] ?? 'Unknown').toString();
@@ -128,16 +134,16 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _summaryRow('Amount', '₭${amount.toStringAsFixed(2)}', boldValue: true),
+                      _summaryRow(context.l10n.amount, '₭${amount.toStringAsFixed(2)}', boldValue: true),
                       const SizedBox(height: 8),
-                      _summaryRow('Payment', payMethod),
+                      _summaryRow(context.l10n.payment, payMethod),
                       const SizedBox(height: 8),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Status',
+                          Text(
+                            context.l10n.status,
                             style: TextStyle(
                               color: _labelMuted,
                               fontWeight: FontWeight.w600,
@@ -146,6 +152,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                           ),
                           _statusPill(
                             _statusLabel(
+                              context,
                               rawState,
                               payMethod,
                               deliveryStatus: item['delivery_status']?.toString(),
@@ -158,15 +165,17 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                       ),
                       if (dateFmt != '-') ...[
                         const SizedBox(height: 8),
-                        _summaryRow('Date', dateFmt),
+                        _summaryRow(context.l10n.date, dateFmt),
                       ],
                       if (hasLocalProof || hasServerProof) ...[
                         const SizedBox(height: 22),
-                        _sectionTitle('TRANSFER PROOF'),
+                        _sectionTitle(context.l10n.transferProof),
                         const SizedBox(height: 10),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: hasLocalProof
+                          // Show what the store can actually see when it has
+                          // it; the local file is only a stand-in until then.
+                          child: !hasServerProof
                               ? Image.file(
                                   File(proofPath),
                                   height: 220,
@@ -210,18 +219,25 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                                   },
                                 ),
                         ),
+                        const SizedBox(height: 10),
+                        _ProofDeliveryStatus(
+                          delivered: hasServerProof,
+                          waiting: proofWaiting,
+                          api: api,
+                          onRefresh: onRefresh,
+                        ),
                       ],
                       const SizedBox(height: 22),
                       const Divider(color: _lineMuted, height: 1, thickness: 1),
                       const SizedBox(height: 14),
-                      _sectionTitle('ORDER ITEMS'),
+                      _sectionTitle(context.l10n.orderItems),
                       const SizedBox(height: 12),
                       if (lines.isEmpty)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
                           child: Center(
                             child: Text(
-                              'No line items',
+                              context.l10n.noLineItems,
                               style: TextStyle(
                                 color: _labelMuted,
                                 fontWeight: FontWeight.w600,
@@ -250,7 +266,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
           double.tryParse((line['qty'] ?? 0).toString()) ?? 0;
       final subtotal =
           double.tryParse((line['subtotal'] ?? 0).toString()) ?? 0.0;
-      final productName = (line['product_name'] ?? 'Item').toString();
+      final productName = localizedLineName(line);
       final isLast = i == lines.length - 1;
 
       out.add(
@@ -381,6 +397,125 @@ class _DottedRule extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Tells the customer whether the transfer slip actually reached the store,
+/// and offers a manual resend when the automatic retries have not got through.
+///
+/// Without this the screen showed the local file either way, so a slip that
+/// never left the phone looked identical to one the POS could see.
+class _ProofDeliveryStatus extends StatefulWidget {
+  const _ProofDeliveryStatus({
+    required this.delivered,
+    required this.waiting,
+    required this.api,
+    this.onRefresh,
+  });
+
+  final bool delivered;
+  final bool waiting;
+  final ApiService api;
+  final Future<void> Function()? onRefresh;
+
+  @override
+  State<_ProofDeliveryStatus> createState() => _ProofDeliveryStatusState();
+}
+
+class _ProofDeliveryStatusState extends State<_ProofDeliveryStatus> {
+  bool _sending = false;
+
+  Future<void> _resend() async {
+    setState(() => _sending = true);
+    var uploaded = 0;
+    try {
+      uploaded = await widget.api.syncPendingTransferProofs(force: true);
+    } catch (e) {
+      debugPrint('[Proof] manual resend failed: $e');
+    }
+    if (!mounted) return;
+    setState(() => _sending = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          uploaded > 0
+              ? 'Transfer slip sent to the store.'
+              : 'Could not send the slip yet. Please check your connection '
+                    'and try again.',
+        ),
+        backgroundColor: uploaded > 0 ? Colors.green : Colors.red,
+      ),
+    );
+    if (uploaded > 0) await widget.onRefresh?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.delivered) {
+      return const Row(
+        children: [
+          Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF059669)),
+          SizedBox(width: 6),
+          Text(
+            'Received by the store',
+            style: TextStyle(
+              color: Color(0xFF059669),
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (!widget.waiting) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.schedule_rounded, size: 18, color: Color(0xFFB45309)),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Not received by the store yet',
+                style: TextStyle(
+                  color: Color(0xFFB45309),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _sending ? null : _resend,
+            icon: _sending
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cloud_upload_outlined, size: 18),
+            label: Text(_sending ? 'Sending…' : 'Send slip to the store again'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: CustomerOrderDetailScreen._headerNavy,
+              side: const BorderSide(
+                color: CustomerOrderDetailScreen._headerNavy,
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

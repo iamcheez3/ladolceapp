@@ -45,6 +45,8 @@
 		<string>This app requires access to the camera to scan reward QR codes.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>We need your location to center the map when adding a favorite place.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>LaDolce uses your location while you use the app to show your delivery location and support delivery orders.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>We save QR payment images to your photo library.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

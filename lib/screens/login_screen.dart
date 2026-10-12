@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ladolce/l10n/app_localizations.dart';
 import '../main.dart';
 import 'register_screen.dart';
 import 'loading_screen.dart';
@@ -8,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/push_notifications_service.dart';
 import '../utils/responsive_layout.dart';
+import '../utils/l10n_ext.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV TOOLS FLAG
@@ -250,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 );
               },
-              child: const Text('Save'),
+              child: Text(context.l10n.save),
             ),
           ],
         );
@@ -281,7 +281,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final maskedId = rawDeviceId.length > 8
         ? '${rawDeviceId.substring(0, 6)}…'
         : rawDeviceId;
-    final platformLabel = platform == 'ios' ? 'iPhone / iPad' : 'Android device';
+    final platformLabel = platform == 'ios'
+        ? context.l10n.deviceIphone
+        : context.l10n.deviceAndroid;
     final platformIcon = platform == 'ios' ? '🍎' : '📱';
 
     final confirmed = await showDialog<bool>(
@@ -309,8 +311,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Already signed in',
+              Text(
+                context.l10n.alreadySignedIn,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
@@ -319,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Your account is currently active on another device.',
+                context.l10n.accountActiveOtherDevice,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
@@ -355,7 +357,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         if (maskedId.isNotEmpty)
                           Text(
-                            'ID: $maskedId',
+                            context.l10n.deviceIdLabel(maskedId),
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey[500],
@@ -369,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Continuing will sign out that device.',
+                context.l10n.continueSignsOutOther,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -389,8 +391,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         side: const BorderSide(color: Color(0xFFDCE5FF)),
                       ),
-                      child: const Text(
-                        'Cancel',
+                      child: Text(
+                        context.l10n.cancel,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: _brandNavy,
@@ -411,8 +413,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Continue',
+                      child: Text(
+                        context.l10n.continueLabel,
                         style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
@@ -457,7 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Unknown role from server')),
+            SnackBar(content: Text(context.l10n.unknownRoleFromServer)),
           );
         }
         return;
@@ -470,7 +472,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unknown role from server')),
+          SnackBar(content: Text(context.l10n.unknownRoleFromServer)),
         );
       }
     } catch (e) {
@@ -550,7 +552,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Google Login Failed: ${e.toString()}'),
+          content: Text(context.l10n.googleLoginFailed(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -726,8 +728,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 )
                               else
                                 Text(
-                                  AppLocalizations.of(context)?.welcomeBack ??
-                                      'Welcome back',
+                                  context.l10n.welcomeBack,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     color: Color(0xFF64748B),
@@ -739,10 +740,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 controller: _loginController,
                                 decoration: InputDecoration(
                                   labelText:
-                                      AppLocalizations.of(
-                                        context,
-                                      )?.emailOrLogin ??
-                                      'Email / Login',
+                                      context.l10n.emailOrLogin,
                                   filled: true,
                                   fillColor: Colors.white,
                                   prefixIcon: const Icon(
@@ -779,8 +777,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 obscureText: _obscurePassword,
                                 decoration: InputDecoration(
                                   labelText:
-                                      AppLocalizations.of(context)?.password ??
-                                      'Password',
+                                      context.l10n.password,
                                   filled: true,
                                   fillColor: Colors.white,
                                   prefixIcon: const Icon(
@@ -847,10 +844,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         )
                                       : Text(
-                                          AppLocalizations.of(
-                                                context,
-                                              )?.loginButton ??
-                                              'LOGIN',
+                                          context.l10n.loginButton,
                                           style: const TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w900,
@@ -862,7 +856,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   .isGoogleAuthAvailable) ...[
                                 const SizedBox(height: 12),
                                 _GoogleAuthButton(
-                                  label: 'Continue with Google',
+                                  label: context.l10n.continueWithGoogle,
                                   isLoading: _isLoading,
                                   onPressed: _continueWithGoogle,
                                 ),
@@ -877,8 +871,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     );
                                   },
-                                  child: const Text(
-                                    'Register Staff Account',
+                                  child: Text(
+                                    context.l10n.registerStaffAccount,
                                     style: TextStyle(
                                       color: Color(0xFF64748B),
                                       fontWeight: FontWeight.w600,
@@ -895,8 +889,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   );
                                 },
                                 child: Text(
-                                  AppLocalizations.of(context)?.createAccount ??
-                                      'Create a new account',
+                                  context.l10n.createAccount,
                                   style: const TextStyle(
                                     color: _brandNavy,
                                     fontWeight: FontWeight.w700,

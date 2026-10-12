@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
+import '../utils/localized_name.dart';
+import '../utils/l10n_ext.dart';
 
 class ReceiptDetailScreen extends StatefulWidget {
   final int orderId;
@@ -44,7 +46,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
   Future<void> _reprintReceipt() async {
     if (_receiptData == null) return;
     if (!printerService.isConfigured) {
-      _snack('No printer configured. Set up a printer in Settings first.', Colors.orange);
+      _snack(context.l10n.noPrinterConfiguredSettings, Colors.orange);
       return;
     }
     setState(() => _isActionLoading = true);
@@ -70,11 +72,11 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.undo_rounded, color: Colors.red),
             SizedBox(width: 8),
-            Text('Confirm Refund', style: TextStyle(fontSize: 18)),
+            Text(context.l10n.confirmRefund, style: TextStyle(fontSize: 18)),
           ],
         ),
         content: Column(
@@ -92,7 +94,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               decoration: InputDecoration(
-                labelText: 'Admin PIN',
+                labelText: context.l10n.adminPin,
                 prefixIcon: const Icon(Icons.lock_outlined),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 counterText: '',
@@ -103,7 +105,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -112,7 +114,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Refund'),
+            child: Text(context.l10n.refund),
           ),
         ],
       ),
@@ -120,7 +122,9 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
 
     if (confirmed != true) return;
     if (pinCtrl.text.trim().isEmpty) {
-      _snack('Admin PIN is required.', Colors.orange);
+      // Captured before the first await: reading it off `context` afterwards is unsafe.
+      final l10n = context.l10n;
+      _snack(l10n.adminPinIsRequired, Colors.orange);
       return;
     }
 
@@ -131,6 +135,8 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
         adminPin: pinCtrl.text.trim(),
       );
       if (mounted) {
+        // Captured before any await: reading it off `context` afterwards is unsafe.
+        final l10n = context.l10n;
         setState(() {
           _isRefunded = true;
           _isActionLoading = false;
@@ -160,7 +166,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
           }
         }
 
-        _snack('✅ Order refunded successfully.', Colors.green);
+        _snack(l10n.orderRefundedSuccessfully, Colors.green);
         // Go back to history after a short delay so the snack is visible
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) Navigator.pop(context, true); // true = list should refresh
@@ -205,7 +211,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
         children: [
           Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: _fetchReceipt, child: const Text('Retry')),
+          ElevatedButton(onPressed: _fetchReceipt, child: Text(context.l10n.retry)),
         ],
       ),
     );
@@ -238,18 +244,18 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.red.shade200),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
                               Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
                               SizedBox(width: 8),
-                              Text('This order has been refunded', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                              Text(context.l10n.thisOrderHasBeenRefunded, style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
 
                       // ── Header ────────────────────────────────────────
                       Text(
-                        data['order_reference'] ?? 'Receipt',
+                        data['order_reference'] ?? context.l10n.receipt,
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       ),
@@ -258,22 +264,22 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                       const SizedBox(height: 8),
 
                       // ── Meta ──────────────────────────────────────────
-                      _metaRow('Date:', data['date_order'] ?? ''),
-                      _metaRow('Cashier:', data['cashier'] ?? 'Unknown'),
+                      _metaRow(context.l10n.dateColon, data['date_order'] ?? ''),
+                      _metaRow(context.l10n.cashierColon, data['cashier'] ?? 'Unknown'),
                       if ((data['table']?.toString() ?? '').isNotEmpty)
-                        _metaRow('Table:', data['table'].toString()),
-                      _metaRow('Payment:', data['payment_method'] ?? 'Unknown'),
+                        _metaRow(context.l10n.tableColon, data['table'].toString()),
+                      _metaRow(context.l10n.paymentColon, data['payment_method'] ?? 'Unknown'),
 
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 16),
 
                       // ── Items header ──────────────────────────────────
-                      const Row(
+                      Row(
                         children: [
-                          Expanded(flex: 3, child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                          Expanded(flex: 1, child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                          Expanded(flex: 2, child: Text('Total', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                          Expanded(flex: 3, child: Text(context.l10n.item, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                          Expanded(flex: 1, child: Text(context.l10n.qty, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                          Expanded(flex: 2, child: Text(context.l10n.total, textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -293,7 +299,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                               children: [
                                 Expanded(
                                   flex: 3,
-                                  child: Text(line['product_name'] ?? 'Item',
+                                  child: Text(localizedLineName(line),
                                       style: const TextStyle(fontWeight: FontWeight.w500)),
                                 ),
                                 Expanded(
@@ -326,9 +332,9 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
                             children: [
-                              const Expanded(
+                              Expanded(
                                 child: Text(
-                                  'Discount',
+                                  context.l10n.discount,
                                   style: TextStyle(fontSize: 16, color: Colors.red),
                                 ),
                               ),
@@ -354,9 +360,9 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                       // ── Total ─────────────────────────────────────────
                       Row(
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'Total Amount',
+                              context.l10n.totalAmount,
                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -400,7 +406,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _reprintReceipt,
                           icon: const Icon(Icons.print_outlined),
-                          label: const Text('Reprint Receipt'),
+                          label: Text(context.l10n.reprintReceipt),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _navy,
                             foregroundColor: Colors.white,
@@ -416,7 +422,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _showRefundDialog,
                           icon: const Icon(Icons.undo_rounded),
-                          label: const Text('Refund Order'),
+                          label: Text(context.l10n.refundOrder),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade600,
                             foregroundColor: Colors.white,

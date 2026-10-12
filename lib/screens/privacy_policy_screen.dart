@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/responsive_layout.dart';
+import '../utils/l10n_ext.dart';
 
 class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key});
@@ -45,7 +46,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load Privacy Policy. Please check your network connection and try again.';
+          _errorMessage = context.l10n.failedToLoadPrivacyPolicyPlease;
           _isLoading = false;
         });
       }
@@ -57,8 +58,8 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     return Scaffold(
       backgroundColor: _brandSurface,
       appBar: AppBar(
-        title: const Text(
-          'Privacy Policy',
+        title: Text(
+          context.l10n.privacyPolicy,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
@@ -145,7 +146,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                 ElevatedButton.icon(
                   onPressed: _loadPrivacyPolicy,
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Retry'),
+                  label: Text(context.l10n.retry),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _brandNavy,
                     foregroundColor: Colors.white,
@@ -195,8 +196,8 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'LaDolce Privacy',
+                    Text(
+                      context.l10n.ladolcePrivacy,
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -212,8 +213,8 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                         color: const Color(0xFFDCE5FF),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        'Official',
+                      child: Text(
+                        context.l10n.official,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

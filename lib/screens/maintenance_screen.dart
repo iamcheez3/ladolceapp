@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/l10n_ext.dart';
 
 class MaintenanceScreen extends StatelessWidget {
   final String messageEn;
@@ -47,7 +48,7 @@ class MaintenanceScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  isLao ? 'ກຳລັງປັບປຸງລະບົບ' : 'Maintenance Mode',
+                  isLao ? 'ກຳລັງປັບປຸງລະບົບ' : context.l10n.maintenanceMode,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.notoSansLao(
                     fontSize: 28,
@@ -96,7 +97,7 @@ class MaintenanceScreen extends StatelessWidget {
                     elevation: 0,
                   ),
                   child: Text(
-                    isLao ? 'ອອກຈາກລະບົບ' : 'Logout',
+                    isLao ? 'ອອກຈາກລະບົບ' : context.l10n.logout,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,

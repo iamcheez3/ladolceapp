@@ -7,6 +7,7 @@ import 'customer_self_order_screen.dart';
 import 'pos_screen.dart';
 import 'rider_screen.dart';
 import 'login_screen.dart';
+import '../utils/l10n_ext.dart';
 
 class PinScreen extends StatefulWidget {
   final Map<String, dynamic> cachedUser;
@@ -196,8 +197,8 @@ class _PinScreenState extends State<PinScreen> {
                           color: Colors.white70,
                           size: 20,
                         ),
-                        label: const Text(
-                          'Switch User',
+                        label: Text(
+                          context.l10n.switchUser,
                           style: TextStyle(color: Colors.white70),
                         ),
                       ),
@@ -250,9 +251,9 @@ class _PinScreenState extends State<PinScreen> {
                             Text(
                               _isSetupMode
                                   ? (_firstPinEntry == null
-                                      ? 'Create your 4-digit PIN'
-                                      : 'Confirm your new PIN')
-                                  : 'Enter PIN to unlock',
+                                      ? context.l10n.createYour4DigitPin
+                                      : context.l10n.confirmYourNewPin)
+                                  : context.l10n.enterPinToUnlock,
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 16,
@@ -295,8 +296,8 @@ class _PinScreenState extends State<PinScreen> {
                                   ? Center(
                                       child: Text(
                                         _isSetupMode
-                                            ? 'PIN mismatch or save failed'
-                                            : 'Incorrect PIN',
+                                            ? context.l10n.pinMismatchOrSaveFailed
+                                            : context.l10n.incorrectPin,
                                         style: TextStyle(
                                           color: Colors.redAccent,
                                           fontWeight: FontWeight.bold,

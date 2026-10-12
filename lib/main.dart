@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:upgrader/upgrader.dart';
+import 'utils/localized_name.dart';
 import 'utils/responsive_layout.dart';
 import 'screens/loading_screen.dart';
 import 'screens/login_screen.dart';
@@ -28,6 +29,11 @@ void main() async {
   try {
     await PushNotificationsService.initialize();
   } catch (_) {}
+
+  // Product and order-line names arrive from Odoo in both languages, so the
+  // display language has to be known before the first screen is built.
+  final prefs = await SharedPreferences.getInstance();
+  DisplayLanguage.code = prefs.getString('languageCode') ?? 'en';
 
   // Check cache for offline auth
   final cachedUser = await ApiService().getCachedUser();
@@ -74,12 +80,16 @@ class _PosAppState extends State<PosApp> {
   Future<Locale> _fetchLocale() async {
     var prefs = await SharedPreferences.getInstance();
     String languageCode = prefs.getString('languageCode') ?? 'en';
+    DisplayLanguage.code = languageCode;
     return Locale(languageCode);
   }
 
   void setLocale(Locale locale) async {
     var prefs = await SharedPreferences.getInstance();
     await prefs.setString('languageCode', locale.languageCode);
+    // Backend-supplied names are not part of the ARB catalogue, so they follow
+    // this flag rather than the Localizations delegate.
+    DisplayLanguage.code = locale.languageCode;
     setState(() {
       _locale = locale;
     });

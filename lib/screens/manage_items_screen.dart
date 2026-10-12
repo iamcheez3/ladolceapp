@@ -4,6 +4,7 @@ import 'manage_categories_screen.dart';
 import 'manage_products_screen.dart';
 import 'manage_combos_screen.dart';
 import '../theme/ladolce_pos_ui.dart';
+import '../utils/l10n_ext.dart';
 
 class ManageItemsScreen extends StatelessWidget {
   const ManageItemsScreen({super.key});
@@ -12,7 +13,7 @@ class ManageItemsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Catalog'),
+        title: Text(context.l10n.manageCatalog),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
       ),
@@ -22,8 +23,8 @@ class ManageItemsScreen extends StatelessWidget {
           _buildMenuCard(
             context,
             icon: Icons.restaurant_menu_outlined,
-            title: 'Products',
-            subtitle: 'Manage your active product catalog',
+            title: context.l10n.products,
+            subtitle: context.l10n.manageYourActiveProductCatalog,
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageProductsScreen()));
             },
@@ -32,8 +33,8 @@ class ManageItemsScreen extends StatelessWidget {
           _buildMenuCard(
             context,
             icon: Icons.grid_view_outlined,
-            title: 'Categories',
-            subtitle: 'Organize products into groups',
+            title: context.l10n.categories,
+            subtitle: context.l10n.organizeProductsIntoGroups,
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageCategoriesScreen()));
             },
@@ -53,8 +54,8 @@ class ManageItemsScreen extends StatelessWidget {
           _buildMenuCard(
             context,
             icon: Icons.add_circle_outline,
-            title: 'Toppings',
-            subtitle: 'Add-ons, modifiers, and variations',
+            title: context.l10n.toppings,
+            subtitle: context.l10n.addOnsModifiersAndVariations,
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageToppingsScreen()));
             },

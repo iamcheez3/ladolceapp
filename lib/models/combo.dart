@@ -1,21 +1,33 @@
+import '../utils/localized_name.dart';
+
 class ComboLine {
   final int id;
   final int productId;
   final String productName;
+
+  /// Lao label from `product_name_lo`; see [displayProductName].
+  final String productNameLo;
+
   final int qty;
 
   ComboLine({
     required this.id,
     required this.productId,
     required this.productName,
+    this.productNameLo = '',
     required this.qty,
   });
+
+  /// Component name in the app's current language.
+  String get displayProductName =>
+      localizedName(productName, productNameLo, fallback: 'Unknown');
 
   factory ComboLine.fromJson(Map<String, dynamic> json) {
     return ComboLine(
       id: json['id'],
       productId: json['product_id'],
       productName: json['product_name'] ?? 'Unknown',
+      productNameLo: (json['product_name_lo'] ?? '').toString(),
       qty: json['qty'] ?? 1,
     );
   }

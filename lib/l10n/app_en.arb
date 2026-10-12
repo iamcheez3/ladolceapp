@@ -18,5 +18,1144 @@
   "runOut": "Run out",
   "orderNote": "Order Note / Pickup Time",
   "orderNoteHint": "e.g., Pickup at 3:00 PM, extra spicy, etc.",
-  "weatherWarning": "Due to bad weather, your delivery or rider may be delayed."
+  "weatherWarning": "Due to bad weather, your delivery or rider may be delayed.",
+  "deviceIphone": "iPhone / iPad",
+  "deviceAndroid": "Android device",
+  "alreadySignedIn": "Already signed in",
+  "accountActiveOtherDevice": "Your account is currently active on another device.",
+  "deviceIdLabel": "ID: {maskedId}",
+  "@deviceIdLabel": {
+    "placeholders": {
+      "maskedId": {
+        "type": "String"
+      }
+    }
+  },
+  "continueSignsOutOther": "Continuing will sign out that device.",
+  "cancel": "Cancel",
+  "continueLabel": "Continue",
+  "unknownRoleFromServer": "Unknown role from server",
+  "googleMissingEmail": "Google account is missing email information.",
+  "googleLoginFailed": "Google Login Failed: {error}",
+  "@googleLoginFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseEnterLogin": "Please enter login",
+  "pleaseEnterPassword": "Please enter password",
+  "continueWithGoogle": "Continue with Google",
+  "registerStaffAccount": "Register Staff Account",
+  "failedToSendOtp": "Failed to send OTP",
+  "failedToSendOtpError": "Failed to send OTP: {error}",
+  "@failedToSendOtpError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "tooManyOtpRequests": "Too many OTP requests. Please wait {time} before resending.",
+  "@tooManyOtpRequests": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "otpVerification": "OTP Verification",
+  "otpSentTo": "We have sent a 6-digit OTP to your phone number:\n+856 {phone}",
+  "@otpSentTo": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseEnterSixDigitCode": "Please enter a 6-digit code",
+  "registrationSuccessful": "Registration successful",
+  "registrationFailed": "Registration Failed: {error}",
+  "@registrationFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "verifyAndRegister": "VERIFY & REGISTER",
+  "otpResentSuccessfully": "OTP code resent successfully!",
+  "resendCode": "Resend Code",
+  "selectBranchBeforeGoogle": "Please select a branch before Google registration",
+  "googleRegistrationFailed": "Google Registration Failed: {error}",
+  "@googleRegistrationFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "createAccountTitle": "Create Account",
+  "joinLaDolce": "Join LaDolce and start ordering",
+  "fullName": "Full Name",
+  "pleaseEnterName": "Please enter name",
+  "phoneRequiredCustomers": "Phone Number (Required for Customers)",
+  "phoneOptional": "Phone Number (Optional)",
+  "phoneRequiredForCustomers": "Phone number is required for customers",
+  "phoneMustBe10Digits": "Phone must be 10 digits starting with 20",
+  "pleaseEnterLoginEmail": "Please enter login/email",
+  "role": "Role",
+  "roleCustomer": "Customer",
+  "roleCashier": "Cashier",
+  "roleRider": "Rider",
+  "branch": "Branch",
+  "selectBranchHint": "Select branch",
+  "pleaseSelectBranch": "Please select a branch",
+  "agreeToTerms": "I agree to the Terms of Service and ",
+  "privacyPolicy": "Privacy Policy",
+  "registerButton": "REGISTER",
+  "language": "Language",
+  "apply": "Apply",
+  "save": "Save",
+  "clear": "Clear",
+  "done": "Done",
+  "retry": "Retry",
+  "unknown": "Unknown",
+  "free": "Free",
+  "errorWithMessage": "Error: {error}",
+  "@errorWithMessage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "featureComingSoon": "Feature coming soon!",
+  "allItems": "All Items",
+  "combos": "Combos",
+  "searchProducts": "Search products...",
+  "noProductsMatching": "No products matching \"{query}\"",
+  "@noProductsMatching": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "noProductsInCategory": "No products in this category",
+  "applyDiscount": "Apply Discount",
+  "selectDiscountOption": "Select Discount Option",
+  "selectDiscount": "Select Discount",
+  "noDiscount": "No Discount",
+  "customPercent": "(Custom %)",
+  "customAmount": "(Custom Amount)",
+  "enterDiscountPercentage": "Enter Discount Percentage",
+  "enterDiscountAmount": "Enter Discount Amount",
+  "removeDiscount": "Remove Discount",
+  "discountValueOption": "Discount (Value)",
+  "percentOff": "{percent}% Off",
+  "@percentOff": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "egTen": "e.g. 10",
+  "egFiveThousand": "e.g. 5000",
+  "kitchenNote": "Kitchen note",
+  "kitchenNoteHint": "Less sugar, no ice,...",
+  "selectToppingsFor": "Select Toppings for {product}",
+  "@selectToppingsFor": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "addWithoutToppings": "Add Without Toppings",
+  "addToOrder": "Add To Order",
+  "tickets": "Tickets",
+  "openTickets": "Open Tickets",
+  "ticketLabel": "Ticket",
+  "ticketOptions": "Ticket Options",
+  "clearTicket": "Clear ticket",
+  "printBill": "Print bill",
+  "reprintOrderKitchen": "Reprint order (kitchen)",
+  "splitTicketAction": "Split ticket",
+  "moveTicketAction": "Move ticket",
+  "sendToRider": "Send to rider",
+  "openCashDrawer": "Open cash drawer",
+  "syncAction": "Sync",
+  "scanVoucher": "Scan Voucher",
+  "switchToList": "Switch to List",
+  "switchToGrid": "Switch to Grid",
+  "ticketCleared": "Ticket cleared.",
+  "ticketRemovedByAdminPin": "Ticket removed by Admin PIN.",
+  "cannotClearTicket": "Cannot clear ticket: {error}",
+  "@cannotClearTicket": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPinRequired": "Admin PIN Required",
+  "enterPinToClearTicket": "Enter PIN to clear selected ticket",
+  "pinIsRequired": "PIN is required",
+  "currentTicket": "CURRENT TICKET",
+  "itemsCount": "{count} Items",
+  "@itemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "viewTicketCharge": "View Ticket &\nCharge",
+  "ticketSavedNoNewItems": "Ticket saved (no new items added).",
+  "ticketUpdatedWithItems": "Ticket {name} updated with {count} new item(s)!",
+  "@ticketUpdatedWithItems": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "noItemsToPrint": "No items in the current ticket to print.",
+  "noPrinterConfiguredSettings": "No printer configured. Set up a printer in Settings first.",
+  "noPrinterConfigured": "No printer configured. Set up a printer first.",
+  "amountExclVat": "Amount (excl. VAT):",
+  "vatPercentLabel": "VAT ({percent}%):",
+  "@vatPercentLabel": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "billPrinted": "🧾 Bill printed!",
+  "failedToPrintBill": "Failed to print bill. Check printer connection.",
+  "noItemsToReprint": "No items in the current ticket to reprint.",
+  "orderReprinted": "🖨️ Order reprinted to {count} kitchen printer(s).",
+  "@orderReprinted": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "noPrinterForReprint": "No available printer could print this reprint request.",
+  "cashDrawerOpened": "🗃️ Cash drawer opened!",
+  "failedToOpenDrawer": "Failed to open drawer. Check printer connection.",
+  "noItemsToSplit": "No items in the current ticket to split.",
+  "saveTicketBeforeSplit": "Please save the ticket first before splitting.",
+  "ticketSplitCreated": "Ticket split! \"{name}\" created.",
+  "@ticketSplitCreated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "splitError": "Split error: {error}",
+  "@splitError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotLoadOpenTickets": "Cannot load open tickets: {error}",
+  "@cannotLoadOpenTickets": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noOpenTicketToMoveFrom": "No open ticket to move from.",
+  "noDestinationAvailable": "No destination available. Open another ticket or free a table.",
+  "moveTicketTitle": "Move Ticket",
+  "selectSourceTicket": "Select source ticket",
+  "tableNumber": "Table {id}",
+  "@tableNumber": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "noTable": "No table",
+  "moveDestination": "Move destination",
+  "openTicketLabel": "Open ticket",
+  "emptyTable": "Empty table",
+  "moveNow": "Move Now",
+  "sourceTicketGone": "Source ticket no longer exists.",
+  "selectDestinationFirst": "Please select a destination ticket or table.",
+  "sourceHasNoItems": "Source ticket has no items to move.",
+  "destinationTicketGone": "Destination ticket no longer exists.",
+  "movedItemsTo": "Moved items from ticket #{source} to {destination}",
+  "@movedItemsTo": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "moveTicketFailed": "Move ticket failed: {error}",
+  "@moveTicketFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "destTicketRef": "ticket #{id}",
+  "@destTicketRef": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "destTableRef": "table #{id} (new ticket)",
+  "@destTableRef": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceTotalItems": "Source total: ₭{total}\nItems: {count}",
+  "@sourceTotalItems": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotLoadRiders": "Cannot load riders: {error}",
+  "@cannotLoadRiders": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noRidersAvailable": "No riders available for this branch.",
+  "selectRider": "Select Rider",
+  "orderForCustomer": "Order for: {name}",
+  "@orderForCustomer": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deliveryToPlace": "Delivery to: {place}",
+  "@deliveryToPlace": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "selfOrderDelivery": "Self-order delivery",
+  "unnamed": "Unnamed",
+  "orderSentToRider": "Order sent to {rider}",
+  "@orderSentToRider": {
+    "placeholders": {
+      "rider": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToAssignRider": "Failed to assign rider: {error}",
+  "@failedToAssignRider": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSelected": "Customer {name} selected!",
+  "@customerSelected": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "charge": "Charge",
+  "totalAmount": "Total Amount",
+  "selectPaymentMethod": "Select Payment Method",
+  "noPaymentMethods": "No payment methods configured.",
+  "amountReceived": "Amount Received",
+  "changeDue": "Change Due:",
+  "chargeAmount": "CHARGE K{amount}",
+  "@chargeAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPaidSuccessfully": "Order Paid Successfully!",
+  "transferTicketFixedTo": "Transfer ticket: fixed to {method}.",
+  "@transferTicketFixedTo": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "transferTicketFixed": "Transfer ticket: payment method is fixed.",
+  "administrator": "Administrator",
+  "posTerminal": "POS Terminal",
+  "sales": "Sales",
+  "receipts": "Receipts",
+  "selfOrdersReview": "Self Orders Review",
+  "itemsMenu": "Items",
+  "settings": "Settings",
+  "lockSwitchUser": "Lock / Switch User",
+  "demoCashier": "Demo Cashier",
+  "selectTable": "Select Table",
+  "chooseLocationNewTicket": "Choose a location to open a new ticket",
+  "noTablesAvailable": "No tables available.\nPlease sync catalog.",
+  "tableAvailable": "Available",
+  "tableOpen": "Open",
+  "tableOccupied": "Occupied",
+  "openOrder": "Open Order",
+  "ticketOpenedAt": "Ticket opened at {table}!",
+  "@ticketOpenedAt": {
+    "placeholders": {
+      "table": {
+        "type": "String"
+      }
+    }
+  },
+  "rewardClaimed": "Reward Claimed!",
+  "voucherCustomer": "Customer: {name}",
+  "@voucherCustomer": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "voucherProduct": "Product: {name}",
+  "@voucherProduct": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "giveItemToCustomer": "Please give this item to the customer.",
+  "claimRewardVoucher": "Claim Reward Voucher",
+  "enterOrScanVoucher": "Enter or scan the customer's reward voucher code:",
+  "voucherCode": "Voucher Code",
+  "claim": "Claim",
+  "syncedOfflineOrders": "✅ Synced {count} offline orders to server.",
+  "@syncedOfflineOrders": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "syncedAllData": "✅ Synced all data.",
+  "syncFailed": "Sync failed: {error}",
+  "@syncFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "newSelfOrderWaiting": "New self order waiting review",
+  "newSelfOrderWaitingCount": "New self order waiting review ({count} pending)",
+  "@newSelfOrderWaitingCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "newSelfOrderDetail": "New self order: {summary}",
+  "@newSelfOrderDetail": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "newSelfOrdersCount": "{count} new self orders: {detail}",
+  "@newSelfOrdersCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "english": "English",
+  "laoLanguage": "Lao",
+  "chooseAppLanguage": "Choose the app language",
+  "appSettings": "App Settings",
+  "printerConfiguration": "Printer Configuration",
+  "printersConfigured": "{count} printer(s) configured",
+  "@printersConfigured": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "connectedTo": "Connected: {ip}",
+  "@connectedTo": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  },
+  "notConfigured": "Not configured",
+  "billTemplates": "Bill Templates",
+  "billTemplatesSubtitle": "Select bill/receipt/refund templates for this branch",
+  "discountConfiguration": "Discount Configuration",
+  "discountOptionsConfigured": "{count} discount option(s) configured",
+  "@discountOptionsConfigured": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "usePromotionPrice": "Use Promotion Price in POS",
+  "promotionalPricesApplied": "Promotional prices will be applied",
+  "normalPricesApplied": "Normal base prices will be applied",
+  "sessionExpired": "Session expired. Please login again.",
+  "close": "Close",
+  "add": "Add",
+  "delete": "Delete",
+  "refresh": "Refresh",
+  "optional": "Optional",
+  "total": "Total",
+  "status": "Status",
+  "date": "Date",
+  "quantity": "Quantity",
+  "selectedLocation": "Selected location",
+  "couldNotSearchPlaces": "Could not search for places. Please check your connection.",
+  "couldNotReadAddress": "Could not read the selected address. Please try again.",
+  "addFavoritePlace": "Add favorite place",
+  "searchAddressOrPlace": "Search address or place",
+  "nameThisPlace": "Name this place, e.g. House",
+  "placeHouse": "House",
+  "placeWork": "Work",
+  "placeFriendHouse": "Friend house",
+  "locationServicesDisabled": "Location services are disabled. Please enable them in Settings.",
+  "locationPermissionDenied": "Location permission denied.",
+  "locationPermissionPermanentlyDenied": "Location permission permanently denied. Please enable it in Settings.",
+  "couldNotGetLocation": "Could not get current location. Please allow location access and try again.",
+  "moveMapToPlacePin": "Move the map to place the pin",
+  "readingSelectedAddress": "Reading selected address...",
+  "addSelectedPlace": "Add selected place",
+  "addDeliveryPlaces": "Add delivery places for self order",
+  "favoritePlaces": "Favorite places",
+  "noFavoritePlaces": "No favorite places saved yet.",
+  "deletePlaceTitle": "Delete place?",
+  "removePlaceConfirm": "Remove \"{name}\" from your favorites?",
+  "@removePlaceConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "placeSavedCount": "{label}  •  {count} saved",
+  "@placeSavedCount": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "profileImageUpdated": "Profile image updated",
+  "couldNotOpenImagePicker": "Could not open the image picker. Please try again.",
+  "noQrImageConfigured": "No QR image configured yet",
+  "photosPermissionBlocked": "Photos permission is blocked. Open Settings to allow access.",
+  "photoPermissionRequired": "Photo permission is required to save QR",
+  "storagePermissionRequired": "Storage permission is required to save QR",
+  "qrSavedToGallery": "QR saved to gallery ✓",
+  "couldNotSaveQr": "Could not save QR code. Please try again.",
+  "cannotFindSaveDirectory": "Cannot find save directory",
+  "couldNotSaveQrDownloads": "Could not save QR to Downloads. Please try again.",
+  "qrSavedTo": "QR saved to {path}",
+  "@qrSavedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "itemRunOut": "This item is run out and cannot be ordered.",
+  "couponApplied": "Coupon applied successfully!",
+  "phoneNumberRequiredTitle": "Phone Number Required",
+  "verifiedPhoneRequired": "A verified phone number is required before placing an order. Please update your profile.",
+  "updateProfile": "Update Profile",
+  "branchClosed": "This branch is currently closed. Please choose another branch or order later.",
+  "howReceiveOrder": "How will you receive your order?",
+  "riderDelivery": "Rider delivery",
+  "comePickUpMyself": "Come pick up myself",
+  "deliveryPlace": "Delivery place",
+  "addFavoritePlaceBeforeOrder": "Please add a favorite place before confirming the order.",
+  "selectDeliveryPlace": "Select a delivery place",
+  "paymentBreakdown": "Payment Breakdown",
+  "subtotal": "Subtotal",
+  "discount": "Discount",
+  "pointsRequired": "Points Required",
+  "totalPayment": "Total Payment",
+  "deliveryFeeKm": "Delivery Fee ({km} km)",
+  "@deliveryFeeKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "addMoreForFreeDelivery": "Add ₭{amount} more to get free delivery!",
+  "@addMoreForFreeDelivery": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "notEnoughPointsRedeem": "Not enough points to redeem these items.",
+  "payTransfer": "Transfer",
+  "payAtStore": "Pay At Store",
+  "orderCreatedProofUploaded": "Order created. Transfer proof uploaded.",
+  "orderCreatedProofLocal": "Order created. Transfer proof saved locally.",
+  "orderCreatedPayAtStore": "Order created. Please pay at the store.",
+  "failedToPlaceOrder": "Failed to place order. Please check your connection and try again.",
+  "phoneNumberRequiredLower": "Phone number required",
+  "addPhoneBeforeOrder": "Please add your phone number before placing an order. This is required for customer verification and so the store can contact you if needed.",
+  "addPhone": "Add phone",
+  "profileUpdated": "Profile updated",
+  "couldNotSaveProfileConnection": "Could not save profile. Please check your connection and try again.",
+  "couldNotSaveProfile": "Could not save profile. Please try again.",
+  "deleteAccountTitle": "Delete account?",
+  "accountDeleted": "Your account has been deleted.",
+  "couldNotDeleteAccount": "Could not delete account. Please try again.",
+  "editProfile": "Edit profile",
+  "fullNameCaps": "FULL NAME",
+  "yourFullName": "Your Full Name",
+  "phoneCaps": "PHONE",
+  "phoneExample": "e.g. 20XXXXXXXX",
+  "dateOfBirthCaps": "DATE OF BIRTH",
+  "saveChanges": "Save Changes",
+  "phoneNumberIsRequired": "Phone number is required",
+  "phoneMustStartWith20": "Phone number must start with 20 and be exactly 10 digits long (e.g. 20XXXXXXXX)",
+  "verifyAndSave": "VERIFY & SAVE",
+  "otpVerificationFailed": "OTP verification failed",
+  "failedToResendOtp": "Failed to resend OTP",
+  "logout": "Logout",
+  "loggingOut": "Logging out...",
+  "deleteAccount": "Delete account",
+  "deletingAccount": "Deleting account...",
+  "clientIdCopied": "Client ID copied to clipboard!",
+  "rewardPointsLabel": "Reward points: {points}",
+  "@rewardPointsLabel": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "rewardsCatalog": "Rewards Catalog",
+  "noRewardsAvailable": "No rewards available at the moment.",
+  "notEnoughPoints": "Not enough points!",
+  "redeemRewardTitle": "Redeem Reward?",
+  "redeemConfirm": "Do you want to convert {points} points into a voucher for {product}?",
+  "@redeemConfirm": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "customerNotLoggedIn": "Customer not logged in properly.",
+  "voucherCreated": "Voucher created successfully!",
+  "redeem": "Redeem",
+  "claimedSuccessfully": "Claimed Successfully!",
+  "rewardClaimedEnjoy": "Your reward has been claimed. Enjoy!",
+  "scanQrAtCounter": "Scan this QR code at the counter to claim your reward.",
+  "myVouchers": "My Vouchers",
+  "notLoggedIn": "Not logged in.",
+  "voucherActive": "ACTIVE",
+  "redeemPoints": "Redeem points",
+  "convertPointsIntoItems": "Convert your points into free items",
+  "viewClaimVouchers": "View and claim your saved vouchers",
+  "ranking": "Ranking",
+  "seeTop50": "See Top 50 rewards leaderboard",
+  "customerSupport": "Customer support",
+  "supportChannels": "Facebook & WhatsApp (from store settings)",
+  "pointsSuffix": "{points} Pts",
+  "@pointsSuffix": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "couldNotUpdateNotifications": "Could not update notification settings. Please try again.",
+  "notifications": "Notifications",
+  "orderUpdatesOnDevice": "Order updates on this device",
+  "pushAlertsOff": "Push alerts are turned off",
+  "customization": "Customization",
+  "totalPrice": "Total Price",
+  "addToCart": "Add to Cart",
+  "navHome": "Home",
+  "navCart": "Cart",
+  "navHistory": "History",
+  "navProfile": "Profile",
+  "errorLoadingProducts": "Error loading products",
+  "allProducts": "All Products",
+  "noItemsFound": "No items found",
+  "recommendedProducts": "Recommended Products",
+  "recommendedBadge": "⭐ Recommended",
+  "mostPopular": "Most Popular",
+  "freshPicksToday": "Fresh picks for you today",
+  "bestSeller": "Best Seller",
+  "promoBadge": "PROMO",
+  "selectItemToPreview": "Select an item\nto preview",
+  "noToppingsSelected": "No Toppings Selected",
+  "toppingsFor": "Toppings for {product}",
+  "@toppingsFor": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "cartEmpty": "Your cart is empty",
+  "addItemsFromHome": "Add items from Home",
+  "enterCouponCode": "Enter coupon code",
+  "couponApplied2": "Applied",
+  "checkout": "Checkout",
+  "addedToCart": "{name} added to cart",
+  "@addedToCart": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addedToCartQty": "{qty} {name} added to cart",
+  "@addedToCartQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "discountWithCode": "Discount ({code})",
+  "@discountWithCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "noOrderHistory": "No order history yet",
+  "completedOrdersHere": "Your completed orders will show up here.",
+  "paymentMethodLabel": "Payment method",
+  "trackRider": "Track Rider",
+  "viewChatHistory": "View Chat History",
+  "chatWithRider": "Chat with Rider",
+  "viewOrderDetails": "View order details",
+  "statusComplete": "Complete",
+  "statusDelivered": "Delivered",
+  "statusRiderArrived": "Rider arrived",
+  "statusOnTheWay": "On the way",
+  "statusPreparing": "Preparing",
+  "statusCancelled": "Cancelled",
+  "statusWaitingTransfer": "Waiting transfer verification",
+  "statusOrderConfirmed": "Order confirmed",
+  "statusRiderOnWay": "Rider is on the way",
+  "statusPreparingYourOrder": "Preparing your order",
+  "statusTransferVerified": "Transfer verified, preparing order",
+  "statusArrived": "Arrived",
+  "deliveryProgress": "Delivery progress",
+  "arrivingSoon": "Arriving soon",
+  "deliveryLocation": "Delivery location",
+  "liveRiderTracking": "Live Rider Tracking",
+  "liveBadge": "LIVE",
+  "fetchingRiderLocation": "Fetching rider location…",
+  "noLocationData": "No location data yet",
+  "riderLocationWillAppear": "Rider location will appear here once available",
+  "riderLocation": "Rider location",
+  "etaLabel": "ETA: {eta}",
+  "@etaLabel": {
+    "placeholders": {
+      "eta": {
+        "type": "String"
+      }
+    }
+  },
+  "minutesShort": "{minutes} min",
+  "@minutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "hoursMinutesShort": "{hours}h {minutes}m",
+  "@hoursMinutesShort": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "noData": "No data",
+  "name": "Name",
+  "phone": "Phone",
+  "amount": "Amount",
+  "qty": "Qty",
+  "item": "Item",
+  "product": "Product",
+  "products": "Products",
+  "categories": "Categories",
+  "toppings": "Toppings",
+  "category": "Category",
+  "orders": "Orders",
+  "order": "Order",
+  "revenue": "Revenue",
+  "transactions": "Transactions",
+  "payment": "Payment",
+  "confirm": "Confirm",
+  "remove": "Remove",
+  "keep": "Keep",
+  "reject": "Reject",
+  "call": "Call",
+  "newLabel": "New",
+  "active": "Active",
+  "pending": "Pending",
+  "completed": "Completed",
+  "confirmed": "Confirmed",
+  "defaultLabel": "Default",
+  "disabled": "Disabled",
+  "blocked": "Blocked",
+  "admin": "Admin",
+  "system": "System",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "today2": "TODAY",
+  "yesterday2": "YESTERDAY",
+  "loadMore": "Load More",
+  "fullscreen": "Fullscreen",
+  "official": "Official",
+  "unsynced": "Unsynced",
+  "percentage": "Percentage",
+  "fixedValue": "Fixed Value",
+  "manageCatalog": "Manage Catalog",
+  "manageYourActiveProductCatalog": "Manage your active product catalog",
+  "organizeProductsIntoGroups": "Organize products into groups",
+  "addOnsModifiersAndVariations": "Add-ons, modifiers, and variations",
+  "manageCategories": "Manage Categories",
+  "manageCombos": "Manage Combos",
+  "manageProducts": "Manage Products",
+  "manageToppings": "Manage Toppings",
+  "addProduct": "Add Product",
+  "addCategory": "Add Category",
+  "addCombo": "Add Combo",
+  "addTopping": "Add Topping",
+  "addYourFirstCategoryToGet": "Add your first category to get started",
+  "addYourFirstComboToGet": "Add your first combo to get started",
+  "addYourFirstProductToGet": "Add your first product to get started",
+  "addYourFirstToppingToGet": "Add your first topping to get started",
+  "noCategoriesYet": "No categories yet",
+  "noCombosYet": "No combos yet",
+  "noProductsYet": "No products yet",
+  "noToppingsYet": "No toppings yet",
+  "deleteCategory": "Delete Category",
+  "deleteCombo": "Delete Combo",
+  "deleteProduct": "Delete Product",
+  "deleteTopping": "Delete Topping",
+  "areYouSureYouWantTo": "Are you sure you want to delete this category?",
+  "areYouSureYouWantTo2": "Are you sure you want to delete this combo?",
+  "areYouSureYouWantTo3": "Are you sure you want to delete this product?",
+  "areYouSureYouWantTo4": "Are you sure you want to delete this topping?",
+  "categoryDeleted": "Category deleted",
+  "comboDeleted": "Combo deleted",
+  "productDeleted": "Product deleted",
+  "toppingDeleted": "Topping deleted",
+  "visibleInApp": "Visible in app",
+  "hiddenInApp": "Hidden in app",
+  "categoryName": "Category Name*",
+  "comboName": "Combo Name*",
+  "comboFixedPrice": "Combo Fixed Price*",
+  "productName": "Product Name*",
+  "toppingName": "Topping Name*",
+  "listPrice": "List Price*",
+  "extraPriceOptional": "Extra Price (Optional)",
+  "saveCategory": "Save Category",
+  "saveCombo": "Save Combo",
+  "saveProduct": "Save Product",
+  "saveTopping": "Save Topping",
+  "categoryAddedSuccessfully": "Category added successfully",
+  "categoryUpdatedSuccessfully": "Category updated successfully",
+  "comboSavedSuccessfully": "Combo saved successfully",
+  "productSavedSuccessfully": "Product saved successfully",
+  "toppingSavedSuccessfully": "Topping saved successfully",
+  "nameIsRequired": "Name is required",
+  "validNameAndPriceAreRequired": "Valid name and price are required",
+  "comboMustHaveAtLeastOne": "Combo must have at least one product",
+  "comboItems": "Combo Items",
+  "noProductsAddedToThisCombo": "No products added to this combo yet.",
+  "availableToppings": "Available Toppings",
+  "noToppingsConfigured": "No toppings configured.",
+  "showInApp": "Show in app",
+  "onlyCheckedCategoriesAreVisibleIn": "Only checked categories are visible in POS app.",
+  "customerSelfOrder": "Customer self-order",
+  "customersCanSelectAndOrder": "Customers can select and order",
+  "runOutBlocked": "Run out (blocked)",
+  "shownAsRunOutCannotAdd": "Shown as run out; cannot add to cart",
+  "couldNotSaveToppingPleaseTry": "Could not save topping. Please try again.",
+  "currentTicket2": "Current Ticket",
+  "newItems": "NEW ITEMS",
+  "alreadyOrdered": "ALREADY ORDERED",
+  "noItems": "No items",
+  "noItemsInTicket": "No items in ticket",
+  "addCustomer": "Add customer",
+  "clearTicket2": "Clear Ticket",
+  "saveTicket": "SAVE TICKET",
+  "charge2": "CHARGE",
+  "subtotalExclVat": "Subtotal (excl. VAT)",
+  "amountExclVat2": "Amount (excl. VAT)",
+  "includesVat": "Includes VAT",
+  "priceIncludesTax": "Price includes tax",
+  "taxHiddenOnReceipt": "Tax hidden on receipt",
+  "totalDue": "Total due",
+  "selectCustomer": "Select Customer",
+  "addCustomer2": "Add Customer",
+  "newCustomer": "New Customer",
+  "addCustomerIfNotFound": "Add customer if not found",
+  "searchByNameOrPhone": "Search by name or phone...",
+  "loadingCustomers": "Loading customers...",
+  "noCustomersFound": "No customers found",
+  "searchFailedPleaseTryAgain": "Search failed. Please try again.",
+  "couldNotCreateCustomerPleaseTry": "Could not create customer. Please try again.",
+  "couldNotLoadMorePleaseTry": "Could not load more. Please try again.",
+  "noOpenTickets": "No open tickets",
+  "noTable2": "No Table",
+  "orderReady": "Order Ready",
+  "discountCustomItem": "Discount / Custom Item",
+  "couldNotLoadTicketsPleaseCheck": "Could not load tickets. Please check your connection and try again.",
+  "couldNotSendNotificationPleaseTry": "Could not send notification. Please try again.",
+  "splitTicket": "Split Ticket",
+  "ticketName": "Ticket Name",
+  "renameNewTicket": "Rename New Ticket",
+  "allItemsMoved": "All items moved",
+  "pleaseMoveAtLeastOneItem": "Please move at least one item to the new ticket.",
+  "theOriginalTicketCannotBeEmpty": "The original ticket cannot be empty. Keep at least one item.",
+  "tapItemsOnTheLeftTo": "Tap items on the\nleft to move them here",
+  "discountOptions": "Discount Options",
+  "addDiscountOption": "Add Discount Option",
+  "discountType": "Discount Type",
+  "enableDiscount": "Enable Discount",
+  "discountHidden": "Discount hidden",
+  "discountWillAppearInPos": "Discount will appear in POS",
+  "discountSettingsSaved": "Discount settings saved",
+  "noDiscountOptionsAddedYet": "No discount options added yet.",
+  "optionName": "Option Name",
+  "percentage2": "Percentage (%)",
+  "leaveEmptyForManualInput": "Leave empty for manual input",
+  "tipLeaveTheValueBlankTo": "Tip: Leave the value blank to let cashiers enter a custom amount.",
+  "receiptsHistory": "Receipts History",
+  "noPaidReceiptsYet": "No paid receipts yet",
+  "noMoreReceipts": "No more receipts",
+  "unknownDate": "Unknown Date",
+  "thisReceiptIsMissingAnOrder": "This receipt is missing an order id. Please refresh and try again.",
+  "refund": "Refund",
+  "refundOrder": "Refund Order",
+  "confirmRefund": "Confirm Refund",
+  "reprintReceipt": "Reprint Receipt",
+  "adminPin": "Admin PIN",
+  "adminPinIsRequired": "Admin PIN is required.",
+  "thisOrderHasBeenRefunded": "This order has been refunded",
+  "printerErrorCheckConnection": "Printer error. Check connection.",
+  "orderRefundedSuccessfully": "✅ Order refunded successfully.",
+  "receiptReprinted": "🖨️ Receipt reprinted!",
+  "noPendingSelfOrders": "No pending self orders",
+  "quickConfirm": "Quick Confirm",
+  "rejectOrder": "Reject Order",
+  "rejectOrder2": "Reject Order?",
+  "orderRejectedAndCancelled": "Order rejected and cancelled.",
+  "transferConfirmedOrderMovedToOpen": "Transfer confirmed. Order moved to Open Tickets.",
+  "couldNotConfirmOrderPleaseTry": "Could not confirm order. Please try again.",
+  "couldNotRejectOrderPleaseTry": "Could not reject order. Please try again.",
+  "couldNotLoadOrdersPleaseCheck": "Could not load orders. Please check your connection and try again.",
+  "viewProof": "View Proof",
+  "noProofImageUploaded": "No proof image uploaded",
+  "cannotLoadProofImage": "Cannot load proof image",
+  "bankTransfer": "Bank Transfer",
+  "payAtStore2": "Pay at Store",
+  "customerPlace": "Customer place:",
+  "orderNotePickupTime": "Order Note / Pickup Time:",
+  "openMap": "Open map",
+  "callCustomer": "Call Customer?",
+  "dashboard": "Dashboard",
+  "currentOrders": "Current Orders",
+  "orderHistory": "Order History",
+  "ordersByStatus": "Orders by Status",
+  "totalOrders": "Total Orders",
+  "totalRevenue": "Total Revenue",
+  "onTheWay": "On The Way",
+  "noCurrentOrders": "No current orders",
+  "noHistoryYet": "No history yet",
+  "activeOrdersWillAppearHere": "Active orders will appear here",
+  "completedOrdersWillAppearHere": "Completed orders will appear here",
+  "actionFailedPleaseTryAgain": "Action failed. Please try again.",
+  "chatWithCustomer": "Chat with Customer",
+  "navigateInApp": "Navigate (In App)",
+  "openInGoogleMapsApp": "Open in Google Maps App",
+  "deliveryTarget": "Delivery Target",
+  "youRider": "You (Rider)",
+  "callCustomer2": "Call Customer",
+  "refreshRoute": "Refresh route",
+  "fitRouteOnScreen": "Fit route on screen",
+  "openInExternalGoogleMapsApp": "Open in External Google Maps app",
+  "couldNotLaunchDialer": "Could not launch dialer",
+  "couldNotLaunchExternalMapsApplication": "Could not launch external maps application",
+  "statusUpdatedToArrived": "Status updated to Arrived",
+  "statusUpdatedToCompleteDelivered": "Status updated to Complete / Delivered",
+  "noMessagesYet": "No messages yet",
+  "startTheConversationBelow": "Start the conversation below",
+  "typeAMessage": "Type a message…",
+  "sendImage": "Send Image",
+  "sendImage2": "Send image",
+  "takeAPhoto": "Take a photo",
+  "chooseFromGallery": "Choose from gallery",
+  "addACaptionOptional": "Add a caption (optional)",
+  "imageReadyToSend": "Image ready to send",
+  "couldNotLoadImage": "Could not load image",
+  "couldNotLoadMessages": "Could not load messages.",
+  "failedToSendImagePleaseTry": "Failed to send image. Please try again.",
+  "failedToSendMessagePleaseTry": "Failed to send message. Please try again.",
+  "sendingImage": "📷 Sending image…",
+  "printers": "Printers",
+  "addPrinter": "Add Printer",
+  "deletePrinter": "Delete Printer",
+  "printerSaved": "Printer saved",
+  "printerDeleted": "Printer deleted",
+  "printerTestSuccessful": "Printer test successful.",
+  "printerTestFailed": "Printer test failed.",
+  "printTest": "Print Test",
+  "printerIpAddress": "Printer IP address",
+  "port": "Port",
+  "paperWidth": "Paper width",
+  "advancedSettings": "Advanced settings",
+  "categoryRouting": "Category routing",
+  "noCategoriesFound": "No categories found",
+  "ifNoneSelectedAllCategoriesWill": "If none selected, all categories will print on this printer.",
+  "printReceiptsAndBills": "Print receipts and bills",
+  "printOrders": "Print orders",
+  "defaultPrinterForReceipts": "Default printer for receipts",
+  "printSingleItemPerOrderTicket": "Print single item per order ticket",
+  "groupIdenticalItemsInOrderTickets": "Group identical items in order tickets",
+  "noPrintersYet": "No printers yet",
+  "tapToAddYourFirstPrinter": "Tap + to add your first printer.\nConfigure receipts, orders, and categories.",
+  "receipt": "Receipt",
+  "billPreReceipt": "Bill (pre-receipt)",
+  "receiptPaid": "Receipt (paid)",
+  "kitchenOrderTicket": "Kitchen / Order Ticket",
+  "kitchenOrderTicket2": "Kitchen / Order ticket",
+  "refundVoid": "Refund / Void",
+  "savedTemplateSettings": "Saved template settings.",
+  "noTemplateSelectedPreviewUnavailable": "No template selected — preview unavailable",
+  "adminReports": "Admin Reports",
+  "allBranches": "All branches",
+  "selectDateRange": "Select date range",
+  "salesByDate": "Sales by date",
+  "salesByPaymentType": "Sales by payment type",
+  "salesByProductTop": "Sales by product (top)",
+  "paymentType": "Payment type",
+  "peakOrderHours": "Peak order hours",
+  "noHourlyPeakDataAvailable": "No hourly peak data available",
+  "noOrderTrafficRecordedInThis": "No order traffic recorded in this range.",
+  "branchRanking": "Branch ranking",
+  "forbiddenAdminOnly": "Forbidden (admin only)",
+  "cannotLoadRanking": "Cannot load ranking",
+  "climbTheAdventureLadder": "Climb the adventure ladder!",
+  "yourRank": "Your rank: -",
+  "enterPinToUnlock": "Enter PIN to unlock",
+  "createYour4DigitPin": "Create your 4-digit PIN",
+  "confirmYourNewPin": "Confirm your new PIN",
+  "incorrectPin": "Incorrect PIN",
+  "pinMismatchOrSaveFailed": "PIN mismatch or save failed",
+  "switchUser": "Switch User",
+  "setPosName": "Set POS Name",
+  "posNameExCounter1Ipad": "POS name (ex: Counter-1, iPad-Bar, Android-Front)",
+  "pleaseEnterAPosName": "Please enter a POS name",
+  "posNameIsTooShort": "POS name is too short",
+  "posNameIsTooLong": "POS name is too long",
+  "thisHelpsTrackWhichDeviceWas": "This helps track which device was used when something happens.",
+  "refreshingMenusTablesAndSalesData": "Refreshing menus, tables, and sales data for this device",
+  "returnToLogin": "Return to Login",
+  "networkErrorAndNoOfflineCache": "Network error and no offline cache available.\nPlease connect to the internet.",
+  "maintenanceMode": "Maintenance Mode",
+  "reachTheAdmin": "Reach the admin",
+  "useTheOptionsYourStoreHas": "Use the options your store has enabled in Odoo.",
+  "openFacebook": "Open Facebook",
+  "openInWhatsapp": "Open in WhatsApp",
+  "notConfiguredAskStaffToSet": "Not configured. Ask staff to set the Facebook URL in Odoo (Customer support).",
+  "notConfiguredAskStaffToSet2": "Not configured. Ask staff to set the WhatsApp number in Odoo (Customer support).",
+  "ladolcePrivacy": "LaDolce Privacy",
+  "failedToLoadPrivacyPolicyPlease": "Failed to load Privacy Policy. Please check your network connection and try again.",
+  "orderItems": "ORDER ITEMS",
+  "transferProof": "TRANSFER PROOF",
+  "noLineItems": "No line items",
+  "waitingReview": "Waiting review",
+  "complete": "COMPLETE",
+  "delivered": "DELIVERED",
+  "cancelled": "CANCELLED",
+  "offline": "⚡ OFFLINE",
+  "removeCoupon": "Remove coupon",
+  "addNote": "Add note",
+  "noteForKitchen": "Note for the kitchen",
+  "tapItemToAddNote": "Tap an item to add a note",
+  "proofUploadFailed": "Order placed, but the transfer proof could not be uploaded. Please show it to the staff.",
+  "dateColon": "Date:",
+  "cashierColon": "Cashier:",
+  "tableColon": "Table:",
+  "paymentColon": "Payment:"
 }

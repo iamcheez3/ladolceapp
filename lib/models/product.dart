@@ -1,11 +1,18 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import '../utils/localized_name.dart';
 import 'topping.dart';
 import 'combo.dart';
 
 class Product {
   final int id;
   final String name;
+
+  /// Lao label from Odoo's `name_lo`. The backend echoes the English name when
+  /// no translation is saved, so this is rarely empty — read [displayName]
+  /// rather than choosing between the two at each call site.
+  final String nameLo;
+
   final double price;
   final String category;
   final String? imageUrl;
@@ -17,6 +24,9 @@ class Product {
 
   static bool disablePromotionPrice = false;
   static bool isCustomerMode = false;
+
+  /// Name to show the customer, in whichever language the app is set to.
+  String get displayName => localizedName(name, nameLo, fallback: 'Item');
 
   double get effectivePrice {
     if (isCustomerMode) {
@@ -64,6 +74,7 @@ class Product {
   Product({
     required this.id,
     required this.name,
+    this.nameLo = '',
     required this.price,
     required this.category,
     this.imageUrl,
@@ -106,6 +117,7 @@ class Product {
     return Product(
       id: json['id'],
       name: json['name'] ?? 'Unnamed Product',
+      nameLo: (json['name_lo'] ?? '').toString(),
       price: (json['list_price'] ?? 0.0).toDouble(),
       category: leafCategoryName(json['category'] ?? 'Uncategorized'),
       imageUrl: rawUrl,
@@ -130,6 +142,8 @@ class Product {
     return Product(
       id: -combo.id, // Store combo ID as negative inside the product id
       name: combo.name,
+      // Combo names are English-only on the backend for now.
+      nameLo: '',
       price: combo.price,
       category: 'Combos',
       isCombo: true,

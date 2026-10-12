@@ -4,6 +4,7 @@ import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
 import 'topping_edit_screen.dart';
+import '../utils/l10n_ext.dart';
 
 class ManageToppingsScreen extends StatefulWidget {
   const ManageToppingsScreen({super.key});
@@ -65,17 +66,17 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Topping'),
-        content: const Text('Are you sure you want to delete this topping?'),
+        title: Text(context.l10n.deleteTopping),
+        content: Text(context.l10n.areYouSureYouWantTo4),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           ElevatedButton(
             style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -89,14 +90,14 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
       _fetchToppings();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Topping deleted'), backgroundColor: Colors.orange),
+          SnackBar(content: Text(context.l10n.toppingDeleted), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(context.l10n.errorWithMessage(e.toString())), backgroundColor: Colors.red),
         );
       }
     }
@@ -106,13 +107,13 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Toppings'),
+        title: Text(context.l10n.manageToppings),
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add Topping',
+            tooltip: context.l10n.addTopping,
             onPressed: () => _openToppingScreen(),
           ),
         ],
@@ -141,7 +142,7 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
                           ElevatedButton.icon(
                             onPressed: _fetchToppings,
                             icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Retry'),
+                            label: Text(context.l10n.retry),
                             style: LaDolcePosUi.primaryButtonStyle(),
                           ),
                         ],
@@ -164,14 +165,14 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
                                 child: Icon(Icons.eco_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
                               ),
                               const SizedBox(height: 20),
-                              const Text('No toppings yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                              Text(context.l10n.noToppingsYet, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                               const SizedBox(height: 6),
-                              Text('Add your first topping to get started',
+                              Text(context.l10n.addYourFirstToppingToGet,
                                   style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText)),
                               const SizedBox(height: 24),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Add Topping'),
+                                label: Text(context.l10n.addTopping),
                                 onPressed: () => _openToppingScreen(),
                                 style: LaDolcePosUi.primaryButtonStyle(),
                               ),
@@ -272,7 +273,7 @@ class _ToppingCard extends StatelessWidget {
                         child: Text(
                           topping.extraPrice > 0
                               ? '+\$${topping.extraPrice.toStringAsFixed(2)}'
-                              : 'Free',
+                              : context.l10n.free,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -290,7 +291,7 @@ class _ToppingCard extends StatelessWidget {
                     color: Colors.red.withValues(alpha: 0.7),
                     onPressed: onDelete,
                     padding: EdgeInsets.zero,
-                    tooltip: 'Delete',
+                    tooltip: context.l10n.delete,
                   ),
                 ),
               ],

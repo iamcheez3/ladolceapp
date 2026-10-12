@@ -8,6 +8,8 @@ import '../services/push_notifications_service.dart';
 import 'login_screen.dart';
 import 'rider_navigation_screen.dart';
 import 'order_chat_screen.dart';
+import '../utils/localized_name.dart';
+import '../utils/l10n_ext.dart';
 
 class RiderScreen extends StatefulWidget {
   final String riderName;
@@ -210,7 +212,7 @@ class _RiderScreenState extends State<RiderScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Could not load orders. Please check your connection and try again.';
+          _errorMessage = context.l10n.couldNotLoadOrdersPleaseCheck;
         });
       }
     }
@@ -239,8 +241,8 @@ class _RiderScreenState extends State<RiderScreen> {
       debugPrint('[Rider] handleAction failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Action failed. Please try again.'),
+          SnackBar(
+            content: Text(context.l10n.actionFailedPleaseTryAgain),
             backgroundColor: Colors.red,
           ),
         );
@@ -250,11 +252,11 @@ class _RiderScreenState extends State<RiderScreen> {
 
   String _deliveryStatusLabel(String? status) {
     switch (status) {
-      case 'pending': return 'Pending';
-      case 'preparing': return 'Preparing';
-      case 'on_the_way': return 'On The Way';
-      case 'arrived': return 'Arrived';
-      case 'delivered': return 'Delivered';
+      case 'pending': return context.l10n.pending;
+      case 'preparing': return context.l10n.statusPreparing;
+      case 'on_the_way': return context.l10n.onTheWay;
+      case 'arrived': return context.l10n.statusArrived;
+      case 'delivered': return context.l10n.statusDelivered;
       default: return status ?? 'Unknown';
     }
   }
@@ -306,12 +308,12 @@ class _RiderScreenState extends State<RiderScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetchOrders,
-            tooltip: 'Refresh',
+            tooltip: context.l10n.refresh,
           ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
-            tooltip: 'Logout',
+            tooltip: context.l10n.logout,
           ),
         ],
       ),
@@ -323,10 +325,10 @@ class _RiderScreenState extends State<RiderScreen> {
 
   String _appBarTitle() {
     switch (_selectedTabIndex) {
-      case 0: return 'Current Orders';
-      case 1: return 'Order History';
-      case 2: return 'Dashboard';
-      default: return 'Rider';
+      case 0: return context.l10n.currentOrders;
+      case 1: return context.l10n.orderHistory;
+      case 2: return context.l10n.dashboard;
+      default: return context.l10n.roleRider;
     }
   }
 
@@ -337,11 +339,11 @@ class _RiderScreenState extends State<RiderScreen> {
     switch (_selectedTabIndex) {
       case 0:
         return _currentOrders.isEmpty
-            ? _buildEmpty('No current orders', 'Active orders will appear here')
+            ? _buildEmpty(context.l10n.noCurrentOrders, 'Active orders will appear here')
             : _buildOrderList(_currentOrders);
       case 1:
         return _historyOrders.isEmpty
-            ? _buildEmpty('No history yet', 'Completed orders will appear here')
+            ? _buildEmpty(context.l10n.noHistoryYet, 'Completed orders will appear here')
             : _buildOrderList(_historyOrders, isHistory: true);
       case 2:
         return _buildDashboard();
@@ -370,7 +372,7 @@ class _RiderScreenState extends State<RiderScreen> {
           ElevatedButton.icon(
             onPressed: _fetchOrders,
             icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
+            label: Text(context.l10n.refresh),
           ),
         ],
       ),
@@ -390,7 +392,7 @@ class _RiderScreenState extends State<RiderScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _fetchOrders,
-              child: const Text('Retry'),
+              child: Text(context.l10n.retry),
             ),
           ],
         ),
@@ -484,7 +486,7 @@ class _RiderScreenState extends State<RiderScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (customer.isNotEmpty)
-              Text('Customer: $customer',
+              Text(context.l10n.voucherCustomer(customer),
                   style: TextStyle(color: Colors.grey[700])),
             Text(
               'Total: LAK ${total.toStringAsFixed(0)}',
@@ -569,7 +571,7 @@ class _RiderScreenState extends State<RiderScreen> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.navigation_outlined, size: 18),
-                        label: const Text('Navigate (In App)'),
+                        label: Text(context.l10n.navigateInApp),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _navy,
                           foregroundColor: Colors.white,
@@ -626,7 +628,7 @@ class _RiderScreenState extends State<RiderScreen> {
                             Icon(Icons.map, size: 16, color: Colors.blue[700]),
                             const SizedBox(width: 6),
                             Text(
-                              'Open in Google Maps App',
+                              context.l10n.openInGoogleMapsApp,
                               style: TextStyle(
                                 color: Colors.blue[700],
                                 fontWeight: FontWeight.bold,
@@ -656,7 +658,7 @@ class _RiderScreenState extends State<RiderScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          line['product_name'] ?? 'Item',
+                          localizedLineName(line),
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                       ),
@@ -687,7 +689,7 @@ class _RiderScreenState extends State<RiderScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: Text(isHistory ? 'View Chat History' : 'Chat with Customer'),
+                label: Text(isHistory ? 'View Chat History' : context.l10n.chatWithCustomer),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _navy,
                   side: const BorderSide(color: _navy),
@@ -722,7 +724,7 @@ class _RiderScreenState extends State<RiderScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () => _handleAction(order['id'], 'arrived'),
                       icon: const Icon(Icons.location_on, size: 18),
-                      label: const Text('Arrived'),
+                      label: Text(context.l10n.statusArrived),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,
@@ -738,7 +740,7 @@ class _RiderScreenState extends State<RiderScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => _handleAction(order['id'], 'complete'),
                     icon: const Icon(Icons.check_circle, size: 18),
-                    label: const Text('Complete'),
+                    label: Text(context.l10n.statusComplete),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -776,7 +778,7 @@ class _RiderScreenState extends State<RiderScreen> {
         children: [
           _dashboardCard(
             icon: Icons.delivery_dining,
-            title: 'Total Orders',
+            title: context.l10n.totalOrders,
             value: '$totalOrders',
             color: _navy,
           ),
@@ -786,7 +788,7 @@ class _RiderScreenState extends State<RiderScreen> {
               Expanded(
                 child: _dashboardCard(
                   icon: Icons.timer,
-                  title: 'Active',
+                  title: context.l10n.active,
                   value: '$activeOrders',
                   color: Colors.orange,
                 ),
@@ -795,7 +797,7 @@ class _RiderScreenState extends State<RiderScreen> {
               Expanded(
                 child: _dashboardCard(
                   icon: Icons.check_circle,
-                  title: 'Completed',
+                  title: context.l10n.completed,
                   value: '$completedOrders',
                   color: Colors.green,
                 ),
@@ -805,13 +807,13 @@ class _RiderScreenState extends State<RiderScreen> {
           const SizedBox(height: 12),
           _dashboardCard(
             icon: Icons.attach_money,
-            title: 'Total Revenue',
+            title: context.l10n.totalRevenue,
             value: 'LAK ${totalRevenue.toStringAsFixed(0)}',
             color: Colors.teal,
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Orders by Status',
+          Text(
+            context.l10n.ordersByStatus,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -962,17 +964,17 @@ class _RiderScreenState extends State<RiderScreen> {
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined, color: _navy.withOpacity(0.5)),
             selectedIcon: const Icon(Icons.receipt_long, color: _navy),
-            label: 'Order',
+            label: context.l10n.order,
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined, color: _navy.withOpacity(0.5)),
             selectedIcon: const Icon(Icons.history, color: _navy),
-            label: 'History',
+            label: context.l10n.navHistory,
           ),
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined, color: _navy.withOpacity(0.5)),
             selectedIcon: const Icon(Icons.dashboard, color: _navy),
-            label: 'Dashboard',
+            label: context.l10n.dashboard,
           ),
         ],
       ),

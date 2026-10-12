@@ -8,6 +8,7 @@ import 'pin_screen.dart';
 import 'login_screen.dart';
 import 'pos_identity_screen.dart';
 import 'rider_screen.dart';
+import '../utils/l10n_ext.dart';
 
 class LoadingScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -187,7 +188,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Refreshing menus, tables, and sales data for this device',
+                      context.l10n.refreshingMenusTablesAndSalesData,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.78),
@@ -216,7 +217,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                       ElevatedButton.icon(
                         onPressed: _initializeApp,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        label: Text(context.l10n.retry),
                         style: ElevatedButton.styleFrom(
                           foregroundColor: kCoffeeBrandNavy,
                           backgroundColor: Colors.white,
@@ -239,7 +240,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                           );
                         },
                         child: Text(
-                          'Return to Login',
+                          context.l10n.returnToLogin,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.55),
                           ),
