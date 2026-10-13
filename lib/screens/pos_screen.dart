@@ -1285,6 +1285,20 @@ class _PosScreenState extends State<PosScreen> {
         appBar: AppBar(
           backgroundColor: _brandNavy,
           centerTitle: true,
+          // Menu button with a red dot while something in the menu needs
+          // attention (customer orders waiting for review).
+          leading: Builder(
+            builder: (context) => IconButton(
+              tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: Badge(
+                isLabelVisible: _pendingSelfOrdersCount > 0,
+                smallSize: 10,
+                backgroundColor: Colors.red.shade600,
+                child: const Icon(Icons.menu),
+              ),
+            ),
+          ),
           title: InkWell(
             onTap: () async {
               final result = await Navigator.push<ResumedTicket>(
@@ -1886,6 +1900,11 @@ class _PosScreenState extends State<PosScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const SelfOrdersReviewScreen(),
+                            ),
+                            // Orders handled there clear the dot right away.
+                          ).then(
+                            (_) => _refreshPendingSelfOrders(
+                              notifyOnIncrease: false,
                             ),
                           );
                         },
