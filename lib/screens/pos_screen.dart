@@ -3076,7 +3076,7 @@ class _PosScreenState extends State<PosScreen> {
     }
 
     final TextEditingController amountReceivedCtrl = TextEditingController(
-      text: total.toStringAsFixed(0),
+      text: formatKip(total, decimals: 0, symbol: ''),
     );
     final TextEditingController manualDiscountCtrl = TextEditingController(
       text: _pendingDiscountManualValue?.toStringAsFixed(0) ?? '',
@@ -3364,8 +3364,11 @@ class _PosScreenState extends State<PosScreen> {
                                       manualValue: _pendingDiscountManualValue,
                                     );
                                     final newTotal = _cartBreakdown().totalDue;
-                                    amountReceivedCtrl.text = newTotal
-                                        .toStringAsFixed(0);
+                                    amountReceivedCtrl.text = formatKip(
+                                      newTotal,
+                                      decimals: 0,
+                                      symbol: '',
+                                    );
                                   },
                                 ),
                               ),
@@ -3444,8 +3447,11 @@ class _PosScreenState extends State<PosScreen> {
                                           _recomputeDiscount(manualValue: val);
                                           final newTotal =
                                               _cartBreakdown().totalDue;
-                                          amountReceivedCtrl.text = newTotal
-                                              .toStringAsFixed(0);
+                                          amountReceivedCtrl.text = formatKip(
+                                            newTotal,
+                                            decimals: 0,
+                                            symbol: '',
+                                          );
                                         },
                                       ),
                                     ),
@@ -3658,6 +3664,9 @@ class _PosScreenState extends State<PosScreen> {
                                           const TextInputType.numberWithOptions(
                                             decimal: true,
                                           ),
+                                      inputFormatters: const [
+                                        ThousandsInputFormatter(),
+                                      ],
                                       style: const TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w600,
@@ -3829,6 +3838,7 @@ class _PosScreenState extends State<PosScreen> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  inputFormatters: const [ThousandsInputFormatter()],
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -5095,7 +5105,7 @@ class _CustomNameTile extends StatelessWidget {
 class _SplitRow {
   _SplitRow(this.method, [double? amount])
     : amount = TextEditingController(
-        text: amount == null ? '' : amount.toStringAsFixed(0),
+        text: amount == null ? '' : formatKip(amount, decimals: 0, symbol: ''),
       );
 
   PaymentMethod method;
