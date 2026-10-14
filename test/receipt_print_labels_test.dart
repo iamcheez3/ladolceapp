@@ -271,6 +271,27 @@ void main() {
       expect(note.size, PrintSize.large);
       expect(note.bold, isTrue);
     });
+
+    test('kitchen choices are 28, receipt choices stay 21', () {
+      final items = [
+        CartItem(
+          product: _product('Americano', '', 30000),
+          selectedToppings: [_hot],
+        ),
+      ];
+      final kitchen = PrintLayouts.orderTicket(items: items, cashierName: 'c');
+      final receipt = PrintLayouts.receipt(
+        items: items,
+        subtotal: 30000,
+        tax: 0,
+        total: 30000,
+        cashierName: 'c',
+      );
+      PrintLine hot(List<PrintLine> lines) =>
+          lines.firstWhere((l) => l.text == '+ Hot');
+      expect(PrintRenderer.fontSize(hot(kitchen).size), 28);
+      expect(PrintRenderer.fontSize(hot(receipt).size), 21);
+    });
   });
 
   group('Printing to a network printer', () {

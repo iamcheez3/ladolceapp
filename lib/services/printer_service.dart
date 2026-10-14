@@ -106,7 +106,7 @@ class ReceiptCustomer {
 
 enum PrintLineKind { text, row, rule, logo, feed, cut }
 
-enum PrintSize { small, normal, large, huge }
+enum PrintSize { small, normal, medium, large, huge }
 
 enum PrintAlign { left, center, right }
 
@@ -439,7 +439,9 @@ class PrintLayouts {
   ) => [
     PrintLine.text(name, size: PrintSize.large, bold: true),
     for (final c in choices)
-      PrintLine.text('+ $c', size: PrintSize.small, indent: _subIndent),
+      // Kitchen choices are bigger than on the receipt (21), still under the
+      // item name (32).
+      PrintLine.text('+ $c', size: PrintSize.medium, indent: _subIndent),
     // As big as the item name, so the kitchen does not miss it.
     if (note.trim().isNotEmpty)
       PrintLine.text(
@@ -739,6 +741,7 @@ class PrintRenderer {
   static double fontSize(PrintSize size) => switch (size) {
     PrintSize.small => 21,
     PrintSize.normal => 24,
+    PrintSize.medium => 28,
     PrintSize.large => 32,
     PrintSize.huge => 46,
   };
