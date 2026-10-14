@@ -7,6 +7,7 @@ import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../services/api_service.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 /// Result object returned when a ticket is resumed
 class ResumedTicket {
@@ -746,7 +747,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
               Padding(
                 padding: EdgeInsets.only(top: isSelfOrderTicket ? 4 : 6),
                 child: Text(
-                  '₭${ticket.amountTotal.toStringAsFixed(2)}',
+                  formatKip(ticket.amountTotal),
                   style: TextStyle(
                     fontSize: totalFontSize,
                     fontWeight: FontWeight.bold,
@@ -920,7 +921,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '₭${ticket.amountTotal.toStringAsFixed(2)}',
+                    formatKip(ticket.amountTotal),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,

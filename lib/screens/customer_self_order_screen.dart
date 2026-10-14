@@ -41,6 +41,7 @@ import '../widgets/free_items_banner.dart';
 import '../widgets/dispose_with.dart';
 import '../models/free_promotion.dart';
 import '../main.dart';
+import '../utils/money.dart';
 
 class _FavoritePlace {
   final String id;
@@ -3334,7 +3335,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 ),
                                               ),
                                               Text(
-                                                '₭${_cartTotal.toStringAsFixed(0)}',
+                                                formatKip(
+                                                  _cartTotal,
+                                                  decimals: 0,
+                                                ),
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w700,
                                                   fontSize: 15,
@@ -3358,7 +3362,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  '-₭${_couponDiscount.toStringAsFixed(0)}',
+                                                  '-${formatKip(_couponDiscount, decimals: 0)}',
                                                   style: TextStyle(
                                                     color: Colors.red.shade600,
                                                     fontWeight: FontWeight.w700,
@@ -3429,7 +3433,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  '₭${_deliveryFee.toStringAsFixed(0)}',
+                                                  formatKip(
+                                                    _deliveryFee,
+                                                    decimals: 0,
+                                                  ),
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 15,
@@ -3456,7 +3463,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 ),
                                               ),
                                               Text(
-                                                '₭${(_cartTotal - _couponDiscount + _deliveryFee).toStringAsFixed(0)}',
+                                                formatKip(
+                                                  _cartTotal -
+                                                      _couponDiscount +
+                                                      _deliveryFee,
+                                                  decimals: 0,
+                                                ),
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w900,
                                                   fontSize: 20,
@@ -3494,10 +3506,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                     child: Text(
                                                       context.l10n
                                                           .addMoreForFreeDelivery(
-                                                            _amountNeededForFreeDelivery
-                                                                .toStringAsFixed(
-                                                                  0,
-                                                                ),
+                                                            formatKip(
+                                                              _amountNeededForFreeDelivery,
+                                                              decimals: 0,
+                                                              symbol: '',
+                                                            ),
                                                           ),
                                                       style: const TextStyle(
                                                         color: Colors.green,
@@ -3792,7 +3805,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                 ),
                                 child: Text(
-                                  '${context.l10n.confirmOrder} (₭${(_cartTotal - _couponDiscount + _deliveryFee).toStringAsFixed(2)})',
+                                  '${context.l10n.confirmOrder} (${formatKip(_cartTotal - _couponDiscount + _deliveryFee)})',
                                 ),
                               ),
                             ),
@@ -5383,7 +5396,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '₭${totalPrice.toStringAsFixed(0)}',
+                                    formatKip(totalPrice, decimals: 0),
                                     style: const TextStyle(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w900,
@@ -5555,7 +5568,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   ),
                 ),
                 label: Text(
-                  '₭${_cartTotal.toStringAsFixed(0)}',
+                  formatKip(_cartTotal, decimals: 0),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -6186,7 +6199,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           else ...[
                                             if (product.promotionPrice != null)
                                               Text(
-                                                '₭${product.price.toStringAsFixed(0)}',
+                                                formatKip(
+                                                  product.price,
+                                                  decimals: 0,
+                                                ),
                                                 style: TextStyle(
                                                   fontSize: isSmall ? 9 : 10,
                                                   color: Colors.grey.shade400,
@@ -6195,7 +6211,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 ),
                                               ),
                                             Text(
-                                              '₭${product.effectivePrice.toStringAsFixed(0)}',
+                                              formatKip(
+                                                product.effectivePrice,
+                                                decimals: 0,
+                                              ),
                                               style: TextStyle(
                                                 fontSize: isSmall ? 12 : 13,
                                                 fontWeight: FontWeight.w800,
@@ -6510,7 +6529,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   children: [
                                     if (product.promotionPrice != null)
                                       Text(
-                                        '₭${product.price.toStringAsFixed(0)}',
+                                        formatKip(product.price, decimals: 0),
                                         style: TextStyle(
                                           decoration:
                                               TextDecoration.lineThrough,
@@ -6519,7 +6538,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                         ),
                                       ),
                                     Text(
-                                      '₭${product.effectivePrice.toStringAsFixed(0)}',
+                                      formatKip(
+                                        product.effectivePrice,
+                                        decimals: 0,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
@@ -6918,7 +6940,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               ),
                             ),
                             Text(
-                              '₭${_previewTotal(product, _previewQty, _previewToppings).toStringAsFixed(0)}',
+                              formatKip(
+                                _previewTotal(
+                                  product,
+                                  _previewQty,
+                                  _previewToppings,
+                                ),
+                                decimals: 0,
+                              ),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                                 color: _brandNavy,
@@ -7260,7 +7289,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     if (item.product.promotionPrice !=
                                         null) ...[
                                       Text(
-                                        '₭${item.product.price.toStringAsFixed(0)}',
+                                        formatKip(
+                                          item.product.price,
+                                          decimals: 0,
+                                        ),
                                         style: TextStyle(
                                           decoration:
                                               TextDecoration.lineThrough,
@@ -7272,7 +7304,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ],
                                     Text(
                                       // Unit price with the paid choices.
-                                      '₭${(item.totalPrice / item.quantity).toStringAsFixed(0)}',
+                                      formatKip(
+                                        item.totalPrice / item.quantity,
+                                        decimals: 0,
+                                      ),
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color:
@@ -7491,7 +7526,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ),
                     ),
                     Text(
-                      '- ₭${_couponDiscount.toStringAsFixed(0)}',
+                      '- ${formatKip(_couponDiscount, decimals: 0)}',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.green,
@@ -7513,7 +7548,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   ),
 
                   Text(
-                    '₭${(_cartTotal - _couponDiscount > 0 ? _cartTotal - _couponDiscount : 0).toStringAsFixed(0)}',
+                    formatKip(
+                      (_cartTotal - _couponDiscount > 0
+                          ? _cartTotal - _couponDiscount
+                          : 0),
+                      decimals: 0,
+                    ),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -7569,7 +7609,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   String _formatHistoryTotalK(dynamic v) {
     final n = double.tryParse((v ?? 0).toString()) ?? 0.0;
-    return 'K${n.toStringAsFixed(2)}';
+    return formatKip(n, symbol: 'K');
   }
 
   Widget _navSelectedIcon(IconData icon) {

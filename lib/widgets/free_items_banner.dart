@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/free_promotion.dart';
 import '../models/product.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 /// 🎁 "2 free 1: 1 free item(s)" with a button ("Add free" on the POS,
 /// "Choose" in the customer cart). Shown while the cart has earned free items.
@@ -110,7 +111,7 @@ Future<Product?> showFreeItemPicker(
                         ),
                       ),
                       subtitle: Text(
-                        '₭${p.effectivePrice.toStringAsFixed(0)}',
+                        formatKip(p.effectivePrice, decimals: 0),
                         style: const TextStyle(
                           decoration: TextDecoration.lineThrough,
                           fontSize: 15,

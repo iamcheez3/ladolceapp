@@ -10,6 +10,7 @@ import 'rider_navigation_screen.dart';
 import 'order_chat_screen.dart';
 import '../utils/localized_name.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 class RiderScreen extends StatefulWidget {
   final String riderName;
@@ -489,7 +490,7 @@ class _RiderScreenState extends State<RiderScreen> {
               Text(context.l10n.voucherCustomer(customer),
                   style: TextStyle(color: Colors.grey[700])),
             Text(
-              'Total: LAK ${total.toStringAsFixed(0)}',
+              'Total: ${formatKip(total, decimals: 0, symbol: 'LAK ')}',
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 color: Colors.green,
@@ -666,7 +667,7 @@ class _RiderScreenState extends State<RiderScreen> {
                           style: TextStyle(color: Colors.grey[700])),
                       const SizedBox(width: 12),
                       Text(
-                        'LAK ${(line['subtotal'] as num?)?.toDouble().toStringAsFixed(0) ?? '0'}',
+                        formatKip(line['subtotal'] as num?, decimals: 0, symbol: 'LAK '),
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -808,7 +809,7 @@ class _RiderScreenState extends State<RiderScreen> {
           _dashboardCard(
             icon: Icons.attach_money,
             title: context.l10n.totalRevenue,
-            value: 'LAK ${totalRevenue.toStringAsFixed(0)}',
+            value: formatKip(totalRevenue, decimals: 0, symbol: 'LAK '),
             color: Colors.teal,
           ),
           const SizedBox(height: 20),

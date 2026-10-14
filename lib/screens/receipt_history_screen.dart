@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import 'receipt_detail_screen.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 /// Paginated Receipt History Screen optimized for large datasets.
 ///
@@ -472,7 +473,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        'Discount: -K${(receipt['amount_discount'] as num).toStringAsFixed(0)}',
+                        'Discount: -${formatKip(receipt['amount_discount'] as num, decimals: 0, symbol: 'K')}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.red,

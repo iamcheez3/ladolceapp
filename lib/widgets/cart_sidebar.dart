@@ -4,6 +4,7 @@ import '../models/pos_discount_config.dart';
 import '../models/pos_tax_config.dart';
 import '../utils/pos_discount.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 class CartSidebar extends StatelessWidget {
   static const Color _brandNavy = Color(0xFF001460);
@@ -106,7 +107,7 @@ class CartSidebar extends StatelessWidget {
                         children: [
                           Text(context.l10n.charge2, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                           Text(
-                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            formatKip(cd.totalDue),
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -325,7 +326,7 @@ class CartSidebar extends StatelessWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        '₭${cd.cartLinesSum.toStringAsFixed(2)}',
+                        formatKip(cd.cartLinesSum),
                         textAlign: TextAlign.end,
                         style: TextStyle(color: Colors.grey[800]),
                       ),
@@ -352,7 +353,7 @@ class CartSidebar extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            formatKip(cd.totalDue),
                             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _brandNavy),
                           ),
                         ),
@@ -374,7 +375,7 @@ class CartSidebar extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          '₭${cd.baseAmount.toStringAsFixed(2)}',
+                          formatKip(cd.baseAmount),
                           textAlign: TextAlign.end,
                           style: TextStyle(color: Colors.grey[800]),
                         ),
@@ -396,7 +397,7 @@ class CartSidebar extends StatelessWidget {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            '₭${cd.taxAmount.toStringAsFixed(2)}',
+                            formatKip(cd.taxAmount),
                             textAlign: TextAlign.end,
                             style: TextStyle(color: Colors.grey[800]),
                           ),
@@ -431,7 +432,7 @@ class CartSidebar extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            formatKip(cd.totalDue),
                             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy),
                           ),
                         ),
@@ -572,7 +573,7 @@ class _CartItemRow extends StatelessWidget {
                     )
                   else
                     Text(
-                      '₭${item.product.effectivePrice.toStringAsFixed(2)} each',
+                      '${formatKip(item.product.effectivePrice)} each',
                       style: TextStyle(color: Colors.grey[500], fontSize: 12),
                     ),
                   if (item.selectedToppings.isNotEmpty) ...[
@@ -591,7 +592,7 @@ class _CartItemRow extends StatelessWidget {
                           child: Text(
                             item.isFreePromo || topping.extraPrice <= 0
                                 ? '+ ${topping.displayName}'
-                                : '+ ${topping.displayName} (₭${topping.extraPrice.toStringAsFixed(2)})',
+                                : '+ ${topping.displayName} (${formatKip(topping.extraPrice)})',
                             style: TextStyle(fontSize: 10, color: Colors.orange[800]),
                           ),
                         );
@@ -634,7 +635,7 @@ class _CartItemRow extends StatelessWidget {
                 child: Text(
                   item.isFreePromo
                       ? context.l10n.freeUpper
-                      : '₭${item.totalPrice.toStringAsFixed(2)}',
+                      : formatKip(item.totalPrice),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,

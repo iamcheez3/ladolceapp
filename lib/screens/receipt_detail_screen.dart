@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../utils/localized_name.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 class ReceiptDetailScreen extends StatefulWidget {
   final int orderId;
@@ -308,7 +309,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                                 Expanded(
                                   flex: 2,
                                   child: Text(
-                                    '$currency ${subtotal.toStringAsFixed(2)}',
+                                    formatKip(subtotal, symbol: '$currency '),
                                     textAlign: TextAlign.right,
                                     style: const TextStyle(fontWeight: FontWeight.w500),
                                   ),
@@ -340,7 +341,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                                   fit: BoxFit.scaleDown,
                                   alignment: Alignment.centerRight,
                                   child: Text(
-                                    '-${data['currency'] ?? 'LAK'} ${(data['amount_discount'] as num).toStringAsFixed(2)}',
+                                    '-${formatKip(data['amount_discount'] as num, symbol: '${data['currency'] ?? 'LAK'} ')}',
                                     textAlign: TextAlign.right,
                                     style: const TextStyle(
                                       fontSize: 16,
@@ -368,7 +369,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerRight,
                               child: Text(
-                                '${data['currency'] ?? 'LAK'} ${(data['amount_total'] as num).toStringAsFixed(2)}',
+                                formatKip(data['amount_total'] as num, symbol: '${data['currency'] ?? 'LAK'} '),
                                 textAlign: TextAlign.right,
                                 style: const TextStyle(
                                   fontSize: 24,

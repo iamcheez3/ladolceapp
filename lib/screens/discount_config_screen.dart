@@ -3,6 +3,7 @@ import '../models/pos_discount_config.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 class DiscountConfigScreen extends StatefulWidget {
   final PosDiscountConfig initialConfig;
@@ -216,7 +217,7 @@ class _DiscountConfigScreenState extends State<DiscountConfigScreen> {
                   } else {
                     valueText = opt.type == 'percentage'
                         ? '${(opt.value as num).toStringAsFixed(0)}%'
-                        : '₭${(opt.value as num).toStringAsFixed(0)}';
+                        : formatKip(opt.value as num, decimals: 0);
                   }
 
                   return Padding(

@@ -5,6 +5,7 @@ import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
 import 'combo_edit_screen.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 class ManageCombosScreen extends StatefulWidget {
   const ManageCombosScreen({super.key});
@@ -287,7 +288,7 @@ class _ComboCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            '\$${price.toStringAsFixed(2)}',
+                            formatKip(price),
                             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: accent),
                           ),
                           const SizedBox(width: 8),

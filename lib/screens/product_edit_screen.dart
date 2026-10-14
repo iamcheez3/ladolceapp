@@ -6,6 +6,7 @@ import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
 import '../utils/l10n_ext.dart';
 import '../widgets/topping_picker.dart';
+import '../utils/money.dart';
 
 /// How the customer self-order app treats a product.
 enum _SelfOrderMode { available, runOut, posOnly }
@@ -366,7 +367,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   Widget _buildToppingChip(Topping t) {
     final isSelected = _selectedToppingIds.contains(t.id);
     final price = t.extraPrice > 0
-        ? ' +₭${t.extraPrice.toStringAsFixed(0)}'
+        ? ' +${formatKip(t.extraPrice, decimals: 0)}'
         : '';
     return FilterChip(
       label: Text(

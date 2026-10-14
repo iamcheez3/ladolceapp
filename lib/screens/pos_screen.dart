@@ -36,6 +36,7 @@ import '../models/pos_discount_config.dart';
 import '../utils/pos_discount.dart';
 import '../utils/responsive_layout.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 class PosScreen extends StatefulWidget {
   final String cashierName;
@@ -457,7 +458,7 @@ class _PosScreenState extends State<PosScreen> {
                             } else {
                               valStr = opt.type == 'percentage'
                                   ? '(${opt.value!.toStringAsFixed(0)}%)'
-                                  : '(₭${opt.value!.toStringAsFixed(0)})';
+                                  : '(${formatKip(opt.value!, decimals: 0)})';
                             }
                             return DropdownMenuItem<PosDiscountOption?>(
                               value: opt,
@@ -2752,7 +2753,7 @@ class _PosScreenState extends State<PosScreen> {
                         border: Border.all(color: Colors.blue.shade100),
                       ),
                       child: Text(
-                        'Source total: ₭${sourceTicket.amountTotal.toStringAsFixed(2)}\nItems: ${sourceTicket.lines.length}',
+                        'Source total: ${formatKip(sourceTicket.amountTotal)}\nItems: ${sourceTicket.lines.length}',
                         style: TextStyle(
                           color: Colors.blue.shade900,
                           fontWeight: FontWeight.w600,
@@ -3335,7 +3336,7 @@ class _PosScreenState extends State<PosScreen> {
                                       } else {
                                         valStr = opt.type == 'percentage'
                                             ? '(${opt.value!.toStringAsFixed(0)}%)'
-                                            : '(₭${opt.value!.toStringAsFixed(0)})';
+                                            : '(${formatKip(opt.value!, decimals: 0)})';
                                       }
                                       return DropdownMenuItem<
                                         PosDiscountOption?

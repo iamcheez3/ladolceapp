@@ -6,6 +6,7 @@ import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
 import 'product_edit_screen.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 class ManageProductsScreen extends StatefulWidget {
   const ManageProductsScreen({super.key});
@@ -357,7 +358,7 @@ class _ProductCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '\$${product.price.toStringAsFixed(2)}',
+                            formatKip(product.price),
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,

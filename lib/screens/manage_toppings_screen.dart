@@ -7,6 +7,7 @@ import 'manage_topping_groups_screen.dart';
 import 'topping_edit_screen.dart';
 import '../utils/l10n_ext.dart';
 import '../widgets/topping_picker.dart';
+import '../utils/money.dart';
 
 class ManageToppingsScreen extends StatefulWidget {
   const ManageToppingsScreen({super.key});
@@ -334,7 +335,7 @@ class _ToppingCard extends StatelessWidget {
                         ),
                         child: Text(
                           topping.extraPrice > 0
-                              ? '+₭${topping.extraPrice.toStringAsFixed(0)}'
+                              ? '+${formatKip(topping.extraPrice, decimals: 0)}'
                               : context.l10n.free,
                           style: TextStyle(
                             fontSize: 11,

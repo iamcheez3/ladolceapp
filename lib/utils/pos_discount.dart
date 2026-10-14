@@ -1,6 +1,7 @@
 import '../models/pos_discount_config.dart';
 import '../models/pos_tax_config.dart';
 import 'pos_tax.dart';
+import 'money.dart';
 
 /// Result of discount computation.
 class DiscountBreakdown {
@@ -83,8 +84,8 @@ DiscountBreakdown computePosDiscount(
     active: val > 0,
     discountAmount: val,
     label: option.isManual
-        ? '${option.name} (₭${val.toStringAsFixed(0)})'
-        : '${option.name} (₭${val.toStringAsFixed(0)})',
+        ? '${option.name} (${formatKip(val, decimals: 0)})'
+        : '${option.name} (${formatKip(val, decimals: 0)})',
   );
 }
 

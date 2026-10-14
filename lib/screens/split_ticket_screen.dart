@@ -3,6 +3,7 @@ import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 /// Result returned when the user saves the split.
 class SplitTicketResult {
@@ -366,7 +367,7 @@ class _TicketColumn extends StatelessWidget {
                             ),
                             // Price
                             Text(
-                              '₭${line.unitPrice.toStringAsFixed(2)}',
+                              formatKip(line.unitPrice),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -394,7 +395,7 @@ class _TicketColumn extends StatelessWidget {
               Text(context.l10n.total,
                   style: TextStyle(fontWeight: FontWeight.bold)),
               Text(
-                '₭${total.toStringAsFixed(2)}',
+                formatKip(total),
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,

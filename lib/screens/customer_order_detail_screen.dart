@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../utils/localized_name.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 /// Full-screen order receipt / detail (customer self-order) — matches app reference styling.
 class CustomerOrderDetailScreen extends StatelessWidget {
@@ -137,7 +138,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _summaryRow(context.l10n.amount, '₭${amount.toStringAsFixed(2)}', boldValue: true),
+                      _summaryRow(context.l10n.amount, formatKip(amount), boldValue: true),
                       const SizedBox(height: 8),
                       _summaryRow(context.l10n.payment, payMethod),
                       const SizedBox(height: 8),
@@ -304,7 +305,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '₭${subtotal.toStringAsFixed(2)}',
+                formatKip(subtotal),
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,

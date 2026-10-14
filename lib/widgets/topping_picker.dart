@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../utils/l10n_ext.dart';
+import '../utils/money.dart';
 
 /// One heading of the picker: a topping group, or the plain add-ons.
 class ToppingSection {
@@ -100,7 +101,7 @@ class ToppingRules {
 }
 
 String _price(BuildContext context, double extra) =>
-    extra > 0 ? '+₭${extra.toStringAsFixed(0)}' : context.l10n.free;
+    extra > 0 ? '+${formatKip(extra, decimals: 0)}' : context.l10n.free;
 
 /// Grouped topping picker: one heading per group ("Milk  Pick 1  Required"),
 /// options as a 3-column grid (2 on very narrow screens).
