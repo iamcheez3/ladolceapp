@@ -281,11 +281,7 @@ void main() {
             ReceiptPayment('Cash', 10000),
           ],
           changeAmount: 4000,
-          customer: const ReceiptCustomer(
-            name: 'test',
-            pointsEarned: 10,
-            totalPoints: 125,
-          ),
+          customer: const ReceiptCustomer(name: 'test', pointsEarned: 10),
         ),
       );
       await _write(

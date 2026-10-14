@@ -86,11 +86,11 @@ class ReceiptPayment {
   const ReceiptPayment(this.method, this.amount);
 }
 
-/// The customer block at the bottom of a receipt.
+/// The customer block at the bottom of a receipt: name and the points this
+/// order earned. The customer's point balance is not printed.
 class ReceiptCustomer {
   final String name;
   final int? pointsEarned;
-  final int? totalPoints;
 
   /// What the shop calls its points (backend `points_label`, e.g. "Points").
   final String pointsLabel;
@@ -98,12 +98,10 @@ class ReceiptCustomer {
   const ReceiptCustomer({
     required this.name,
     this.pointsEarned,
-    this.totalPoints,
     this.pointsLabel = 'Points',
   });
 
-  bool get isEmpty =>
-      name.trim().isEmpty && pointsEarned == null && totalPoints == null;
+  bool get isEmpty => name.trim().isEmpty && pointsEarned == null;
 }
 
 enum PrintLineKind { text, row, rule, logo, feed, cut }
@@ -311,8 +309,6 @@ class PrintLayouts {
         PrintLine.text('${_labels.customer}: ${customer.name.trim()}'),
       if (customer.pointsEarned != null)
         PrintLine.row('$label earned', '+${customer.pointsEarned}'),
-      if (customer.totalPoints != null)
-        PrintLine.row('Total $label', '${customer.totalPoints}'),
     ];
   }
 
@@ -557,17 +553,16 @@ class PrintLayouts {
     return [ReceiptPayment(method, total ?? _asDouble(data['amount_total']))];
   }
 
-  /// Customer and points from a receipt payload (`customer`, `points_earned`,
-  /// `customer_points`, `points_label`).
+  /// Customer and points earned from a receipt payload (`customer`,
+  /// `points_earned`, `points_label`). `customer_points` (the balance) is not
+  /// printed.
   static ReceiptCustomer? customerFromRaw(Map<String, dynamic> data) {
     final name = (data['customer'] ?? '').toString().trim();
     final earned = _asIntOrNull(data['points_earned']);
-    final balance = _asIntOrNull(data['customer_points']);
-    if (name.isEmpty && earned == null && balance == null) return null;
+    if (name.isEmpty && earned == null) return null;
     return ReceiptCustomer(
       name: name,
       pointsEarned: earned,
-      totalPoints: balance,
       pointsLabel: (data['points_label'] ?? 'Points').toString(),
     );
   }

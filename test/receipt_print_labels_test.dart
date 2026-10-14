@@ -168,19 +168,30 @@ void main() {
       ]);
     });
 
-    test('prints the customer, points earned and total points', () {
+    test('prints the customer and points earned, not the balance', () {
       final lines = receipt(
-        customer: const ReceiptCustomer(
-          name: 'test',
-          pointsEarned: 3,
-          totalPoints: 120,
-        ),
+        customer: const ReceiptCustomer(name: 'test', pointsEarned: 3),
       );
-      expect(lines, containsAllInOrder([
-        'Customer: test',
-        'Points earned | +3',
-        'Total Points | 120',
-      ]));
+      expect(
+        lines,
+        containsAllInOrder(['Customer: test', 'Points earned | +3']),
+      );
+      expect(lines.where((l) => l.startsWith('Total Points')), isEmpty);
+    });
+
+    test('a reprint leaves out the balance the server sends', () {
+      final lines = PrintLayouts.reprint({
+        'amount_total': 35000,
+        'customer': 'test',
+        'points_earned': 3,
+        'customer_points': 120,
+        'lines': const [],
+      }).map((l) => l.toString()).toList();
+      expect(
+        lines,
+        containsAllInOrder(['Customer: test', 'Points earned | +3']),
+      );
+      expect(lines.where((l) => l.contains('120')), isEmpty);
     });
 
     test('falls back to a thank-you line without a footer', () {
