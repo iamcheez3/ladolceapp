@@ -254,6 +254,23 @@ void main() {
       expect(lines, contains('2x Americano'));
       expect(lines, contains('1x Americano (FREE)'));
     });
+
+    test('prints the note as big as the item name', () {
+      final lines = PrintLayouts.orderTicket(
+        items: [
+          CartItem(
+            product: _product('Americano', '', 30000),
+            kitchenNote: 'ບໍ່ໃສ່ນ້ຳຕານ',
+          ),
+        ],
+        cashierName: 'c',
+      );
+      final item = lines.firstWhere((l) => l.text == '1x Americano');
+      final note = lines.firstWhere((l) => l.text == 'NOTE: ບໍ່ໃສ່ນ້ຳຕານ');
+      expect(note.size, item.size);
+      expect(note.size, PrintSize.large);
+      expect(note.bold, isTrue);
+    });
   });
 
   group('Printing to a network printer', () {

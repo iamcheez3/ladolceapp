@@ -440,9 +440,11 @@ class PrintLayouts {
     PrintLine.text(name, size: PrintSize.large, bold: true),
     for (final c in choices)
       PrintLine.text('+ $c', size: PrintSize.small, indent: _subIndent),
+    // As big as the item name, so the kitchen does not miss it.
     if (note.trim().isNotEmpty)
       PrintLine.text(
         '${_labels.note}: ${note.trim()}',
+        size: PrintSize.large,
         bold: true,
         indent: _subIndent,
       ),
