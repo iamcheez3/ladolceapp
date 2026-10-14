@@ -1391,6 +1391,28 @@ class _PosScreenState extends State<PosScreen> {
                       break;
                     }
                     {
+                      // Print bill gives two slips: the whole order for the
+                      // kitchen (routed by category, as on save), then the
+                      // bill for the customer.
+                      final kitchenTargets = _resolveOrderPrinters()
+                          .where(
+                            (p) => _filterItemsForPrinter(
+                              _cartItems,
+                              p,
+                            ).isNotEmpty,
+                          )
+                          .length;
+                      final kitchenCount = await _printOrderItemsToKitchen(
+                        _cartItems,
+                        respectCategoryFilters: true,
+                        queueNumber: _activeTicketQueueNumber,
+                      );
+                      if (kitchenCount > 0) {
+                        // Already with the kitchen: saving won't send them again.
+                        for (final item in _cartItems) {
+                          item.isPrinted = true;
+                        }
+                      }
                       final bd = _cartBreakdown();
                       final tpl = await _apiService.fetchBillTemplateForPrint(
                         'bill',
@@ -1419,15 +1441,16 @@ class _PosScreenState extends State<PosScreen> {
                         discountAmount: bd.discount.discountAmount,
                         queueNumber: _activeTicketQueueNumber,
                       );
+                      final allOk = ok && kitchenCount >= kitchenTargets;
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              ok
+                              allOk
                                   ? context.l10n.billPrinted
                                   : context.l10n.failedToPrintBill,
                             ),
-                            backgroundColor: ok ? Colors.green : Colors.red,
+                            backgroundColor: allOk ? Colors.green : Colors.red,
                           ),
                         );
                       }
