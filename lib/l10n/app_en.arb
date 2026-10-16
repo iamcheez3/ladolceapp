@@ -1312,5 +1312,7 @@
   "historyChooseDates": "Choose dates",
   "historyAll": "All",
   "statusReadyForPickup": "Ready for pickup",
-  "noOrdersInRange": "No orders on these days"
+  "noOrdersInRange": "No orders on these days",
+  "tapItemToAdd": "Tap a menu item to choose options and add it here",
+  "viewCart": "View cart"
 }

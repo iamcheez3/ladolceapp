@@ -2592,4 +2592,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noOrdersInRange => 'No orders on these days';
+
+  @override
+  String get tapItemToAdd =>
+      'Tap a menu item to choose options and add it here';
+
+  @override
+  String get viewCart => 'View cart';
 }

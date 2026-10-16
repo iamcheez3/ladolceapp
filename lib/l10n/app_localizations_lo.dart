@@ -2560,4 +2560,10 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get noOrdersInRange => 'ບໍ່ມີອໍເດີໃນວັນທີ່ເລືອກ';
+
+  @override
+  String get tapItemToAdd => 'ແຕະເມນູ ເພື່ອເລືອກຕົວເລືອກ ແລະ ເພີ່ມໃສ່ກະຕ່າ';
+
+  @override
+  String get viewCart => 'ເບິ່ງກະຕ່າ';
 }

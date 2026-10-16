@@ -781,5 +781,7 @@
   "historyChooseDates": "ເລືອກວັນທີ",
   "historyAll": "ທັງໝົດ",
   "statusReadyForPickup": "ພ້ອມໃຫ້ມາຮັບ",
-  "noOrdersInRange": "ບໍ່ມີອໍເດີໃນວັນທີ່ເລືອກ"
+  "noOrdersInRange": "ບໍ່ມີອໍເດີໃນວັນທີ່ເລືອກ",
+  "tapItemToAdd": "ແຕະເມນູ ເພື່ອເລືອກຕົວເລືອກ ແລະ ເພີ່ມໃສ່ກະຕ່າ",
+  "viewCart": "ເບິ່ງກະຕ່າ"
 }

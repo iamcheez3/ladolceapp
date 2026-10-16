@@ -4795,6 +4795,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No orders on these days'**
   String get noOrdersInRange;
+
+  /// No description provided for @tapItemToAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a menu item to choose options and add it here'**
+  String get tapItemToAdd;
+
+  /// No description provided for @viewCart.
+  ///
+  /// In en, this message translates to:
+  /// **'View cart'**
+  String get viewCart;
 }
 
 class _AppLocalizationsDelegate
