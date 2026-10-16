@@ -2995,49 +2995,42 @@ class ApiService {
     bool? hideInSelfOrder,
   }) async {
     final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/categories');
+    final http.Response response;
     try {
-      final url = Uri.parse('$base/pos/categories');
-      final response = await http
+      response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: await _authHeaders(json: true),
             body: jsonEncode({
               'id': id,
               'name': name,
               'pos_show_in_app': showInApp,
               if (hideInSelfOrder != null)
                 'hide_in_self_order': hideInSelfOrder,
+              ...await _sessionFields(),
             }),
           )
           .timeout(const Duration(seconds: 5));
-
-      final jsonResp = jsonDecode(response.body);
-      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
-        final data = jsonResp['data'];
-        await _updateCacheList('cached_categories', data);
-        return data;
-      }
-      throw Exception(jsonResp['message'] ?? 'Failed to save category');
-    } catch (e) {
+    } catch (_) {
       throw Exception('Network error: Cannot save category');
     }
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+      final data = jsonResp['data'];
+      await _updateCacheList('cached_categories', data);
+      return data;
+    }
+    throw Exception(jsonResp['message'] ?? 'Failed to save category');
   }
 
   Future<void> deleteCategory(int id) async {
-    final base = await getBaseUrl();
-    try {
-      final url = Uri.parse('$base/pos/categories/$id');
-      final response = await http
-          .delete(url)
-          .timeout(const Duration(seconds: 5));
-      final jsonResp = jsonDecode(response.body);
-      if (response.statusCode != 200 || jsonResp['status'] != 'success') {
-        throw Exception(jsonResp['message'] ?? 'Failed to delete category');
-      }
-      await _removeFromCacheList('cached_categories', id);
-    } catch (e) {
-      throw Exception('Network error: Cannot delete category');
-    }
+    await _deleteCatalogItem(
+      'categories',
+      id,
+      cacheKey: 'cached_categories',
+      what: 'category',
+    );
   }
 
   // Customers
@@ -3132,6 +3125,9 @@ class ApiService {
       'list_price': listPrice,
       'block_self_order': blockSelfOrder,
       'hide_in_self_order': hideInSelfOrder,
+      // Behind @require_session(): without these the server answers
+      // "Missing or invalid user session".
+      ...await _sessionFields(),
     };
     if (id != null) bodyData['id'] = id;
     if (categoryId != null) bodyData['categ_id'] = categoryId;
@@ -3148,7 +3144,7 @@ class ApiService {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: await _authHeaders(json: true),
             body: jsonEncode(bodyData),
           )
           .timeout(const Duration(seconds: 5));
@@ -3178,20 +3174,12 @@ class ApiService {
   }
 
   Future<void> deleteProduct(int id) async {
-    final base = await getBaseUrl();
-    try {
-      final url = Uri.parse('$base/pos/products/$id');
-      final response = await http
-          .delete(url)
-          .timeout(const Duration(seconds: 5));
-      final jsonResp = jsonDecode(response.body);
-      if (response.statusCode != 200 || jsonResp['status'] != 'success') {
-        throw Exception(jsonResp['message'] ?? 'Failed to delete product');
-      }
-      await _removeFromCacheList('cached_products', id);
-    } catch (e) {
-      throw Exception('Network error: Cannot delete product');
-    }
+    await _deleteCatalogItem(
+      'products',
+      id,
+      cacheKey: 'cached_products',
+      what: 'product',
+    );
   }
 
   Future<List<dynamic>> fetchCombos({bool forceRefresh = false}) async {
@@ -3234,45 +3222,68 @@ class ApiService {
     required List<Map<String, dynamic>> lines,
   }) async {
     final base = await getBaseUrl();
+    final url = Uri.parse('$base/pos/combos');
+    final http.Response response;
     try {
-      final url = Uri.parse('$base/pos/combos');
-      final bodyData = {'name': name, 'price': price, 'lines': lines};
-
-      final response = await http
+      response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(bodyData),
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({
+              'name': name,
+              'price': price,
+              'lines': lines,
+              ...await _sessionFields(),
+            }),
           )
           .timeout(const Duration(seconds: 5));
-
-      final jsonResp = jsonDecode(response.body);
-      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
-        final data = jsonResp['data'];
-        await _updateCacheList('cached_combos', data);
-        return data;
-      }
-      throw Exception(jsonResp['message'] ?? 'Failed to save combo');
-    } catch (e) {
+    } catch (_) {
       throw Exception('Network error: Cannot save combo');
     }
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+      final data = jsonResp['data'];
+      await _updateCacheList('cached_combos', data);
+      return data;
+    }
+    throw Exception(jsonResp['message'] ?? 'Failed to save combo');
   }
 
   Future<void> deleteCombo(int id) async {
+    await _deleteCatalogItem(
+      'combos',
+      id,
+      cacheKey: 'cached_combos',
+      what: 'combo',
+    );
+  }
+
+  /// DELETE `/pos/<kind>/<id>` with the login session (the catalog endpoints
+  /// are behind `@require_session()`). Network failures read "Network
+  /// error"; a refusal shows the server's message.
+  Future<void> _deleteCatalogItem(
+    String kind,
+    int id, {
+    required String cacheKey,
+    required String what,
+  }) async {
     final base = await getBaseUrl();
+    final url = Uri.parse(
+      '$base/pos/$kind/$id',
+    ).replace(queryParameters: await _sessionFields());
+    final http.Response response;
     try {
-      final url = Uri.parse('$base/pos/combos/$id');
-      final response = await http
-          .delete(url)
+      response = await http
+          .delete(url, headers: await _authHeaders())
           .timeout(const Duration(seconds: 5));
-      final jsonResp = jsonDecode(response.body);
-      if (response.statusCode != 200 || jsonResp['status'] != 'success') {
-        throw Exception(jsonResp['message'] ?? 'Failed to delete combo');
-      }
-      await _removeFromCacheList('cached_combos', id);
-    } catch (e) {
-      throw Exception('Network error: Cannot delete combo');
+    } catch (_) {
+      throw Exception('Network error: Cannot delete $what');
     }
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode != 200 || jsonResp['status'] != 'success') {
+      throw Exception(jsonResp['message'] ?? 'Failed to delete $what');
+    }
+    await _removeFromCacheList(cacheKey, id);
   }
 
   Future<List<Map<String, dynamic>>> fetchRankingTop50() async {
