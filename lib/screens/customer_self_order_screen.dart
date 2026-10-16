@@ -5997,31 +5997,35 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   bottom: 10,
                                   right: 10,
                                   child: GestureDetector(
-                                    onTap: () {
-                                      _addToCart(
-                                        product,
-                                        quantity: 1,
-                                        selectedToppings: [],
-                                        isRedeemed:
-                                            _selectedCategory ==
-                                            'Redeem points',
-                                      );
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            context.l10n.addedToCart(
-                                              product.displayName,
-                                            ),
-                                          ),
-                                          backgroundColor: _brandNavy,
-                                          duration: const Duration(
-                                            milliseconds: 900,
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                    // Same as tapping the card, so choices
+                                    // are asked; a points reward has none.
+                                    onTap: _selectedCategory != 'Redeem points'
+                                        ? () => _openProductDetail(product)
+                                        : () {
+                                            _addToCart(
+                                              product,
+                                              quantity: 1,
+                                              selectedToppings: [],
+                                              isRedeemed:
+                                                  _selectedCategory ==
+                                                  'Redeem points',
+                                            );
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  context.l10n.addedToCart(
+                                                    product.displayName,
+                                                  ),
+                                                ),
+                                                backgroundColor: _brandNavy,
+                                                duration: const Duration(
+                                                  milliseconds: 900,
+                                                ),
+                                              ),
+                                            );
+                                          },
                                     child: Container(
                                       width: isSmall ? 36 : 40,
                                       height: isSmall ? 36 : 40,
@@ -6231,31 +6235,42 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       ),
                                       if (!blocked)
                                         GestureDetector(
-                                          onTap: () {
-                                            _addToCart(
-                                              product,
-                                              quantity: 1,
-                                              selectedToppings: [],
-                                              isRedeemed:
-                                                  _selectedCategory ==
-                                                  'Redeem points',
-                                            );
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  context.l10n.addedToCart(
-                                                    product.displayName,
-                                                  ),
-                                                ),
-                                                backgroundColor: _brandNavy,
-                                                duration: const Duration(
-                                                  milliseconds: 900,
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                          // Same as tapping the card, so
+                                          // choices are asked; a points
+                                          // reward has none.
+                                          onTap:
+                                              _selectedCategory !=
+                                                  'Redeem points'
+                                              ? () =>
+                                                    _openProductDetail(product)
+                                              : () {
+                                                  _addToCart(
+                                                    product,
+                                                    quantity: 1,
+                                                    selectedToppings: [],
+                                                    isRedeemed:
+                                                        _selectedCategory ==
+                                                        'Redeem points',
+                                                  );
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        context.l10n
+                                                            .addedToCart(
+                                                              product
+                                                                  .displayName,
+                                                            ),
+                                                      ),
+                                                      backgroundColor:
+                                                          _brandNavy,
+                                                      duration: const Duration(
+                                                        milliseconds: 900,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
                                           child: Container(
                                             width: isSmall ? 26 : 28,
                                             height: isSmall ? 26 : 28,
@@ -6561,27 +6576,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               if (!blocked) ...[
                                 const SizedBox(width: 8),
                                 GestureDetector(
-                                  onTap: () {
-                                    _addToCart(
-                                      product,
-                                      quantity: 1,
-                                      selectedToppings: [],
-                                      isRedeemed: false,
-                                    );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          context.l10n.addedToCart(
-                                            product.displayName,
-                                          ),
-                                        ),
-                                        backgroundColor: _brandNavy,
-                                        duration: const Duration(
-                                          milliseconds: 900,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  // Same as tapping the card: the panel on a
+                                  // tablet, the detail page on a phone, so
+                                  // choices are always asked.
+                                  onTap: () => isWide
+                                      ? _setPreviewProduct(product)
+                                      : _openProductDetail(product),
                                   child: Container(
                                     width: 32,
                                     height: 32,
