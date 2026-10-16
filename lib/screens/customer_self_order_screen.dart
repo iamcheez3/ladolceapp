@@ -1599,7 +1599,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           nextPreview = match;
         }
       }
-      nextPreview ??= products.where((p) => !p.blockSelfOrder).firstOrNull;
+      // No item is previewed until the customer taps one (the panel shows
+      // "Select an item to preview" until then).
 
       setState(() {
         _products = products;
@@ -6767,10 +6768,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Select an item\nto preview',
+                      Text(
+                        context.l10n.selectItemToPreview,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Color(0xFF64748B),
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
