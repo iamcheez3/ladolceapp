@@ -561,7 +561,7 @@ class _CartItemRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   if (!item.isFreePromo)
                     Text(
-                      '₭${money(item.product.effectivePrice)} each',
+                      '₭${money(item.priceUnitFromOrder != null ? item.priceUnitFromOrder! - item.selectedToppings.fold<double>(0, (s, t) => s + t.extraPrice) : item.product.effectivePrice)} each',
                       style: TextStyle(color: Colors.grey[500], fontSize: 12),
                     ),
                   if (item.selectedToppings.isNotEmpty) ...[

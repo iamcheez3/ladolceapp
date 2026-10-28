@@ -4885,6 +4885,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Update failed: {error}'**
   String appUpdateFailed(String error);
+
+  /// No description provided for @enterPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter price'**
+  String get enterPrice;
+
+  /// No description provided for @enterPriceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has no fixed price. Enter the price for this order.'**
+  String enterPriceHelp(String name);
+
+  /// No description provided for @openPriceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0 = enter the price at the POS'**
+  String get openPriceHint;
+
+  /// No description provided for @freePromoEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" has ended. Remove the free item before charging.'**
+  String freePromoEnded(String name);
+
+  /// No description provided for @notSavedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not saved by the server'**
+  String get notSavedTitle;
+
+  /// No description provided for @saleNotSavedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The server refused this sale, so it is NOT in Odoo:\n{reason}\nThe receipt was printed. Please enter the sale again.'**
+  String saleNotSavedBody(String reason);
+
+  /// No description provided for @ticketNotSavedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The server refused this ticket:\n{reason}\nThe items are back in the cart.'**
+  String ticketNotSavedBody(String reason);
+
+  /// No description provided for @notSavedList.
+  ///
+  /// In en, this message translates to:
+  /// **'Not saved by the server ({count})'**
+  String notSavedList(String count);
+
+  /// No description provided for @notSavedListHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales or tickets the server refused. Check them in Odoo and enter them again if needed.'**
+  String get notSavedListHelp;
+
+  /// No description provided for @leaveUnsavedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved items'**
+  String get leaveUnsavedTitle;
+
+  /// No description provided for @leaveUnsavedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The ticket has items that are not saved. Leave and discard them?'**
+  String get leaveUnsavedBody;
+
+  /// No description provided for @leaveUnsavedDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get leaveUnsavedDiscard;
 }
 
 class _AppLocalizationsDelegate

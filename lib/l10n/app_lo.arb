@@ -796,5 +796,17 @@
   "appUpdateAllowBody": "Android ຖາມຄັ້ງດຽວ: ເປີດ \"ອະນຸຍາດຈາກແຫຼ່ງນີ້\" ໃຫ້ LaDolce, ແລ້ວກັບມາກົດ ຕິດຕັ້ງ.",
   "appUpdateOpenSettings": "ເປີດການຕັ້ງຄ່າ",
   "appUpdateInstall": "ຕິດຕັ້ງ",
-  "appUpdateFailed": "ອັບເດດບໍ່ສຳເລັດ: {error}"
+  "appUpdateFailed": "ອັບເດດບໍ່ສຳເລັດ: {error}",
+  "enterPrice": "ປ້ອນລາຄາ",
+  "enterPriceHelp": "{name} ບໍ່ມີລາຄາຕາຍຕົວ. ປ້ອນລາຄາສຳລັບອໍເດີນີ້.",
+  "openPriceHint": "0 = ປ້ອນລາຄາຕອນຂາຍໃນ POS",
+  "freePromoEnded": "\"{name}\" ໝົດເວລາແລ້ວ. ລຶບລາຍການຟຣີອອກກ່ອນຮັບເງິນ.",
+  "notSavedTitle": "ເຊີບເວີບໍ່ໄດ້ບັນທຶກ",
+  "saleNotSavedBody": "ເຊີບເວີປະຕິເສດການຂາຍນີ້, ຈຶ່ງບໍ່ມີໃນ Odoo:\n{reason}\nໃບບິນຖືກພິມແລ້ວ. ກະລຸນາປ້ອນການຂາຍນີ້ໃໝ່.",
+  "ticketNotSavedBody": "ເຊີບເວີປະຕິເສດບິນນີ້:\n{reason}\nລາຍການກັບມາຢູ່ໃນກະຕ່າແລ້ວ.",
+  "notSavedList": "ເຊີບເວີບໍ່ໄດ້ບັນທຶກ ({count})",
+  "notSavedListHelp": "ການຂາຍ ຫຼື ບິນທີ່ເຊີບເວີປະຕິເສດ. ກວດໃນ Odoo ແລະ ປ້ອນໃໝ່ຖ້າຈຳເປັນ.",
+  "leaveUnsavedTitle": "ມີລາຍການທີ່ຍັງບໍ່ໄດ້ບັນທຶກ",
+  "leaveUnsavedBody": "ບິນນີ້ມີລາຍການທີ່ຍັງບໍ່ໄດ້ບັນທຶກ. ອອກ ແລະ ຖິ້ມລາຍການເຫຼົ່ານີ້ບໍ?",
+  "leaveUnsavedDiscard": "ຖິ້ມ"
 }

@@ -1724,6 +1724,13 @@ class ApiService {
       _d('[API BODY] ${response.body}');
       _d('==============================');
 
+      // The server read the request and said no (bad data, promotion
+      // ended, order gone): queueing it offline would retry forever.
+      if (isServerRejection(response.statusCode)) {
+        final reason = serverErrorMessage(response);
+        await recordRejectedOrder(action: 'order', payload: payload, reason: reason);
+        throw ServerRejectedException(reason);
+      }
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
         final raw = jsonResponse['data'];
@@ -1738,6 +1745,7 @@ class ApiService {
         throw Exception(jsonResponse['message'] ?? 'Failed to submit order');
       }
     } catch (e) {
+      if (e is ServerRejectedException) rethrow;
       _d(
         '[API OFFLINE] Order failed to submit. Saving to offline queue. Error: $e',
       );
@@ -1836,6 +1844,13 @@ class ApiService {
           )
           .timeout(const Duration(seconds: 5));
 
+      // The server read the request and said no (bad data, promotion
+      // ended, order gone): queueing it offline would retry forever.
+      if (isServerRejection(response.statusCode)) {
+        final reason = serverErrorMessage(response);
+        await recordRejectedOrder(action: 'order', payload: payload, reason: reason);
+        throw ServerRejectedException(reason);
+      }
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
         final data = jsonResponse['data'];
@@ -1885,6 +1900,9 @@ class ApiService {
                   'qty': l['qty'],
                   'price_unit': l['price_unit'],
                   'topping_ids': l['topping_ids'] ?? [],
+                  if (l['is_free_promo'] == true) 'is_free_promo': true,
+                  if (l['promotion_id'] != null) 'promotion_id': l['promotion_id'],
+                  if ((l['note'] ?? '').toString().isNotEmpty) 'note': l['note'],
                 },
               )
               .toList(),
@@ -1898,6 +1916,7 @@ class ApiService {
         throw Exception(jsonResponse['message'] ?? 'Failed to create order');
       }
     } catch (e) {
+      if (e is ServerRejectedException) rethrow;
       final mockId = -DateTime.now().millisecondsSinceEpoch;
       await _queueOfflineOrder({
         'action': 'create',
@@ -1941,6 +1960,9 @@ class ApiService {
                 'qty': l['qty'],
                 'price_unit': l['price_unit'],
                 'topping_ids': l['topping_ids'] ?? [],
+                  if (l['is_free_promo'] == true) 'is_free_promo': true,
+                  if (l['promotion_id'] != null) 'promotion_id': l['promotion_id'],
+                  if ((l['note'] ?? '').toString().isNotEmpty) 'note': l['note'],
               },
             )
             .toList(),
@@ -1995,6 +2017,13 @@ class ApiService {
       _d('[API BODY] ${response.body}');
       _d('==============================');
 
+      // The server read the request and said no (bad data, promotion
+      // ended, order gone): queueing it offline would retry forever.
+      if (isServerRejection(response.statusCode)) {
+        final reason = serverErrorMessage(response);
+        await recordRejectedOrder(action: 'order', payload: payload, reason: reason);
+        throw ServerRejectedException(reason);
+      }
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
         final data = jsonResponse['data'];
@@ -2036,6 +2065,9 @@ class ApiService {
                       'qty': l['qty'],
                       'price_unit': l['price_unit'],
                       'topping_ids': l['topping_ids'] ?? [],
+                  if (l['is_free_promo'] == true) 'is_free_promo': true,
+                  if (l['promotion_id'] != null) 'promotion_id': l['promotion_id'],
+                  if ((l['note'] ?? '').toString().isNotEmpty) 'note': l['note'],
                     },
                   )
                   .toList();
@@ -2051,6 +2083,9 @@ class ApiService {
                     'qty': l['qty'],
                     'price_unit': l['price_unit'],
                     'topping_ids': l['topping_ids'] ?? [],
+                  if (l['is_free_promo'] == true) 'is_free_promo': true,
+                  if (l['promotion_id'] != null) 'promotion_id': l['promotion_id'],
+                  if ((l['note'] ?? '').toString().isNotEmpty) 'note': l['note'],
                   },
                 ),
               );
@@ -2085,6 +2120,7 @@ class ApiService {
         throw Exception(jsonResponse['message'] ?? 'Failed to update order');
       }
     } catch (e) {
+      if (e is ServerRejectedException) rethrow;
       await _queueOfflineOrder({
         'action': 'update',
         'payload': payload,
@@ -2123,6 +2159,9 @@ class ApiService {
                     'qty': l['qty'],
                     'price_unit': l['price_unit'],
                     'topping_ids': l['topping_ids'] ?? [],
+                  if (l['is_free_promo'] == true) 'is_free_promo': true,
+                  if (l['promotion_id'] != null) 'promotion_id': l['promotion_id'],
+                  if ((l['note'] ?? '').toString().isNotEmpty) 'note': l['note'],
                   },
                 )
                 .toList();
@@ -2138,6 +2177,9 @@ class ApiService {
                   'qty': l['qty'],
                   'price_unit': l['price_unit'],
                   'topping_ids': l['topping_ids'] ?? [],
+                  if (l['is_free_promo'] == true) 'is_free_promo': true,
+                  if (l['promotion_id'] != null) 'promotion_id': l['promotion_id'],
+                  if ((l['note'] ?? '').toString().isNotEmpty) 'note': l['note'],
                 },
               ),
             );
@@ -2204,6 +2246,13 @@ class ApiService {
           )
           .timeout(const Duration(seconds: 5));
 
+      // The server read the request and said no (bad data, promotion
+      // ended, order gone): queueing it offline would retry forever.
+      if (isServerRejection(response.statusCode)) {
+        final reason = serverErrorMessage(response);
+        await recordRejectedOrder(action: 'order', payload: payload, reason: reason);
+        throw ServerRejectedException(reason);
+      }
       final jsonResponse = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
         final raw = jsonResponse['data'];
@@ -2219,6 +2268,7 @@ class ApiService {
         throw Exception(jsonResponse['message'] ?? 'Failed to pay order');
       }
     } catch (e) {
+      if (e is ServerRejectedException) rethrow;
       // Offline fallback: queue the pay and immediately move the ticket to Receipt History
       // as "Unsynced", while freeing the table locally.
       await _queueOfflineOrder({
@@ -2378,6 +2428,72 @@ class ApiService {
     } else {
       throw Exception(jsonResponse['message'] ?? 'Failed to refund order');
     }
+  }
+
+  /// 4xx: the server read the request and refused it, so retrying offline
+  /// can never work. Network errors, timeouts and 5xx stay queued, and so do
+  /// login problems (401/403): logging in again fixes those.
+  static bool isServerRejection(int status) =>
+      status >= 400 &&
+      status < 500 &&
+      status != 401 &&
+      status != 403 &&
+      status != 408 &&
+      status != 429;
+
+  static String serverErrorMessage(http.Response response) {
+    try {
+      final j = jsonDecode(response.body);
+      if (j is Map && j['message'] != null) return j['message'].toString();
+    } catch (_) {}
+    return 'HTTP ${response.statusCode}';
+  }
+
+  static const String _rejectedOrdersKey = 'rejected_orders';
+
+  /// Sales / tickets the server refused, kept on the device so nothing
+  /// disappears silently (Settings → Not saved by the server).
+  Future<void> recordRejectedOrder({
+    required String action,
+    required Map<String, dynamic> payload,
+    required String reason,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_rejectedOrdersKey) ?? [];
+    final lines = payload['lines'];
+    double total = 0;
+    if (lines is List) {
+      for (final l in lines) {
+        if (l is Map) {
+          total += ((l['price_unit'] as num?) ?? 0) * ((l['qty'] as num?) ?? 0);
+        }
+      }
+    }
+    list.add(jsonEncode({
+      'at': DateTime.now().toIso8601String(),
+      'action': action,
+      'reason': reason,
+      'total': total,
+      'lines': lines is List ? lines.length : 0,
+      'payload': payload,
+    }));
+    while (list.length > 50) {
+      list.removeAt(0);
+    }
+    await prefs.setStringList(_rejectedOrdersKey, list);
+  }
+
+  Future<List<Map<String, dynamic>>> rejectedOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    return [
+      for (final raw in prefs.getStringList(_rejectedOrdersKey) ?? const <String>[])
+        if (jsonDecode(raw) is Map) Map<String, dynamic>.from(jsonDecode(raw) as Map),
+    ];
+  }
+
+  Future<void> clearRejectedOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_rejectedOrdersKey);
   }
 
   Future<void> _queueOfflineOrder(Map<String, dynamic> task) async {
@@ -2565,6 +2681,15 @@ class ApiService {
                   body: jsonEncode(payload),
                 )
                 .timeout(const Duration(seconds: 8));
+            if (isServerRejection(response.statusCode)) {
+              // Refused for good (e.g. promotion ended): stop retrying it.
+              await recordRejectedOrder(
+                action: action ?? 'order',
+                payload: payload,
+                reason: serverErrorMessage(response),
+              );
+              continue;
+            }
             if (response.statusCode == 200) {
               final jsonResp = jsonDecode(response.body);
               if (jsonResp['status'] == 'success') {
@@ -2628,6 +2753,15 @@ class ApiService {
                   body: jsonEncode(payload),
                 )
                 .timeout(const Duration(seconds: 8));
+            if (isServerRejection(response.statusCode)) {
+              // Refused for good (e.g. promotion ended): stop retrying it.
+              await recordRejectedOrder(
+                action: action ?? 'order',
+                payload: payload,
+                reason: serverErrorMessage(response),
+              );
+              continue;
+            }
             if (response.statusCode == 200) {
               syncedCount++;
               continue;
@@ -2644,6 +2778,15 @@ class ApiService {
                   body: jsonEncode(payload),
                 )
                 .timeout(const Duration(seconds: 8));
+            if (isServerRejection(response.statusCode)) {
+              // Refused for good (e.g. promotion ended): stop retrying it.
+              await recordRejectedOrder(
+                action: action ?? 'order',
+                payload: payload,
+                reason: serverErrorMessage(response),
+              );
+              continue;
+            }
             if (response.statusCode == 200) {
               syncedCount++;
               continue;
@@ -2764,6 +2907,30 @@ class ApiService {
 
   /// Running "Buy X get Y free" promotions for [branchId]. Network first,
   /// last good copy when offline, empty on servers without the feature.
+  /// The running free-item promotions from the server only, or null when
+  /// the server cannot be reached (no cached copy: callers want the truth).
+  Future<List<FreePromotion>?> fetchFreePromotionsOnline({int? branchId}) async {
+    try {
+      final base = await getBaseUrl();
+      final response = await http
+          .get(
+            Uri.parse('$base/pos/promotions/free_items')
+                .replace(queryParameters: {if (branchId != null) 'branch_id': '$branchId'}),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode == 404) return [];
+      final jsonResp = jsonDecode(response.body);
+      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+        return [
+          for (final p in (jsonResp['data'] as List?) ?? const [])
+            if (p is Map) FreePromotion.fromJson(Map<String, dynamic>.from(p)),
+        ];
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<List<FreePromotion>> fetchFreePromotions({int? branchId}) async {
     final prefs = await SharedPreferences.getInstance();
     final cacheKey = 'cached_free_promotions_${branchId ?? 0}';
@@ -4487,4 +4654,13 @@ class CustomerSearchResult {
     required this.hasMore,
     this.totalCount = 0,
   });
+}
+
+/// The server answered and refused the order (HTTP 4xx). Not queued offline:
+/// retrying would never work. [message] is the server's reason.
+class ServerRejectedException implements Exception {
+  final String message;
+  ServerRejectedException(this.message);
+  @override
+  String toString() => message;
 }

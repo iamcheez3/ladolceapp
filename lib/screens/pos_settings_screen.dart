@@ -12,6 +12,7 @@ import '../models/pos_discount_config.dart';
 import '../models/product.dart';
 import '../services/app_update_service.dart';
 import '../widgets/app_update_flow.dart';
+import '../utils/money.dart';
 
 class PosSettingsScreen extends StatefulWidget {
   const PosSettingsScreen({super.key});
@@ -27,6 +28,7 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
   PosDiscountConfig _discountConfig = PosDiscountConfig.disabled;
   bool _usePromotionPrice = true;
   InstalledVersion? _installedVersion;
+  List<Map<String, dynamic>> _rejected = const [];
 
   /// Lets staff flip the app between English and Lao. PosApp.setLocale
   /// persists the choice, so it survives a restart and applies app-wide.
@@ -65,6 +67,50 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
     AppUpdateService().installedVersion().then((v) {
       if (mounted) setState(() => _installedVersion = v);
     });
+    _apiService.rejectedOrders().then((r) {
+      if (mounted) setState(() => _rejected = r);
+    });
+  }
+
+  Future<void> _showRejected() async {
+    final clear = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l10n?.notSavedTitle ?? 'Not saved by the server'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Text(_l10n?.notSavedListHelp ??
+                  'Sales or tickets the server refused. Check them in Odoo and enter them again if needed.'),
+              const SizedBox(height: 8),
+              for (final r in _rejected.reversed)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${(r['at'] ?? '').toString().replaceFirst('T', ' ').split('.').first}  ·  ₭${money(r['total'] as num?)}'),
+                  subtitle: Text((r['reason'] ?? '').toString()),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l10n?.clear ?? 'Clear'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l10n?.close ?? 'Close'),
+          ),
+        ],
+      ),
+    );
+    if (clear == true) {
+      await _apiService.clearRejectedOrders();
+      if (mounted) setState(() => _rejected = const []);
+    }
   }
 
   Future<void> _loadDiscountConfig() async {
@@ -101,7 +147,8 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
         foregroundColor: Colors.white,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        // Last tile (App update) stays above the navigation bar.
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(context).bottom),
         children: [
           _buildMenuCard(
             context,
@@ -188,6 +235,19 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
                 : (_l10n?.english ?? 'English'),
             onTap: _showLanguagePicker,
           ),
+          if (_rejected.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildMenuCard(
+              context,
+              icon: Icons.error_outline_rounded,
+              title: _l10n?.notSavedList('${_rejected.length}') ??
+                  'Not saved by the server (${_rejected.length})',
+              subtitle: _l10n?.notSavedListHelp ??
+                  'Sales or tickets the server refused. Check them in Odoo and enter them again if needed.',
+              subtitleColor: Colors.red,
+              onTap: _showRejected,
+            ),
+          ],
           if (AppUpdateService.isSupported) ...[
             const SizedBox(height: 12),
             _buildMenuCard(

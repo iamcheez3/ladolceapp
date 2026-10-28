@@ -2635,4 +2635,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String appUpdateFailed(String error) {
     return 'Update failed: $error';
   }
+
+  @override
+  String get enterPrice => 'Enter price';
+
+  @override
+  String enterPriceHelp(String name) {
+    return '$name has no fixed price. Enter the price for this order.';
+  }
+
+  @override
+  String get openPriceHint => '0 = enter the price at the POS';
+
+  @override
+  String freePromoEnded(String name) {
+    return '\"$name\" has ended. Remove the free item before charging.';
+  }
+
+  @override
+  String get notSavedTitle => 'Not saved by the server';
+
+  @override
+  String saleNotSavedBody(String reason) {
+    return 'The server refused this sale, so it is NOT in Odoo:\n$reason\nThe receipt was printed. Please enter the sale again.';
+  }
+
+  @override
+  String ticketNotSavedBody(String reason) {
+    return 'The server refused this ticket:\n$reason\nThe items are back in the cart.';
+  }
+
+  @override
+  String notSavedList(String count) {
+    return 'Not saved by the server ($count)';
+  }
+
+  @override
+  String get notSavedListHelp =>
+      'Sales or tickets the server refused. Check them in Odoo and enter them again if needed.';
+
+  @override
+  String get leaveUnsavedTitle => 'Unsaved items';
+
+  @override
+  String get leaveUnsavedBody =>
+      'The ticket has items that are not saved. Leave and discard them?';
+
+  @override
+  String get leaveUnsavedDiscard => 'Discard';
 }

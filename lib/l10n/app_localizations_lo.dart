@@ -2603,4 +2603,52 @@ class AppLocalizationsLo extends AppLocalizations {
   String appUpdateFailed(String error) {
     return 'ອັບເດດບໍ່ສຳເລັດ: $error';
   }
+
+  @override
+  String get enterPrice => 'ປ້ອນລາຄາ';
+
+  @override
+  String enterPriceHelp(String name) {
+    return '$name ບໍ່ມີລາຄາຕາຍຕົວ. ປ້ອນລາຄາສຳລັບອໍເດີນີ້.';
+  }
+
+  @override
+  String get openPriceHint => '0 = ປ້ອນລາຄາຕອນຂາຍໃນ POS';
+
+  @override
+  String freePromoEnded(String name) {
+    return '\"$name\" ໝົດເວລາແລ້ວ. ລຶບລາຍການຟຣີອອກກ່ອນຮັບເງິນ.';
+  }
+
+  @override
+  String get notSavedTitle => 'ເຊີບເວີບໍ່ໄດ້ບັນທຶກ';
+
+  @override
+  String saleNotSavedBody(String reason) {
+    return 'ເຊີບເວີປະຕິເສດການຂາຍນີ້, ຈຶ່ງບໍ່ມີໃນ Odoo:\n$reason\nໃບບິນຖືກພິມແລ້ວ. ກະລຸນາປ້ອນການຂາຍນີ້ໃໝ່.';
+  }
+
+  @override
+  String ticketNotSavedBody(String reason) {
+    return 'ເຊີບເວີປະຕິເສດບິນນີ້:\n$reason\nລາຍການກັບມາຢູ່ໃນກະຕ່າແລ້ວ.';
+  }
+
+  @override
+  String notSavedList(String count) {
+    return 'ເຊີບເວີບໍ່ໄດ້ບັນທຶກ ($count)';
+  }
+
+  @override
+  String get notSavedListHelp =>
+      'ການຂາຍ ຫຼື ບິນທີ່ເຊີບເວີປະຕິເສດ. ກວດໃນ Odoo ແລະ ປ້ອນໃໝ່ຖ້າຈຳເປັນ.';
+
+  @override
+  String get leaveUnsavedTitle => 'ມີລາຍການທີ່ຍັງບໍ່ໄດ້ບັນທຶກ';
+
+  @override
+  String get leaveUnsavedBody =>
+      'ບິນນີ້ມີລາຍການທີ່ຍັງບໍ່ໄດ້ບັນທຶກ. ອອກ ແລະ ຖິ້ມລາຍການເຫຼົ່ານີ້ບໍ?';
+
+  @override
+  String get leaveUnsavedDiscard => 'ຖິ້ມ';
 }

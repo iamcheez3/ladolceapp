@@ -147,7 +147,13 @@ class ProductGrid extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    Column(
+                                    // Shrinks a little on cards too short for
+                                    // two price lines instead of overflowing.
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.bottomRight,
+                                      child: Column(
+                                      mainAxisSize: MainAxisSize.min,
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
@@ -171,6 +177,7 @@ class ProductGrid extends StatelessWidget {
                                           ),
                                         ),
                                       ],
+                                    ),
                                     ),
                                   ],
                                 ),

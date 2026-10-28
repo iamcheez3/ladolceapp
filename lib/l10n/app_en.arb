@@ -1288,5 +1288,22 @@
   "appUpdateOpenSettings": "Open settings",
   "appUpdateInstall": "Install",
   "appUpdateFailed": "Update failed: {error}",
-  "@appUpdateFailed": {"placeholders": {"error": {"type": "String"}}}
+  "@appUpdateFailed": {"placeholders": {"error": {"type": "String"}}},
+  "enterPrice": "Enter price",
+  "enterPriceHelp": "{name} has no fixed price. Enter the price for this order.",
+  "@enterPriceHelp": {"placeholders": {"name": {"type": "String"}}},
+  "openPriceHint": "0 = enter the price at the POS",
+  "freePromoEnded": "\"{name}\" has ended. Remove the free item before charging.",
+  "@freePromoEnded": {"placeholders": {"name": {"type": "String"}}},
+  "notSavedTitle": "Not saved by the server",
+  "saleNotSavedBody": "The server refused this sale, so it is NOT in Odoo:\n{reason}\nThe receipt was printed. Please enter the sale again.",
+  "@saleNotSavedBody": {"placeholders": {"reason": {"type": "String"}}},
+  "ticketNotSavedBody": "The server refused this ticket:\n{reason}\nThe items are back in the cart.",
+  "@ticketNotSavedBody": {"placeholders": {"reason": {"type": "String"}}},
+  "notSavedList": "Not saved by the server ({count})",
+  "@notSavedList": {"placeholders": {"count": {"type": "String"}}},
+  "notSavedListHelp": "Sales or tickets the server refused. Check them in Odoo and enter them again if needed.",
+  "leaveUnsavedTitle": "Unsaved items",
+  "leaveUnsavedBody": "The ticket has items that are not saved. Leave and discard them?",
+  "leaveUnsavedDiscard": "Discard"
 }

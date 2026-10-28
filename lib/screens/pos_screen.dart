@@ -36,6 +36,7 @@ import '../models/pos_discount_config.dart';
 import '../utils/pos_discount.dart';
 import '../utils/responsive_layout.dart';
 import '../utils/money.dart';
+import 'package:flutter/services.dart';
 
 class PosScreen extends StatefulWidget {
   final String cashierName;
@@ -740,7 +741,83 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
-  void _addDirectlyToCart(Product product, List<Topping> selectedToppings, {FreePromotion? freePromo}) {
+  /// A product saved with price 0 has no fixed price: the cashier types it
+  /// when adding it (combos and free promo items excepted).
+  bool _isOpenPrice(Product product) =>
+      !product.isCombo && product.price <= 0 && product.effectivePrice <= 0;
+
+  Future<double?> _askOpenPrice(Product product) async {
+    final ctrl = TextEditingController();
+    double? valid() {
+      final v = parseMoney(ctrl.text);
+      return v > 0 ? v : null;
+    }
+
+    final price = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l10n?.enterPrice ?? 'Enter price'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_l10n?.enterPriceHelp(product.displayName) ??
+                '${product.displayName} has no fixed price. Enter the price for this order.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [MoneyInputFormatter()],
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+              decoration: const InputDecoration(
+                prefixText: '₭ ',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) {
+                final v = valid();
+                if (v != null) Navigator.pop(ctx, v);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n?.cancel ?? 'Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final v = valid();
+              if (v != null) Navigator.pop(ctx, v);
+            },
+            child: Text(_l10n?.add ?? 'Add'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    return price;
+  }
+
+  void _addDirectlyToCart(
+    Product product,
+    List<Topping> selectedToppings, {
+    FreePromotion? freePromo,
+    double? openPrice,
+  }) {
+    if (freePromo == null && openPrice == null && _isOpenPrice(product)) {
+      _askOpenPrice(product).then((price) {
+        if (price != null && mounted) {
+          _addDirectlyToCart(product, selectedToppings, openPrice: price);
+        }
+      });
+      return;
+    }
+    // Typed price (+ paid choices) for one unit; null = the product's price.
+    final unitOverride = openPrice == null
+        ? null
+        : openPrice + selectedToppings.fold<double>(0, (s, t) => s + t.extraPrice);
     setState(() {
       // Check if there's already a NEW (unsaved) item with EXACTLY the same toppings
       final existingNewIndex = _cartItems.indexWhere((item) {
@@ -750,6 +827,8 @@ class _PosScreenState extends State<PosScreen> {
         if (item.isFreePromo != (freePromo != null) || item.promotionId != freePromo?.id) {
           return false;
         }
+        // Typed prices only stack when they are the same.
+        if (item.priceUnitFromOrder != unitOverride) return false;
 
         // Compare toppings exactly
         if (item.selectedToppings.length != selectedToppings.length) {
@@ -775,6 +854,7 @@ class _PosScreenState extends State<PosScreen> {
             isFreePromo: freePromo != null,
             promotionId: freePromo?.id,
             promotionName: freePromo?.name ?? '',
+            priceUnitFromOrder: unitOverride,
           ),
         );
       }
@@ -1365,7 +1445,39 @@ class _PosScreenState extends State<PosScreen> {
         ? 12.0
         : 16.0;
 
-    return GestureDetector(
+    // Android Back used to close the POS and throw the unsaved cart away.
+    return PopScope(
+      canPop: !_cartItems.any((i) => !i.isSaved),
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final leave = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(_l10n?.leaveUnsavedTitle ?? 'Unsaved items'),
+            content: Text(_l10n?.leaveUnsavedBody ??
+                'The ticket has items that are not saved. Leave and discard them?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(_l10n?.cancel ?? 'Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text(_l10n?.leaveUnsavedDiscard ?? 'Discard'),
+              ),
+            ],
+          ),
+        );
+        if (leave != true || !context.mounted) return;
+        final navigator = Navigator.of(context);
+        if (navigator.canPop()) {
+          navigator.pop();
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         // Disable resizeToAvoidBottomInset to prevent keyboard animation loops
@@ -2347,6 +2459,7 @@ class _PosScreenState extends State<PosScreen> {
             ? _buildMobileCartBar(context)
             : null,
       ),
+      ),
     );
   }
 
@@ -2658,6 +2771,7 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
   List<Map<String, dynamic>> _checkoutReceiptPayments = [];
+  bool _checkoutOpensDrawer = false;
   double _checkoutChange = 0;
 
   /// Split payment rows in the charge sheet: method + amount per row, an
@@ -3388,9 +3502,7 @@ class _PosScreenState extends State<PosScreen> {
         builder: (context, setSheetState) {
           final bd = _cartBreakdown();
           final total = bd.totalDue;
-          final isCash =
-              _selectedPaymentMethod?.name.toLowerCase().contains('cash') ??
-              false;
+          final isCash = _selectedPaymentMethod?.allowsChange ?? false;
           final amtReceived =
               double.tryParse(amountReceivedCtrl.text.replaceAll(',', '')) ??
               0.0;
@@ -3925,6 +4037,11 @@ class _PosScreenState extends State<PosScreen> {
                             : () {
                                 // What the receipt prints under TOTAL, and the
                                 // split rows the server stores.
+                                // Drawer: any method used that has "Open cash
+                                // drawer" ticked, exact amount or not.
+                                _checkoutOpensDrawer = splitMode
+                                    ? split.rows.any((r) => r.value > 0 && r.method.opensCashDrawer)
+                                    : (_selectedPaymentMethod?.opensCashDrawer ?? false);
                                 if (splitMode) {
                                   _checkoutPayments = split.serverPayments;
                                   _checkoutReceiptPayments = split.receiptPayments;
@@ -3980,6 +4097,27 @@ class _PosScreenState extends State<PosScreen> {
     bool printReceipt,
     CartBreakdown bd,
   ) async {
+    final ended = await _endedFreePromotion();
+    if (ended != null) {
+      // A dialog, not a snackbar: the charge sheet covers the snackbar.
+      if (context.mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: const Icon(Icons.card_giftcard_rounded, color: Colors.red, size: 40),
+            content: Text(_l10n?.freePromoEnded(ended) ??
+                '"$ended" has ended. Remove the free item before charging.'),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(_l10n?.close ?? 'Close'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
     final subtotalRowLabel = bd.taxActive && _taxConfig.inclusive
         ? (_l10n?.amountExclVat ?? 'Amount (excl. VAT):')
         : 'Subtotal:';
@@ -4039,9 +4177,11 @@ class _PosScreenState extends State<PosScreen> {
       for (final m in _paymentMethods)
         if (m.opensCashDrawer) m.name,
     };
-    final isCash = (snapshotPaymentMethod?.opensCashDrawer ?? false) ||
+    final isCash = _checkoutOpensDrawer ||
+        (snapshotPaymentMethod?.opensCashDrawer ?? false) ||
         snapshotReceiptPayments.any(
             (p) => drawerMethodNames.contains((p['payment_method'] ?? '').toString()));
+    _checkoutOpensDrawer = false;
 
     // --- Optimistic UI: update local state and close dialog immediately ---
 
@@ -4117,9 +4257,11 @@ class _PosScreenState extends State<PosScreen> {
         final receiptPrinters = printerService.profiles
             .where((p) => p.printReceiptsAndBills)
             .toList();
+        var drawerOpened = false;
         for (final p in receiptPrinters) {
-          await printerService.printReceiptToProfile(
+          final printed = await printerService.printReceiptToProfile(
             p,
+            openDrawer: isCash && !drawerOpened,
             cartItems: snapshotCart,
             subtotal: bd.baseAmount,
             tax: bd.taxAmount,
@@ -4139,8 +4281,9 @@ class _PosScreenState extends State<PosScreen> {
             payments: snapshotReceiptPayments,
             change: snapshotChange,
           );
+          if (printed && isCash) drawerOpened = true;
         }
-        if (isCash) {
+        if (isCash && !drawerOpened) {
           await printerService.openCashDrawer();
         }
       }
@@ -4202,10 +4345,57 @@ class _PosScreenState extends State<PosScreen> {
             payments: snapshotPayments,
           );
         }
+      } on ServerRejectedException catch (e) {
+        // Refused for good (kept in Settings → Not saved by the server).
+        if (mounted) {
+          _showNotSavedDialog(
+            _l10n?.saleNotSavedBody(e.message) ??
+                'The server refused this sale, so it is NOT in Odoo:\n${e.message}\nThe receipt was printed. Please enter the sale again.',
+          );
+        }
       } catch (_) {
         // Server calls failed — offline queue already handles retry.
       }
     });
+  }
+
+  void _showNotSavedDialog(String body) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 40),
+        title: Text(_l10n?.notSavedTitle ?? 'Not saved by the server'),
+        content: Text(body),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n?.close ?? 'Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A free item whose promotion has ended is refused by the server after
+  /// the receipt is printed. Ask the server first (online only); returns the
+  /// ended promotion's name, or null when all is fine / offline.
+  Future<String?> _endedFreePromotion() async {
+    final freeNew = _cartItems.where((i) => i.isFreePromo && !i.isSaved).toList();
+    if (freeNew.isEmpty) return null;
+    final branchId = await _apiService.getCachedBranchId();
+    final fresh = await _apiService.fetchFreePromotionsOnline(branchId: branchId);
+    if (fresh == null) return null; // offline: the sync will tell
+    if (mounted) setState(() => _freePromotions = fresh);
+    for (final item in freeNew) {
+      FreePromotion? promo;
+      for (final p in fresh) {
+        if (p.id == item.promotionId) promo = p;
+      }
+      if (promo == null || promo.availableFree(_cartItems) < 0) {
+        return item.promotionName.isNotEmpty ? item.promotionName : (promo?.name ?? '');
+      }
+    }
+    return null;
   }
 
   /// Everything the bill needs, copied before a save clears the cart.
@@ -4969,7 +5159,35 @@ class _PosScreenState extends State<PosScreen> {
                 });
           }
         })
-        .catchError((_) {
+        .catchError((Object e) {
+          if (e is ServerRejectedException) {
+            // Refused (e.g. promotion ended): nothing was saved, nothing
+            // printed. Give the items back unless another order is open.
+            if (!mounted) return;
+            setState(() {
+              if (_cartItems.isEmpty && _activeTicketId == null) {
+                _cartItems = List<CartItem>.from(itemsForKitchen);
+              }
+              if (table != null) {
+                final idx = _tables.indexWhere((t) => t.id == table.id);
+                if (idx >= 0) {
+                  final current = _tables[idx];
+                  _tables[idx] = PosTable(
+                    id: current.id,
+                    name: current.name,
+                    capacity: current.capacity,
+                    status: current.status,
+                    hasOpenOrder: false,
+                  );
+                }
+              }
+            });
+            _showNotSavedDialog(
+              _l10n?.ticketNotSavedBody(e.message) ??
+                  'The server refused this ticket:\n${e.message}\nThe items are back in the cart.',
+            );
+            return;
+          }
           // Offline fallback: print without queue number
           if (printerService.isConfigured) {
             _printOrderItemsToKitchen(
@@ -5184,7 +5402,7 @@ class _SplitPaymentRow {
 
   double get value => parseMoney(amount.text);
 
-  bool get isCash => method.name.toLowerCase().contains('cash');
+  bool get isCash => method.allowsChange;
 }
 
 /// Totals of a split payment. Only cash may go over the total (that is the

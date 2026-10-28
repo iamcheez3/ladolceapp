@@ -1,6 +1,6 @@
 # LaDolce: iOS build notes for the 10 Oct and 28 Oct 2026 changes
 
-These notes cover everything changed in the app (and the backend it talks to) on 10 Oct and 28 Oct 2026. The app version is now **1.0.1 (build 8)**. The Android build with all of this is done. This file is for building the **same version for iOS**. See section 8 for what has not been tested yet.
+These notes cover everything changed in the app (and the backend it talks to) on 10 Oct and 28 Oct 2026. The app version is now **1.0.1 (build 9)**. The Android build with all of this is done. This file is for building the **same version for iOS**. See section 8 for what has not been tested yet.
 
 - App repo: `ladolceApp`, branch **`sith`**. All the changes below are on top of commit `5d2a6f5`.
 - Backend repo: `ladolce` (Odoo 18 addons), branch **`sith`**, on top of commit `14dd06d`.
@@ -25,7 +25,7 @@ git checkout sith && git pull
 flutter clean
 flutter pub get
 cd ios && pod install && cd ..
-flutter test          # 68 tests, all should pass
+flutter test          # 592 tests (incl. 524 screen-size checks), all should pass
 flutter build ipa     # or open ios/Runner.xcworkspace in Xcode and Archive
 ```
 
@@ -108,6 +108,15 @@ The translation files (`lib/l10n/app_localizations*.dart`) are already generated
 - Every amount in the app and on paper is whole kip with commas: `90,000` (was `90000.00`). Receipts and bills print `LAK 90,000`. One helper does it: `money()` in `lib/utils/money.dart`.
 - Amount boxes (amount received, split payment, product / topping / combo price) add commas while you type (`MoneyInputFormatter`) and read them back with `parseMoney()`.
 - The Items and Combos lists showed `$` instead of `₭`; fixed.
+
+### Fixes after the full test (28 Oct, build 9)
+- **Price 0 = open price:** a product saved with price 0 asks the cashier "Enter price" when added (after its choices); customers don't see these products in self-order.
+- **Server refusals are not "offline" any more:** a 4xx answer (e.g. a free-item promotion that ended) is no longer queued and retried forever. The POS checks free promotions with the server before charging; a refused ticket comes back to the cart with the reason; refused items are listed in Settings → "Not saved by the server". See `ServerRejectedException` in `api_service.dart`.
+- **Cash drawer** pulse is sent inside the receipt job, and opens whenever any payment row uses a method with "Open cash drawer" (exact amount or not). Change is allowed for those methods too, not only ones named "cash".
+- Receipt, bill and kitchen ticket wait 0.8 s before closing the printer connection (last lines could be lost on slow printers). Reprint/refund slips print Lao names (were "?????"). Kitchen tickets group by product id.
+- Back button on the POS asks before discarding unsaved items.
+- Layout: no overflow at 9 screen sizes (320×568 → 1280×800, Lao and English, large text); smaller PIN keys on short phones; Save buttons above the navigation bar.
+- Server (backend `sith`): pay/create refuse broken input and payments that don't cover the total; a refused self-order no longer uses the coupon; branch-only special prices; stable product paging; clear 400 messages instead of 500s.
 
 ### Screen layout
 - The bottom of the ticket view, the charge screen and the open tickets list now stay above the system navigation bar. On iPhone this is the home indicator.

@@ -72,7 +72,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     final priceStr = _priceController.text.trim();
     final price = parseMoney(priceStr);
 
-    if (name.isEmpty || price <= 0) {
+    // Price 0 = no fixed price: the cashier types it on the POS.
+    if (name.isEmpty || price < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? (AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? 'Valid name and price are required'))),
       );
@@ -147,7 +148,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       ),
       body: LuxuryPatternBackground(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+          // Keep the Save button above the navigation bar.
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 40 + MediaQuery.viewPaddingOf(context).bottom),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -173,14 +175,27 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     keyboardType: TextInputType.number,
                     inputFormatters: [MoneyInputFormatter()],
                   ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, top: 6),
+                    child: Text(
+                      AppLocalizations.of(context)?.openPriceHint ??
+                          '0 = enter the price at the POS',
+                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<int>(
+                    isExpanded: true,
                     decoration: LaDolcePosUi.input(hintText: AppLocalizations.of(context)?.category ?? (AppLocalizations.of(context)?.category ?? 'Category')),
                     value: _selectedCategoryId,
                     items: widget.categories.map((c) {
                       return DropdownMenuItem<int>(
                         value: c['id'],
-                        child: Text(c['name'] ?? ''),
+                        child: Text(
+                          c['name'] ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
                     onChanged: (val) {

@@ -139,6 +139,14 @@ class AppUpdateService {
     }
   }
 
+  /// Removes downloaded APKs (cache/updates), about 90 MB each.
+  Future<void> deleteDownloads() async {
+    try {
+      final dir = Directory('${(await getTemporaryDirectory()).path}/updates');
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    } catch (_) {}
+  }
+
   /// "Install unknown apps" allowed for this app (asked once per device).
   Future<bool> canInstall() async =>
       await _channel.invokeMethod<bool>('canInstall') ?? false;

@@ -548,9 +548,13 @@ class _TicketsScreenState extends State<TicketsScreen> {
 
     return GridView.builder(
       padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(context).bottom),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 200,
-        childAspectRatio: 0.85,
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        // One card per row on the smallest phones (320 px): two were too
+        // narrow and the table name shrank to a third.
+        maxCrossAxisExtent: MediaQuery.sizeOf(context).width < 340 ? 400 : 200,
+        // Fixed height that grows with the text size: a ratio made cards on
+        // narrow phones (and with large text) too short for their content.
+        mainAxisExtent: 200 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4),
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),

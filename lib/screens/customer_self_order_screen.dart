@@ -1634,6 +1634,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           // POS-only products / categories never reach the customer list
           // (categories come from the products, so they disappear too).
           .where((p) => !p.hideInSelfOrder)
+          // Price 0 = the cashier types the price; customers cannot.
+          .where((p) => p.price > 0 || p.isRedeemable)
           .toList();
       _freePromotions = await _apiService.fetchFreePromotions(branchId: _selectedBranchId);
       final rawCombos = await _apiService.fetchCombos();
@@ -3930,8 +3932,13 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_l10n?.failedToPlaceOrder ?? (_l10n?.failedToPlaceOrder ?? 'Failed to place order. Please check your connection and try again.')),
+          // The server's reason when it refused the order (e.g. promotion
+          // ended), not "check your connection".
+          content: Text(e is ServerRejectedException
+              ? e.message
+              : (_l10n?.failedToPlaceOrder ?? 'Failed to place order. Please check your connection and try again.')),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 6),
         ),
       );
     } finally {
@@ -5561,9 +5568,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: isWide ? 3 : (isMobile ? 1 : 2),
-                mainAxisExtent: isWide
-                    ? (isNarrowWideLayout ? 140 : 132)
-                    : (isMobile ? 110 : 126),
+                // Grows with large text instead of overflowing.
+                mainAxisExtent: (isWide
+                        ? (isNarrowWideLayout ? 140 : 132)
+                        : (isMobile ? 110 : 126)) *
+                    MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4),
                 crossAxisSpacing: isSmall ? 8 : 10,
                 mainAxisSpacing: isSmall ? 8 : 10,
               ),

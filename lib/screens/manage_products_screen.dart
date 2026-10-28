@@ -352,9 +352,11 @@ class _ProductCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          _buildTag(
-                            text: product.category,
-                            color: accentColor,
+                          Flexible(
+                            child: _buildTag(
+                              text: product.category,
+                              color: accentColor,
+                            ),
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -434,6 +436,8 @@ class _ProductCard extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

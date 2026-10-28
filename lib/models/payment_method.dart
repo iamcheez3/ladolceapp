@@ -12,6 +12,11 @@ class PaymentMethod {
     bool? opensCashDrawer,
   }) : opensCashDrawer = opensCashDrawer ?? name.toLowerCase().contains('cash');
 
+  /// Cash can be more than the total (the rest is change): a method named
+  /// "cash", or one that opens the drawer (e.g. a Lao-named cash method).
+  bool get allowsChange =>
+      opensCashDrawer || name.toLowerCase().contains('cash');
+
   factory PaymentMethod.fromJson(Map<String, dynamic> json) {
     final raw = json['open_cash_drawer'];
     return PaymentMethod(

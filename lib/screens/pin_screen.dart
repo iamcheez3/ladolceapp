@@ -371,19 +371,23 @@ class _PinScreenState extends State<PinScreen> {
     );
   }
 
+  /// Smaller keys on short phones so the whole pad fits without scrolling.
+  double get _keySize => MediaQuery.sizeOf(context).height < 700 ? 56 : 68;
+  double get _keyGap => MediaQuery.sizeOf(context).height < 700 ? 8 : 12;
+
   Widget _buildNumpad() {
     return Column(
       children: [
         _buildNumpadRow(['1', '2', '3']),
-        const SizedBox(height: 12),
+        SizedBox(height: _keyGap),
         _buildNumpadRow(['4', '5', '6']),
-        const SizedBox(height: 12),
+        SizedBox(height: _keyGap),
         _buildNumpadRow(['7', '8', '9']),
-        const SizedBox(height: 12),
+        SizedBox(height: _keyGap),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            const SizedBox(width: 68, height: 68),
+            SizedBox(width: _keySize, height: _keySize),
             _numButton('0'),
             _actionButton(Icons.backspace_outlined, _onBackspace),
           ],
@@ -404,8 +408,8 @@ class _PinScreenState extends State<PinScreen> {
       onTap: () => _onKeyPress(number),
       borderRadius: BorderRadius.circular(34),
       child: Container(
-        width: 68,
-        height: 68,
+        width: _keySize,
+        height: _keySize,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: _coffeeBrown.withOpacity(0.3),
@@ -430,8 +434,8 @@ class _PinScreenState extends State<PinScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(34),
       child: Container(
-        width: 68,
-        height: 68,
+        width: _keySize,
+        height: _keySize,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white.withOpacity(0.08),

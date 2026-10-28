@@ -184,6 +184,12 @@ class PrinterService {
   /// printer's double-size text they replaced.
   static const double _bigFontSize = 48;
 
+  /// NetworkPrinter.disconnect() destroys the socket and drops whatever the
+  /// printer has not taken yet. Receipts are images now (tens of KB), so a
+  /// slow printer lost its last lines (TOTAL, footer, cut). Wait first, like
+  /// the drawer pulse and reprints already do.
+  static const Duration _drainDelay = Duration(milliseconds: 800);
+
   static img.Image? _bundledLogo;
 
   /// Company logo at the top of receipts and bills: the bill template's logo
@@ -767,6 +773,7 @@ class PrinterService {
     }
     printer.feed(3);
     printer.cut();
+    await Future.delayed(_drainDelay);
     return true;
   } catch (e) {
     _printerLog('[PRINTER] Print bill failed: $e');
@@ -799,6 +806,7 @@ class PrinterService {
     String pointsLabel = 'Points',
     List<Map<String, dynamic>> payments = const [],
     double change = 0,
+    bool openDrawer = false,
   }) => _printReceiptToProfile(
         profile,
         cartItems: cartItems,
@@ -819,6 +827,7 @@ class PrinterService {
         pointsLabel: pointsLabel,
         payments: payments,
         change: change,
+        openDrawer: openDrawer,
       );
 
   Future<bool> _printReceiptToProfile(
@@ -841,6 +850,7 @@ class PrinterService {
     String pointsLabel = 'Points',
     List<Map<String, dynamic>> payments = const [],
     double change = 0,
+    bool openDrawer = false,
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
@@ -849,6 +859,10 @@ class PrinterService {
           .connect(profile.ip, port: profile.port)
           .timeout(_connectTimeout);
       if (result != PosPrintResult.success) return false;
+      // Drawer pulse in the same job as the receipt. A second connection
+      // right after the receipt could be refused by a printer still busy
+      // printing, so the drawer sometimes stayed shut.
+      if (openDrawer) printer.rawBytes(_drawerPulse);
 
       final dots = _dotsFor(profile);
       // Every line in the print font, including the English and the prices.
@@ -935,6 +949,7 @@ class PrinterService {
       }
       printer.feed(3);
       printer.cut();
+      await Future.delayed(_drainDelay);
       return true;
     } catch (e) {
       _printerLog('[PRINTER] Print receipt failed: $e');
@@ -1000,6 +1015,7 @@ class PrinterService {
             printer.cut();
           }
         }
+        await Future.delayed(_drainDelay);
         return true;
       }
 
@@ -1012,7 +1028,7 @@ class PrinterService {
           // Key on the canonical English name so switching language never
           // changes how lines group; only the printed label follows the locale.
           final key = [
-            i.product.name,
+            i.product.id,
             i.isFreePromo ? 'free' : '',
             i.selectedToppings.map((t) => t.name).join('|'),
             note,
@@ -1067,6 +1083,7 @@ class PrinterService {
       }
       printer.feed(2);
       printer.cut();
+      await Future.delayed(_drainDelay);
       return true;
     } catch (e) {
       _printerLog('[PRINTER] Print order ticket failed: $e');
@@ -1075,6 +1092,9 @@ class PrinterService {
       try { printer.disconnect(); } catch (_) {}
     }
   }
+  /// ESC/POS cash drawer pulse on pin 2: ESC p 0 25 250.
+  static const List<int> _drawerPulse = [0x1B, 0x70, 0x00, 0x19, 0xFA];
+
   Future<bool> openCashDrawer() async {
   await initialize();
   final p = _getReceiptPrinter();
@@ -1099,7 +1119,7 @@ class PrinterService {
       // ESC/POS cash drawer pulse: ESC p m t1 t2
       // Pin 2: ESC p 0 25 250
       // Pin 5: ESC p 1 25 250
-      printer.rawBytes([0x1B, 0x70, 0x00, 0x19, 0xFA]); // pin 2
+      printer.rawBytes(_drawerPulse); // pin 2
       // NetworkPrinter.disconnect() destroys the socket at once and drops
       // anything not yet sent: the pulse was lost and the drawer never opened.
       await Future.delayed(const Duration(milliseconds: 600));
@@ -1175,6 +1195,9 @@ class PrinterService {
         // ESC/POS-safe currency. Map common non-ASCII symbols to ASCII so the
         // Latin-1 encoder used by esc_pos_utils never throws.
         final currency = _safeCurrency(rawCurrency);
+        // Every line in the print font, like the first print: the printer's
+        // own font turned Lao names into "?????" on reprints and refunds.
+        final dots = _dotsFor(profile);
         final dateStr   = receiptData['date_order']?.toString() ?? '';
         _printerLog('REPRINT >> data: order=$orderRef cashier=$cashier table=$table '
             'payment=$payment currency(raw="$rawCurrency", safe="$currency") '
@@ -1189,30 +1212,30 @@ class PrinterService {
           for (final line in head.split('\n')) {
             final t = line.trimRight();
             if (t.isEmpty) continue;
-            printer.text(_sanitizeForEscPos(t), styles: const PosStyles(align: PosAlign.center, bold: true));
+            await _emitLine(printer, t, dots: dots, bold: true, align: PosAlign.center, inPrintFont: true);
           }
         } else {
-          printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+          await _emitLine(printer, 'LaDolce', dots: dots, bold: true, fontSize: _bigFontSize, align: PosAlign.center, inPrintFont: true);
         }
         currentStep = 'reprint label';
         _printerLog('REPRINT >> [${++step}] REPRINT label');
-        printer.text('** REPRINT **', styles: const PosStyles(align: PosAlign.center, bold: true));
+        await _emitLine(printer, '** REPRINT **', dots: dots, bold: true, align: PosAlign.center, inPrintFont: true);
         currentStep = 'hr#1';
         _printerLog('REPRINT >> [${++step}] hr (-)');
         printer.hr();
         currentStep = 'meta';
         _printerLog('REPRINT >> [${++step}] meta lines');
         if (queueNumber != null && queueNumber > 0) {
-          printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+          await _emitLine(printer, _fmtQueue(queueNumber), dots: dots, bold: true, fontSize: _bigFontSize, align: PosAlign.center, inPrintFont: true);
           printer.hr();
         }
-        printer.text('Order: ${_sanitizeForEscPos(orderRef)}');
+        await _emitLine(printer, 'Order: $orderRef', dots: dots, inPrintFont: true);
         if (dateStr.isNotEmpty) {
-          printer.text('Date: ${_sanitizeForEscPos(dateStr.substring(0, dateStr.length > 19 ? 19 : dateStr.length))}');
+          await _emitLine(printer, 'Date: ${dateStr.substring(0, dateStr.length > 19 ? 19 : dateStr.length)}', dots: dots, inPrintFont: true);
         }
-        if (cashier.isNotEmpty) printer.text('Cashier: ${_sanitizeForEscPos(cashier)}');
-        if (table.isNotEmpty)   printer.text('Table: ${_sanitizeForEscPos(table)}');
-        if (payment.isNotEmpty) printer.text('Payment: ${_sanitizeForEscPos(payment)}');
+        if (cashier.isNotEmpty) await _emitLine(printer, 'Cashier: $cashier', dots: dots, inPrintFont: true);
+        if (table.isNotEmpty)   await _emitLine(printer, 'Table: $table', dots: dots, inPrintFont: true);
+        if (payment.isNotEmpty) await _emitLine(printer, 'Payment: $payment', dots: dots, inPrintFont: true);
         currentStep = 'hr#2';
         _printerLog('REPRINT >> [${++step}] hr (-)');
         printer.hr();
@@ -1230,19 +1253,15 @@ class PrinterService {
             final qty = _asInt(m['qty'], fallback: 1);
             final subtotal = _asDouble(m['subtotal']);
 
-            final nameMax = profile.paperWidthMm == 58 ? 22 : 34;
-            final left = _trimToFit(_sanitizeForEscPos('${qty}x $rawName'), nameMax);
+            final left = '${qty}x $rawName';
             final right = m['is_free_promo'] == true
                 ? 'FREE'
-                : _sanitizeForEscPos('$currency ${money(subtotal)}');
+                : '$currency ${money(subtotal)}';
             _printerLog('REPRINT >> item[$idx] qtyType=${m['qty']?.runtimeType} '
                 'subType=${m['subtotal']?.runtimeType} '
                 'left="$left" right="$right" rawName="$rawName"');
 
-            printer.row([
-              PosColumn(text: left, width: 8, styles: const PosStyles(bold: true)),
-              PosColumn(text: right, width: 4, styles: const PosStyles(align: PosAlign.right)),
-            ]);
+            await _emitRow(printer, left, right, dots: dots, bold: true, inPrintFont: true);
           } catch (e, st) {
             _printerLog('REPRINT >> item[$idx] ERROR: $e\n$st');
             try {
@@ -1256,22 +1275,16 @@ class PrinterService {
         final discountAmt = _asDouble(receiptData['amount_discount']);
         if (discountAmt > 0) {
           _printerLog('REPRINT >> [${++step}] discount line');
-          printer.row([
-            PosColumn(text: 'Discount:', width: 8, styles: const PosStyles(bold: true)),
-            PosColumn(text: '-$currency ${money(discountAmt)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
-          ]);
+          await _emitRow(printer, 'Discount:', '-$currency ${money(discountAmt)}', dots: dots, bold: true, inPrintFont: true);
         }
 
         currentStep = 'hr#3 (=)';
         _printerLog('REPRINT >> [${++step}] hr (=)');
         printer.hr(ch: '=');
         currentStep = 'TOTAL row';
-        final totalText = _sanitizeForEscPos('$currency ${money(total)}');
+        final totalText = '$currency ${money(total)}';
         _printerLog('REPRINT >> [${++step}] TOTAL row text="$totalText"');
-        printer.row([
-          PosColumn(text: 'TOTAL:', width: 8, styles: const PosStyles(bold: true)),
-          PosColumn(text: totalText, width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
-        ]);
+        await _emitRow(printer, 'TOTAL:', totalText, dots: dots, bold: true, large: true, inPrintFont: true);
         currentStep = 'payments';
         final pays = receiptData['payments'];
         if (pays is List) {
@@ -1281,7 +1294,8 @@ class PrinterService {
               printer,
               (pay['payment_method'] ?? '').toString(),
               '$currency ${money(_asDouble(pay['amount']))}',
-              dots: _dotsFor(profile),
+              dots: dots,
+              inPrintFont: true,
             );
           }
         }
@@ -1289,16 +1303,15 @@ class PrinterService {
         final customer = (receiptData['customer'] ?? '').toString().trim();
         final pointsEarned = receiptData['points_earned'];
         if (customer.isNotEmpty || pointsEarned != null) {
-          final dots = _dotsFor(profile);
           final label = (receiptData['points_label'] ?? 'Points').toString();
           printer.hr();
           // Customer names are often Lao: _emitLine rasterises them.
-          if (customer.isNotEmpty) await _emitLine(printer, 'Customer: $customer', dots: dots);
+          if (customer.isNotEmpty) await _emitLine(printer, 'Customer: $customer', dots: dots, inPrintFont: true);
           if (pointsEarned != null) {
-            await _emitRow(printer, '$label earned', '+${_asInt(pointsEarned)}', dots: dots, bold: true);
+            await _emitRow(printer, '$label earned', '+${_asInt(pointsEarned)}', dots: dots, bold: true, inPrintFont: true);
             final balance = receiptData['customer_points'];
             if (balance != null) {
-              await _emitRow(printer, 'Total $label', '${_asInt(balance)}', dots: dots);
+              await _emitRow(printer, 'Total $label', '${_asInt(balance)}', dots: dots, inPrintFont: true);
             }
           }
         }
@@ -1307,8 +1320,8 @@ class PrinterService {
         printer.feed(1);
         final foot = (receiptData['footer_text'] ?? '').toString().trim();
         if (foot.isEmpty) {
-          printer.text('Thank you!', styles: const PosStyles(align: PosAlign.center, bold: true));
-          printer.text('Please come again', styles: const PosStyles(align: PosAlign.center));
+          await _emitLine(printer, 'Thank you!', dots: dots, bold: true, align: PosAlign.center, inPrintFont: true);
+          await _emitLine(printer, 'Please come again', dots: dots, align: PosAlign.center, inPrintFont: true);
         } else {
           currentStep = 'footer';
           _printerLog('REPRINT >> [${++step}] footer (${foot.split('\n').length} lines)');
@@ -1316,7 +1329,7 @@ class PrinterService {
           for (final line in foot.split('\n')) {
             final t = line.trimRight();
             if (t.isEmpty) continue;
-            printer.text(_sanitizeForEscPos(t), styles: const PosStyles(align: PosAlign.center));
+            await _emitLine(printer, t, dots: dots, align: PosAlign.center, inPrintFont: true);
           }
         }
         currentStep = 'feed3 + cut';
@@ -1406,6 +1419,9 @@ class PrinterService {
         final total = _asDouble(receiptData['amount_total']);
         final rawCurrency = receiptData['currency']?.toString() ?? 'LAK';
         final currency = _safeCurrency(rawCurrency);
+        // Every line in the print font, like the first print: the printer's
+        // own font turned Lao names into "?????" on reprints and refunds.
+        final dots = _dotsFor(profile);
         final lines = receiptData['lines'] as List? ?? [];
         _printerLog('REFUND >> data: order=$orderRef cashier=$cashier payment=$payment '
             'currency(raw="$rawCurrency", safe="$currency") '
@@ -1418,36 +1434,28 @@ class PrinterService {
           for (final line in head.split('\n')) {
             final t = line.trimRight();
             if (t.isEmpty) continue;
-            printer.text(_sanitizeForEscPos(t), styles: const PosStyles(align: PosAlign.center, bold: true));
+            await _emitLine(printer, t, dots: dots, bold: true, align: PosAlign.center, inPrintFont: true);
           }
         } else {
-          printer.text(
-            'LaDolce',
-            styles: const PosStyles(
-              align: PosAlign.center,
-              bold: true,
-              height: PosTextSize.size2,
-              width: PosTextSize.size2,
-            ),
-          );
+          await _emitLine(printer, 'LaDolce', dots: dots, bold: true, fontSize: _bigFontSize, align: PosAlign.center, inPrintFont: true);
         }
 
         currentStep = 'refund label';
         _printerLog('REFUND >> [${++step}] REFUND label');
-        printer.text('** REFUND **', styles: const PosStyles(align: PosAlign.center, bold: true));
+        await _emitLine(printer, '** REFUND **', dots: dots, bold: true, align: PosAlign.center, inPrintFont: true);
         currentStep = 'hr#1';
         _printerLog('REFUND >> [${++step}] hr (-)');
         printer.hr();
         currentStep = 'meta';
         _printerLog('REFUND >> [${++step}] meta lines');
         if (queueNumber != null && queueNumber > 0) {
-          printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+          await _emitLine(printer, _fmtQueue(queueNumber), dots: dots, bold: true, fontSize: _bigFontSize, align: PosAlign.center, inPrintFont: true);
           printer.hr();
         }
-        if (orderRef.isNotEmpty) printer.text('Order: ${_sanitizeForEscPos(orderRef)}');
-        printer.text('Refund Date: ${DateTime.now().toString().substring(0, 19)}');
-        if (cashier.isNotEmpty) printer.text('Cashier: ${_sanitizeForEscPos(cashier)}');
-        if (payment.isNotEmpty) printer.text('Payment: ${_sanitizeForEscPos(payment)}');
+        if (orderRef.isNotEmpty) await _emitLine(printer, 'Order: $orderRef', dots: dots, inPrintFont: true);
+        await _emitLine(printer, 'Refund Date: ${DateTime.now().toString().substring(0, 19)}', dots: dots, inPrintFont: true);
+        if (cashier.isNotEmpty) await _emitLine(printer, 'Cashier: $cashier', dots: dots, inPrintFont: true);
+        if (payment.isNotEmpty) await _emitLine(printer, 'Payment: $payment', dots: dots, inPrintFont: true);
         currentStep = 'hr#2';
         _printerLog('REFUND >> [${++step}] hr (-)');
         printer.hr();
@@ -1465,23 +1473,15 @@ class PrinterService {
             final qty = _asInt(m['qty'], fallback: 1);
             final subtotal = _asDouble(m['subtotal']);
 
-            final nameMax = profile.paperWidthMm == 58 ? 22 : 34;
-            final left = _trimToFit(_sanitizeForEscPos('${qty}x $rawName'), nameMax);
+            final left = '${qty}x $rawName';
             final right = m['is_free_promo'] == true
                 ? 'FREE'
-                : _sanitizeForEscPos('$currency ${money(subtotal)}');
+                : '$currency ${money(subtotal)}';
             _printerLog('REFUND >> item[$idx] qtyType=${m['qty']?.runtimeType} '
                 'subType=${m['subtotal']?.runtimeType} '
                 'left="$left" right="$right" rawName="$rawName"');
 
-            printer.row([
-              PosColumn(text: left, width: 8, styles: const PosStyles(bold: true)),
-              PosColumn(
-                text: right,
-                width: 4,
-                styles: const PosStyles(align: PosAlign.right),
-              ),
-            ]);
+            await _emitRow(printer, left, right, dots: dots, bold: true, inPrintFont: true);
           } catch (e, st) {
             _printerLog('REFUND >> item[$idx] ERROR: $e\n$st');
             try {
@@ -1495,16 +1495,13 @@ class PrinterService {
         _printerLog('REFUND >> [${++step}] hr (=)');
         printer.hr(ch: '=');
         currentStep = 'REFUND AMOUNT row';
-        final totalText = _sanitizeForEscPos('$currency ${money(total)}');
+        final totalText = '$currency ${money(total)}';
         _printerLog('REFUND >> [${++step}] REFUND AMOUNT row text="$totalText"');
-        printer.row([
-          PosColumn(text: 'REFUND AMOUNT:', width: 8, styles: const PosStyles(bold: true)),
-          PosColumn(text: totalText, width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
-        ]);
+        await _emitRow(printer, 'REFUND AMOUNT:', totalText, dots: dots, bold: true, large: true, inPrintFont: true);
         currentStep = 'feed1 + processed';
         _printerLog('REFUND >> [${++step}] feed(1) + Refund Processed');
         printer.feed(1);
-        printer.text('Refund Processed', styles: const PosStyles(align: PosAlign.center, bold: true));
+        await _emitLine(printer, 'Refund Processed', dots: dots, bold: true, align: PosAlign.center, inPrintFont: true);
 
         final foot = (footerText ?? receiptData['footer_text'] ?? '').toString().trim();
         if (foot.isNotEmpty) {
@@ -1514,7 +1511,7 @@ class PrinterService {
           for (final line in foot.split('\n')) {
             final t = line.trimRight();
             if (t.isEmpty) continue;
-            printer.text(_sanitizeForEscPos(t), styles: const PosStyles(align: PosAlign.center));
+            await _emitLine(printer, t, dots: dots, align: PosAlign.center, inPrintFont: true);
           }
         }
         currentStep = 'feed3 + cut';

@@ -15,6 +15,8 @@ class AppUpdateFlow {
     _checkedThisRun = true;
     try {
       final service = AppUpdateService();
+      // The app restarted, so an earlier download is installed or unwanted.
+      await service.deleteDownloads();
       final release = await service.availableUpdate();
       if (release == null || !context.mounted) return;
       await _offer(context, service, release);
@@ -149,6 +151,16 @@ class AppUpdateFlow {
         ),
       ),
     );
+    // Close the progress dialog once only: a second pop closed the screen
+    // underneath (POS or Settings) when the install step failed.
+    var progressOpen = true;
+    void closeProgress() {
+      if (progressOpen) {
+        progressOpen = false;
+        navigator.pop();
+      }
+    }
+
     try {
       final path = await service.download(
         release,
@@ -156,11 +168,11 @@ class AppUpdateFlow {
           if (total > 0) progress.value = received / total;
         },
       );
-      navigator.pop(); // progress dialog
+      closeProgress();
       if (!context.mounted) return;
       await _install(context, service, release, path);
     } catch (e) {
-      navigator.pop();
+      closeProgress();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(l10n?.appUpdateFailed('$e') ?? 'Update failed: $e'),
