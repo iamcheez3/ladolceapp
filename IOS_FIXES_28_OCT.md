@@ -4,7 +4,7 @@ This is the list of what changed on 28 Oct 2026, after a full test of the app an
 
 | | Branch `sith`, latest commit |
 |---|---|
-| App (`ladolceapp`) | `REDESIGN_HASH`, version **1.0.1 (build 10)**: the fixes below plus the new look (section 3c) |
+| App (`ladolceapp`) | `7106121`, version **1.0.1 (build 10)**: the fixes below plus the new look (section 3c) |
 | Backend (`ladolcepos`) | `0fdd9e6` |
 
 The older changes (topping groups, split payment, buy X get Y free, and so on) are in `IOS_BUILD_NOTES.md` in the app repo. Read that too if you haven't built since 10 Oct.
@@ -12,7 +12,7 @@ The older changes (topping groups, split payment, buy X get Y free, and so on) a
 ## 1. Build
 
 ```bash
-git checkout sith && git pull        # app must be at REDESIGN_HASH or newer
+git checkout sith && git pull        # app must be at 7106121 or newer
 flutter clean && flutter pub get
 cd ios && pod install && cd ..
 flutter test                         # 1,708 tests, all should pass
