@@ -4957,6 +4957,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Discard'**
   String get leaveUnsavedDiscard;
+
+  /// No description provided for @profileCoffeeTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Coffee time'**
+  String get profileCoffeeTime;
+
+  /// No description provided for @greetingMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good morning,'**
+  String get greetingMorning;
+
+  /// No description provided for @greetingAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon,'**
+  String get greetingAfternoon;
+
+  /// No description provided for @greetingEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening,'**
+  String get greetingEvening;
+
+  /// No description provided for @rankOfTop50.
+  ///
+  /// In en, this message translates to:
+  /// **'#{rank} of 50'**
+  String rankOfTop50(String rank);
+
+  /// No description provided for @pointsToFreeItem.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} pts more for a free {item}'**
+  String pointsToFreeItem(String points, String item);
+
+  /// No description provided for @rewardReadyToRedeem.
+  ///
+  /// In en, this message translates to:
+  /// **'You have enough points for a reward'**
+  String get rewardReadyToRedeem;
+
+  /// No description provided for @shareMyCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Share my card'**
+  String get shareMyCard;
+
+  /// No description provided for @yourCorner.
+  ///
+  /// In en, this message translates to:
+  /// **'Your corner'**
+  String get yourCorner;
+
+  /// No description provided for @tileRewardsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Points into treats'**
+  String get tileRewardsSubtitle;
+
+  /// No description provided for @tileVouchersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View and claim'**
+  String get tileVouchersSubtitle;
+
+  /// No description provided for @tileRankingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Top 50 regulars'**
+  String get tileRankingSubtitle;
+
+  /// No description provided for @showFriendsRegular.
+  ///
+  /// In en, this message translates to:
+  /// **'Show friends you\'re a regular'**
+  String get showFriendsRegular;
+
+  /// No description provided for @postCardToStory.
+  ///
+  /// In en, this message translates to:
+  /// **'Post your card to your story'**
+  String get postCardToStory;
+
+  /// No description provided for @isLaDolceRegular.
+  ///
+  /// In en, this message translates to:
+  /// **'is a LaDolce regular'**
+  String get isLaDolceRegular;
+
+  /// No description provided for @inTheTop50.
+  ///
+  /// In en, this message translates to:
+  /// **'in the Top 50'**
+  String get inTheTop50;
+
+  /// No description provided for @laDolceApp.
+  ///
+  /// In en, this message translates to:
+  /// **'LaDolce app'**
+  String get laDolceApp;
+
+  /// No description provided for @orderCoffeeInApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Order your coffee in the app'**
+  String get orderCoffeeInApp;
+
+  /// No description provided for @cardColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Card colour'**
+  String get cardColour;
+
+  /// No description provided for @showRank.
+  ///
+  /// In en, this message translates to:
+  /// **'Show rank'**
+  String get showRank;
+
+  /// No description provided for @showPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Show points'**
+  String get showPoints;
+
+  /// No description provided for @shareTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Share to'**
+  String get shareTo;
+
+  /// No description provided for @shareMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get shareMore;
+
+  /// No description provided for @shareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareAction;
+
+  /// No description provided for @imageSavedToPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your photos'**
+  String get imageSavedToPhotos;
+
+  /// No description provided for @couldNotSaveImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the image'**
+  String get couldNotSaveImage;
+
+  /// No description provided for @couldNotShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not share. Please try again.'**
+  String get couldNotShare;
+
+  /// No description provided for @photoPermissionToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo permission is needed to save the image'**
+  String get photoPermissionToSave;
+
+  /// No description provided for @shareCardText.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'m a LaDolce regular! Order with the LaDolce app.'**
+  String get shareCardText;
+
+  /// No description provided for @rewardPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward points'**
+  String get rewardPoints;
 }
 
 class _AppLocalizationsDelegate

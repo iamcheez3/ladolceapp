@@ -46,7 +46,7 @@
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>We need your location to center the map when adding a favorite place.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
-		<string>We save QR payment images to your photo library.</string>
+		<string>We save QR payment images and your LaDolce member card to your photo library.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>We need photo library access to save QR payment images.</string>
 		<key>UIApplicationSceneManifest</key>

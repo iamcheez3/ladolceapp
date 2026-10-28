@@ -7,6 +7,7 @@ import 'dart:math' show sin, cos, sqrt, asin, pi;
 import 'dart:ui' as ui;
 import 'customer_support_screen.dart';
 import 'ranking_screen.dart';
+import 'share_card_screen.dart';
 import '../services/push_notifications_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' show Factory;
@@ -4143,15 +4144,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _openRewardsCatalog() {
-    final redeemableProducts = _products.where((p) {
-      if (!p.isRedeemable) return false;
-      final now = DateTime.now();
-      if (p.redeemStartDate != null && now.isBefore(p.redeemStartDate!))
-        return false;
-      if (p.redeemEndDate != null && now.isAfter(p.redeemEndDate!))
-        return false;
-      return true;
-    }).toList();
+    final redeemableProducts = _redeemableRewards;
 
     showModalBottomSheet(
       context: context,
@@ -7932,376 +7925,721 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
+  /// Rewards the catalog offers right now (redeemable and inside their dates).
+  List<Product> get _redeemableRewards {
+    final now = DateTime.now();
+    return _products.where((p) {
+      if (!p.isRedeemable) return false;
+      if (p.redeemStartDate != null && now.isBefore(p.redeemStartDate!)) {
+        return false;
+      }
+      if (p.redeemEndDate != null && now.isAfter(p.redeemEndDate!)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  /// The cheapest reward the customer cannot afford yet, for the progress bar
+  /// on the points card. Null when there is none.
+  Product? get _nextReward {
+    Product? next;
+    for (final p in _redeemableRewards) {
+      if (p.pointPrice <= _rewardPoints) continue;
+      if (next == null || p.pointPrice < next.pointPrice) next = p;
+    }
+    return next;
+  }
+
+  bool get _canRedeemSomething =>
+      _redeemableRewards.any((p) => p.pointPrice > 0 && p.pointPrice <= _rewardPoints);
+
+  ImageProvider? _profileAvatarImage() {
+    final path = _profileImagePath;
+    if (path != null && File(path).existsSync()) return FileImage(File(path));
+    return _customerMemoryImage();
+  }
+
+  void _openRanking() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RankingScreen(
+          myRank: _rewardRank <= 0 ? null : _rewardRank,
+          myPoints: _rewardPoints,
+          myName: _customerName,
+          myImageBase64: _customerImageBase64,
+        ),
+      ),
+    );
+  }
+
+  void _openShareCard() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShareCardScreen(
+          name: _customerName,
+          points: _rewardPoints,
+          rank: _rewardRank,
+          avatar: _profileAvatarImage(),
+        ),
+      ),
+    );
+  }
+
+  void _copyClientId() {
+    Clipboard.setData(ClipboardData(text: _clientId));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_l10n?.clientIdCopied ?? 'Client ID copied to clipboard!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Profile tab, "Coffee time": greeting, navy points card with the bear
+  /// watermark, the customer's corner (rewards, vouchers, ranking, places),
+  /// the share-my-card banner and the settings.
   Widget _buildProfileTab({bool isWide = false, bool isSmall = false}) {
     if (_isLoadingProfile) {
       return const Center(child: CircularProgressIndicator());
     }
+    final pad = isSmall ? 12.0 : 16.0;
+    final avatar = _profileAvatarImage();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompactHeight = constraints.maxHeight < 760;
-        final customerMemoryImage = _customerMemoryImage();
-        final avatarOuterRadius = isSmall
-            ? 46.0
-            : (isCompactHeight ? 52.0 : 60.0);
-        final avatarInnerRadius = avatarOuterRadius - 3;
-        final initialsFontSize = isSmall
-            ? 24.0
-            : (isCompactHeight ? 28.0 : 32.0);
-        final statusDotSize = isSmall ? 14.0 : 16.0;
-        final cameraButtonSize = 36.0;
-        final cameraIconSize = 18.0;
-        final hasFile = _profileImagePath != null &&
-            File(_profileImagePath!).existsSync();
-        final pts = NumberFormat.decimalPattern().format(_rewardPoints);
-
-        return SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.only(bottom: _gestureNavBottomPad(context) + 16),
-          child: Column(
-            children: [
-              // ── Navy identity band ──
-              Container(
-                width: double.infinity,
-                color: Ld.navy,
-                padding: EdgeInsets.fromLTRB(16, isSmall ? 8 : 12, 16, 20),
-                child: Column(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.only(bottom: _gestureNavBottomPad(context) + 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(pad, 12, pad, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: _pickProfileImage,
-                          child: CircleAvatar(
-                            radius: avatarOuterRadius,
-                            backgroundColor: Ld.gold,
-                            child: CircleAvatar(
-                              radius: avatarInnerRadius,
-                              backgroundColor: Ld.navyRaised,
-                              backgroundImage: hasFile
-                                  ? FileImage(File(_profileImagePath!))
-                                  : (customerMemoryImage != null)
-                                  ? customerMemoryImage
-                                  : null,
-                              child: !hasFile &&
-                                      (_customerImageBase64 == null ||
-                                          _customerImageBase64!.isEmpty)
-                                  ? Text(
-                                      _customerName.isEmpty
-                                          ? 'C'
-                                          : _customerName
-                                                .substring(0, 1)
-                                                .toUpperCase(),
-                                      style: Ld.title(initialsFontSize, color: Colors.white),
-                                    )
-                                  : null,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: avatarOuterRadius * 0.18,
-                          bottom: avatarOuterRadius * 0.12,
-                          child: Container(
-                            width: statusDotSize,
-                            height: statusDotSize,
-                            decoration: BoxDecoration(
-                              color: Ld.successStrong,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: Ld.navy,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          right: -4,
-                          bottom: -2,
-                          child: Material(
-                            color: Ld.surface,
-                            shape: const CircleBorder(
-                              side: BorderSide(color: Ld.navy, width: 2),
-                            ),
-                            child: InkWell(
-                              onTap: _pickProfileImage,
-                              customBorder: const CircleBorder(),
-                              child: SizedBox(
-                                width: cameraButtonSize + 8,
-                                height: cameraButtonSize + 8,
-                                child: _isUploadingProfileImage
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(12),
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : Icon(
-                                        Icons.photo_camera_outlined,
-                                        color: _brandNavy,
-                                        size: cameraIconSize,
-                                      ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _customerName.isEmpty ? (_l10n?.roleCustomer ?? 'Customer') : _customerName,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: Ld.title(isSmall ? 20 : 22, color: Colors.white),
-                    ),
-                    if (_customerDob.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'DOB: $_customerDob',
+                    const Icon(Icons.coffee_outlined, size: 20, color: Ld.goldInk),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _l10n?.profileCoffeeTime ?? 'Coffee time',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Ld.onNavyMuted,
-                          fontSize: 13.5,
-                        ),
-                      ),
-                    ],
-                    if (_clientId.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      InkWell(
-                        borderRadius: BorderRadius.circular(Ld.rSm),
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: _clientId));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(_l10n?.clientIdCopied ?? (_l10n?.clientIdCopied ?? 'Client ID copied to clipboard!'),
-                              ),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 44),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    'Client ID: $_clientId',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Ld.onNavyMuted,
-                                      fontSize: 13.5,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Icon(
-                                  Icons.copy_rounded,
-                                  size: 16,
-                                  color: Ld.onNavyMuted,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    // Points: gold on the raised navy card.
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Ld.navyRaised,
-                          borderRadius: BorderRadius.circular(Ld.rLg),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.stars_rounded,
-                              color: Ld.gold,
-                              size: 26,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _l10n?.rewardPointsLabel(pts) ?? 'Reward points: $_rewardPoints',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Ld.price(isSmall ? 16 : 18, color: Ld.gold),
-                              ),
-                            ),
-                            if (_rewardRank > 0) ...[
-                              const SizedBox(width: 8),
-                              _rankPill(_rewardRank),
-                            ],
-                          ],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Ld.goldInk,
                         ),
                       ),
                     ),
+                    Semantics(
+                      label: _l10n?.language ?? 'Language',
+                      child: _languageToggle(),
+                    ),
                   ],
                 ),
-              ),
-              // ── Menu ──
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(isSmall ? 12 : 16, 16, isSmall ? 12 : 16, 0),
+                const SizedBox(height: 16),
+                _profileIdentity(avatar, isSmall: isSmall),
+                const SizedBox(height: 20),
+                _profilePointsCard(isSmall: isSmall),
+                const SizedBox(height: 22),
+                Text(
+                  _l10n?.yourCorner ?? 'Your corner',
+                  style: Ld.title(19, color: Ld.ink),
+                ),
+                const SizedBox(height: 10),
+                _profileCornerGrid(),
+                const SizedBox(height: 12),
+                _profileShareBanner(),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: Ld.card(radius: 24, border: Ld.lineSoft),
+                  clipBehavior: Clip.antiAlias,
+                  child: Material(
+                    color: Ld.surface,
                     child: Column(
                       children: [
-                        Container(
-                          decoration: Ld.card(),
-                          clipBehavior: Clip.antiAlias,
-                          child: Material(
-                            color: Ld.surface,
-                            child: Column(
-                              children: [
-                                _profileMenuTile(
-                                  title: _l10n?.navProfile ?? (_l10n?.navProfile ?? 'Profile'),
-                                  subtitle:
-                                      '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
-                                  icon: Icons.person_outline,
-                                  onTap: _openEditProfileSheet,
-                                ),
-                                _profileMenuTile(
-                                  title: _l10n?.rewardsCatalog ?? (_l10n?.rewardsCatalog ?? 'Rewards Catalog'),
-                                  subtitle: _l10n?.convertPointsIntoItems ?? (_l10n?.convertPointsIntoItems ?? 'Convert your points into free items'),
-                                  icon: Icons.card_giftcard_outlined,
-                                  onTap: () {
-                                    _openRewardsCatalog();
-                                  },
-                                ),
-                                _profileMenuTile(
-                                  title: _l10n?.myVouchers ?? (_l10n?.myVouchers ?? 'My Vouchers'),
-                                  subtitle: _l10n?.viewClaimVouchers ?? (_l10n?.viewClaimVouchers ?? 'View and claim your saved vouchers'),
-                                  icon: Icons.qr_code_scanner_outlined,
-                                  onTap: () {
-                                    _openMyVouchers();
-                                  },
-                                ),
-                                _profileMenuTile(
-                                  title: _l10n?.favoritePlaces ?? (_l10n?.favoritePlaces ?? 'Favorite places'),
-                                  subtitle: _favoritePlacesSubtitle,
-                                  icon: Icons.place_outlined,
-                                  onTap: _openFavoritePlacesSheet,
-                                ),
-                                _profileNotificationTile(),
-                                _profileMenuTile(
-                                  title: _l10n?.ranking ?? (_l10n?.ranking ?? 'Ranking'),
-                                  subtitle: _l10n?.seeTop50 ?? (_l10n?.seeTop50 ?? 'See Top 50 rewards leaderboard'),
-                                  icon: Icons.emoji_events_outlined,
-                                  trailing: _rewardRank > 0
-                                      ? _rankPill(_rewardRank)
-                                      : null,
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => RankingScreen(
-                                          myRank: _rewardRank <= 0
-                                              ? null
-                                              : _rewardRank,
-                                          myPoints: _rewardPoints,
-                                          myName: _customerName,
-                                          myImageBase64: _customerImageBase64,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                _profileMenuTile(
-                                  title: _l10n?.language ?? 'Language',
-                                  subtitle:
-                                      Localizations.localeOf(
-                                            context,
-                                          ).languageCode ==
-                                          'lo'
-                                      ? 'ລາວ'
-                                      : (_l10n?.english ?? 'English'),
-                                  icon: Icons.language_outlined,
-                                  trailing: _languageToggle(),
-                                  // Tapping the row flips to the other language,
-                                  // so the whole tile behaves as the switch.
-                                  onTap: () => PosApp.setLocale(
-                                    context,
-                                    Localizations.localeOf(
-                                              context,
-                                            ).languageCode ==
-                                            'lo'
-                                        ? const Locale('en', '')
-                                        : const Locale('lo', ''),
-                                  ),
-                                ),
-                                _profileMenuTile(
-                                  title: _l10n?.customerSupport ?? (_l10n?.customerSupport ?? 'Customer support'),
-                                  subtitle: _l10n?.supportChannels ?? (_l10n?.supportChannels ?? 'Facebook & WhatsApp (from store settings)'),
-                                  icon: Icons.support_agent_outlined,
-                                  isLast: true,
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => CustomerSupportScreen(
-                                          facebookUrl: _supportFacebookUrl,
-                                          whatsappNumber: _supportWhatsappNumber,
-                                          whatsappLink: _supportWhatsappLink,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
+                        _profileMenuTile(
+                          title: _l10n?.editProfile ?? 'Edit profile',
+                          subtitle:
+                              '${_customerPhone.isEmpty ? '-' : _customerPhone}  •  DOB: ${_customerDob.isEmpty ? '-' : _customerDob}',
+                          icon: Icons.person_outline,
+                          onTap: _openEditProfileSheet,
                         ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _isLoggingOut ? null : _logout,
-                            icon: const Icon(Icons.logout_rounded),
-                            label: _isLoggingOut
-                                ? Text(_l10n?.loggingOut ?? (_l10n?.loggingOut ?? 'Logging out...'))
-                                : Text(_l10n?.logout ?? (_l10n?.logout ?? 'Logout')),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Ld.danger,
-                              backgroundColor: Ld.surface,
-                              side: const BorderSide(color: Ld.dangerLine),
-                              minimumSize: const Size.fromHeight(52),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: _isDeletingAccount
-                              ? null
-                              : _confirmDeleteAccount,
-                          style: TextButton.styleFrom(
-                            foregroundColor: Ld.danger,
-                            textStyle: const TextStyle(
-                              fontFamily: Ld.sans,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 14,
-                            ),
-                          ),
-                          child: Text(
-                            _isDeletingAccount
-                                ? (_l10n?.deletingAccount ?? 'Deleting account...')
-                                : (_l10n?.deleteAccount ?? 'Delete account'),
-                          ),
+                        _profileNotificationTile(),
+                        _profileMenuTile(
+                          title: _l10n?.customerSupport ?? 'Customer support',
+                          subtitle: _l10n?.supportChannels ??
+                              'Facebook & WhatsApp (from store settings)',
+                          icon: Icons.support_agent_outlined,
+                          isLast: true,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => CustomerSupportScreen(
+                                  facebookUrl: _supportFacebookUrl,
+                                  whatsappNumber: _supportWhatsappNumber,
+                                  whatsappLink: _supportWhatsappLink,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: _isLoggingOut ? null : _logout,
+                  icon: const Icon(Icons.logout_rounded),
+                  label: Text(
+                    _isLoggingOut
+                        ? (_l10n?.loggingOut ?? 'Logging out...')
+                        : (_l10n?.logout ?? 'Logout'),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Ld.danger,
+                    backgroundColor: Ld.surface,
+                    side: const BorderSide(color: Ld.dangerLine),
+                    minimumSize: const Size.fromHeight(52),
+                    shape: const StadiumBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _isDeletingAccount ? null : _confirmDeleteAccount,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Ld.danger,
+                    minimumSize: const Size.fromHeight(44),
+                    textStyle: const TextStyle(
+                      fontFamily: Ld.sans,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                  child: Text(
+                    _isDeletingAccount
+                        ? (_l10n?.deletingAccount ?? 'Deleting account...')
+                        : (_l10n?.deleteAccount ?? 'Delete account'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _profileIdentity(ImageProvider? avatar, {required bool isSmall}) {
+    final size = isSmall ? 72.0 : 80.0;
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? (_l10n?.greetingMorning ?? 'Good morning,')
+        : hour < 17
+        ? (_l10n?.greetingAfternoon ?? 'Good afternoon,')
+        : (_l10n?.greetingEvening ?? 'Good evening,');
+    final initial = _customerName.isEmpty
+        ? 'C'
+        : _customerName.characters.first.toUpperCase();
+
+    Widget chip({required IconData icon, required String text, VoidCallback? onTap}) {
+      final body = ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 36),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: Ld.navy),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Ld.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      return Material(
+        color: Ld.lineSoft,
+        shape: const StadiumBorder(),
+        child: onTap == null
+            ? body
+            : InkWell(customBorder: const StadiumBorder(), onTap: onTap, child: body),
+      );
+    }
+
+    return Row(
+      children: [
+        SizedBox(
+          width: size + 8,
+          height: size + 6,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              GestureDetector(
+                onTap: _pickProfileImage,
+                child: Container(
+                  width: size,
+                  height: size,
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Ld.gold,
+                  ),
+                  child: CircleAvatar(
+                    backgroundColor: Ld.navyRaised,
+                    backgroundImage: avatar,
+                    child: avatar == null
+                        ? Text(initial, style: Ld.title(size * 0.4, color: Colors.white))
+                        : null,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -4,
+                bottom: -2,
+                child: Material(
+                  color: Ld.surface,
+                  shape: const CircleBorder(side: BorderSide(color: Ld.gold, width: 2)),
+                  child: InkWell(
+                    onTap: _pickProfileImage,
+                    customBorder: const CircleBorder(),
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: _isUploadingProfileImage
+                          ? const Padding(
+                              padding: EdgeInsets.all(11),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.photo_camera_outlined,
+                              color: Ld.navy,
+                              size: 18,
+                            ),
                     ),
                   ),
                 ),
               ),
             ],
           ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                greeting,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: Ld.serif,
+                  fontSize: 15,
+                  color: Ld.muted,
+                ),
+              ),
+              Text(
+                _customerName.isEmpty ? (_l10n?.roleCustomer ?? 'Customer') : _customerName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Ld.title(isSmall ? 24 : 28, color: Ld.ink).copyWith(height: 1.15),
+              ),
+              if (_clientId.isNotEmpty || _customerDob.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (_clientId.isNotEmpty)
+                      chip(
+                        icon: Icons.copy_rounded,
+                        text: 'ID $_clientId',
+                        onTap: _copyClientId,
+                      ),
+                    if (_customerDob.isNotEmpty)
+                      chip(icon: Icons.cake_outlined, text: _customerDob),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _profilePointsCard({required bool isSmall}) {
+    final pts = NumberFormat.decimalPattern().format(_rewardPoints);
+    final next = _nextReward;
+
+    final redeem = FilledButton(
+      onPressed: _openRewardsCatalog,
+      style: FilledButton.styleFrom(
+        backgroundColor: Ld.gold,
+        foregroundColor: Ld.ink,
+        minimumSize: const Size.fromHeight(48),
+        shape: const StadiumBorder(),
+        textStyle: const TextStyle(fontFamily: Ld.sans, fontSize: 15, fontWeight: FontWeight.w700),
+      ),
+      child: Text(_l10n?.redeem ?? 'Redeem', maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+    final share = OutlinedButton.icon(
+      onPressed: _openShareCard,
+      icon: const Icon(Icons.ios_share_rounded, size: 18),
+      label: Text(
+        _l10n?.shareMyCard ?? 'Share my card',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white,
+        side: const BorderSide(color: Ld.gold, width: 1.5),
+        minimumSize: const Size.fromHeight(48),
+        shape: const StadiumBorder(),
+        textStyle: const TextStyle(fontFamily: Ld.sans, fontSize: 15, fontWeight: FontWeight.w700),
+      ),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Ld.navy,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // LaDolce watermark.
+          const Positioned(
+            right: -36,
+            bottom: -44,
+            child: LdBearMark(width: 220, opacity: 0.08),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const LdBearMark(width: 18, color: Ld.gold),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        (_l10n?.rewardPoints ?? 'Reward points').toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.4,
+                          color: Ld.gold,
+                        ),
+                      ),
+                    ),
+                    if (_rewardRank > 0) ...[
+                      const SizedBox(width: 8),
+                      Material(
+                        color: Ld.navyRaised,
+                        shape: const StadiumBorder(),
+                        child: InkWell(
+                          customBorder: const StadiumBorder(),
+                          onTap: _openRanking,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 40),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.emoji_events_outlined, size: 16, color: Ld.gold),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _l10n?.rankOfTop50('$_rewardRank') ?? '#$_rewardRank of 50',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        pts,
+                        style: Ld.price(isSmall ? 42 : 50, color: Ld.gold, weight: FontWeight.w800)
+                            .copyWith(height: 1.1),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'pts',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Ld.gold),
+                      ),
+                    ],
+                  ),
+                ),
+                if (next != null || _canRedeemSomething) ...[
+                  const SizedBox(height: 14),
+                  if (next != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: next.pointPrice <= 0
+                            ? 0
+                            : (_rewardPoints / next.pointPrice).clamp(0.0, 1.0),
+                        minHeight: 10,
+                        backgroundColor: Ld.navyRaised,
+                        color: Ld.gold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Text(
+                    next != null
+                        ? (_l10n?.pointsToFreeItem(
+                                NumberFormat.decimalPattern().format(next.pointPrice - _rewardPoints),
+                                next.displayName,
+                              ) ??
+                            '${next.pointPrice - _rewardPoints} pts more for a free ${next.displayName}')
+                        : (_l10n?.rewardReadyToRedeem ?? 'You have enough points for a reward'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13.5, color: Color(0xFFDDE2F5)),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, c) => c.maxWidth < 300
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [redeem, const SizedBox(height: 10), share],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: redeem),
+                            const SizedBox(width: 10),
+                            Expanded(child: share),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _profileCornerTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color wash,
+    required Color ink,
+    required VoidCallback onTap,
+    Widget? badge,
+  }) {
+    return Material(
+      color: Ld.surface,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 124),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(color: wash, shape: BoxShape.circle),
+                      child: Icon(icon, size: 22, color: ink),
+                    ),
+                    const Spacer(),
+                    if (badge != null)
+                      Flexible(
+                        flex: 1000,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.topRight,
+                          child: badge,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: Ld.ink),
+                ),
+                const SizedBox(height: 2),
+                Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: Ld.small),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _profileCornerGrid() {
+    final rewards = _profileCornerTile(
+      title: _l10n?.rewardsCatalog ?? 'Rewards Catalog',
+      subtitle: _l10n?.tileRewardsSubtitle ?? 'Points into treats',
+      icon: Icons.card_giftcard_outlined,
+      wash: Ld.goldWash,
+      ink: Ld.goldInk,
+      onTap: _openRewardsCatalog,
+    );
+    final vouchers = _profileCornerTile(
+      title: _l10n?.myVouchers ?? 'My Vouchers',
+      subtitle: _l10n?.tileVouchersSubtitle ?? 'View and claim',
+      icon: Icons.confirmation_number_outlined,
+      wash: Ld.infoWash,
+      ink: Ld.info,
+      onTap: _openMyVouchers,
+    );
+    final ranking = _profileCornerTile(
+      title: _l10n?.ranking ?? 'Ranking',
+      subtitle: _l10n?.tileRankingSubtitle ?? 'Top 50 regulars',
+      icon: Icons.emoji_events_outlined,
+      wash: Ld.goldWash,
+      ink: Ld.goldWashInk,
+      onTap: _openRanking,
+      badge: _rewardRank > 0 ? _rankPill(_rewardRank) : null,
+    );
+    final places = _profileCornerTile(
+      title: _l10n?.favoritePlaces ?? 'Favorite places',
+      subtitle: _favoritePlacesSubtitle,
+      icon: Icons.place_outlined,
+      wash: Ld.lineSoft,
+      ink: Ld.navyRaised,
+      onTap: _openFavoritePlacesSheet,
+    );
+
+    Widget pair(Widget a, Widget b) => IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: a),
+              const SizedBox(width: 12),
+              Expanded(child: b),
+            ],
+          ),
         );
-      },
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        pair(rewards, vouchers),
+        const SizedBox(height: 12),
+        pair(ranking, places),
+      ],
+    );
+  }
+
+  Widget _profileShareBanner() {
+    return Material(
+      color: Ld.lineSoft,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: _openShareCard,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          child: Row(
+            children: [
+              Transform.rotate(
+                angle: -0.1,
+                child: Container(
+                  width: 46,
+                  height: 74,
+                  decoration: BoxDecoration(
+                    color: Ld.navy,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const LdBearMark(width: 18, color: Ld.gold),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            _rewardRank > 0 ? '#$_rewardRank' : NumberFormat.compact().format(_rewardPoints),
+                            style: Ld.price(16, color: Ld.gold, weight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _l10n?.showFriendsRegular ?? "Show friends you're a regular",
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Ld.ink),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _l10n?.postCardToStory ?? 'Post your card to your story',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Ld.small,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded, color: Ld.navyRaised),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

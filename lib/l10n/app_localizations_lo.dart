@@ -2651,4 +2651,99 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get leaveUnsavedDiscard => 'ຖິ້ມ';
+
+  @override
+  String get profileCoffeeTime => 'ເວລາກາເຟ';
+
+  @override
+  String get greetingMorning => 'ສະບາຍດີຕອນເຊົ້າ,';
+
+  @override
+  String get greetingAfternoon => 'ສະບາຍດີຕອນບ່າຍ,';
+
+  @override
+  String get greetingEvening => 'ສະບາຍດີຕອນແລງ,';
+
+  @override
+  String rankOfTop50(String rank) {
+    return 'ອັນດັບ $rank ໃນ 50';
+  }
+
+  @override
+  String pointsToFreeItem(String points, String item) {
+    return 'ອີກ $points ຄະແນນ ຮັບ $item ຟຣີ';
+  }
+
+  @override
+  String get rewardReadyToRedeem => 'ຄະແນນຂອງເຈົ້າພໍແລກຂອງລາງວັນແລ້ວ';
+
+  @override
+  String get shareMyCard => 'ແບ່ງປັນບັດ';
+
+  @override
+  String get yourCorner => 'ມຸມຂອງເຈົ້າ';
+
+  @override
+  String get tileRewardsSubtitle => 'ແລກຄະແນນເປັນຂອງແຊບ';
+
+  @override
+  String get tileVouchersSubtitle => 'ເບິ່ງ ແລະ ໃຊ້';
+
+  @override
+  String get tileRankingSubtitle => 'ລູກຄ້າປະຈຳ 50 ອັນດັບ';
+
+  @override
+  String get showFriendsRegular => 'ອວດໝູ່ວ່າເຈົ້າເປັນລູກຄ້າປະຈຳ';
+
+  @override
+  String get postCardToStory => 'ໂພສບັດຂອງເຈົ້າລົງສະຕໍຣີ';
+
+  @override
+  String get isLaDolceRegular => 'ລູກຄ້າປະຈຳຂອງ LaDolce';
+
+  @override
+  String get inTheTop50 => 'ໃນ 50 ອັນດັບ';
+
+  @override
+  String get laDolceApp => 'ແອັບ LaDolce';
+
+  @override
+  String get orderCoffeeInApp => 'ສັ່ງກາເຟຜ່ານແອັບ';
+
+  @override
+  String get cardColour => 'ສີບັດ';
+
+  @override
+  String get showRank => 'ສະແດງອັນດັບ';
+
+  @override
+  String get showPoints => 'ສະແດງຄະແນນ';
+
+  @override
+  String get shareTo => 'ແບ່ງປັນໄປ';
+
+  @override
+  String get shareMore => 'ອື່ນໆ';
+
+  @override
+  String get shareAction => 'ແບ່ງປັນ';
+
+  @override
+  String get imageSavedToPhotos => 'ບັນທຶກຮູບແລ້ວ';
+
+  @override
+  String get couldNotSaveImage => 'ບັນທຶກຮູບບໍ່ສຳເລັດ';
+
+  @override
+  String get couldNotShare => 'ແບ່ງປັນບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.';
+
+  @override
+  String get photoPermissionToSave => 'ຕ້ອງອະນຸຍາດຮູບພາບເພື່ອບັນທຶກຮູບ';
+
+  @override
+  String get shareCardText =>
+      'ຂ້ອຍເປັນລູກຄ້າປະຈຳ LaDolce! ສັ່ງຜ່ານແອັບ LaDolce.';
+
+  @override
+  String get rewardPoints => 'ຄະແນນສະສົມ';
 }

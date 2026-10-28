@@ -2683,4 +2683,100 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leaveUnsavedDiscard => 'Discard';
+
+  @override
+  String get profileCoffeeTime => 'Coffee time';
+
+  @override
+  String get greetingMorning => 'Good morning,';
+
+  @override
+  String get greetingAfternoon => 'Good afternoon,';
+
+  @override
+  String get greetingEvening => 'Good evening,';
+
+  @override
+  String rankOfTop50(String rank) {
+    return '#$rank of 50';
+  }
+
+  @override
+  String pointsToFreeItem(String points, String item) {
+    return '$points pts more for a free $item';
+  }
+
+  @override
+  String get rewardReadyToRedeem => 'You have enough points for a reward';
+
+  @override
+  String get shareMyCard => 'Share my card';
+
+  @override
+  String get yourCorner => 'Your corner';
+
+  @override
+  String get tileRewardsSubtitle => 'Points into treats';
+
+  @override
+  String get tileVouchersSubtitle => 'View and claim';
+
+  @override
+  String get tileRankingSubtitle => 'Top 50 regulars';
+
+  @override
+  String get showFriendsRegular => 'Show friends you\'re a regular';
+
+  @override
+  String get postCardToStory => 'Post your card to your story';
+
+  @override
+  String get isLaDolceRegular => 'is a LaDolce regular';
+
+  @override
+  String get inTheTop50 => 'in the Top 50';
+
+  @override
+  String get laDolceApp => 'LaDolce app';
+
+  @override
+  String get orderCoffeeInApp => 'Order your coffee in the app';
+
+  @override
+  String get cardColour => 'Card colour';
+
+  @override
+  String get showRank => 'Show rank';
+
+  @override
+  String get showPoints => 'Show points';
+
+  @override
+  String get shareTo => 'Share to';
+
+  @override
+  String get shareMore => 'More';
+
+  @override
+  String get shareAction => 'Share';
+
+  @override
+  String get imageSavedToPhotos => 'Saved to your photos';
+
+  @override
+  String get couldNotSaveImage => 'Could not save the image';
+
+  @override
+  String get couldNotShare => 'Could not share. Please try again.';
+
+  @override
+  String get photoPermissionToSave =>
+      'Photo permission is needed to save the image';
+
+  @override
+  String get shareCardText =>
+      'I\'m a LaDolce regular! Order with the LaDolce app.';
+
+  @override
+  String get rewardPoints => 'Reward points';
 }

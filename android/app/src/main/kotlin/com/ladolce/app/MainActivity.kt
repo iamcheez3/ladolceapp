@@ -1,5 +1,6 @@
 package com.ladolce.app
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -53,6 +54,39 @@ class MainActivity : FlutterActivity() {
                             }
                             startActivity(intent)
                             result.success(null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        // Member card straight to one app (Instagram, Facebook, WhatsApp):
+        // see lib/screens/share_card_screen.dart. Answers false when that app
+        // is not installed, so Dart falls back to the system share sheet.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ladolce/share")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "shareImageToApp" -> {
+                        val path = call.argument<String>("path")
+                        val target = call.argument<String>("package")
+                        if (path == null || target == null || !File(path).exists()) {
+                            result.error("NO_FILE", "Image not found: $path", null)
+                        } else {
+                            val uri = FileProvider.getUriForFile(
+                                this, "$packageName.appupdate", File(path)
+                            )
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "image/png"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                call.argument<String>("text")?.let { putExtra(Intent.EXTRA_TEXT, it) }
+                                setPackage(target)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            try {
+                                startActivity(intent)
+                                result.success(true)
+                            } catch (e: ActivityNotFoundException) {
+                                result.success(false)
+                            }
                         }
                     }
                     else -> result.notImplemented()

@@ -36,6 +36,7 @@ import 'package:ladolce/screens/printer_settings_screen.dart';
 import 'package:ladolce/screens/privacy_policy_screen.dart';
 import 'package:ladolce/screens/product_edit_screen.dart';
 import 'package:ladolce/screens/ranking_screen.dart';
+import 'package:ladolce/screens/share_card_screen.dart';
 import 'package:ladolce/screens/topping_edit_screen.dart';
 import 'package:ladolce/services/printer_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -329,6 +330,16 @@ final screens = <String, ScreenBuilder>{
         whatsappLink: 'https://wa.me/8562055551234',
       ),
   'privacy_policy_screen': () => const PrivacyPolicyScreen(),
+  'share_card_screen': () => const ShareCardScreen(
+        name: 'Souksavanh Phommachanh Vongsakda (VIP Gold Member)',
+        points: 1234567,
+        rank: 12,
+      ),
+  'share_card_screen(no rank)': () => const ShareCardScreen(
+        name: 'ສຸກສະຫວັນ',
+        points: 0,
+        rank: 0,
+      ),
 };
 
 /// Scroll every vertical scrollable to the end so content below the fold is

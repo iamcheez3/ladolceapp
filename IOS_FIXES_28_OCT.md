@@ -15,11 +15,11 @@ The older changes (topping groups, split payment, buy X get Y free, and so on) a
 git checkout sith && git pull        # app must be at 7106121 or newer
 flutter clean && flutter pub get
 cd ios && pod install && cd ..
-flutter test                         # 1,708 tests, all should pass
+flutter test                         # 1,780 tests, all should pass
 flutter build ipa
 ```
 
-- No new packages. `pubspec.yaml` changed the version to `1.0.1+10` and added the bundled font `NotoSansLao` (see 3c).
+- Build 10 added the bundled font `NotoSansLao` (see 3c). Build 11 sets the version to `1.0.1+11` and adds one package, **`share_plus`** (see 3d), so run `pod install`.
 - The translation files are generated and committed, so you don't need to run `flutter gen-l10n`.
 - Don't commit line-ending-only changes. Some files are CRLF and some are LF.
 
@@ -169,6 +169,23 @@ Every screen was restyled: navy and gold, white "paper" ticket, prices in the re
   - Pull down to refresh on lists that already reload.
   - Tap anywhere on a switch row to toggle it.
 
+## 3d. Customer Profile tab + Share my card (build 11)
+
+The customer **Profile** tab has a new "coffee time" layout, in the same app colours and fonts. Nothing was removed and no server call changed.
+
+- **Profile tab** (`_buildProfileTab` in `lib/screens/customer_self_order_screen.dart`):
+  - Greeting by time of day, photo with camera button, client ID chip (tap copies) and birthday chip.
+  - Navy points card with the LaDolce bear as a faint watermark, the rank chip (opens Ranking), Redeem (opens the Rewards catalog) and **Share my card**.
+  - A progress bar shows "N pts more for a free X". X is the cheapest reward in the Rewards catalog that the customer can't afford yet. It is worked out in the app from the products it already loads; it's hidden when the catalog has no rewards.
+  - "Your corner" tiles: Rewards catalog, My vouchers, Ranking, Favorite places. Then Edit profile, Notifications and Customer support. The EN / ລາວ switch moved to the top of the tab.
+- **Share my card** (new `lib/screens/share_card_screen.dart`):
+  - A story-sized card (exported as a 1080 × 1920 PNG) with the bear logo, the name, the rank (Top 50), points and "LaDolce app". The customer can pick 4 colours and hide the rank or points.
+  - The bear comes from `assets/images/ladolce_bear_mark.png` (white on transparent, tinted in code). It's part of the picture, so it shows wherever the image is posted.
+  - **iOS:** one **Share** button opens the iOS share sheet (`share_plus`; Instagram, Facebook and WhatsApp are listed there), and a **Save** button saves the card to Photos with `ImageGallerySaverPlus` (permission `photosAddOnly`, the same one the QR save uses; the `NSPhotoLibraryAddUsageDescription` text now mentions the card).
+  - **Android** also has direct Instagram / Facebook / WhatsApp buttons through a new MethodChannel `ladolce/share` in `MainActivity.kt`. Not needed on iOS.
+  - There is no QR code on the card yet (no download link decided).
+- **New texts:** 30 new keys in `lib/l10n/app_en.arb` / `app_lo.arb` (generated files are committed).
+
 ## 4. Please test on iPhone / iPad
 
 - [ ] Product with price 0: tap it on the POS, type a price, and the line shows that price. Charge it; Odoo shows the same price.
@@ -178,6 +195,7 @@ Every screen was restyled: navy and gold, white "paper" ticket, prices in the re
 - [ ] Back gesture on the POS with unsaved items: it asks before discarding.
 - [ ] Small iPhone (SE size) and iPad, portrait and landscape: no cut-off text, the PIN pad fits, and Save buttons are not under the home indicator.
 - [ ] New look: Lao text uses the bundled font, not a fallback. Status bar text is white on the navy screens (PIN, POS, settings). Swipe from the left edge goes back on pushed screens. Bottom sheets (ticket, charge, toppings) close with a swipe down and their buttons stay above the home indicator.
+- [ ] Profile tab (customer): points card, tiles and buttons fit on iPhone SE and iPad. **Share my card** → Share opens the iOS share sheet with the image; Save asks for Photos permission once and the card appears in Photos with the bear logo.
 
 ## 5. Not tested yet
 
