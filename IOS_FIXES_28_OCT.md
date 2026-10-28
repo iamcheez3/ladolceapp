@@ -82,6 +82,74 @@ These affect how the app must talk to the server. Deploy with: pull `sith`, then
 | A refused self-order no longer uses up the customer's coupon. | Nothing. |
 | `/api/products`: a special price limited to some branches only applies at those branches. Products are sorted by name **and id**, so page-by-page loading never skips one. `limit`/`offset` are checked. | Nothing (the app already sends `branch_id` and loads every page). |
 
+## 3b. API changes (all changes since backend commit `14dd06d`)
+
+Use this list if anything on iOS calls the server by its own code (native code, a share extension, a widget), or if you compare against an older build. The Flutter app on `sith` already uses all of it.
+
+- Every call still needs the header `X-API-Key`. Staff calls also send `Cookie: session_id=…` and `X-Openerp-Session-Id: …` (see Login below).
+- Errors are always JSON: `{"status": "error", "message": "..."}`.
+- **400** = the server refused the request; show `message`, don't retry.
+- **401/403** = log in again.
+- **5xx or no answer** = offline; queue and retry.
+
+### New endpoints
+
+| Method + path | Request | Response `data` |
+|---|---|---|
+| `GET /api/pos/topping_groups` | none | `[{id, name, name_lo, sequence, selection_type: "single"\|"multiple", required}]` |
+| `POST /api/pos/topping_groups` | `{id?, name, name_lo?, selection_type, required, sequence?}` (with `id` = update) | the saved group |
+| `DELETE /api/pos/topping_groups/<id>` | none | none |
+| `GET /api/pos/promotions/free_items?branch_id=` | none | `[{id, name, buy_qty, free_qty, product_ids, free_product_ids, end_date}]`. These are the running "buy X get Y free" promotions. `product_ids` = what counts as bought; `free_product_ids` = what may be free. |
+| `GET /api/pos/app/latest?platform=android` | none | `{id, version, build, notes, force, size, download_url}` or `null` (Android in-app update; not used on iOS) |
+| `GET /api/pos/app/download/<id>` | none | the APK file (Android only) |
+
+### Changed requests (new fields the app sends)
+
+| Endpoint | New / changed fields |
+|---|---|
+| `POST /api/pos/order` (create) | `ticket_label` (save under a name instead of a table); `payments: [{payment_method_id, amount}]` (split payment, with `is_paid: true`); on each line: `is_free_promo: true` + `promotion_id` (free item, price forced to 0), `note` (kitchen note) |
+| `POST /api/pos/order/<id>/update` | `ticket_label` (rename; frees the table, `""` removes the name); `partner_id` (now saved; null never clears it); `replace_all`; line fields as above |
+| `POST /api/pos/order/<id>/pay` | `payments: [{payment_method_id, amount}]` |
+| `POST /api/pos/toppings` | `id` (update instead of create), `name_lo`, `group_id`, `is_default`, `sequence` |
+| `POST /api/pos/categories`, `POST /api/pos/products` | `hide_in_self_order` (POS-only item, not shown in self-order) |
+| `GET /api/pos/my_orders` | `date_from`, `date_to` as `YYYY-MM-DD` in Lao time (UTC+7); a wrong format gives 400 |
+| `GET /api/products` | still `limit` + `offset` + `branch_id`. Load **every page**; the app uses pages of 10 until a short page comes back. |
+
+### Changed responses (new fields to read)
+
+| Endpoint | New fields |
+|---|---|
+| `GET /api/products` | per product: `hide_in_self_order`; `toppings[]` now include `name_lo, sequence, is_default, group_id, group_name, group_name_lo, group_sequence, group_type, group_required`; `promotion_price` now only for the tablet's branch. A product with `list_price` **0** = the cashier types the price. |
+| `GET /api/pos/toppings` | same topping fields as above |
+| `GET /api/pos/payment_methods` | `open_cash_drawer` (bool): open the drawer when this method is used |
+| `GET /api/pos/open_tickets` | `ticket_label`, `delivery_status` (`"ready"` = pickup order is ready); `table_name` shows the ticket name when there is one; lines: `is_free_promo`, `promotion_id` |
+| `GET /api/pos/order/<id>/receipt` | `payments: [{payment_method_id, payment_method, amount}]`, `points_earned`, `customer_points`, `points_label`, `table` (ticket name or table); lines: `is_free_promo` |
+| `POST /api/pos/order/<id>/update` | `state`, `ticket_label`, `table_id` |
+| `POST /api/pos/order/<id>/pay` | `state`, `payments` |
+| `POST /api/pos/order/<id>/notify_ready` | pickup self-orders now get `delivery_status = "ready"` (customer app shows "Ready for pickup") |
+| history / my_orders lines | `is_free_promo`, `subtotal` |
+
+### Behaviour changes that can break a client
+
+| What | Before | Now |
+|---|---|---|
+| `pay` with a broken body or unknown payment method | ignored, order marked paid | **400**, order stays unpaid |
+| split `payments` adding up to less than the total (1 kip tolerance) | accepted | **400**. Cash is stored without the change (the client takes the change off). |
+| create/update with `qty <= 0`, negative price, ids that aren't numbers or don't exist, no product lines | 500, or a bad order saved | **400** with a message |
+| free item when the promotion ended, wrong product, or too many | n/a | **400**, nothing saved (whole request rolled back) |
+| self-order with a POS-only product | accepted | **400** "Not available for self-order" |
+| refused self-order with a coupon | coupon was used up | coupon not used |
+| `/api/products?limit=abc` | 500 | 400; `limit` capped at 500 |
+| `/api/products` order | name only (pages could repeat or skip same-name products) | name, then id (stable) |
+
+### Login session (Odoo 18)
+
+- `POST /api/pos/login` returns `session_id` in the JSON, but Odoo 18 **replaces that session right after login**. The live session is the `session_id` in the response's **`Set-Cookie`** header.
+- For staff, store the Set-Cookie value and send it as `Cookie: session_id=<it>`. Keep sending the JSON value in `X-Openerp-Session-Id`.
+- Otherwise every staff device except the last one to log in gets "Missing or invalid user session" on menu saves.
+- Customers: unchanged.
+- **iOS check:** make sure `Set-Cookie` is visible in the login response on iOS. Some HTTP stacks store cookies themselves and hide the header. If it's missing, saves only work on the last device that logged in.
+
 ## 4. Please test on iPhone / iPad
 
 - [ ] Product with price 0: tap it on the POS, type a price, and the line shows that price. Charge it; Odoo shows the same price.
