@@ -21,6 +21,12 @@ class CartItem {
   bool isRedeemed;
   int pointPrice;
 
+  /// Free item of a "Buy X get Y free" promotion: the whole line is free,
+  /// choices included. Added by the cashier / customer, never automatically.
+  final bool isFreePromo;
+  final int? promotionId;
+  final String promotionName;
+
   CartItem({
     required this.product,
     this.quantity = 1,
@@ -31,10 +37,13 @@ class CartItem {
     this.priceUnitFromOrder,
     this.isRedeemed = false,
     this.pointPrice = 0,
+    this.isFreePromo = false,
+    this.promotionId,
+    this.promotionName = '',
   });
 
   double get totalPrice {
-    if (isRedeemed) return 0.0;
+    if (isRedeemed || isFreePromo) return 0.0;
     if (priceUnitFromOrder != null) {
       return priceUnitFromOrder! * quantity;
     }

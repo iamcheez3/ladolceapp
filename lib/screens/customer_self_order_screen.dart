@@ -32,11 +32,14 @@ import '../models/cart_item.dart';
 import '../models/combo.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
+import '../widgets/topping_picker.dart';
+import '../models/free_promotion.dart';
 import '../services/api_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../widgets/skeleton_loaders.dart';
 import 'login_screen.dart';
 import 'order_chat_screen.dart';
+import '../utils/money.dart';
 
 class _FavoritePlace {
   final String id;
@@ -353,6 +356,91 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String? _selectedFavoritePlaceId;
 
   List<Map<String, dynamic>> _historyItems = [];
+
+  /// History filter: 'today' (default), 'range' (picked dates) or 'all'.
+  String _historyFilter = 'today';
+  DateTimeRange? _historyRange;
+
+  /// The day range the history shows (null = everything).
+  DateTimeRange? get _historyWindow {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (_historyFilter) {
+      case 'today':
+        return DateTimeRange(start: today, end: today);
+      case 'range':
+        return _historyRange;
+      default:
+        return null;
+    }
+  }
+
+  bool _inHistoryWindow(Map<String, dynamic> item, DateTimeRange? window) {
+    if (window == null) return true;
+    final d = DateTime.tryParse((item['date_order'] ?? '').toString())?.toLocal();
+    if (d == null) return false;
+    final day = DateTime(d.year, d.month, d.day);
+    return !day.isBefore(window.start) && !day.isAfter(window.end);
+  }
+
+  Widget _historyFilterBar() {
+    final fmt = DateFormat('dd/MM');
+    final r = _historyRange;
+    Widget chip(String key, String label, VoidCallback onTap) {
+      final on = _historyFilter == key;
+      return ChoiceChip(
+        label: Text(label),
+        selected: on,
+        onSelected: (_) => onTap(),
+        selectedColor: _brandNavy,
+        labelStyle: TextStyle(
+          color: on ? Colors.white : _brandNavy,
+          fontWeight: FontWeight.w700,
+        ),
+        showCheckmark: false,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          chip('today', _l10n?.historyToday ?? 'Today', () {
+            setState(() => _historyFilter = 'today');
+            _loadHistory();
+          }),
+          chip(
+            'range',
+            _historyFilter == 'range' && r != null
+                ? '📅 ${fmt.format(r.start)} – ${fmt.format(r.end)}'
+                : '📅 ${_l10n?.historyPickDates ?? 'Choose dates'}',
+            () async {
+              final now = DateTime.now();
+              final picked = await showDateRangePicker(
+                context: context,
+                firstDate: DateTime(now.year - 3),
+                lastDate: now,
+                initialDateRange: r ??
+                    DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
+              );
+              if (picked == null || !mounted) return;
+              setState(() {
+                _historyFilter = 'range';
+                _historyRange = picked;
+              });
+              _loadHistory();
+            },
+          ),
+          chip('all', _l10n?.historyAll ?? 'All', () {
+            setState(() => _historyFilter = 'all');
+            _loadHistory();
+          }),
+        ],
+      ),
+    );
+  }
   Timer? _riderLocationTimer;
   final Map<String, Map<String, dynamic>> _riderLocations = {};
 
@@ -363,12 +451,20 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   bool _isRaining = false;
 
   final TextEditingController _noteController = TextEditingController();
+  StreamSubscription<String>? _orderUpdatesSub;
+
+  /// Running "Buy X get Y free" promotions at the selected branch.
+  List<FreePromotion> _freePromotions = [];
 
   @override
   void initState() {
     super.initState();
     Product.isCustomerMode = true;
     PushNotificationsService.setAppActive(true);
+    // 'Order ready' push: show Ready for pickup without a manual refresh.
+    _orderUpdatesSub = PushNotificationsService.orderUpdates.stream.listen((type) {
+      if (mounted && type == 'self_order_ready') _loadHistory(forceRefresh: true);
+    });
     _customerName = widget.customerName;
     _cartItems.clear();
     _validateSingleDeviceSession();
@@ -528,6 +624,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   void dispose() {
     Product.isCustomerMode = false;
     PushNotificationsService.setAppActive(false);
+    _orderUpdatesSub?.cancel();
     _recommendedAutoSlideTimer?.cancel();
     _recommendedPageController?.dispose();
     _noteController.dispose();
@@ -1530,11 +1627,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     try {
       // Always hit the network for self-order: local `cached_products` is shared
       // with POS and stays stale, so `block_self_order` would never update otherwise.
-      final products = await _apiService.fetchProducts(
+      final products = (await _apiService.fetchProducts(
         branchId: _selectedBranchId,
-        limit: 200,
         forceRefresh: true,
-      );
+      ))
+          // POS-only products / categories never reach the customer list
+          // (categories come from the products, so they disappear too).
+          .where((p) => !p.hideInSelfOrder)
+          .toList();
+      _freePromotions = await _apiService.fetchFreePromotions(branchId: _selectedBranchId);
       final rawCombos = await _apiService.fetchCombos();
       final combos = rawCombos
           .map((c) => Product.fromCombo(Combo.fromJson(c)))
@@ -1584,7 +1685,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _previewProduct = nextPreview;
         if (nextPreview?.id != oldPreviewId) {
           _previewQty = 1;
-          _previewToppings = [];
+          _previewToppings = nextPreview == null
+              ? []
+              : ToppingRules.defaults(nextPreview.toppings);
         }
       });
     } catch (e) {
@@ -1679,9 +1782,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     setState(() => _isLoadingHistory = true);
     try {
       final List<Map<String, dynamic>> serverHistory;
+      final window = _historyWindow;
       if (widget.partnerId != null) {
         serverHistory = await _apiService.fetchCustomerOrders(
           widget.partnerId!,
+          from: window?.start,
+          to: window?.end,
         );
       } else {
         serverHistory = await _apiService.fetchReceiptHistory(
@@ -1784,7 +1890,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         byKey[key] = merged;
       }
 
-      final all = byKey.values.toList();
+      final all = byKey.values.where((i) => _inHistoryWindow(i, window)).toList();
       all.sort((a, b) {
         final aDate =
             DateTime.tryParse((a['date_order'] ?? '').toString()) ??
@@ -2442,7 +2548,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     setState(() {
       _previewProduct = product;
       _previewQty = 1;
-      _previewToppings = [];
+      _previewToppings = ToppingRules.defaults(product.toppings);
     });
   }
 
@@ -2451,12 +2557,20 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     int quantity = 1,
     List<Topping> selectedToppings = const [],
     bool isRedeemed = false,
+    FreePromotion? freePromo,
   }) {
     if (product.blockSelfOrder) return;
+    if (freePromo != null) {
+      // Never more free items than the cart has earned.
+      final left = freePromo.availableFree(_cartItems);
+      if (left <= 0) return;
+      if (quantity > left) quantity = left;
+    }
     final selectedIds = selectedToppings.map((t) => t.id).toSet();
     final index = _cartItems.indexWhere((item) {
       if (item.product.id != product.id) return false;
       if (item.isRedeemed != isRedeemed) return false;
+      if (item.isFreePromo != (freePromo != null) || item.promotionId != freePromo?.id) return false;
       if (item.selectedToppings.length != selectedToppings.length) return false;
       final itemIds = item.selectedToppings.map((t) => t.id).toSet();
       return selectedIds.containsAll(itemIds) &&
@@ -2473,6 +2587,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             selectedToppings: selectedToppings,
             isRedeemed: isRedeemed,
             pointPrice: isRedeemed ? product.pointPrice : 0,
+            isFreePromo: freePromo != null,
+            promotionId: freePromo?.id,
+            promotionName: freePromo?.name ?? '',
           ),
         );
       }
@@ -2486,6 +2603,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   }
 
   void _updateQuantity(CartItem item, int quantity) {
+    // A free item can only grow while the promotion still has free items left.
+    if (item.isFreePromo && quantity > item.quantity) {
+      final promo = _freePromotions.where((p) => p.id == item.promotionId).firstOrNull;
+      if (promo == null || promo.availableFree(_cartItems) < quantity - item.quantity) return;
+    }
     setState(() {
       if (quantity <= 0) {
         _cartItems.remove(item);
@@ -3124,7 +3246,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 ),
                                               ),
                                               Text(
-                                                '₭${_cartTotal.toStringAsFixed(0)}',
+                                                '₭${money(_cartTotal)}',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w700,
                                                   fontSize: 15,
@@ -3147,7 +3269,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  '-₭${_couponDiscount.toStringAsFixed(0)}',
+                                                  '-₭${money(_couponDiscount)}',
                                                   style: TextStyle(
                                                     color: Colors.red.shade600,
                                                     fontWeight: FontWeight.w700,
@@ -3205,7 +3327,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  '₭${_deliveryFee.toStringAsFixed(0)}',
+                                                  '₭${money(_deliveryFee)}',
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 15,
@@ -3231,7 +3353,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 ),
                                               ),
                                               Text(
-                                                '₭${(_cartTotal - _effectiveCouponDiscount + _deliveryFee).toStringAsFixed(0)}',
+                                                '₭${money((_cartTotal - _effectiveCouponDiscount + _deliveryFee))}',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w900,
                                                   fontSize: 20,
@@ -3267,7 +3389,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                   const SizedBox(width: 10),
                                                   Expanded(
                                                     child: Text(
-                                                      'Add ₭${_amountNeededForFreeDelivery.toStringAsFixed(0)} more to get free delivery!',
+                                                      'Add ₭${money(_amountNeededForFreeDelivery)} more to get free delivery!',
                                                       style: const TextStyle(
                                                         color: Colors.green,
                                                         fontSize: 13,
@@ -3577,7 +3699,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   ),
                                 ),
                                 child: Text(
-                                  '${AppLocalizations.of(context)?.confirmOrder ?? (_l10n?.confirmOrder ?? 'Confirm Order')} (₭${(_cartTotal - _effectiveCouponDiscount + _deliveryFee).toStringAsFixed(2)})',
+                                  '${AppLocalizations.of(context)?.confirmOrder ?? (_l10n?.confirmOrder ?? 'Confirm Order')} (₭${money((_cartTotal - _effectiveCouponDiscount + _deliveryFee))})',
                                 ),
                               ),
                             ),
@@ -3648,8 +3770,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             (item) => {
               'product_id': item.product.id,
               'qty': item.quantity,
-              'price_unit': item.isRedeemed ? 0.0 : item.product.effectivePrice,
+              // Unit price includes paid choices (Size L +5000): the server
+              // stores qty x price_unit, so without them it undercharged.
+              'price_unit': (item.isRedeemed || item.isFreePromo)
+                  ? 0.0
+                  : item.product.effectivePrice + _toppingExtras(item),
               'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
+              if (item.isFreePromo) ...{
+                'is_free_promo': true,
+                'promotion_id': item.promotionId,
+              },
               'is_redeemed': item.isRedeemed,
               'point_cost': item.isRedeemed ? item.pointPrice : 0,
               // Matches the key the cashier review screen reads back.
@@ -4848,13 +4978,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-  void _openProductDetail(Product product) {
+  void _openProductDetail(Product product, {FreePromotion? freePromo}) {
     if (product.blockSelfOrder) {
       _showSelfOrderBlockedMessage();
       return;
     }
     int qty = 1;
-    List<Topping> selectedToppings = [];
+    // Admin defaults (e.g. Hot, Size M) are ticked when the item opens.
+    List<Topping> selectedToppings = ToppingRules.defaults(product.toppings);
 
     showModalBottomSheet(
       context: context,
@@ -4864,13 +4995,16 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final totalPrice =
-                (product.effectivePrice +
-                    selectedToppings.fold(
-                      0.0,
-                      (sum, t) => sum + t.extraPrice,
-                    )) *
-                qty;
+            final totalPrice = freePromo != null
+                ? 0.0
+                : (product.effectivePrice +
+                        selectedToppings.fold(
+                          0.0,
+                          (sum, t) => sum + t.extraPrice,
+                        )) *
+                    qty;
+            final missingChoices =
+                ToppingRules.missing(product.toppings, selectedToppings);
 
             return Container(
               height: MediaQuery.of(context).size.height * 0.9,
@@ -4991,112 +5125,20 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
                                     const SizedBox(height: 40),
 
-                                    // Toppings Section
-                                    if (product.toppings.isNotEmpty) ...[
-                                      Text(_l10n?.customization ?? (_l10n?.customization ?? 'Customization'),
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                          color: _brandNavy,
+                                    // Toppings: one heading per group (Type,
+                                    // Taste, Size...), plain add-ons last.
+                                    if (product.toppings.isNotEmpty)
+                                      ToppingPicker(
+                                        toppings: product.toppings,
+                                        selected: selectedToppings,
+                                        cardStyle: true,
+                                        accent: _brandNavy,
+                                        addOnsTitle: _l10n?.customization ?? 'Customization',
+                                        alwaysShowAddOnsTitle: true,
+                                        onChanged: (next) => setSheetState(
+                                          () => selectedToppings = next,
                                         ),
                                       ),
-                                      const SizedBox(height: 16),
-                                      ListView.separated(
-                                        shrinkWrap: true,
-                                        physics:
-                                            const NeverScrollableScrollPhysics(),
-                                        itemCount: product.toppings.length,
-                                        separatorBuilder: (context, index) =>
-                                            const SizedBox(height: 12),
-                                        itemBuilder: (context, index) {
-                                          final topping =
-                                              product.toppings[index];
-                                          final isSelected = selectedToppings
-                                              .any((t) => t.id == topping.id);
-
-                                          return InkWell(
-                                            onTap: () {
-                                              setSheetState(() {
-                                                if (isSelected) {
-                                                  selectedToppings.removeWhere(
-                                                    (t) => t.id == topping.id,
-                                                  );
-                                                } else {
-                                                  selectedToppings.add(topping);
-                                                }
-                                              });
-                                            },
-                                            child: Container(
-                                              padding: const EdgeInsets.all(16),
-                                              decoration: BoxDecoration(
-                                                color: isSelected
-                                                    ? const Color(0xFFEFF6FF)
-                                                    : Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                border: Border.all(
-                                                  color: isSelected
-                                                      ? _brandNavy
-                                                      : const Color(0xFFE2E8F0),
-                                                  width: isSelected ? 2 : 1,
-                                                ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          topping.name,
-                                                          style: TextStyle(
-                                                            fontSize: 15,
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color: isSelected
-                                                                ? _brandNavy
-                                                                : _textPrimaryDark,
-                                                          ),
-                                                        ),
-                                                        if (topping.extraPrice >
-                                                            0)
-                                                          Text(
-                                                            '+₭${topping.extraPrice.toStringAsFixed(0)}',
-                                                            style: TextStyle(
-                                                              fontSize: 13,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              color: isSelected
-                                                                  ? _brandNavy
-                                                                        .withOpacity(
-                                                                          0.7,
-                                                                        )
-                                                                  : Colors.grey,
-                                                            ),
-                                                          ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  if (isSelected)
-                                                    const Icon(
-                                                      Icons.check_circle,
-                                                      color: _brandNavy,
-                                                    )
-                                                  else
-                                                    const Icon(
-                                                      Icons.add_circle_outline,
-                                                      color: Color(0xFFCBD5E1),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
                                   ],
                                 ),
                               ),
@@ -5157,7 +5199,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '₭${totalPrice.toStringAsFixed(0)}',
+                                    '₭${money(totalPrice)}',
                                     style: const TextStyle(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w900,
@@ -5173,12 +5215,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               child: SizedBox(
                                 height: 56,
                                 child: ElevatedButton(
-                                  onPressed: () {
+                                  // A required group (e.g. Size) has no choice yet.
+                                  onPressed: missingChoices.isNotEmpty ? null : () {
                                     _addToCart(
                                       product,
                                       quantity: qty,
                                       selectedToppings: selectedToppings,
                                       isRedeemed: false,
+                                      freePromo: freePromo,
                                     );
                                     Navigator.pop(ctx);
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -5197,14 +5241,23 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _brandNavy,
                                     foregroundColor: Colors.white,
+                                    disabledBackgroundColor: const Color(0xFFE2E8F0),
+                                    disabledForegroundColor: Colors.deepOrange,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
-                                  child: Text(_l10n?.addToCart ?? (_l10n?.addToCart ?? 'Add to Cart'),
+                                  child: Text(
+                                    missingChoices.isNotEmpty
+                                        ? (_l10n?.toppingChooseMissing(
+                                                missingChoices.map((s) => s.title).join(', ')) ??
+                                            'Please choose: ${missingChoices.map((s) => s.title).join(', ')}')
+                                        : (_l10n?.addToCart ?? 'Add to Cart'),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: missingChoices.isNotEmpty ? 14 : 16,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
@@ -5307,7 +5360,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   ),
                 ),
                 label: Text(
-                  '₭${_cartTotal.toStringAsFixed(0)}',
+                  '₭${money(_cartTotal)}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -5740,10 +5793,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   right: 10,
                                   child: GestureDetector(
                                     onTap: () {
+                                      if (!ToppingRules.canQuickAdd(product.toppings) &&
+                                          _selectedCategory != 'Redeem points') {
+                                        _openProductDetail(product);
+                                        return;
+                                      }
                                       _addToCart(
                                         product,
                                         quantity: 1,
-                                        selectedToppings: [],
+                                        selectedToppings: ToppingRules.defaults(product.toppings),
                                         isRedeemed:
                                             _selectedCategory ==
                                             'Redeem points',
@@ -5940,7 +5998,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           else ...[
                                             if (product.promotionPrice != null)
                                               Text(
-                                                '₭${product.price.toStringAsFixed(0)}',
+                                                '₭${money(product.price)}',
                                                 style: TextStyle(
                                                   fontSize: isSmall ? 9 : 10,
                                                   color: Colors.grey.shade400,
@@ -5949,7 +6007,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                                 ),
                                               ),
                                             Text(
-                                              '₭${product.effectivePrice.toStringAsFixed(0)}',
+                                              '₭${money(product.effectivePrice)}',
                                               style: TextStyle(
                                                 fontSize: isSmall ? 12 : 13,
                                                 fontWeight: FontWeight.w800,
@@ -5966,10 +6024,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                       if (!blocked)
                                         GestureDetector(
                                           onTap: () {
+                                            if (!ToppingRules.canQuickAdd(product.toppings) &&
+                                                _selectedCategory != 'Redeem points') {
+                                              _openProductDetail(product);
+                                              return;
+                                            }
                                             _addToCart(
                                               product,
                                               quantity: 1,
-                                              selectedToppings: [],
+                                              selectedToppings: ToppingRules.defaults(product.toppings),
                                               isRedeemed:
                                                   _selectedCategory ==
                                                   'Redeem points',
@@ -6270,7 +6333,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   children: [
                                       if (product.promotionPrice != null)
                                         Text(
-                                          '₭${product.price.toStringAsFixed(0)}',
+                                          '₭${money(product.price)}',
                                           style: TextStyle(
                                             decoration:
                                                 TextDecoration.lineThrough,
@@ -6279,7 +6342,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                           ),
                                         ),
                                       Text(
-                                        '₭${product.effectivePrice.toStringAsFixed(0)}',
+                                        '₭${money(product.effectivePrice)}',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -6299,10 +6362,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 const SizedBox(width: 8),
                                 GestureDetector(
                                   onTap: () {
+                                    if (!ToppingRules.canQuickAdd(product.toppings)) {
+                                      _openProductDetail(product);
+                                      return;
+                                    }
                                     _addToCart(
                                       product,
                                       quantity: 1,
-                                      selectedToppings: [],
+                                      selectedToppings: ToppingRules.defaults(product.toppings),
                                       isRedeemed: false,
                                     );
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -6630,7 +6697,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                   _previewToppings.isEmpty
                                       ? (_l10n?.noToppingsSelected ?? 'No Toppings Selected')
                                       : _previewToppings
-                                            .map((t) => t.name)
+                                            .map((t) => t.displayName)
                                             .join(', '),
                                   style: TextStyle(
                                     fontSize: 13,
@@ -6670,7 +6737,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                               ),
                             ),
                             Text(
-                              '₭${_previewTotal(product, _previewQty, _previewToppings).toStringAsFixed(0)}',
+                              '₭${money(_previewTotal(product, _previewQty, _previewToppings))}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                                 color: _brandNavy,
@@ -6695,6 +6762,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     onPressed: previewBlocked
                         ? null
                         : () {
+                            // A required group (e.g. Size) has no choice yet.
+                            if (ToppingRules.missing(product.toppings, _previewToppings).isNotEmpty) {
+                              _openToppingsPickerForPreview(product);
+                              return;
+                            }
                             _addToCart(
                               product,
                               quantity: _previewQty,
@@ -6736,13 +6808,113 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
+  /// "🎁 Buy 2 Get 1 Coffee: choose 1 free item" rows for the cart.
+  List<Widget> _customerFreePromoBanners() {
+    final out = <Widget>[];
+    for (final promo in _freePromotions) {
+      final left = promo.availableFree(_cartItems);
+      if (left == 0) continue;
+      final over = left < 0;
+      out.add(Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        decoration: BoxDecoration(
+          color: over ? Colors.red.shade50 : Colors.green.shade50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: over ? Colors.red.shade200 : Colors.green.shade300),
+        ),
+        child: Row(
+          children: [
+            Text(over ? '⚠️' : '🎁', style: const TextStyle(fontSize: 22)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                over
+                    ? (_l10n?.tooManyFreeItems(promo.name) ??
+                        'Too many free items for ${promo.name}. Remove one first.')
+                    : (_l10n?.freeItemsAvailable(promo.name, left) ?? '${promo.name}: $left free item(s)'),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: over ? Colors.red.shade800 : Colors.green.shade800,
+                ),
+              ),
+            ),
+            if (!over)
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+                onPressed: () => _chooseFreeItem(promo),
+                child: Text(_l10n?.chooseFreeItemShort ?? 'Choose'),
+              ),
+          ],
+        ),
+      ));
+    }
+    return out;
+  }
+
+  /// Customer picks the free item; the normal item sheet opens in free mode
+  /// (choices free too).
+  Future<void> _chooseFreeItem(FreePromotion promo) async {
+    final choices = _products
+        .where((p) => promo.freeProductIds.contains(p.id) && !p.blockSelfOrder)
+        .toList();
+    final picked = await showModalBottomSheet<Product>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: _gestureNavBottomPad(ctx)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Text(
+                _l10n?.chooseFreeItem(promo.name) ?? 'Choose the free item (${promo.name})',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _brandNavy),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final p in choices)
+                    ListTile(
+                      leading: const Text('🎁', style: TextStyle(fontSize: 22)),
+                      title: Text(p.displayName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text('₭${money(p.effectivePrice)}',
+                          style: const TextStyle(decoration: TextDecoration.lineThrough)),
+                      trailing: Text(_l10n?.freeItemLabel ?? 'FREE',
+                          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.green.shade700)),
+                      onTap: () => Navigator.pop(ctx, p),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    if (picked.toppings.isEmpty) {
+      _addToCart(picked, freePromo: promo);
+    } else {
+      _openProductDetail(picked, freePromo: promo);
+    }
+  }
+
+  double _toppingExtras(CartItem item) =>
+      item.selectedToppings.fold(0.0, (sum, t) => sum + t.extraPrice);
+
   void _openToppingsPickerForPreview(Product product) {
     if (product.blockSelfOrder) {
       _showSelfOrderBlockedMessage();
       return;
     }
     if (product.toppings.isEmpty) return;
-    final temp = List<Topping>.from(_previewToppings);
+    var temp = List<Topping>.from(_previewToppings);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -6753,6 +6925,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final missing = ToppingRules.missing(product.toppings, temp);
             return FractionallySizedBox(
               heightFactor: 0.72,
               child: Padding(
@@ -6785,64 +6958,45 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(_l10n?.optional ?? (_l10n?.optional ?? 'Optional'),
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
                     const SizedBox(height: 10),
                     Expanded(
-                      child: ListView.separated(
-                        itemCount: product.toppings.length,
-                        separatorBuilder: (_, _) =>
-                            const Divider(height: 1, color: _brandDivider),
-                        itemBuilder: (context, index) {
-                          final topping = product.toppings[index];
-                          final selected = temp.any((t) => t.id == topping.id);
-                          return CheckboxListTile(
-                            value: selected,
-                            onChanged: (val) {
-                              setSheetState(() {
-                                if (val == true) {
-                                  temp.add(topping);
-                                } else {
-                                  temp.removeWhere((t) => t.id == topping.id);
-                                }
-                              });
-                            },
-                            activeColor: _brandNavy,
-                            title: Text(
-                              topping.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: _brandNavy,
-                              ),
-                            ),
-                            subtitle: Text(
-                              topping.extraPrice > 0
-                                  ? '+₭${topping.extraPrice.toStringAsFixed(2)}'
-                                  : (_l10n?.free ?? 'Free'),
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          );
-                        },
+                      child: SingleChildScrollView(
+                        child: ToppingPicker(
+                          toppings: product.toppings,
+                          selected: temp,
+                          accent: _brandNavy,
+                          addOnsTitle: _l10n?.optional ?? 'Optional',
+                          alwaysShowAddOnsTitle: true,
+                          onChanged: (next) => setSheetState(() => temp = next),
+                        ),
                       ),
                     ),
+                    if (missing.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          _l10n?.toppingChooseMissing(
+                                missing.map((s) => s.title).join(', '),
+                              ) ??
+                              'Please choose: ${missing.map((s) => s.title).join(', ')}',
+                          style: const TextStyle(
+                            color: Colors.deepOrange,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          setState(
-                            () => _previewToppings = List<Topping>.from(temp),
-                          );
-                          Navigator.pop(ctx);
-                        },
+                        onPressed: missing.isNotEmpty
+                            ? null
+                            : () {
+                                setState(
+                                  () => _previewToppings = List<Topping>.from(temp),
+                                );
+                                Navigator.pop(ctx);
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _brandNavy,
                           foregroundColor: Colors.white,
@@ -6955,7 +7109,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             const SizedBox(height: 4),
                             Text(
                               item.selectedToppings
-                                  .map((t) => t.name)
+                                  .map((t) => t.displayName)
                                   .join(', '),
                               style: const TextStyle(
                                 fontSize: 12,
@@ -7001,7 +7155,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                             children: [
                               if (item.product.promotionPrice != null) ...[
                                 Text(
-                                  '₭${item.product.price.toStringAsFixed(0)}',
+                                  '₭${money((item.product.price + _toppingExtras(item)))}',
                                   style: TextStyle(
                                     decoration: TextDecoration.lineThrough,
                                     color: Colors.grey.shade400,
@@ -7010,8 +7164,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                                 ),
                                 const SizedBox(width: 6),
                               ],
+                              // Per item, choices included (Size L +₭5000).
                               Text(
-                                '₭${item.product.effectivePrice.toStringAsFixed(0)}',
+                                item.isFreePromo
+                                    ? '🎁 ${_l10n?.freeItemLabel ?? 'FREE'}'
+                                    : '₭${money((item.product.effectivePrice + _toppingExtras(item)))}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: item.product.promotionPrice != null
@@ -7094,6 +7251,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              ..._customerFreePromoBanners(),
               // Coupon Section
               Row(
                 children: [
@@ -7188,7 +7346,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                       ),
                     ),
                     Text(
-                      '- ₭${_couponDiscount.toStringAsFixed(0)}',
+                      '- ₭${money(_couponDiscount)}',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.green,
@@ -7209,7 +7367,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                   ),
 
                   Text(
-                    '₭${(_cartTotal - _effectiveCouponDiscount).toStringAsFixed(0)}',
+                    '₭${money((_cartTotal - _effectiveCouponDiscount))}',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -7223,7 +7381,23 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _isPlacingOrder ? null : _showCheckoutOptions,
+                  onPressed: _isPlacingOrder
+                      ? null
+                      : () {
+                          // Too many free items (a paid item was removed).
+                          final over = _freePromotions
+                              .where((p) => p.availableFree(_cartItems) < 0)
+                              .firstOrNull;
+                          if (over != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(_l10n?.tooManyFreeItems(over.name) ??
+                                  'Too many free items for ${over.name}. Remove one first.'),
+                              backgroundColor: Colors.red,
+                            ));
+                            return;
+                          }
+                          _showCheckoutOptions();
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _brandNavy,
                     foregroundColor: Colors.white,
@@ -7264,7 +7438,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   String _formatHistoryTotalK(dynamic v) {
     final n = double.tryParse((v ?? 0).toString()) ?? 0.0;
-    return 'K${n.toStringAsFixed(2)}';
+    return 'K${money(n)}';
   }
 
   Widget _navSelectedIcon(IconData icon) {
@@ -7284,7 +7458,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
 
     if (_historyItems.isEmpty) {
-      return Center(
+      return Column(
+        children: [
+          _historyFilterBar(),
+          Expanded(child: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(
@@ -7296,7 +7473,11 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 color: _brandNavy.withValues(alpha: 0.25),
               ),
               const SizedBox(height: 16),
-              Text(_l10n?.noOrderHistory ?? (_l10n?.noOrderHistory ?? 'No order history yet'),
+              Text(_historyFilter == 'today'
+                  ? (_l10n?.historyNoneToday ?? 'No orders today')
+                  : _historyFilter == 'range'
+                      ? (_l10n?.historyNoneInRange ?? 'No orders on these dates')
+                      : (_l10n?.noOrderHistory ?? 'No order history yet'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -7315,10 +7496,15 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             ],
           ),
         ),
+      )),
+        ],
       );
     }
 
-    return RefreshIndicator(
+    return Column(
+      children: [
+        _historyFilterBar(),
+        Expanded(child: RefreshIndicator(
       onRefresh: _refreshEverything,
       color: _brandNavy,
       child: ListView.separated(
@@ -7510,6 +7696,8 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
           );
         },
       ),
+    )),
+      ],
     );
   }
 
@@ -7578,6 +7766,10 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       bg = const Color(0xFFFFEDD5);
       fg = const Color(0xFFC2410C);
       text = 'Preparing';
+    } else if (ds == 'ready') {
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF166534);
+      text = _l10n?.statusReadyPill ?? 'Ready for pickup';
     } else if (isCancelled) {
       bg = const Color(0xFFFEE2E2);
       fg = const Color(0xFFB91C1C);
@@ -7618,6 +7810,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     if (ds == 'arrived') return (_l10n?.statusRiderArrived ?? 'Rider arrived');
     if (ds == 'on_the_way') return (_l10n?.statusRiderOnWay ?? 'Rider is on the way');
     if (ds == 'preparing') return (_l10n?.statusPreparingYourOrder ?? 'Preparing your order');
+    if (ds == 'ready') return (_l10n?.statusReadyForPickup ?? 'Your order is ready for pickup');
     if (rawState == 'waiting_transfer_review') {
       return (_l10n?.statusWaitingTransfer ?? 'Waiting transfer verification');
     }

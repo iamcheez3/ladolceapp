@@ -31,6 +31,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class PushNotificationsService {
+  /// Fires with the push `type` (e.g. self_order_ready) while the app is
+  /// open, so screens can reload instead of waiting for a pull-to-refresh.
+  static final StreamController<String> orderUpdates =
+      StreamController<String>.broadcast();
+
   PushNotificationsService._();
 
   static final FlutterLocalNotificationsPlugin _local =
@@ -219,6 +224,7 @@ class PushNotificationsService {
           return;
         }
         final type = (message.data['type'] ?? '').toString();
+        if (type.startsWith('self_order_')) orderUpdates.add(type);
         if (type == 'self_order_new') {
           final rawBranchId = message.data['branch_id'];
           final messageBranchId = (rawBranchId is int)

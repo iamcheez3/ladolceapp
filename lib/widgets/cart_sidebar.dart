@@ -4,6 +4,7 @@ import '../models/cart_item.dart';
 import '../models/pos_discount_config.dart';
 import '../models/pos_tax_config.dart';
 import '../utils/pos_discount.dart';
+import '../utils/money.dart';
 
 class CartSidebar extends StatelessWidget {
   static const Color _brandNavy = Color(0xFF001460);
@@ -24,6 +25,10 @@ class CartSidebar extends StatelessWidget {
   final PosDiscountOption? selectedDiscountOption;
   final double? discountManualValue;
 
+  /// "Buy 2 get 1 free" banner (free items available / too many), shown
+  /// above the totals. Built by the POS screen, which knows the promotions.
+  final Widget? promoBanner;
+
   const CartSidebar({
     super.key,
     required this.cartItems,
@@ -39,6 +44,7 @@ class CartSidebar extends StatelessWidget {
     this.taxConfig = PosTaxConfig.disabled,
     this.selectedDiscountOption,
     this.discountManualValue,
+    this.promoBanner,
   });
 
   @override
@@ -101,7 +107,7 @@ class CartSidebar extends StatelessWidget {
                         children: [
                           Text(AppLocalizations.of(context)?.charge2 ?? (AppLocalizations.of(context)?.charge2 ?? 'CHARGE'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                           Text(
-                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            '₭${money(cd.totalDue)}',
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -141,10 +147,13 @@ class CartSidebar extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              Text(
-                                '${selectedCustomer!['reward_points']} pts',
-                                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
-                              ),
+                              // A customer restored from a saved ticket has no
+                              // points loaded; skip the line rather than "null pts".
+                              if (selectedCustomer!['reward_points'] != null)
+                                Text(
+                                  '${selectedCustomer!['reward_points']} pts',
+                                  style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                                ),
                             ],
                           )
                         : Text(AppLocalizations.of(context)?.addCustomer ?? (AppLocalizations.of(context)?.addCustomer ?? 'Add customer'),
@@ -275,9 +284,13 @@ class CartSidebar extends StatelessWidget {
                   }),
           ),
           
-          // Totals and Charge
+          if (promoBanner != null) promoBanner!,
+
+          // Totals and Charge. Bottom inset keeps the total above the
+          // Android 3-button navigation bar (it was drawn underneath).
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(
+              16, 16, 16, 16 + MediaQuery.viewPaddingOf(context).bottom),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -303,7 +316,7 @@ class CartSidebar extends StatelessWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        '₭${cd.cartLinesSum.toStringAsFixed(2)}',
+                        '₭${money(cd.cartLinesSum)}',
                         textAlign: TextAlign.end,
                         style: TextStyle(color: Colors.grey[800]),
                       ),
@@ -329,7 +342,7 @@ class CartSidebar extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            '₭${money(cd.totalDue)}',
                             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _brandNavy),
                           ),
                         ),
@@ -351,7 +364,7 @@ class CartSidebar extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          '₭${cd.baseAmount.toStringAsFixed(2)}',
+                          '₭${money(cd.baseAmount)}',
                           textAlign: TextAlign.end,
                           style: TextStyle(color: Colors.grey[800]),
                         ),
@@ -373,7 +386,7 @@ class CartSidebar extends StatelessWidget {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            '₭${cd.taxAmount.toStringAsFixed(2)}',
+                            '₭${money(cd.taxAmount)}',
                             textAlign: TextAlign.end,
                             style: TextStyle(color: Colors.grey[800]),
                           ),
@@ -408,7 +421,7 @@ class CartSidebar extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '₭${cd.totalDue.toStringAsFixed(2)}',
+                            '₭${money(cd.totalDue)}',
                             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandNavy),
                           ),
                         ),
@@ -508,7 +521,9 @@ class _CartItemRow extends StatelessWidget {
                 icon: Icon(Icons.add_circle_outline, color: iconColor),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                onPressed: () => onUpdateQuantity(item, item.quantity + 1),
+                // A free item cannot grow past what the promotion allows;
+                // the cashier adds another through the promotion banner.
+                onPressed: item.isFreePromo ? null : () => onUpdateQuantity(item, item.quantity + 1),
               ),
             ],
             const SizedBox(width: 8),
@@ -527,11 +542,28 @@ class _CartItemRow extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (item.isFreePromo)
+                    Container(
+                      margin: const EdgeInsets.only(top: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.green.shade300),
+                      ),
+                      child: Text(
+                        item.promotionName.isNotEmpty
+                            ? '🎁 ${AppLocalizations.of(context)?.freeItemLabel ?? 'FREE'} · ${item.promotionName}'
+                            : '🎁 ${AppLocalizations.of(context)?.freeItemLabel ?? 'FREE'}',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.green.shade800),
+                      ),
+                    ),
                   const SizedBox(height: 2),
-                  Text(
-                    '₭${item.product.effectivePrice.toStringAsFixed(2)} each',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                  ),
+                  if (!item.isFreePromo)
+                    Text(
+                      '₭${money(item.product.effectivePrice)} each',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
                   if (item.selectedToppings.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Wrap(
@@ -546,7 +578,9 @@ class _CartItemRow extends StatelessWidget {
                             border: Border.all(color: Colors.orange.withOpacity(0.3)),
                           ),
                           child: Text(
-                            '+ ${topping.name} (₭${topping.extraPrice.toStringAsFixed(2)})',
+                            topping.extraPrice > 0 && !item.isFreePromo
+                                ? '+ ${topping.displayName} (₭${money(topping.extraPrice)})'
+                                : '+ ${topping.displayName}',
                             style: TextStyle(fontSize: 10, color: Colors.orange[800]),
                           ),
                         );
@@ -587,11 +621,13 @@ class _CartItemRow extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerRight,
                 child: Text(
-                  '₭${item.totalPrice.toStringAsFixed(2)}',
+                  item.isFreePromo
+                      ? (AppLocalizations.of(context)?.freeItemLabel ?? 'FREE')
+                      : '₭${money(item.totalPrice)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
-                    color: priceColor,
+                    color: item.isFreePromo ? Colors.green.shade700 : priceColor,
                   ),
                 ),
               ),

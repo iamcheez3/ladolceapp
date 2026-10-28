@@ -7,6 +7,8 @@ import '../models/ticket.dart';
 import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../services/api_service.dart';
+import '../widgets/topping_picker.dart';
+import '../utils/money.dart';
 
 /// Result object returned when a ticket is resumed
 class ResumedTicket {
@@ -14,6 +16,7 @@ class ResumedTicket {
   final String orderName;
   final int? tableId;
   final String? tableName;
+  final String ticketLabel;
   final int queueNumber;
   final String paymentType;
   final int? paymentMethodId;
@@ -21,6 +24,8 @@ class ResumedTicket {
   final List<CartItem> cartItems;
   final bool isOffline;
   final bool isSelfOrder;
+  final String deliveryStatus;
+  final int? partnerId;
   final String partnerName;
   final String deliveryPlaceName;
   final String deliveryPlaceAddress;
@@ -33,6 +38,7 @@ class ResumedTicket {
     required this.orderName,
     this.tableId,
     this.tableName,
+    this.ticketLabel = '',
     this.queueNumber = 0,
     this.paymentType = '',
     this.paymentMethodId,
@@ -40,6 +46,8 @@ class ResumedTicket {
     required this.cartItems,
     this.isOffline = false,
     this.isSelfOrder = false,
+    this.deliveryStatus = 'none',
+    this.partnerId,
     this.partnerName = '',
     this.deliveryPlaceName = '',
     this.deliveryPlaceAddress = '',
@@ -55,6 +63,7 @@ class _DisplayTicket {
   final String name;
   final int? tableId;
   final String? tableName;
+  final String ticketLabel;
   final double amountTotal;
   final int queueNumber;
   final String paymentType;
@@ -68,6 +77,8 @@ class _DisplayTicket {
   final DateTime? openedAt;
   final String note;
   final bool isSelfOrder;
+  final String deliveryStatus;
+  final int? partnerId;
   final String partnerName;
   final String deliveryPlaceName;
   final String deliveryPlaceAddress;
@@ -80,6 +91,7 @@ class _DisplayTicket {
     required this.name,
     this.tableId,
     this.tableName,
+    this.ticketLabel = '',
     required this.amountTotal,
     this.queueNumber = 0,
     this.paymentType = '',
@@ -91,6 +103,8 @@ class _DisplayTicket {
     this.openedAt,
     this.note = '',
     this.isSelfOrder = false,
+    this.deliveryStatus = 'none',
+    this.partnerId,
     this.partnerName = '',
     this.deliveryPlaceName = '',
     this.deliveryPlaceAddress = '',
@@ -115,13 +129,23 @@ class _TicketsScreenState extends State<TicketsScreen> {
   String? _errorMessage;
   List<_DisplayTicket> _tickets = [];
   final Set<int> _notifyingReadyOrderIds = {};
+  // Ready sent in this session (the list refresh brings delivery_status).
+  final Set<int> _readySentOrderIds = {};
   Timer? _tickTimer;
   late final Map<int, Product> _productById;
+
+  /// List rows instead of the card grid; remembered per device.
+  static const _listViewKey = 'tickets_list_view';
+  bool _listView = false;
 
   @override
   void initState() {
     super.initState();
     _productById = {for (final p in widget.cachedProducts) p.id: p};
+    SharedPreferences.getInstance().then((prefs) {
+      final saved = prefs.getBool(_listViewKey) ?? false;
+      if (mounted && saved != _listView) setState(() => _listView = saved);
+    }).catchError((_) {});
     _fetchTickets(backgroundRefresh: false);
     // Rebuild every minute so duration badges stay current
     _tickTimer = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -191,11 +215,18 @@ class _TicketsScreenState extends State<TicketsScreen> {
               id: task['mock_id'], // So it can be identified
               name: 'OFFLINE #${i + 1}',
               tableId: mapPayload['table_id'],
-              tableName: null,
+              // A ticket saved under a name offline shows that name.
+              tableName: (mapPayload['ticket_label'] ?? '').toString().isNotEmpty
+                  ? mapPayload['ticket_label'].toString()
+                  : null,
+              ticketLabel: (mapPayload['ticket_label'] ?? '').toString(),
               amountTotal: total,
               lines: lines,
               isOffline: true,
               offlineIndex: i, // Save actual index in list
+              partnerId: mapPayload['partner_id'] is int
+                  ? mapPayload['partner_id'] as int
+                  : null,
             ),
           );
         } catch (_) {}
@@ -222,6 +253,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
             name: t.name,
             tableId: t.tableId,
             tableName: t.tableName,
+            ticketLabel: t.ticketLabel,
             amountTotal: t.amountTotal,
             queueNumber: t.queueNumber,
             paymentType: t.paymentType,
@@ -232,6 +264,8 @@ class _TicketsScreenState extends State<TicketsScreen> {
             openedAt: t.openedAt,
             note: t.note,
             isSelfOrder: t.isSelfOrder,
+            deliveryStatus: t.deliveryStatus,
+            partnerId: t.partnerId,
             partnerName: t.partnerName,
             deliveryPlaceName: t.deliveryPlaceName,
             deliveryPlaceAddress: t.deliveryPlaceAddress,
@@ -285,6 +319,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
             name: t.name,
             tableId: t.tableId,
             tableName: t.tableName,
+            ticketLabel: t.ticketLabel,
             amountTotal: t.amountTotal,
             queueNumber: t.queueNumber,
             paymentType: t.paymentType,
@@ -295,6 +330,8 @@ class _TicketsScreenState extends State<TicketsScreen> {
             openedAt: t.openedAt,
             note: t.note,
             isSelfOrder: t.isSelfOrder,
+            deliveryStatus: t.deliveryStatus,
+            partnerId: t.partnerId,
             partnerName: t.partnerName,
             deliveryPlaceName: t.deliveryPlaceName,
             deliveryPlaceAddress: t.deliveryPlaceAddress,
@@ -329,6 +366,14 @@ class _TicketsScreenState extends State<TicketsScreen> {
             isPrinted: true, // already sent to kitchen when originally saved
             priceUnitFromOrder: line.priceUnit,
             kitchenNote: line.note,
+            isFreePromo: line.isFreePromo,
+            promotionId: line.promotionId,
+            // Choices (Iced, Size L...) were dropped on reopen, so the cart
+            // and the receipt lost them. The price above already includes them.
+            selectedToppings: ToppingRules.ordered([
+              for (final t in product.toppings)
+                if (line.toppingIds.contains(t.id)) t,
+            ]),
           ),
         );
       } else {
@@ -372,12 +417,14 @@ class _TicketsScreenState extends State<TicketsScreen> {
         queueNumber: ticket.queueNumber,
         tableId: ticket.tableId,
         tableName: ticket.tableName,
+        ticketLabel: ticket.ticketLabel,
         paymentType: ticket.paymentType,
         paymentMethodId: ticket.paymentMethodId,
         paymentMethodName: ticket.paymentMethodName,
         cartItems: cartItems,
         isOffline: ticket.isOffline,
         isSelfOrder: ticket.isSelfOrder,
+        partnerId: ticket.partnerId,
         partnerName: ticket.partnerName,
         deliveryPlaceName: ticket.deliveryPlaceName,
         deliveryPlaceAddress: ticket.deliveryPlaceAddress,
@@ -396,6 +443,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
     try {
       await _apiService.notifySelfOrderReady(orderId);
       if (!mounted) return;
+      setState(() => _readySentOrderIds.add(orderId));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${ticket.name} ready notification sent.'),
@@ -427,6 +475,18 @@ class _TicketsScreenState extends State<TicketsScreen> {
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: Icon(_listView ? Icons.grid_view_rounded : Icons.view_list_rounded),
+            tooltip: _listView
+                ? (AppLocalizations.of(context)?.switchToGrid ?? 'Switch to Grid')
+                : (AppLocalizations.of(context)?.switchToList ?? 'Switch to List'),
+            onPressed: () {
+              setState(() => _listView = !_listView);
+              SharedPreferences.getInstance()
+                  .then((prefs) => prefs.setBool(_listViewKey, _listView))
+                  .catchError((_) => false);
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
@@ -476,8 +536,18 @@ class _TicketsScreenState extends State<TicketsScreen> {
       );
     }
 
+    if (_listView) {
+      return ListView.separated(
+        // Bottom inset: last ticket stays above the 3-button navigation bar.
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(context).bottom),
+        itemCount: _tickets.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) => _buildTicketRow(_tickets[index]),
+      );
+    }
+
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(context).bottom),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 200,
         childAspectRatio: 0.85,
@@ -649,18 +719,13 @@ class _TicketsScreenState extends State<TicketsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          ticket.tableName != null
-                              ? Icons.table_restaurant
-                              : Icons.receipt,
+                          _placeIcon(ticket),
                           color: accentColor,
                           size: bodyIconSize,
                         ),
                         SizedBox(height: isSelfOrderTicket ? 2 : 4),
                         Text(
-                          ticket.tableName ??
-                              (ticket.tableId != null
-                                  ? 'Table #${ticket.tableId}'
-                                  : (AppLocalizations.of(context)?.noTable2 ?? 'No Table')),
+                          _placeText(ticket),
                           style: TextStyle(
                             fontSize: tableFontSize,
                             fontWeight: FontWeight.bold,
@@ -691,7 +756,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
               Padding(
                 padding: EdgeInsets.only(top: isSelfOrderTicket ? 4 : 6),
                 child: Text(
-                  '₭${ticket.amountTotal.toStringAsFixed(2)}',
+                  '₭${money(ticket.amountTotal)}',
                   style: TextStyle(
                     fontSize: totalFontSize,
                     fontWeight: FontWeight.bold,
@@ -702,40 +767,200 @@ class _TicketsScreenState extends State<TicketsScreen> {
               ),
               if (isSelfOrderTicket) ...[
                 const SizedBox(height: 6),
-                SizedBox(
-                  height: 32,
-                  child: ElevatedButton.icon(
-                    onPressed: isNotifyingReady
-                        ? null
-                        : () => _notifySelfOrderReady(ticket),
-                    icon: isNotifyingReady
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(
-                            Icons.notifications_active_rounded,
-                            size: 15,
-                          ),
-                    label: FittedBox(
-                      child: Text(AppLocalizations.of(context)?.orderReady ?? (AppLocalizations.of(context)?.orderReady ?? 'Order Ready'),
-                        style: TextStyle(fontSize: 12),
+                SizedBox(height: 32, child: _orderReadyButton(ticket, isNotifyingReady)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A named ticket has no table; its tableName then holds the name.
+  IconData _placeIcon(_DisplayTicket ticket) {
+    if (ticket.ticketLabel.isNotEmpty) return Icons.person_pin_rounded;
+    return ticket.tableName != null ? Icons.table_restaurant : Icons.receipt;
+  }
+
+  String _placeText(_DisplayTicket ticket) =>
+      ticket.tableName ??
+      (ticket.tableId != null
+          ? 'Table #${ticket.tableId}'
+          : (AppLocalizations.of(context)?.noTable2 ?? 'No Table'));
+
+  Widget _orderReadyButton(_DisplayTicket ticket, bool isNotifyingReady) {
+    final sent = ticket.deliveryStatus == 'ready' ||
+        (ticket.id != null && _readySentOrderIds.contains(ticket.id));
+    if (sent && !isNotifyingReady) {
+      // Already told the customer; tapping sends the notification again.
+      return OutlinedButton.icon(
+        onPressed: () => _notifySelfOrderReady(ticket),
+        icon: const Icon(Icons.check_circle_rounded, size: 15),
+        label: FittedBox(
+          child: Text(
+            AppLocalizations.of(context)?.orderReadySent ?? 'Ready ✓',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF059669),
+          side: const BorderSide(color: Color(0xFF059669)),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+    return ElevatedButton.icon(
+      onPressed: isNotifyingReady ? null : () => _notifySelfOrderReady(ticket),
+      icon: isNotifyingReady
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.notifications_active_rounded, size: 15),
+      label: FittedBox(
+        child: Text(
+          AppLocalizations.of(context)?.orderReady ?? 'Order Ready',
+          style: const TextStyle(fontSize: 12),
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF059669),
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: Colors.green.shade100,
+        disabledForegroundColor: Colors.green.shade800,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Widget _badge(String text, Color color, {IconData? icon}) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 3),
+          ],
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// One open ticket as a full-width row: name or table, reference and item
+  /// count, how long it has been open, and the total on the right.
+  Widget _buildTicketRow(_DisplayTicket ticket) {
+    final isOffline = ticket.isOffline;
+    final isSelfOrderTicket = ticket.isSelfOrder && !isOffline;
+    final accentColor = isOffline ? Colors.orange : const Color(0xFF1E3A8A);
+    final openedAt = ticket.openedAt;
+    final isNotifyingReady =
+        ticket.id != null && _notifyingReadyOrderIds.contains(ticket.id);
+    final hasPlace = ticket.tableName != null || ticket.tableId != null;
+    final itemCount = ticket.lines.length;
+
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => _resumeTicket(ticket),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: accentColor.withOpacity(0.1),
+                child: Icon(
+                  isOffline ? Icons.cloud_off : _placeIcon(ticket),
+                  color: accentColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _placeText(ticket),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: hasPlace ? Colors.black87 : Colors.grey,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF059669),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.green.shade100,
-                      disabledForegroundColor: Colors.green.shade800,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${ticket.name} · $itemCount item${itemCount == 1 ? '' : 's'}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        if (isOffline)
+                          _badge(
+                            AppLocalizations.of(context)?.offline ?? '⚡ OFFLINE',
+                            Colors.orange,
+                          )
+                        else if (openedAt != null)
+                          _badge(
+                            '🕐 ${_formatElapsed(openedAt)}',
+                            _durationColor(openedAt),
+                          ),
+                        if (ticket.note.isNotEmpty)
+                          _badge(
+                            ticket.note,
+                            Colors.amber.shade800,
+                            icon: Icons.edit_note_rounded,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '₭${money(ticket.amountTotal)}',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: accentColor,
                     ),
                   ),
-                ),
-              ],
+                  if (isSelfOrderTicket) ...[
+                    const SizedBox(height: 6),
+                    SizedBox(height: 30, child: _orderReadyButton(ticket, isNotifyingReady)),
+                  ],
+                ],
+              ),
             ],
           ),
         ),

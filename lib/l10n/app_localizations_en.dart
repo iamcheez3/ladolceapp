@@ -355,6 +355,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get printBill => 'Print bill';
 
   @override
+  String get saveAndPrintBillTitle => 'Save ticket first?';
+
+  @override
+  String get saveAndPrintBillBody =>
+      'This ticket is not saved yet. Save it to send the order to the kitchen, then the bill will print.';
+
+  @override
+  String get saveAndPrintBill => 'Save & print bill';
+
+  @override
   String get reprintOrderKitchen => 'Reprint order (kitchen)';
 
   @override
@@ -2378,4 +2388,251 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paymentColon => 'Payment:';
+
+  @override
+  String get renameTicketAction => 'Rename ticket';
+
+  @override
+  String get ticketNameLabel => 'Ticket name';
+
+  @override
+  String get ticketNameHint => 'e.g. customer name';
+
+  @override
+  String get ticketNameHelp =>
+      'The ticket shows this name instead of a table, and its table becomes free for a new order.';
+
+  @override
+  String ticketRenamed(String name) {
+    return 'Ticket renamed to $name. Its table is free again.';
+  }
+
+  @override
+  String get customNameAction => 'Custom name';
+
+  @override
+  String get customNameHelp =>
+      'Save this order under a name instead of a table.';
+
+  @override
+  String renameTicketFailed(String error) {
+    return 'Rename failed: $error';
+  }
+
+  @override
+  String get toppingPickOne => 'Pick 1';
+
+  @override
+  String get toppingPickMany => 'Pick many';
+
+  @override
+  String get toppingRequired => 'Required';
+
+  @override
+  String get toppingAddOns => 'Add-ons';
+
+  @override
+  String toppingChooseMissing(String groups) {
+    return 'Please choose: $groups';
+  }
+
+  @override
+  String get toppingGroups => 'Topping groups';
+
+  @override
+  String get toppingGroupsSubtitle => 'Headings like Type, Taste or Size';
+
+  @override
+  String get addToppingGroup => 'Add group';
+
+  @override
+  String get toppingGroupName => 'Group name (e.g. Size)*';
+
+  @override
+  String get toppingGroupNameLo => 'Lao name (optional)';
+
+  @override
+  String get toppingNameLo => 'Lao name (optional)';
+
+  @override
+  String get toppingPickOneHelp => 'Pick one, e.g. Hot / Iced / Frappe';
+
+  @override
+  String get toppingPickManyHelp => 'Pick many, e.g. extra shot + oat milk';
+
+  @override
+  String get toppingRequiredHelp =>
+      'An option must be chosen before adding the item';
+
+  @override
+  String get noToppingGroupsYet => 'No groups yet';
+
+  @override
+  String get noToppingGroupsHelp =>
+      'Groups put toppings under headings like Type (Hot / Iced), Taste or Size (M / L).';
+
+  @override
+  String get deleteToppingGroup => 'Delete group';
+
+  @override
+  String get deleteToppingGroupConfirm =>
+      'Delete this group? Its toppings stay, as plain add-ons.';
+
+  @override
+  String get toppingGroupLabel => 'Group';
+
+  @override
+  String get toppingNoGroup => 'No group (add-on)';
+
+  @override
+  String get toppingDefaultLabel => 'Selected by default';
+
+  @override
+  String get toppingDefaultHelp => 'Already ticked when the item opens';
+
+  @override
+  String get toppingGroupSaved => 'Group saved';
+
+  @override
+  String get toppingGroupDeleted => 'Group deleted';
+
+  @override
+  String toppingGroupSaveFailed(String error) {
+    return 'Could not save group: $error';
+  }
+
+  @override
+  String get toppingSelectAll => 'All';
+
+  @override
+  String get toppingDefaultBadge => 'Default';
+
+  @override
+  String get statusReadyForPickup => 'Your order is ready for pickup';
+
+  @override
+  String get statusReadyPill => 'Ready for pickup';
+
+  @override
+  String get orderReadySent => 'Ready ✓';
+
+  @override
+  String get splitPayment => 'Split payment';
+
+  @override
+  String get singlePayment => 'Single payment';
+
+  @override
+  String get addPayment => 'Add payment';
+
+  @override
+  String get remainingToPay => 'Remaining';
+
+  @override
+  String get splitOnlyCashOver => 'Only cash can be more than the total';
+
+  @override
+  String get posOnlyLabel => 'POS only';
+
+  @override
+  String get posOnlyCategoryHelp =>
+      'Hidden in the customer self-order app; cashiers still see it.';
+
+  @override
+  String get posOnlyProductHelp =>
+      'Hidden in self-order; only the cashier can sell it';
+
+  @override
+  String get freeItemLabel => 'FREE';
+
+  @override
+  String get addFreeItem => 'Add free';
+
+  @override
+  String get chooseFreeItemShort => 'Choose';
+
+  @override
+  String tooManyFreeItems(String name) {
+    return 'Too many free items for $name. Remove one first.';
+  }
+
+  @override
+  String freeItemsAvailable(String name, int count) {
+    return '$name: $count free item(s)';
+  }
+
+  @override
+  String chooseFreeItem(String name) {
+    return 'Choose the free item ($name)';
+  }
+
+  @override
+  String get historyToday => 'Today';
+
+  @override
+  String get historyPickDates => 'Choose dates';
+
+  @override
+  String get historyAll => 'All';
+
+  @override
+  String get historyNoneToday => 'No orders today';
+
+  @override
+  String get historyNoneInRange => 'No orders on these dates';
+
+  @override
+  String get appUpdate => 'App update';
+
+  @override
+  String appUpdateCurrent(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get appUpdateChecking => 'Checking for updates…';
+
+  @override
+  String get appUpdateLatest => 'You have the latest version.';
+
+  @override
+  String get appUpdateAvailableTitle => 'New version available';
+
+  @override
+  String appUpdateAvailableBody(String version, String size, String current) {
+    return 'Version $version is ready ($size MB). This tablet has $current.';
+  }
+
+  @override
+  String get appUpdateWhatsNew => 'What\'s new';
+
+  @override
+  String get appUpdateRequired => 'This update is required.';
+
+  @override
+  String get appUpdateLater => 'Later';
+
+  @override
+  String get appUpdateNow => 'Update';
+
+  @override
+  String get appUpdateDownloading => 'Downloading update…';
+
+  @override
+  String get appUpdateAllowTitle => 'Allow app updates';
+
+  @override
+  String get appUpdateAllowBody =>
+      'Android asks once: turn on \"Allow from this source\" for LaDolce, then come back and tap Install.';
+
+  @override
+  String get appUpdateOpenSettings => 'Open settings';
+
+  @override
+  String get appUpdateInstall => 'Install';
+
+  @override
+  String appUpdateFailed(String error) {
+    return 'Update failed: $error';
+  }
 }

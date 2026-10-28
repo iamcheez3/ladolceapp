@@ -5,7 +5,8 @@ import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../services/api_service.dart';
+import '../services/api_service.dart';
+import '../utils/money.dart';
 
 /// Full-screen order receipt / detail (customer self-order) — matches app reference styling.
 class CustomerOrderDetailScreen extends StatelessWidget {
@@ -27,6 +28,10 @@ class CustomerOrderDetailScreen extends StatelessWidget {
   String _statusLabel(String rawState, String paymentMethod, {String? deliveryStatus}) {
     final ds = (deliveryStatus ?? '').toLowerCase().trim();
     if (ds == 'delivered') return 'DELIVERED';
+    // Cashier pressed Order Ready on this pickup order.
+    if (ds == 'ready' && rawState != 'paid' && rawState != 'cancelled') {
+      return 'READY FOR PICKUP';
+    }
     if (rawState == 'waiting_transfer_review') {
       return 'Waiting review';
     }
@@ -130,7 +135,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _summaryRow(AppLocalizations.of(context)?.amount ?? 'Amount', '₭${amount.toStringAsFixed(2)}', boldValue: true),
+                      _summaryRow(AppLocalizations.of(context)?.amount ?? 'Amount', '₭${money(amount)}', boldValue: true),
                       const SizedBox(height: 8),
                       _summaryRow(AppLocalizations.of(context)?.payment ?? 'Payment', payMethod),
                       const SizedBox(height: 8),
@@ -285,7 +290,7 @@ class CustomerOrderDetailScreen extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '₭${subtotal.toStringAsFixed(2)}',
+                '₭${money(subtotal)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,

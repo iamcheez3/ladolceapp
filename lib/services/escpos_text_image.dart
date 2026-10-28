@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image/image.dart' as img;
 
 /// Rasterises text so ESC/POS printers can output scripts they cannot encode.
@@ -13,8 +12,9 @@ import 'package:image/image.dart' as img;
 /// code page would print garbage. Drawing the line with Flutter's text engine
 /// and sending it as a bitmap is the only way the characters actually appear.
 ///
-/// ASCII lines are deliberately left alone: they stay crisp printer text and
-/// avoid the much larger raster payload.
+/// Order tickets and receipts raster every line, so the whole ticket is in the
+/// print font. Other slips (bill, reprint, refund) still send ASCII lines as
+/// native printer text.
 
 /// True when [s] holds anything outside printable ASCII, i.e. anything the
 /// ESC/POS encoder would mangle or reject.
@@ -25,45 +25,29 @@ bool escPosNeedsImage(String s) {
   return false;
 }
 
-/// Overridable font resolver. `google_fonts` fires a network fetch and, on
-/// failure, leaks the error through a `.then` it never guards — harmless in the
-/// app (the fallback below still runs) but fatal under `flutter test`, which has
-/// no network. Tests inject a plain style so the raster pipeline can be verified
-/// offline and deterministically.
+/// Family of the print font, bundled in assets/fonts and declared in pubspec.
+/// Noto Serif Lao covers Lao, Latin and digits, so a whole ticket can be drawn
+/// in it; the shop picked it from printed samples as the easiest to read.
+const printFontFamily = 'NotoSerifLao';
+
+/// Overridable font resolver. `flutter test` does not register pubspec fonts,
+/// so tests either load the family themselves or inject a plain style to keep
+/// the raster pipeline verifiable offline and deterministically.
 @visibleForTesting
 Future<TextStyle> Function(double fontSize, bool bold)? debugStyleResolver;
 
-/// Resolves the font used for rasterised lines.
-///
-/// Noto Sans Lao covers Lao and Latin, and the app already loads it for the UI
-/// whenever the locale is `lo`, so it is normally warm in the google_fonts
-/// cache by the time a receipt prints. If it cannot be resolved — a shop that
-/// is offline with a cold cache — this falls back to the platform font rather
-/// than throwing, because a degraded receipt beats a failed print.
+/// Resolves the font used for rasterised lines. Bundled, so unlike the old
+/// google_fonts lookup it never depends on the shop being online.
 Future<TextStyle> _resolveStyle(double fontSize, bool bold) async {
   final override = debugStyleResolver;
   if (override != null) return override(fontSize, bold);
-  final weight = bold ? FontWeight.w700 : FontWeight.w400;
-  final fallback = TextStyle(
+  return TextStyle(
+    fontFamily: printFontFamily,
     fontSize: fontSize,
-    fontWeight: weight,
+    fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
     color: Colors.black,
     height: 1.25,
   );
-  try {
-    final style = GoogleFonts.notoSansLao(
-      fontSize: fontSize,
-      fontWeight: weight,
-      color: Colors.black,
-      height: 1.25,
-    );
-    // Awaited so a download failure surfaces here, inside the guard, instead of
-    // escaping as an unhandled async error mid-print.
-    await GoogleFonts.pendingFonts([style]);
-    return style;
-  } catch (_) {
-    return fallback;
-  }
 }
 
 ui.Paragraph _buildParagraph(

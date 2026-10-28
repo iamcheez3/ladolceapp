@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../utils/responsive_layout.dart';
+import '../utils/money.dart';
 
 class ProductGrid extends StatelessWidget {
   final List<Product> products;
@@ -152,7 +153,7 @@ class ProductGrid extends StatelessWidget {
                                       children: [
                                         if (product.promotionPrice != null && !Product.disablePromotionPrice)
                                           Text(
-                                            '₭${product.price.toStringAsFixed(2)}',
+                                            '₭${money(product.price)}',
                                             style: TextStyle(
                                               fontSize: priceSize - 2,
                                               color: Colors.grey.shade400,
@@ -160,7 +161,7 @@ class ProductGrid extends StatelessWidget {
                                             ),
                                           ),
                                         Text(
-                                          '₭${product.effectivePrice.toStringAsFixed(2)}',
+                                          '₭${money(product.effectivePrice)}',
                                           style: TextStyle(
                                             color: (product.promotionPrice != null && !Product.disablePromotionPrice)
                                                 ? Colors.red

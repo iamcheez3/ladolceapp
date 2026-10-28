@@ -6,6 +6,7 @@ import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
 import 'product_edit_screen.dart';
+import '../utils/money.dart';
 
 class ManageProductsScreen extends StatefulWidget {
   const ManageProductsScreen({super.key});
@@ -38,9 +39,11 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     });
 
     try {
-      final productsFuture = _apiService.fetchProducts();
+      // Fresh from the server: the cache may hold an old or shorter list.
+      final productsFuture = _apiService.fetchProducts(forceRefresh: true);
       final categoriesFuture = _apiService.fetchCategories();
-      final toppingsFuture = _apiService.fetchToppings();
+      // Fresh: groups and defaults may have changed on the Toppings screen.
+      final toppingsFuture = _apiService.fetchToppings(forceRefresh: true);
 
       final products = await productsFuture;
       final categories = await categoriesFuture;
@@ -355,7 +358,7 @@ class _ProductCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '\$${product.price.toStringAsFixed(2)}',
+                            '₭${money(product.price)}',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,

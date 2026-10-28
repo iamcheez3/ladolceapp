@@ -114,7 +114,12 @@ class NetworkService {
       // Send Odoo session cookie so require_session() can authenticate the request.
       final sessionId = await _getSessionId();
       if (sessionId != null && sessionId.isNotEmpty) {
-        headers['Cookie'] = 'session_id=$sessionId;';
+        // Live Odoo session as the cookie (see ApiService.cookieSessionPrefsKey).
+        final prefs = await SharedPreferences.getInstance();
+        final cookieSid =
+            prefs.getString('cached_odoo_cookie_session')?.trim() ?? '';
+        headers['Cookie'] =
+            'session_id=${cookieSid.isNotEmpty ? cookieSid : sessionId};';
         headers['X-Openerp-Session-Id'] = sessionId;
       }
     }

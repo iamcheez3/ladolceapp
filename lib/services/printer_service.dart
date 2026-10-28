@@ -2,12 +2,16 @@ import 'dart:async';
 import '../utils/bilingual_name.dart';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:typed_data';
 import 'dart:ui' show TextAlign;
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:image/image.dart' as img;
 import 'package:esc_pos_utils/esc_pos_utils.dart';
 import 'escpos_text_image.dart';
 import 'package:esc_pos_printer/esc_pos_printer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cart_item.dart';
+import '../utils/money.dart';
 
 void _printerLog(String message) {
   developer.log(message, name: 'PrinterService');
@@ -176,11 +180,59 @@ class PrinterService {
   int _dotsFor(PrinterProfile profile) =>
       profile.paperWidthMm == 58 ? 372 : 558;
 
+  /// Raster size for the shop name and queue number: about the height of the
+  /// printer's double-size text they replaced.
+  static const double _bigFontSize = 48;
+
+  static img.Image? _bundledLogo;
+
+  /// Company logo at the top of receipts and bills: the bill template's logo
+  /// (Odoo, base64) when one is uploaded, else the app's black-on-white bear.
+  /// Flattened onto white so a transparent PNG does not print as a black block.
+  Future<void> _emitLogo(
+    NetworkPrinter printer, {
+    required int dots,
+    String? logoBase64,
+  }) async {
+    try {
+      img.Image? logo;
+      final raw = (logoBase64 ?? '').trim();
+      if (raw.isNotEmpty) {
+        final comma = raw.indexOf(',');
+        final b64 = raw.startsWith('data:') && comma > 0 ? raw.substring(comma + 1) : raw;
+        logo = img.decodeImage(base64Decode(b64));
+        // The backend's default templates ship a 68-byte placeholder pixel;
+        // scaled up it prints as a blank/black square, so use the bear.
+        if (logo != null && (logo.width < 32 || logo.height < 32)) logo = null;
+      }
+      if (logo == null) {
+        if (_bundledLogo == null) {
+          final data = await rootBundle.load('assets/images/receipt_logo.png');
+          _bundledLogo = img.decodePng(Uint8List.view(data.buffer));
+        }
+        logo = _bundledLogo;
+      }
+      if (logo == null) return;
+      final width = (dots * 0.4).round().clamp(120, 260);
+      final resized = img.copyResize(logo, width: width);
+      final flat = img.Image(resized.width, resized.height);
+      img.fill(flat, img.getColor(255, 255, 255));
+      img.drawImage(flat, resized);
+      printer.imageRaster(img.grayscale(flat), align: PosAlign.center);
+      printer.feed(1);
+    } catch (e) {
+      _printerLog('[PRINTER] logo skipped: $e');
+    }
+  }
+
   /// Prints one line, rasterising it when it contains characters ESC/POS cannot
   /// encode. `esc_pos_utils` pushes text through `latin1.encode`, which throws a
   /// FormatException above U+00FF, so one Lao product name used to abort the
   /// entire receipt. Printers have no Lao glyphs either, so a bitmap is the only
   /// way the text actually appears. ASCII keeps the fast native-text path.
+  ///
+  /// [inPrintFont] rasterises ASCII too, so the whole ticket shares the print
+  /// font (order tickets and receipts); [fontSize] overrides the raster size.
   Future<void> _emitLine(
     NetworkPrinter printer,
     String text, {
@@ -188,10 +240,12 @@ class PrinterService {
     bool bold = false,
     bool large = false,
     PosAlign align = PosAlign.left,
+    bool inPrintFont = false,
+    double? fontSize,
   }) async {
     final line = text.trimRight();
     if (line.isEmpty) return;
-    if (!escPosNeedsImage(line)) {
+    if (!inPrintFont && !escPosNeedsImage(line)) {
       printer.text(
         line,
         styles: PosStyles(
@@ -208,7 +262,7 @@ class PrinterService {
         text: line,
         widthDots: dots,
         bold: bold,
-        fontSize: large ? 40 : 26,
+        fontSize: fontSize ?? (large ? 40 : 26),
         align: align == PosAlign.center
             ? TextAlign.center
             : align == PosAlign.right
@@ -237,8 +291,9 @@ class PrinterService {
     required int dots,
     bool bold = false,
     bool large = false,
+    bool inPrintFont = false,
   }) async {
-    if (!escPosNeedsImage(left) && !escPosNeedsImage(right)) {
+    if (!inPrintFont && !escPosNeedsImage(left) && !escPosNeedsImage(right)) {
       final h = large ? PosTextSize.size2 : PosTextSize.size1;
       printer.row([
         PosColumn(
@@ -571,6 +626,7 @@ class PrinterService {
     String? footerText,
     double discountAmount = 0.0,
     int? queueNumber,
+    String? logoBase64,
   }) async {
     await initialize();
     if (!isConfigured) return false;
@@ -606,6 +662,7 @@ class PrinterService {
         footerText: footerText,
         discountAmount: discountAmount,
         queueNumber: queueNumber,
+        logoBase64: logoBase64,
       );
       allSuccess = allSuccess && ok;
     }
@@ -626,6 +683,7 @@ class PrinterService {
   String? footerText,
   double discountAmount = 0.0,
   int? queueNumber,
+  String? logoBase64,
 }) async {
   final cap = await CapabilityProfile.load();
   final printer = NetworkPrinter(profile.paperSize, cap);
@@ -635,95 +693,76 @@ class PrinterService {
         .timeout(_connectTimeout);
     if (result != PosPrintResult.success) return false;
 
+    final dots = _dotsFor(profile);
+    // Every line in the print font, like the receipt. English names used to go
+    // out in the printer's own font and Lao names as an image, so "1x Butter
+    // croissant" and "1x <Lao name>" did not line up.
+    Future<void> printLine(String t, {bool bold = false, double? size, PosAlign align = PosAlign.left}) =>
+        _emitLine(printer, t, dots: dots, bold: bold, fontSize: size, align: align, inPrintFont: true);
+    Future<void> printRow(String l, String r, {bool bold = false, bool large = false}) =>
+        _emitRow(printer, l, r, dots: dots, bold: bold, large: large, inPrintFont: true);
+
+    await _emitLogo(printer, dots: dots, logoBase64: logoBase64);
     final head = (headerText ?? '').trim();
     if (head.isNotEmpty) {
       for (final line in head.split('\n')) {
         final t = line.trimRight();
         if (t.isEmpty) continue;
-        printer.text(t, styles: const PosStyles(align: PosAlign.center, bold: true));
+        await printLine(t, bold: true, align: PosAlign.center);
       }
     } else {
-      printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-      printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
+      await printLine('LaDolce', bold: true, size: _bigFontSize, align: PosAlign.center);
     }
     if (ticketName != null && ticketName.isNotEmpty) {
-      printer.text(ticketName, styles: const PosStyles(align: PosAlign.center, bold: true));
+      await printLine(ticketName, bold: true, align: PosAlign.center);
     }
     printer.hr();
     if (queueNumber != null && queueNumber > 0) {
-      printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+      await printLine(_fmtQueue(queueNumber), bold: true, size: _bigFontSize, align: PosAlign.center);
       printer.hr();
     }
-    printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
-    printer.text('Cashier: $cashierName');
+    await printLine('Date: ${DateTime.now().toString().substring(0, 19)}');
+    await printLine('Cashier: $cashierName');
     printer.hr();
 
-    final dots = _dotsFor(profile);
-    for (final item in cartItems) {
-      await _emitRow(
-        printer,
-        '${item.quantity}x ${item.product.displayName}',
-        'LAK ${item.totalPrice.toStringAsFixed(2)}',
-        dots: dots,
+    for (final line in mergeSamePrintLines(cartItems)) {
+      final item = line.item;
+      await printRow(
+        '${line.quantity}x ${item.product.displayName}',
+        item.isFreePromo ? 'FREE' : 'LAK ${money(line.totalPrice)}',
         bold: true,
       );
-      // Print toppings as sub-lines if any
       for (final topping in item.selectedToppings) {
-        if (escPosNeedsImage(topping.name)) {
-          await _emitRow(
-            printer,
-            '  + ${topping.name}',
-            topping.extraPrice > 0
-                ? 'LAK${topping.extraPrice.toStringAsFixed(2)}'
-                : '',
-            dots: dots,
-          );
-          continue;
-        }
-        printer.row([
-          PosColumn(text: '  + ${topping.name}', width: 8),
-          PosColumn(
-            text: topping.extraPrice > 0 ? 'LAK${topping.extraPrice.toStringAsFixed(2)}' : '',
-            width: 4,
-            styles: const PosStyles(align: PosAlign.right),
-          ),
-        ]);
+        await printRow(
+          '  + ${topping.displayName}',
+          !item.isFreePromo && topping.extraPrice > 0
+              ? 'LAK ${money(topping.extraPrice)}'
+              : '',
+        );
       }
     }
 
     printer.hr();
     if (discountAmount > 0) {
-      printer.row([
-        PosColumn(text: 'Discount ', width: 8, styles: const PosStyles(bold: true)),
-        PosColumn(text: '-LAK ${discountAmount.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
-      ]);
+      await printRow('Discount', '-LAK ${money(discountAmount)}', bold: true);
     }
     final showTax = taxRowLabel != null && taxRowLabel.isNotEmpty && tax.abs() >= 0.005;
     if (showTax) {
-      printer.row([
-        PosColumn(text: '$subtotalRowLabel ', width: 8),
-        PosColumn(text: 'LAK ${subtotal.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-      ]);
-      printer.row([
-        PosColumn(text: '$taxRowLabel ', width: 8),
-        PosColumn(text: 'LAK ${tax.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-      ]);
+      await printRow(subtotalRowLabel, 'LAK ${money(subtotal)}');
+      await printRow(taxRowLabel, 'LAK ${money(tax)}');
       printer.hr(ch: '=');
     }
-    printer.row([
-      PosColumn(text: 'TOTAL:', width: 8, styles: const PosStyles(bold: true, height: PosTextSize.size2)),
-      PosColumn(text: 'LAK ${total.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2)),
-    ]);
+    await printRow('TOTAL:', 'LAK ${money(total)}', bold: true, large: true);
     printer.feed(1);
-    printer.text('** NOT A RECEIPT **', styles: const PosStyles(align: PosAlign.center, bold: true));
-    printer.text('Please wait for your receipt', styles: const PosStyles(align: PosAlign.center));
+    await printLine('** NOT A RECEIPT **', bold: true, align: PosAlign.center);
+    await printLine('Please wait for your receipt', align: PosAlign.center);
     final foot = (footerText ?? '').trim();
     if (foot.isNotEmpty) {
       printer.feed(1);
       for (final line in foot.split('\n')) {
         final t = line.trimRight();
         if (t.isEmpty) continue;
-        printer.text(t, styles: const PosStyles(align: PosAlign.center));
+        await printLine(t, align: PosAlign.center);
       }
     }
     printer.feed(3);
@@ -753,6 +792,13 @@ class PrinterService {
     String? footerText,
     double discountAmount = 0.0,
     int? queueNumber,
+    String? logoBase64,
+    String? customerName,
+    int? pointsEarned,
+    int? pointsBalance,
+    String pointsLabel = 'Points',
+    List<Map<String, dynamic>> payments = const [],
+    double change = 0,
   }) => _printReceiptToProfile(
         profile,
         cartItems: cartItems,
@@ -766,6 +812,13 @@ class PrinterService {
         footerText: footerText,
         discountAmount: discountAmount,
         queueNumber: queueNumber,
+        logoBase64: logoBase64,
+        customerName: customerName,
+        pointsEarned: pointsEarned,
+        pointsBalance: pointsBalance,
+        pointsLabel: pointsLabel,
+        payments: payments,
+        change: change,
       );
 
   Future<bool> _printReceiptToProfile(
@@ -781,6 +834,13 @@ class PrinterService {
     String? footerText,
     double discountAmount = 0.0,
     int? queueNumber,
+    String? logoBase64,
+    String? customerName,
+    int? pointsEarned,
+    int? pointsBalance,
+    String pointsLabel = 'Points',
+    List<Map<String, dynamic>> payments = const [],
+    double change = 0,
   }) async {
     final cap = await CapabilityProfile.load();
     final printer = NetworkPrinter(profile.paperSize, cap);
@@ -791,80 +851,87 @@ class PrinterService {
       if (result != PosPrintResult.success) return false;
 
       final dots = _dotsFor(profile);
+      // Every line in the print font, including the English and the prices.
+      Future<void> printLine(String t, {bool bold = false, double? size, PosAlign align = PosAlign.left}) =>
+          _emitLine(printer, t, dots: dots, bold: bold, fontSize: size, align: align, inPrintFont: true);
+      Future<void> printRow(String l, String r, {bool bold = false, bool large = false}) =>
+          _emitRow(printer, l, r, dots: dots, bold: bold, large: large, inPrintFont: true);
+
+      await _emitLogo(printer, dots: dots, logoBase64: logoBase64);
       final head = (headerText ?? '').trim();
       if (head.isNotEmpty) {
         for (final line in head.split('\n')) {
           final t = line.trimRight();
           if (t.isEmpty) continue;
-          await _emitLine(
-            printer,
-            t,
-            dots: dots,
-            bold: true,
-            align: PosAlign.center,
-          );
+          await printLine(t, bold: true, align: PosAlign.center);
         }
       } else {
-        printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-        printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
+        await printLine('LaDolce', bold: true, size: _bigFontSize, align: PosAlign.center);
       }
-      await _emitLine(
-        printer,
-        'Printer: ${profile.name}',
-        dots: dots,
-        align: PosAlign.center,
-      );
       printer.hr();
       if (queueNumber != null && queueNumber > 0) {
-        printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+        await printLine(_fmtQueue(queueNumber), bold: true, size: _bigFontSize, align: PosAlign.center);
         printer.hr();
       }
-      printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
-      await _emitLine(printer, 'Cashier: $cashierName', dots: dots);
+      await printLine('Date: ${DateTime.now().toString().substring(0, 19)}');
+      await printLine('Cashier: $cashierName');
       printer.hr();
-      for (final item in cartItems) {
-        await _emitRow(
-          printer,
-          '${item.quantity}x ${item.product.displayName}',
-          'LAK${item.totalPrice.toStringAsFixed(2)}',
-          dots: dots,
+      for (final line in mergeSamePrintLines(cartItems)) {
+        final item = line.item;
+        await printRow(
+          '${line.quantity}x ${item.product.displayName}',
+          item.isFreePromo ? 'FREE' : 'LAK ${money(line.totalPrice)}',
           bold: true,
         );
+        // Choices such as "Size L" explain the line price.
+        for (final topping in item.selectedToppings) {
+          await printLine('  + ${topping.displayName}');
+        }
       }
       printer.hr();
       if (discountAmount > 0) {
-        printer.row([
-          PosColumn(text: 'Discount ', width: 8, styles: const PosStyles(bold: true)),
-          PosColumn(text: '-LAK ${discountAmount.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
-        ]);
+        await printRow('Discount', '-LAK ${money(discountAmount)}', bold: true);
       }
       final showTax = taxRowLabel != null && taxRowLabel.isNotEmpty && tax.abs() >= 0.005;
       if (showTax) {
-        printer.row([
-          PosColumn(text: '$subtotalRowLabel ', width: 8),
-          PosColumn(text: 'LAK${subtotal.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-        ]);
-        printer.row([
-          PosColumn(text: '$taxRowLabel ', width: 8),
-          PosColumn(text: 'LAK${tax.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
-        ]);
+        await printRow(subtotalRowLabel, 'LAK ${money(subtotal)}');
+        await printRow(taxRowLabel, 'LAK ${money(tax)}');
         printer.hr(ch: '=');
       }
-      printer.row([
-        PosColumn(text: 'TOTAL:', width: 8, styles: const PosStyles(bold: true, height: PosTextSize.size2)),
-        PosColumn(text: 'LAK${total.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2)),
-      ]);
+      await printRow('TOTAL:', 'LAK ${money(total)}', bold: true, large: true);
+      // How it was paid: one line per method (split payment), then change.
+      for (final pay in payments) {
+        final amount = (pay['amount'] as num?)?.toDouble() ?? 0;
+        await printRow((pay['payment_method'] ?? '').toString(), 'LAK ${money(amount)}');
+      }
+      if (change > 0) {
+        await printRow('Change', 'LAK ${money(change)}');
+      }
+      // Loyalty: what this purchase earned (only when a customer is on it).
+      final customer = (customerName ?? '').trim();
+      if (customer.isNotEmpty || pointsEarned != null) {
+        printer.hr();
+        if (customer.isNotEmpty) await printLine('Customer: $customer');
+        if (pointsEarned != null) {
+          await printRow('$pointsLabel earned', '+$pointsEarned', bold: true);
+          if (pointsBalance != null) {
+            await printRow('Total $pointsLabel', '$pointsBalance');
+          }
+        }
+      }
       printer.feed(1);
-      printer.text('Thank you!', styles: const PosStyles(align: PosAlign.center, bold: true));
-      printer.text('Please come again', styles: const PosStyles(align: PosAlign.center));
+      // The template footer (Odoo bill template) replaces the built-in
+      // English thank-you instead of printing both.
       final foot = (footerText ?? '').trim();
       if (foot.isNotEmpty) {
-        printer.feed(1);
         for (final line in foot.split('\n')) {
           final t = line.trimRight();
           if (t.isEmpty) continue;
-          await _emitLine(printer, t, dots: dots, align: PosAlign.center);
+          await printLine(t, align: PosAlign.center);
         }
+      } else {
+        await printLine('Thank you!', bold: true, align: PosAlign.center);
+        await printLine('Please come again', align: PosAlign.center);
       }
       printer.feed(3);
       printer.cut();
@@ -894,59 +961,40 @@ class PrinterService {
           .timeout(_connectTimeout);
       if (result != PosPrintResult.success) return false;
 
+      // Every line in the print font, including the English and the date.
+      Future<void> printLine(String t, {bool bold = false, bool large = false, double? size, PosAlign align = PosAlign.left}) =>
+          _emitLine(printer, t, dots: dots, bold: bold, large: large, fontSize: size, align: align, inPrintFont: true);
+
       final head = (headerText ?? '').trim();
       if (head.isNotEmpty) {
         for (final line in head.split('\n')) {
           final t = line.trimRight();
           if (t.isEmpty) continue;
-          printer.text(
-            t,
-            styles: const PosStyles(
-              align: PosAlign.center,
-              bold: true,
-              height: PosTextSize.size2,
-            ),
-          );
+          await printLine(t, bold: true, large: true, align: PosAlign.center);
         }
       } else {
-        printer.text('Kitchen / Order Ticket', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2));
+        await printLine('Order Ticket', bold: true, large: true, align: PosAlign.center);
       }
-      await _emitLine(
-        printer,
-        'Printer: ${profile.name}',
-        dots: dots,
-        align: PosAlign.center,
-      );
       printer.hr();
       if (queueNumber != null && queueNumber > 0) {
-        printer.text(_fmtQueue(queueNumber), styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+        await printLine(_fmtQueue(queueNumber), bold: true, size: _bigFontSize, align: PosAlign.center);
         printer.hr();
       }
-      printer.text('Date: ${DateTime.now().toString().substring(0, 19)}');
-      await _emitLine(printer, 'Cashier: $cashierName', dots: dots);
+      await printLine('Date: ${DateTime.now().toString().substring(0, 19)}');
+      await printLine('Cashier: $cashierName');
       printer.hr();
 
       if (profile.singleItemPerTicket) {
         for (final i in items) {
           for (int q = 0; q < i.quantity; q++) {
-            await _emitLine(
-              printer,
-              '1x ${i.product.displayName}',
-              dots: dots,
-              bold: true,
-              large: true,
-            );
+            await printLine('1x ${i.product.displayName}${i.isFreePromo ? ' (FREE)' : ''}', bold: true, large: true);
+            // Same size as the item line, so the kitchen can read the choices.
             for (final topping in i.selectedToppings) {
-              await _emitLine(printer, '  + ${topping.name}', dots: dots);
+              await printLine('  + ${topping.displayName}', large: true);
             }
             final note = i.kitchenNote.trim();
             if (note.isNotEmpty) {
-              await _emitLine(
-                printer,
-                '  NOTE: $note',
-                dots: dots,
-                bold: true,
-              );
+              await printLine('  NOTE: $note', bold: true);
             }
             printer.feed(2);
             printer.cut();
@@ -959,19 +1007,20 @@ class PrinterService {
       if (profile.groupIdenticalItems) {
         final map = <String, Map<String, dynamic>>{};
         for (final i in items) {
-          final toppingNames = i.selectedToppings.map((t) => t.name).toList();
+          final toppingNames = i.selectedToppings.map((t) => t.displayName).toList();
           final note = i.kitchenNote.trim();
           // Key on the canonical English name so switching language never
           // changes how lines group; only the printed label follows the locale.
           final key = [
             i.product.name,
-            toppingNames.join('|'),
+            i.isFreePromo ? 'free' : '',
+            i.selectedToppings.map((t) => t.name).join('|'),
             note,
           ].join('__');
           final row = map.putIfAbsent(
             key,
             () => {
-              'name': i.product.displayName,
+              'name': '${i.product.displayName}${i.isFreePromo ? ' (FREE)' : ''}',
               'qty': 0,
               'toppings': toppingNames,
               'note': note,
@@ -983,29 +1032,27 @@ class PrinterService {
       } else {
         for (final i in items) {
           rows.add({
-            'name': i.product.displayName,
+            'name': '${i.product.displayName}${i.isFreePromo ? ' (FREE)' : ''}',
             'qty': i.quantity,
-            'toppings': i.selectedToppings.map((t) => t.name).toList(),
+            'toppings': i.selectedToppings.map((t) => t.displayName).toList(),
             'note': i.kitchenNote.trim(),
           });
         }
       }
 
       for (final r in rows) {
-        await _emitLine(
-          printer,
-          '${r['qty']}x ${r['name']}',
-          dots: dots,
-          bold: true,
-          large: true,
-        );
+        await printLine('${r['qty']}x ${r['name']}', bold: true, large: true);
         final toppings = (r['toppings'] as List?) ?? const [];
+        // Same size as the item line, so the kitchen can read the choices.
         for (final topping in toppings) {
-          await _emitLine(printer, '  + $topping', dots: dots);
+          await printLine('  + $topping', large: true);
         }
         final note = (r['note'] ?? '').toString().trim();
         if (note.isNotEmpty) {
-          printer.text('  NOTE: $note', styles: const PosStyles(bold: true));
+          // Notes are typed in Lao, which printer.text cannot encode: it threw
+          // mid-job, so the kitchen got a cut-off ticket and the save reported
+          // a print failure. Rasterised like the item names.
+          await printLine('  NOTE: $note', bold: true);
         }
         printer.feed(1);
       }
@@ -1015,7 +1062,7 @@ class PrinterService {
         for (final line in foot.split('\n')) {
           final t = line.trimRight();
           if (t.isEmpty) continue;
-          await _emitLine(printer, t, dots: dots, align: PosAlign.center);
+          await printLine(t, align: PosAlign.center);
         }
       }
       printer.feed(2);
@@ -1053,6 +1100,9 @@ class PrinterService {
       // Pin 2: ESC p 0 25 250
       // Pin 5: ESC p 1 25 250
       printer.rawBytes([0x1B, 0x70, 0x00, 0x19, 0xFA]); // pin 2
+      // NetworkPrinter.disconnect() destroys the socket at once and drops
+      // anything not yet sent: the pulse was lost and the drawer never opened.
+      await Future.delayed(const Duration(milliseconds: 600));
     } finally {
       try { printer.disconnect(); } catch (_) {}
     }
@@ -1130,6 +1180,8 @@ class PrinterService {
             'payment=$payment currency(raw="$rawCurrency", safe="$currency") '
             'total=$total date=$dateStr lines=${lines.length}');
 
+        currentStep = 'logo';
+        await _emitLogo(printer, dots: _dotsFor(profile), logoBase64: receiptData['logo']?.toString());
         final head = (receiptData['header_text'] ?? '').toString().trim();
         currentStep = 'header';
         _printerLog('REPRINT >> [${++step}] header (custom=${head.isNotEmpty})');
@@ -1141,7 +1193,6 @@ class PrinterService {
           }
         } else {
           printer.text('LaDolce', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-          printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
         }
         currentStep = 'reprint label';
         _printerLog('REPRINT >> [${++step}] REPRINT label');
@@ -1181,7 +1232,9 @@ class PrinterService {
 
             final nameMax = profile.paperWidthMm == 58 ? 22 : 34;
             final left = _trimToFit(_sanitizeForEscPos('${qty}x $rawName'), nameMax);
-            final right = _sanitizeForEscPos('$currency ${subtotal.toStringAsFixed(2)}');
+            final right = m['is_free_promo'] == true
+                ? 'FREE'
+                : _sanitizeForEscPos('$currency ${money(subtotal)}');
             _printerLog('REPRINT >> item[$idx] qtyType=${m['qty']?.runtimeType} '
                 'subType=${m['subtotal']?.runtimeType} '
                 'left="$left" right="$right" rawName="$rawName"');
@@ -1205,7 +1258,7 @@ class PrinterService {
           _printerLog('REPRINT >> [${++step}] discount line');
           printer.row([
             PosColumn(text: 'Discount:', width: 8, styles: const PosStyles(bold: true)),
-            PosColumn(text: '-$currency ${discountAmt.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
+            PosColumn(text: '-$currency ${money(discountAmt)}', width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
           ]);
         }
 
@@ -1213,19 +1266,50 @@ class PrinterService {
         _printerLog('REPRINT >> [${++step}] hr (=)');
         printer.hr(ch: '=');
         currentStep = 'TOTAL row';
-        final totalText = _sanitizeForEscPos('$currency ${total.toStringAsFixed(2)}');
+        final totalText = _sanitizeForEscPos('$currency ${money(total)}');
         _printerLog('REPRINT >> [${++step}] TOTAL row text="$totalText"');
         printer.row([
           PosColumn(text: 'TOTAL:', width: 8, styles: const PosStyles(bold: true)),
           PosColumn(text: totalText, width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
         ]);
+        currentStep = 'payments';
+        final pays = receiptData['payments'];
+        if (pays is List) {
+          for (final pay in pays) {
+            if (pay is! Map) continue;
+            await _emitRow(
+              printer,
+              (pay['payment_method'] ?? '').toString(),
+              '$currency ${money(_asDouble(pay['amount']))}',
+              dots: _dotsFor(profile),
+            );
+          }
+        }
+        currentStep = 'points';
+        final customer = (receiptData['customer'] ?? '').toString().trim();
+        final pointsEarned = receiptData['points_earned'];
+        if (customer.isNotEmpty || pointsEarned != null) {
+          final dots = _dotsFor(profile);
+          final label = (receiptData['points_label'] ?? 'Points').toString();
+          printer.hr();
+          // Customer names are often Lao: _emitLine rasterises them.
+          if (customer.isNotEmpty) await _emitLine(printer, 'Customer: $customer', dots: dots);
+          if (pointsEarned != null) {
+            await _emitRow(printer, '$label earned', '+${_asInt(pointsEarned)}', dots: dots, bold: true);
+            final balance = receiptData['customer_points'];
+            if (balance != null) {
+              await _emitRow(printer, 'Total $label', '${_asInt(balance)}', dots: dots);
+            }
+          }
+        }
         currentStep = 'feed1';
         _printerLog('REPRINT >> [${++step}] feed(1) + thanks');
         printer.feed(1);
-        printer.text('Thank you!', styles: const PosStyles(align: PosAlign.center, bold: true));
-        printer.text('Please come again', styles: const PosStyles(align: PosAlign.center));
         final foot = (receiptData['footer_text'] ?? '').toString().trim();
-        if (foot.isNotEmpty) {
+        if (foot.isEmpty) {
+          printer.text('Thank you!', styles: const PosStyles(align: PosAlign.center, bold: true));
+          printer.text('Please come again', styles: const PosStyles(align: PosAlign.center));
+        } else {
           currentStep = 'footer';
           _printerLog('REPRINT >> [${++step}] footer (${foot.split('\n').length} lines)');
           printer.feed(1);
@@ -1346,7 +1430,6 @@ class PrinterService {
               width: PosTextSize.size2,
             ),
           );
-          printer.text('Point of Sale', styles: const PosStyles(align: PosAlign.center));
         }
 
         currentStep = 'refund label';
@@ -1384,7 +1467,9 @@ class PrinterService {
 
             final nameMax = profile.paperWidthMm == 58 ? 22 : 34;
             final left = _trimToFit(_sanitizeForEscPos('${qty}x $rawName'), nameMax);
-            final right = _sanitizeForEscPos('$currency ${subtotal.toStringAsFixed(2)}');
+            final right = m['is_free_promo'] == true
+                ? 'FREE'
+                : _sanitizeForEscPos('$currency ${money(subtotal)}');
             _printerLog('REFUND >> item[$idx] qtyType=${m['qty']?.runtimeType} '
                 'subType=${m['subtotal']?.runtimeType} '
                 'left="$left" right="$right" rawName="$rawName"');
@@ -1410,7 +1495,7 @@ class PrinterService {
         _printerLog('REFUND >> [${++step}] hr (=)');
         printer.hr(ch: '=');
         currentStep = 'REFUND AMOUNT row';
-        final totalText = _sanitizeForEscPos('$currency ${total.toStringAsFixed(2)}');
+        final totalText = _sanitizeForEscPos('$currency ${money(total)}');
         _printerLog('REFUND >> [${++step}] REFUND AMOUNT row text="$totalText"');
         printer.row([
           PosColumn(text: 'REFUND AMOUNT:', width: 8, styles: const PosStyles(bold: true)),
@@ -1459,3 +1544,45 @@ class PrinterService {
 
 // Singleton instance
 final printerService = PrinterService();
+
+/// One bill / receipt line: [quantity] of [item], priced [totalPrice].
+class PrintLine {
+  final CartItem item;
+  int quantity;
+  double totalPrice;
+
+  PrintLine(this.item, this.quantity, this.totalPrice);
+}
+
+/// Joins cart lines that are the same item into one "2x" line for the bill
+/// and the receipt. A reopened ticket keeps its saved lines and the newly
+/// added ones apart (only the new ones go to the kitchen), so two croissants
+/// used to print as "1x Butter croissant" twice. Lines stay apart when
+/// anything differs: choices, kitchen note, unit price, free or redeemed.
+List<PrintLine> mergeSamePrintLines(List<CartItem> items) {
+  final byKey = <String, PrintLine>{};
+  final lines = <PrintLine>[];
+  for (final it in items) {
+    final unit = it.quantity == 0 ? 0.0 : it.totalPrice / it.quantity;
+    final toppingIds = it.selectedToppings.map((t) => t.id).toList()..sort();
+    final key = [
+      it.product.id,
+      toppingIds.join(','),
+      it.kitchenNote.trim(),
+      unit.toStringAsFixed(2),
+      it.isFreePromo,
+      it.promotionId ?? '',
+      it.isRedeemed,
+    ].join('|');
+    final existing = byKey[key];
+    if (existing != null) {
+      existing.quantity += it.quantity;
+      existing.totalPrice += it.totalPrice;
+      continue;
+    }
+    final line = PrintLine(it, it.quantity, it.totalPrice);
+    byKey[key] = line;
+    lines.add(line);
+  }
+  return lines;
+}

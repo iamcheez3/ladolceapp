@@ -4,7 +4,10 @@ import '../services/api_service.dart';
 import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../widgets/topping_picker.dart';
+import 'manage_topping_groups_screen.dart';
 import 'topping_edit_screen.dart';
+import '../utils/money.dart';
 
 class ManageToppingsScreen extends StatefulWidget {
   const ManageToppingsScreen({super.key});
@@ -34,10 +37,13 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
     });
 
     try {
-      final data = await _apiService.fetchToppings();
+      // Fresh list: saving a default can untick another option server-side.
+      final data = await _apiService.fetchToppings(forceRefresh: true);
       if (mounted) {
         setState(() {
-          _toppings = data.map((json) => Topping.fromJson(json)).toList();
+          _toppings = ToppingRules.ordered(
+            data.map((json) => Topping.fromJson(json)).toList(),
+          );
           _isLoading = false;
         });
       }
@@ -111,6 +117,15 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
         backgroundColor: LaDolcePosUi.navy,
         foregroundColor: Colors.white,
         actions: [
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            icon: const Icon(Icons.view_agenda_outlined, size: 20),
+            label: Text(AppLocalizations.of(context)?.toppingGroups ?? 'Topping groups'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ManageToppingGroupsScreen()),
+            ).then((_) => _fetchToppings()),
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: AppLocalizations.of(context)?.addTopping ?? (AppLocalizations.of(context)?.addTopping ?? 'Add Topping'),
@@ -180,18 +195,41 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
                           ),
                         ),
                       )
-                    : ListView.builder(
+                    : ListView(
                         padding: const EdgeInsets.only(top: 8, bottom: 88),
-                        itemCount: _toppings.length,
-                        itemBuilder: (context, index) {
-                          final topping = _toppings[index];
-                          return _ToppingCard(
-                            topping: topping,
-                            accent: _accent,
-                            onTap: () => _openToppingScreen(topping: topping),
-                            onDelete: () => _deleteTopping(topping.id),
-                          );
-                        },
+                        children: [
+                          for (final section in ToppingRules.sections(_toppings)) ...[
+                            // Group heading, e.g. "Size · Pick 1 · Required".
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+                              child: Text(
+                                [
+                                  section.groupId == null
+                                      ? (AppLocalizations.of(context)?.toppingNoGroup ?? 'No group (add-on)')
+                                      : section.title,
+                                  if (section.groupId != null)
+                                    section.single
+                                        ? (AppLocalizations.of(context)?.toppingPickOne ?? 'Pick 1')
+                                        : (AppLocalizations.of(context)?.toppingPickMany ?? 'Pick many'),
+                                  if (section.required)
+                                    AppLocalizations.of(context)?.toppingRequired ?? 'Required',
+                                ].join(' · '),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                  color: LaDolcePosUi.navy,
+                                ),
+                              ),
+                            ),
+                            for (final topping in section.options)
+                              _ToppingCard(
+                                topping: topping,
+                                accent: _accent,
+                                onTap: () => _openToppingScreen(topping: topping),
+                                onDelete: () => _deleteTopping(topping.id),
+                              ),
+                          ],
+                        ],
                       ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -261,25 +299,54 @@ class _ToppingCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if ((topping.nameLo ?? '').trim().isNotEmpty &&
+                          topping.nameLo!.trim() != topping.name)
+                        Text(
+                          topping.nameLo!,
+                          style: const TextStyle(fontSize: 13, color: LaDolcePosUi.mutedText),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: topping.extraPrice > 0
-                              ? accent.withValues(alpha: 0.1)
-                              : LaDolcePosUi.mutedText.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          topping.extraPrice > 0
-                              ? '+\$${topping.extraPrice.toStringAsFixed(2)}'
-                              : (AppLocalizations.of(context)?.free ?? 'Free'),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: topping.extraPrice > 0 ? accent : LaDolcePosUi.mutedText,
+                      Wrap(
+                        spacing: 6,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: topping.extraPrice > 0
+                                  ? accent.withValues(alpha: 0.1)
+                                  : LaDolcePosUi.mutedText.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              topping.extraPrice > 0
+                                  ? '+₭${money(topping.extraPrice)}'
+                                  : (AppLocalizations.of(context)?.free ?? 'Free'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: topping.extraPrice > 0 ? accent : LaDolcePosUi.mutedText,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (topping.isDefault && topping.groupId != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: LaDolcePosUi.navy.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                AppLocalizations.of(context)?.toppingDefaultBadge ?? 'Default',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: LaDolcePosUi.navy,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),

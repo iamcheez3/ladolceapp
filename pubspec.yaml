@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+7
+version: 1.0.1+8
 
 environment:
   sdk: '>=3.10.3 <4.0.0'
@@ -112,6 +112,15 @@ flutter:
 
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
+
+  # Receipt and kitchen-ticket font (rasterised, see escpos_text_image.dart).
+  # Bundled rather than fetched by google_fonts so prints are identical offline.
+  fonts:
+    - family: NotoSerifLao
+      fonts:
+        - asset: assets/fonts/NotoSerifLao-Regular.ttf
+        - asset: assets/fonts/NotoSerifLao-Bold.ttf
+          weight: 700
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

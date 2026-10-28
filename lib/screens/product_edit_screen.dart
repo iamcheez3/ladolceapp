@@ -5,6 +5,8 @@ import '../models/product.dart';
 import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../widgets/topping_picker.dart';
+import '../utils/money.dart';
 
 class ProductEditScreen extends StatefulWidget {
   final Product? product;
@@ -30,6 +32,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   late final TextEditingController _priceController;
   late int? _selectedCategoryId;
   late bool _blockSelfOrder;
+  late bool _hideInSelfOrder;
   late List<int> _selectedToppingIds;
   bool _isSaving = false;
 
@@ -40,8 +43,9 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     super.initState();
     final product = widget.product;
     _nameController = TextEditingController(text: product?.name ?? '');
-    _priceController = TextEditingController(text: product?.price.toString() ?? '');
+    _priceController = TextEditingController(text: product != null ? money(product.price) : '');
     _blockSelfOrder = product?.blockSelfOrder ?? false;
+    _hideInSelfOrder = product?.hideInSelfOrder ?? false;
 
     if (product != null) {
       final cat = widget.categories.firstWhere(
@@ -66,7 +70,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     final priceStr = _priceController.text.trim();
-    final price = double.tryParse(priceStr) ?? 0.0;
+    final price = parseMoney(priceStr);
 
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,6 +89,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         categoryId: _selectedCategoryId,
         toppingIds: _selectedToppingIds,
         blockSelfOrder: _blockSelfOrder,
+        hideInSelfOrder: _hideInSelfOrder,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -160,10 +165,13 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     controller: _priceController,
                     decoration: LaDolcePosUi.input(
                       hintText: AppLocalizations.of(context)?.listPrice ?? (AppLocalizations.of(context)?.listPrice ?? 'List Price*'),
-                      prefixIcon: const Icon(Icons.attach_money, size: 20),
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text('₭', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      ),
                     ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [MoneyInputFormatter()],
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<int>(
@@ -203,8 +211,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     iconColor: Colors.green,
                     title: AppLocalizations.of(context)?.tableAvailable ?? (AppLocalizations.of(context)?.tableAvailable ?? 'Available'),
                     subtitle: AppLocalizations.of(context)?.customersCanSelectAndOrder ?? (AppLocalizations.of(context)?.customersCanSelectAndOrder ?? 'Customers can select and order'),
-                    isSelected: !_blockSelfOrder,
-                    onTap: () => setState(() => _blockSelfOrder = false),
+                    isSelected: !_blockSelfOrder && !_hideInSelfOrder,
+                    onTap: () => setState(() {
+                      _blockSelfOrder = false;
+                      _hideInSelfOrder = false;
+                    }),
                   ),
                   const Divider(height: 1, indent: 44),
                   _buildSelfOrderTile(
@@ -212,8 +223,25 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     iconColor: Colors.orange,
                     title: AppLocalizations.of(context)?.runOutBlocked ?? (AppLocalizations.of(context)?.runOutBlocked ?? 'Run out (blocked)'),
                     subtitle: AppLocalizations.of(context)?.shownAsRunOutCannotAdd ?? (AppLocalizations.of(context)?.shownAsRunOutCannotAdd ?? 'Shown as run out; cannot add to cart'),
-                    isSelected: _blockSelfOrder,
-                    onTap: () => setState(() => _blockSelfOrder = true),
+                    isSelected: _blockSelfOrder && !_hideInSelfOrder,
+                    onTap: () => setState(() {
+                      _blockSelfOrder = true;
+                      _hideInSelfOrder = false;
+                    }),
+                  ),
+                  const Divider(height: 1, indent: 44),
+                  // POS only: not listed in the customer app at all.
+                  _buildSelfOrderTile(
+                    icon: Icons.visibility_off_outlined,
+                    iconColor: Colors.deepPurple,
+                    title: AppLocalizations.of(context)?.posOnlyLabel ?? 'POS only',
+                    subtitle: AppLocalizations.of(context)?.posOnlyProductHelp ??
+                        'Hidden in self-order; only the cashier can sell it',
+                    isSelected: _hideInSelfOrder,
+                    onTap: () => setState(() {
+                      _hideInSelfOrder = true;
+                      _blockSelfOrder = false;
+                    }),
                   ),
                 ],
               ),
@@ -245,49 +273,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                       ),
                     )
                   else
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: widget.toppings.map((t) {
-                        final isSelected =
-                            _selectedToppingIds.contains(t.id);
-                        return FilterChip(
-                          label: Text(
-                            t.name,
-                            style: TextStyle(
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              fontSize: 13,
-                              color: isSelected
-                                  ? _productAccent
-                                  : LaDolcePosUi.text,
-                            ),
-                          ),
-                          selected: isSelected,
-                          selectedColor:
-                              _productAccent.withValues(alpha: 0.12),
-                          checkmarkColor: _productAccent,
-                          side: BorderSide(
-                            color: isSelected
-                                ? _productAccent.withValues(alpha: 0.4)
-                                : LaDolcePosUi.border,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          onSelected: (bool selected) {
-                            setState(() {
-                              if (selected) {
-                                _selectedToppingIds.add(t.id);
-                              } else {
-                                _selectedToppingIds.remove(t.id);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
+                    for (final section in ToppingRules.sections(widget.toppings))
+                      _buildToppingSection(section),
                 ],
               ),
               const SizedBox(height: 32),
@@ -309,6 +296,87 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// One topping group (or the plain add-ons) as a heading + chips. "All"
+  /// ticks every option of the group, e.g. Hot, Iced and Frappe at once.
+  Widget _buildToppingSection(ToppingSection section) {
+    final l10n = AppLocalizations.of(context);
+    final ids = section.options.map((t) => t.id).toList();
+    final allOn = ids.every(_selectedToppingIds.contains);
+    final title = section.groupId == null
+        ? (l10n?.toppingNoGroup ?? 'No group (add-on)')
+        : '${section.title} · ${section.single ? (l10n?.toppingPickOne ?? 'Pick 1') : (l10n?.toppingPickMany ?? 'Pick many')}'
+            '${section.required ? ' · ${l10n?.toppingRequired ?? 'Required'}' : ''}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: LaDolcePosUi.mutedText),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  if (allOn) {
+                    _selectedToppingIds.removeWhere(ids.contains);
+                  } else {
+                    for (final id in ids) {
+                      if (!_selectedToppingIds.contains(id)) _selectedToppingIds.add(id);
+                    }
+                  }
+                }),
+                child: Text(
+                  allOn ? (l10n?.clear ?? 'Clear') : (l10n?.toppingSelectAll ?? 'All'),
+                ),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: section.options.map((t) {
+              final isSelected = _selectedToppingIds.contains(t.id);
+              return FilterChip(
+                label: Text(
+                  t.extraPrice > 0 ? '${t.name} +₭${money(t.extraPrice)}' : t.name,
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: 13,
+                    color: isSelected ? _productAccent : LaDolcePosUi.text,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: _productAccent.withValues(alpha: 0.12),
+                checkmarkColor: _productAccent,
+                side: BorderSide(
+                  color: isSelected
+                      ? _productAccent.withValues(alpha: 0.4)
+                      : LaDolcePosUi.border,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                onSelected: (bool selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedToppingIds.add(t.id);
+                    } else {
+                      _selectedToppingIds.remove(t.id);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }

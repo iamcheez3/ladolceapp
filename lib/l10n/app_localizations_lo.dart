@@ -353,6 +353,16 @@ class AppLocalizationsLo extends AppLocalizations {
   String get printBill => 'ພິມບິນ';
 
   @override
+  String get saveAndPrintBillTitle => 'ບັນທຶກບິນກ່ອນບໍ?';
+
+  @override
+  String get saveAndPrintBillBody =>
+      'ບິນນີ້ຍັງບໍ່ໄດ້ບັນທຶກ. ບັນທຶກເພື່ອສົ່ງອໍເດີເຂົ້າຄົວ, ແລ້ວຈະພິມບິນໃຫ້.';
+
+  @override
+  String get saveAndPrintBill => 'ບັນທຶກ ແລະ ພິມບິນ';
+
+  @override
   String get reprintOrderKitchen => 'ພິມອໍເດີຄືນ (ຄົວ)';
 
   @override
@@ -2349,4 +2359,248 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get paymentColon => 'ການຊຳລະ:';
+
+  @override
+  String get renameTicketAction => 'ປ່ຽນຊື່ບິນ';
+
+  @override
+  String get ticketNameLabel => 'ຊື່ບິນ';
+
+  @override
+  String get ticketNameHint => 'ເຊັ່ນ: ຊື່ລູກຄ້າ';
+
+  @override
+  String get ticketNameHelp =>
+      'ບິນຈະສະແດງຊື່ນີ້ແທນໂຕະ, ແລະ ໂຕະຈະວ່າງສຳລັບອໍເດີໃໝ່.';
+
+  @override
+  String ticketRenamed(String name) {
+    return 'ປ່ຽນຊື່ບິນເປັນ $name ແລ້ວ. ໂຕະວ່າງແລ້ວ.';
+  }
+
+  @override
+  String get customNameAction => 'ຕັ້ງຊື່ເອງ';
+
+  @override
+  String get customNameHelp => 'ບັນທຶກອໍເດີນີ້ດ້ວຍຊື່ ແທນການເລືອກໂຕະ.';
+
+  @override
+  String renameTicketFailed(String error) {
+    return 'ປ່ຽນຊື່ບິນບໍ່ສຳເລັດ: $error';
+  }
+
+  @override
+  String get toppingPickOne => 'ເລືອກ 1';
+
+  @override
+  String get toppingPickMany => 'ເລືອກໄດ້ຫຼາຍ';
+
+  @override
+  String get toppingRequired => 'ຕ້ອງເລືອກ';
+
+  @override
+  String get toppingAddOns => 'ເຄື່ອງເສີມ';
+
+  @override
+  String toppingChooseMissing(String groups) {
+    return 'ກະລຸນາເລືອກ: $groups';
+  }
+
+  @override
+  String get toppingGroups => 'ກຸ່ມເຄື່ອງເສີມ';
+
+  @override
+  String get toppingGroupsSubtitle => 'ຫົວຂໍ້ ເຊັ່ນ ປະເພດ, ລົດຊາດ ຫຼື ຂະໜາດ';
+
+  @override
+  String get addToppingGroup => 'ເພີ່ມກຸ່ມ';
+
+  @override
+  String get toppingGroupName => 'ຊື່ກຸ່ມ (ເຊັ່ນ Size)*';
+
+  @override
+  String get toppingGroupNameLo => 'ຊື່ພາສາລາວ (ບໍ່ບັງຄັບ)';
+
+  @override
+  String get toppingNameLo => 'ຊື່ພາສາລາວ (ບໍ່ບັງຄັບ)';
+
+  @override
+  String get toppingPickOneHelp => 'ເລືອກໄດ້ອັນດຽວ ເຊັ່ນ ຮ້ອນ / ເຢັນ / ປັ່ນ';
+
+  @override
+  String get toppingPickManyHelp => 'ເລືອກໄດ້ຫຼາຍອັນ ເຊັ່ນ ເພີ່ມຊອດ + ນົມໂອດ';
+
+  @override
+  String get toppingRequiredHelp => 'ຕ້ອງເລືອກກ່ອນຈຶ່ງເພີ່ມລາຍການໄດ້';
+
+  @override
+  String get noToppingGroupsYet => 'ຍັງບໍ່ມີກຸ່ມ';
+
+  @override
+  String get noToppingGroupsHelp =>
+      'ກຸ່ມຈະຈັດເຄື່ອງເສີມເປັນຫົວຂໍ້ ເຊັ່ນ ປະເພດ (ຮ້ອນ / ເຢັນ), ລົດຊາດ ຫຼື ຂະໜາດ (M / L).';
+
+  @override
+  String get deleteToppingGroup => 'ລຶບກຸ່ມ';
+
+  @override
+  String get deleteToppingGroupConfirm =>
+      'ລຶບກຸ່ມນີ້ບໍ? ເຄື່ອງເສີມໃນກຸ່ມຍັງຢູ່ ເປັນເຄື່ອງເສີມທົ່ວໄປ.';
+
+  @override
+  String get toppingGroupLabel => 'ກຸ່ມ';
+
+  @override
+  String get toppingNoGroup => 'ບໍ່ມີກຸ່ມ (ເຄື່ອງເສີມທົ່ວໄປ)';
+
+  @override
+  String get toppingDefaultLabel => 'ເລືອກໄວ້ກ່ອນ';
+
+  @override
+  String get toppingDefaultHelp => 'ຕິກໄວ້ແລ້ວ ເມື່ອເປີດລາຍການ';
+
+  @override
+  String get toppingGroupSaved => 'ບັນທຶກກຸ່ມແລ້ວ';
+
+  @override
+  String get toppingGroupDeleted => 'ລຶບກຸ່ມແລ້ວ';
+
+  @override
+  String toppingGroupSaveFailed(String error) {
+    return 'ບັນທຶກກຸ່ມບໍ່ສຳເລັດ: $error';
+  }
+
+  @override
+  String get toppingSelectAll => 'ທັງໝົດ';
+
+  @override
+  String get toppingDefaultBadge => 'ຄ່າເລີ່ມຕົ້ນ';
+
+  @override
+  String get statusReadyForPickup => 'ອາຫານຂອງທ່ານພ້ອມແລ້ວ ມາຮັບໄດ້ເລີຍ';
+
+  @override
+  String get statusReadyPill => 'ພ້ອມໃຫ້ມາຮັບ';
+
+  @override
+  String get orderReadySent => 'ແຈ້ງແລ້ວ ✓';
+
+  @override
+  String get splitPayment => 'ແຍກຈ່າຍ';
+
+  @override
+  String get singlePayment => 'ຈ່າຍດຽວ';
+
+  @override
+  String get addPayment => 'ເພີ່ມການຈ່າຍ';
+
+  @override
+  String get remainingToPay => 'ຍັງເຫຼືອ';
+
+  @override
+  String get splitOnlyCashOver => 'ມີແຕ່ເງິນສົດທີ່ໃສ່ເກີນຍອດໄດ້';
+
+  @override
+  String get posOnlyLabel => 'ສະເພາະ POS';
+
+  @override
+  String get posOnlyCategoryHelp =>
+      'ບໍ່ສະແດງໃນແອັບລູກຄ້າສັ່ງເອງ; ພະນັກງານເກັບເງິນຍັງເຫັນ.';
+
+  @override
+  String get posOnlyProductHelp => 'ບໍ່ສະແດງໃນການສັ່ງເອງ; ຂາຍໄດ້ສະເພາະພະນັກງານ';
+
+  @override
+  String get freeItemLabel => 'ຟຣີ';
+
+  @override
+  String get addFreeItem => 'ເພີ່ມຂອງແຖມ';
+
+  @override
+  String get chooseFreeItemShort => 'ເລືອກ';
+
+  @override
+  String tooManyFreeItems(String name) {
+    return 'ຂອງແຖມ $name ເກີນກຳນົດ. ກະລຸນາລຶບອອກກ່ອນ.';
+  }
+
+  @override
+  String freeItemsAvailable(String name, int count) {
+    return '$name: ແຖມໄດ້ $count ລາຍການ';
+  }
+
+  @override
+  String chooseFreeItem(String name) {
+    return 'ເລືອກຂອງແຖມ ($name)';
+  }
+
+  @override
+  String get historyToday => 'ມື້ນີ້';
+
+  @override
+  String get historyPickDates => 'ເລືອກວັນທີ';
+
+  @override
+  String get historyAll => 'ທັງໝົດ';
+
+  @override
+  String get historyNoneToday => 'ມື້ນີ້ຍັງບໍ່ມີອໍເດີ';
+
+  @override
+  String get historyNoneInRange => 'ບໍ່ມີອໍເດີໃນວັນທີທີ່ເລືອກ';
+
+  @override
+  String get appUpdate => 'ອັບເດດແອັບ';
+
+  @override
+  String appUpdateCurrent(String version) {
+    return 'ເວີຊັນ $version';
+  }
+
+  @override
+  String get appUpdateChecking => 'ກຳລັງກວດສອບອັບເດດ…';
+
+  @override
+  String get appUpdateLatest => 'ທ່ານໃຊ້ເວີຊັນລ່າສຸດແລ້ວ.';
+
+  @override
+  String get appUpdateAvailableTitle => 'ມີເວີຊັນໃໝ່';
+
+  @override
+  String appUpdateAvailableBody(String version, String size, String current) {
+    return 'ເວີຊັນ $version ພ້ອມແລ້ວ ($size MB). ເຄື່ອງນີ້ແມ່ນ $current.';
+  }
+
+  @override
+  String get appUpdateWhatsNew => 'ມີຫຍັງໃໝ່';
+
+  @override
+  String get appUpdateRequired => 'ຕ້ອງອັບເດດກ່ອນໃຊ້ງານຕໍ່.';
+
+  @override
+  String get appUpdateLater => 'ພາຍຫຼັງ';
+
+  @override
+  String get appUpdateNow => 'ອັບເດດ';
+
+  @override
+  String get appUpdateDownloading => 'ກຳລັງດາວໂຫຼດອັບເດດ…';
+
+  @override
+  String get appUpdateAllowTitle => 'ອະນຸຍາດໃຫ້ອັບເດດແອັບ';
+
+  @override
+  String get appUpdateAllowBody =>
+      'Android ຖາມຄັ້ງດຽວ: ເປີດ \"ອະນຸຍາດຈາກແຫຼ່ງນີ້\" ໃຫ້ LaDolce, ແລ້ວກັບມາກົດ ຕິດຕັ້ງ.';
+
+  @override
+  String get appUpdateOpenSettings => 'ເປີດການຕັ້ງຄ່າ';
+
+  @override
+  String get appUpdateInstall => 'ຕິດຕັ້ງ';
+
+  @override
+  String appUpdateFailed(String error) {
+    return 'ອັບເດດບໍ່ສຳເລັດ: $error';
+  }
 }

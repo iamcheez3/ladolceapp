@@ -27,7 +27,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   Future<void> _load() async {
     await printerService.initialize();
     try {
-      await _apiService.fetchProducts(limit: 300);
+      await _apiService.fetchProducts();
       if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (mounted) setState(() => _loading = false);

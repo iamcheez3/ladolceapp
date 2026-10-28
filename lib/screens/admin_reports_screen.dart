@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import 'login_screen.dart';
-import 'ranking_screen.dart';
+import 'ranking_screen.dart';
+import '../utils/money.dart';
 
 class AdminReportsScreen extends StatefulWidget {
   /// When true, the screen acts as the admin's main landing page:
@@ -99,7 +100,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   String _money(num v) {
     final n = v.toDouble();
-    return '₭${NumberFormat('#,###').format(n.round())}';
+    return '₭${money(n)}';
   }
 
   Future<void> _logout() async {

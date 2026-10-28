@@ -10,6 +10,8 @@ import '../services/printer_service.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../models/pos_discount_config.dart';
 import '../models/product.dart';
+import '../services/app_update_service.dart';
+import '../widgets/app_update_flow.dart';
 
 class PosSettingsScreen extends StatefulWidget {
   const PosSettingsScreen({super.key});
@@ -24,6 +26,7 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
   AppLocalizations? get _l10n => AppLocalizations.of(context);
   PosDiscountConfig _discountConfig = PosDiscountConfig.disabled;
   bool _usePromotionPrice = true;
+  InstalledVersion? _installedVersion;
 
   /// Lets staff flip the app between English and Lao. PosApp.setLocale
   /// persists the choice, so it survives a restart and applies app-wide.
@@ -59,6 +62,9 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
     super.initState();
     _loadDiscountConfig();
     _loadPromotionPriceSetting();
+    AppUpdateService().installedVersion().then((v) {
+      if (mounted) setState(() => _installedVersion = v);
+    });
   }
 
   Future<void> _loadDiscountConfig() async {
@@ -182,6 +188,17 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
                 : (_l10n?.english ?? 'English'),
             onTap: _showLanguagePicker,
           ),
+          if (AppUpdateService.isSupported) ...[
+            const SizedBox(height: 12),
+            _buildMenuCard(
+              context,
+              icon: Icons.system_update_rounded,
+              title: _l10n?.appUpdate ?? 'App update',
+              subtitle: _l10n?.appUpdateCurrent('${_installedVersion ?? ''}') ??
+                  'Version ${_installedVersion ?? ''}',
+              onTap: () => AppUpdateFlow.checkManually(context),
+            ),
+          ],
         ],
       ),
     );

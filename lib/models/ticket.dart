@@ -5,6 +5,8 @@ class OpenTicket {
   final String name;
   final int? tableId;
   final String? tableName;
+  /// Name the cashier gave the ticket instead of a table (table released).
+  final String ticketLabel;
   final double amountTotal;
   final int queueNumber;
   final String paymentType;
@@ -17,6 +19,9 @@ class OpenTicket {
   final DateTime? openedAt;
   final String note;
   final bool isSelfOrder;
+
+  /// 'ready' once the cashier pressed Order Ready on a pickup self-order.
+  final String deliveryStatus;
   final int? partnerId;
   final String partnerName;
   final String customerPhone;
@@ -31,6 +36,7 @@ class OpenTicket {
     required this.name,
     this.tableId,
     this.tableName,
+    this.ticketLabel = '',
     required this.amountTotal,
     this.queueNumber = 0,
     this.paymentType = '',
@@ -42,6 +48,7 @@ class OpenTicket {
     this.openedAt,
     this.note = '',
     this.isSelfOrder = false,
+    this.deliveryStatus = 'none',
     this.partnerId,
     this.partnerName = '',
     this.customerPhone = '',
@@ -67,6 +74,7 @@ class OpenTicket {
       queueNumber: (json['queue_number'] ?? 0).toInt(),
       tableId: json['table_id'],
       tableName: json['table_name'],
+      ticketLabel: (json['ticket_label'] ?? '').toString(),
       amountTotal: (json['amount_total'] ?? 0).toDouble(),
       paymentType: (json['payment_type'] ?? '').toString(),
       paymentMethodId: json['payment_method_id'],
@@ -79,6 +87,7 @@ class OpenTicket {
       openedAt: openedAt,
       note: (json['note'] ?? '').toString(),
       isSelfOrder: json['is_self_order'] == true,
+      deliveryStatus: (json['delivery_status'] ?? 'none').toString(),
       partnerId: json['partner_id'],
       partnerName: (json['partner_name'] ?? '').toString(),
       customerPhone: (json['customer_phone'] ?? '').toString(),
@@ -98,6 +107,8 @@ class TicketLine {
   final double priceUnit;
   final List<int> toppingIds;
   final String note;
+  final bool isFreePromo;
+  final int? promotionId;
 
   TicketLine({
     required this.productId,
@@ -106,6 +117,8 @@ class TicketLine {
     required this.priceUnit,
     this.toppingIds = const [],
     this.note = '',
+    this.isFreePromo = false,
+    this.promotionId,
   });
 
   factory TicketLine.fromJson(Map<String, dynamic> json) {
@@ -114,6 +127,8 @@ class TicketLine {
       productName: bilingualName(json),
       qty: (json['qty'] ?? 1).toInt(),
       priceUnit: (json['price_unit'] ?? 0).toDouble(),
+      isFreePromo: json['is_free_promo'] == true,
+      promotionId: json['promotion_id'] is int ? json['promotion_id'] as int : null,
       toppingIds: (json['topping_ids'] as List<dynamic>? ?? const [])
           .map((id) => int.tryParse(id.toString()) ?? 0)
           .where((id) => id > 0)

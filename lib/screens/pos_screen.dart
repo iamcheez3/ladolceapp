@@ -24,14 +24,18 @@ import '../screens/pos_settings_screen.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
 import '../services/push_notifications_service.dart';
+import '../widgets/app_update_flow.dart';
 import '../models/topping.dart';
+import '../widgets/topping_picker.dart';
+import '../models/free_promotion.dart';
 import '../models/combo.dart';
 import '../theme/ladolce_pos_ui.dart';
 import 'package:intl/intl.dart';
 import '../models/pos_tax_config.dart';
 import '../models/pos_discount_config.dart';
 import '../utils/pos_discount.dart';
-import '../utils/responsive_layout.dart';
+import '../utils/responsive_layout.dart';
+import '../utils/money.dart';
 
 class PosScreen extends StatefulWidget {
   final String cashierName;
@@ -316,7 +320,12 @@ class _PosScreenState extends State<PosScreen> {
   int? _activeTicketPaymentMethodId;
   String _activeTicketPaymentMethodName = '';
   bool _activeTicketIsSelfOrder = false;
+  /// Customer already stored on the resumed ticket, so a save can tell whether
+  /// the cashier changed it.
+  int? _activeTicketPartnerId;
   String _activeTicketPartnerName = '';
+  /// Name given to the ticket in place of a table ('' when it has none).
+  String _activeTicketLabel = '';
   String _activeTicketDeliveryPlaceName = '';
   // ignore: unused_field
   String _activeTicketDeliveryPlaceAddress = '';
@@ -330,6 +339,11 @@ class _PosScreenState extends State<PosScreen> {
     printerService.initialize();
     _loadPosProfileLabels();
     _fetchOdooProducts();
+    // New app build uploaded in Odoo? Offer it once per app start, after the
+    // menu has had time to load.
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) AppUpdateFlow.checkOnStart(context);
+    });
 
     // Self-order alert/badge: poll backend so POS is alerted even without FCM.
     _refreshPendingSelfOrders(notifyOnIncrease: false);
@@ -471,7 +485,7 @@ class _PosScreenState extends State<PosScreen> {
                             } else {
                               valStr = opt.type == 'percentage'
                                   ? '(${opt.value!.toStringAsFixed(0)}%)'
-                                  : '(₭${opt.value!.toStringAsFixed(0)})';
+                                  : '(₭${money(opt.value!)})';
                             }
                             return DropdownMenuItem<PosDiscountOption?>(
                               value: opt,
@@ -582,6 +596,10 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _fetchOdooProducts({bool backgroundRefresh = false}) async {
     final branchId = await _apiService.getCachedBranchId();
+    // "Buy X get Y free" promotions running at this branch (cart banner).
+    _apiService.fetchFreePromotions(branchId: branchId).then((promos) {
+      if (mounted) setState(() => _freePromotions = promos);
+    });
     // ── Step 1: Load from cache instantly if available ────────────────────────
     if (!backgroundRefresh) {
       final cachedProducts = await _apiService.getCachedProducts(branchId: branchId);
@@ -634,7 +652,14 @@ class _PosScreenState extends State<PosScreen> {
         }
       });
 
-      final products = await _apiService.fetchProducts(branchId: branchId, limit: 100);
+      // forceRefresh: fetchProducts is cache-first, so this "refresh" used to
+      // hand back the same branch cache forever: nothing else writes it (Sync
+      // fills the branch-less one), so product, price and topping changes never
+      // reached the POS. Offline it still falls back to that cache.
+      final products = await _apiService.fetchProducts(
+        branchId: branchId,
+        forceRefresh: true,
+      );
       final rawCombos = await _apiService.fetchCombos();
       final combos = rawCombos
           .map((c) => Product.fromCombo(Combo.fromJson(c)))
@@ -644,7 +669,8 @@ class _PosScreenState extends State<PosScreen> {
       products.addAll(combos);
 
       final tables = await _apiService.fetchTables();
-      final methods = await _apiService.fetchPaymentMethods();
+      // Fresh: the drawer checkbox may have changed in the backend.
+      final methods = await _apiService.fetchPaymentMethods(forceRefresh: true);
 
       final Set<String> uniqueCategories = products
           .map((p) => p.category)
@@ -714,12 +740,16 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
-  void _addDirectlyToCart(Product product, List<Topping> selectedToppings) {
+  void _addDirectlyToCart(Product product, List<Topping> selectedToppings, {FreePromotion? freePromo}) {
     setState(() {
       // Check if there's already a NEW (unsaved) item with EXACTLY the same toppings
       final existingNewIndex = _cartItems.indexWhere((item) {
         if (item.product.id != product.id || item.isSaved) return false;
         if (item.kitchenNote.trim().isNotEmpty) return false;
+        // A free item only stacks with free items of the same promotion.
+        if (item.isFreePromo != (freePromo != null) || item.promotionId != freePromo?.id) {
+          return false;
+        }
 
         // Compare toppings exactly
         if (item.selectedToppings.length != selectedToppings.length) {
@@ -742,6 +772,9 @@ class _PosScreenState extends State<PosScreen> {
             product: product,
             isSaved: false,
             selectedToppings: selectedToppings,
+            isFreePromo: freePromo != null,
+            promotionId: freePromo?.id,
+            promotionName: freePromo?.name ?? '',
           ),
         );
       }
@@ -796,8 +829,115 @@ class _PosScreenState extends State<PosScreen> {
     onUpdated?.call();
   }
 
-  void _showToppingsSelection(Product product) {
-    List<Topping> selectedToppings = [];
+  /// Names the open ticket (e.g. after the customer) instead of a table. The
+  /// server releases the table for a new order; the name only lives on this
+  /// order, so it is gone once the ticket is charged or cleared.
+  Future<void> _showRenameTicketDialog(BuildContext context) async {
+    final orderId = _activeTicketId;
+    if (orderId == null || orderId <= 0) return;
+    final label = await _promptTicketName(
+      context,
+      title: _l10n?.renameTicketAction ?? 'Rename ticket',
+      help: _l10n?.ticketNameHelp ??
+          'The ticket shows this name instead of a table, and its table becomes free for a new order.',
+      initial: _activeTicketLabel,
+    );
+    if (label == null || label.isEmpty || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _apiService.renameTicket(
+        orderId: orderId,
+        label: label,
+        releasedTableId: _activeTicketTableId,
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(_l10n?.renameTicketFailed('$e') ?? 'Rename failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _activeTicketLabel = label;
+      // The table now belongs to no one: later saves must not send it back.
+      _activeTicketTableId = null;
+    });
+    try {
+      final freshTables = await _apiService.fetchTables(forceRefresh: true);
+      if (mounted) setState(() => _tables = freshTables);
+    } catch (_) {}
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          _l10n?.ticketRenamed(label) ?? 'Ticket renamed to $label. Its table is free again.',
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  /// Asks for a ticket name; suggests [initial], else the selected customer.
+  /// Returns null when cancelled.
+  Future<String?> _promptTicketName(
+    BuildContext context, {
+    required String title,
+    required String help,
+    String initial = '',
+  }) {
+    final suggestion = initial.isNotEmpty
+        ? initial
+        : (_selectedCustomer?['name']?.toString() ?? '');
+    final controller = TextEditingController(text: suggestion);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 40,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+              decoration: InputDecoration(
+                labelText: _l10n?.ticketNameLabel ?? 'Ticket name',
+                hintText: _l10n?.ticketNameHint ?? 'e.g. customer name',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            Text(help, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandNavy,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(_l10n?.save ?? 'Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showToppingsSelection(Product product, {FreePromotion? freePromo, VoidCallback? onAdded}) {
+    // Admin defaults (e.g. Hot, Size M) are ticked when the sheet opens.
+    List<Topping> selectedToppings = ToppingRules.defaults(product.toppings);
+    final hasRequired = product.toppings.any((t) => t.groupId != null && t.groupRequired);
 
     showModalBottomSheet(
       context: context,
@@ -829,65 +969,80 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                   const SizedBox(height: 16),
                   Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: product.toppings.length,
-                      itemBuilder: (context, index) {
-                        final topping = product.toppings[index];
-                        final isSelected = selectedToppings.contains(topping);
-                        return CheckboxListTile(
-                          title: Text(topping.name),
-                          subtitle: topping.extraPrice > 0
-                              ? Text(
-                                  '+₭${topping.extraPrice.toStringAsFixed(2)}',
-                                )
-                              : Text(_l10n?.free ?? 'Free'),
-                          value: isSelected,
-                          activeColor: _brandNavy,
-                          onChanged: (bool? value) {
-                            setSheetState(() {
-                              if (value == true) {
-                                selectedToppings.add(topping);
-                              } else {
-                                selectedToppings.remove(topping);
-                              }
-                            });
-                          },
-                        );
-                      },
+                    child: SingleChildScrollView(
+                      child: ToppingPicker(
+                        toppings: product.toppings,
+                        selected: selectedToppings,
+                        accent: _brandNavy,
+                        addOnsTitle: _l10n?.toppingAddOns ?? 'Add-ons',
+                        onChanged: (next) =>
+                            setSheetState(() => selectedToppings = next),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _addDirectlyToCart(
-                              product,
-                              [],
-                            ); // Skip toppings completely
-                          },
-                          child: Text(_l10n?.addWithoutToppings ?? 'Add Without Toppings'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _brandNavy,
-                            foregroundColor: Colors.white,
+                  Builder(builder: (context) {
+                    final missing =
+                        ToppingRules.missing(product.toppings, selectedToppings);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (missing.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                              _l10n?.toppingChooseMissing(
+                                    missing.map((s) => s.title).join(', '),
+                                  ) ??
+                                  'Please choose: ${missing.map((s) => s.title).join(', ')}',
+                              style: const TextStyle(
+                                color: Colors.deepOrange,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _addDirectlyToCart(product, selectedToppings);
-                          },
-                          child: Text(_l10n?.addToOrder ?? 'Add To Order'),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            // Not offered when a choice is required (e.g. Size).
+                            if (!hasRequired) ...[
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _addDirectlyToCart(
+                                      product,
+                                      [],
+                                      freePromo: freePromo,
+                                    ); // Skip toppings completely
+                                    onAdded?.call();
+                                  },
+                                  child: Text(_l10n?.addWithoutToppings ?? 'Add Without Toppings'),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                            ],
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _brandNavy,
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: missing.isNotEmpty
+                                    ? null
+                                    : () {
+                                        Navigator.pop(context);
+                                        _addDirectlyToCart(product, selectedToppings, freePromo: freePromo);
+                                        onAdded?.call();
+                                      },
+                                child: Text(_l10n?.addToOrder ?? 'Add To Order'),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    );
+                  }),
                 ],
               ),
             );
@@ -917,6 +1072,8 @@ class _PosScreenState extends State<PosScreen> {
       _activeTicketPaymentType = '';
       _activeTicketPaymentMethodId = null;
       _activeTicketPaymentMethodName = '';
+      _activeTicketPartnerId = null;
+      _activeTicketLabel = '';
       _selectedCustomer = null;
       _discountBreakdown = DiscountBreakdown.none;
       _pendingDiscountManualValue = null;
@@ -930,11 +1087,18 @@ class _PosScreenState extends State<PosScreen> {
       _activeTicketName = result.orderName;
       _activeTicketQueueNumber = result.queueNumber;
       _activeTicketTableId = result.tableId;
+      _activeTicketLabel = result.ticketLabel;
       _activeTicketPaymentType = result.paymentType;
       _activeTicketPaymentMethodId = result.paymentMethodId;
       _activeTicketPaymentMethodName = result.paymentMethodName;
       _activeTicketIsSelfOrder = result.isSelfOrder;
+      _activeTicketPartnerId = result.partnerId;
       _activeTicketPartnerName = result.partnerName;
+      // Resuming used to leave the customer empty, so the next save or charge
+      // sent no partner and the customer looked lost.
+      _selectedCustomer = result.partnerId != null
+          ? {'id': result.partnerId, 'name': result.partnerName}
+          : null;
       _activeTicketDeliveryPlaceName = result.deliveryPlaceName;
       _activeTicketDeliveryPlaceAddress = result.deliveryPlaceAddress;
 
@@ -963,6 +1127,7 @@ class _PosScreenState extends State<PosScreen> {
   /// Per-unit line price for API payloads (base + topping extras).
   /// Matches [CartItem.totalPrice] / qty so offline cached totals are consistent.
   double _lineUnitPrice(CartItem item) {
+    if (item.isFreePromo) return 0.0;
     if (item.priceUnitFromOrder != null) {
       return item.priceUnitFromOrder!;
     }
@@ -981,6 +1146,10 @@ class _PosScreenState extends State<PosScreen> {
       'price_unit': _lineUnitPrice(item),
       'topping_ids': item.selectedToppings.map((t) => t.id).toList(),
       if (note.isNotEmpty) 'note': note,
+      if (item.isFreePromo) ...{
+        'is_free_promo': true,
+        'promotion_id': item.promotionId,
+      },
     };
   }
 
@@ -1300,48 +1469,25 @@ class _PosScreenState extends State<PosScreen> {
                       );
                       break;
                     }
-                    {
-                      final bd = _cartBreakdown();
-                      Map<String, dynamic>? tpl;
-                      try {
-                        tpl = await _apiService.fetchBillTemplate(type: 'bill');
-                      } catch (_) {}
-                      final headerText = (tpl?['header_text'] ?? '').toString();
-                      final footerText = (tpl?['footer_text'] ?? '').toString();
-                      final subLabel = bd.taxActive && _taxConfig.inclusive
-                          ? (_l10n?.amountExclVat ?? 'Amount (excl. VAT):')
-                          : 'Subtotal:';
-                      final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
-                          ? 'VAT (${_taxConfig.percentLabel}%):'
-                          : null;
-                      final ok = await printerService.printBill(
-                        cartItems: _cartItems,
-                        subtotal: bd.baseAmount,
-                        tax: bd.taxAmount,
-                        total: bd.totalDue,
-                        cashierName: widget.cashierName,
-                        ticketName: _activeTicketName,
-                        subtotalRowLabel: subLabel,
-                        taxRowLabel: taxLab,
-                        headerText: headerText,
-                        footerText: footerText,
-                        discountAmount: bd.discount.discountAmount,
-                        queueNumber: _activeTicketQueueNumber,
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              ok
-                                  ? (_l10n?.billPrinted ?? '🧾 Bill printed!')
-                                  : (_l10n?.failedToPrintBill ??
-                                        'Failed to print bill. Check printer connection.'),
-                            ),
-                            backgroundColor: ok ? Colors.green : Colors.red,
-                          ),
-                        );
+                    // Unsaved items: the kitchen has not got them yet, so save
+                    // first (kitchen order prints), then print the bill.
+                    if (_activeTicketId == null ||
+                        _cartItems.any((i) => !i.isSaved)) {
+                      final save = await _confirmSaveBeforeBill(context);
+                      if (save && context.mounted) {
+                        await _saveCurrentTicket(context, printBill: true);
                       }
+                      break;
                     }
+                    await _printBill(
+                      context,
+                      _snapshotBill(
+                        ticketName: _activeTicketLabel.isNotEmpty
+                            ? '$_activeTicketLabel - ${_activeTicketName ?? ''}'
+                            : _activeTicketName,
+                      ),
+                      queueNumber: _activeTicketQueueNumber,
+                    );
                     break;
 
                   case 'reprint':
@@ -1489,6 +1635,9 @@ class _PosScreenState extends State<PosScreen> {
                   case 'move':
                     await _showMoveTicketDialog(context);
                     break;
+                  case 'rename':
+                    await _showRenameTicketDialog(context);
+                    break;
                   case 'drawer':
                     if (!printerService.isConfigured) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1597,6 +1746,16 @@ class _PosScreenState extends State<PosScreen> {
                       Icons.open_in_new_rounded,
                       _l10n?.moveTicketAction ?? 'Move ticket',
                       enabled: hasTicket,
+                    ),
+                  ),
+                  // Saved (server) tickets only: offline tickets have negative ids.
+                  PopupMenuItem<String>(
+                    value: 'rename',
+                    enabled: hasTicket && _activeTicketId! > 0,
+                    child: disablableTile(
+                      Icons.drive_file_rename_outline_rounded,
+                      _l10n?.renameTicketAction ?? 'Rename ticket',
+                      enabled: hasTicket && _activeTicketId! > 0,
                     ),
                   ),
                   const PopupMenuDivider(),
@@ -1819,7 +1978,11 @@ class _PosScreenState extends State<PosScreen> {
                             MaterialPageRoute(
                               builder: (_) => const ManageItemsScreen(),
                             ),
-                          );
+                            // Products, toppings or categories may have changed:
+                            // reload so the POS offers them right away.
+                          ).then((_) {
+                            if (mounted) _fetchOdooProducts(backgroundRefresh: true);
+                          });
                         },
                       ),
                       _drawerItem(
@@ -2145,7 +2308,10 @@ class _PosScreenState extends State<PosScreen> {
                     cartItems: _cartItems,
                     onUpdateQuantity: _updateQuantity,
                     onEditKitchenNote: _editCartItemKitchenNote,
-                    onClearCart: _clearCart,
+                    // A saved ticket is deleted on the server (admin PIN);
+                    // only an unsaved cart is just cleared. The trash used to
+                    // clear the screen only, so the ticket came back.
+                    onClearCart: () => _handleClearTicket(context),
                     onViewTickets: () async {
                       final result = await Navigator.push<ResumedTicket>(
                         context,
@@ -2168,6 +2334,7 @@ class _PosScreenState extends State<PosScreen> {
                     onAddCustomer: () => _showCustomerSelection(context),
                     onClearCustomer: () =>
                         setState(() => _selectedCustomer = null),
+                    promoBanner: _freePromoBanner(context),
                     taxConfig: _taxConfig,
                     selectedDiscountOption: _selectedDiscountOption,
                     discountManualValue: _pendingDiscountManualValue,
@@ -2223,8 +2390,10 @@ class _PosScreenState extends State<PosScreen> {
                       setSheetState(() {});
                     },
                     onClearCart: () {
-                      _clearCart();
                       Navigator.pop(ctx);
+                      // Same as the ⋯ menu's Delete ticket: admin PIN for a
+                      // saved ticket, plain clear for an unsaved cart.
+                      _handleClearTicket(context);
                     },
                     onViewTickets: () async {
                       Navigator.pop(ctx);
@@ -2256,6 +2425,7 @@ class _PosScreenState extends State<PosScreen> {
                       setState(() => _selectedCustomer = null);
                       setSheetState(() {});
                     },
+                    promoBanner: _freePromoBanner(context, onChanged: () => setSheetState(() {})),
                     taxConfig: _taxConfig,
                     selectedDiscountOption: _selectedDiscountOption,
                     discountManualValue: _pendingDiscountManualValue,
@@ -2302,7 +2472,7 @@ class _PosScreenState extends State<PosScreen> {
                           ),
                           TextSpan(
                             text:
-                                'K${NumberFormat('#,##0.00').format(payTotal)}',
+                                'K${money(payTotal)}',
                             style: const TextStyle(fontSize: 18),
                           ),
                         ],
@@ -2358,6 +2528,265 @@ class _PosScreenState extends State<PosScreen> {
 
   bool _isCharging = false;
   bool _isSaving = false;
+
+  // Set by the charge button for _processCheckout: split rows for the server
+  // (null = single payment), and the payment lines + change for the receipt.
+  List<Map<String, dynamic>>? _checkoutPayments;
+
+  /// Running "Buy X get Y free" promotions (loaded with the products).
+  List<FreePromotion> _freePromotions = [];
+
+  /// A promotion with more free items than the cart earned (a paid item was
+  /// removed after the free one was added). Save / charge refuse it.
+  FreePromotion? get _overusedFreePromo {
+    for (final promo in _freePromotions) {
+      if (promo.availableFree(_cartItems) < 0) return promo;
+    }
+    // Free line whose promotion is no longer loaded (e.g. it just ended).
+    return null;
+  }
+
+  bool _blockIfFreeOverused(BuildContext context) {
+    final promo = _overusedFreePromo;
+    if (promo == null) return false;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_l10n?.tooManyFreeItems(promo.name) ??
+            'Too many free items for ${promo.name}. Remove one first.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return true;
+  }
+
+  /// Cart banner: "Buy 2 Get 1 Coffee: 1 free item" + Add free, or a red
+  /// warning when there are too many. Null when nothing to show.
+  Widget? _freePromoBanner(BuildContext context, {VoidCallback? onChanged}) {
+    final rows = <Widget>[];
+    for (final promo in _freePromotions) {
+      final available = promo.availableFree(_cartItems);
+      if (available == 0) continue;
+      final over = available < 0;
+      rows.add(Container(
+        margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: over ? Colors.red.shade50 : Colors.green.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: over ? Colors.red.shade200 : Colors.green.shade300),
+        ),
+        child: Row(
+          children: [
+            Text(over ? '⚠️' : '🎁', style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                over
+                    ? (_l10n?.tooManyFreeItems(promo.name) ??
+                        'Too many free items for ${promo.name}. Remove one first.')
+                    : (_l10n?.freeItemsAvailable(promo.name, available) ??
+                        '${promo.name}: $available free item(s)'),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: over ? Colors.red.shade800 : Colors.green.shade800,
+                ),
+              ),
+            ),
+            if (!over)
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+                onPressed: () => _pickFreeItem(context, promo, onChanged: onChanged),
+                child: Text(_l10n?.addFreeItem ?? 'Add free'),
+              ),
+          ],
+        ),
+      ));
+    }
+    if (rows.isEmpty) return null;
+    return Column(mainAxisSize: MainAxisSize.min, children: rows);
+  }
+
+  /// Cashier picks which promotion item is the free one.
+  Future<void> _pickFreeItem(BuildContext context, FreePromotion promo, {VoidCallback? onChanged}) async {
+    final choices = _products.where((p) => promo.freeProductIds.contains(p.id)).toList();
+    final picked = await showModalBottomSheet<Product>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+              child: Text(
+                _l10n?.chooseFreeItem(promo.name) ?? 'Choose the free item (${promo.name})',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final p in choices)
+                    ListTile(
+                      leading: const Text('🎁', style: TextStyle(fontSize: 22)),
+                      title: Text(p.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text('₭${money(p.effectivePrice)}',
+                          style: const TextStyle(decoration: TextDecoration.lineThrough)),
+                      trailing: Text(_l10n?.freeItemLabel ?? 'FREE',
+                          style: TextStyle(fontWeight: FontWeight.w800, color: Colors.green.shade700)),
+                      onTap: () => Navigator.pop(ctx, p),
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(height: LaDolcePosUi.gestureBarBottomPad(ctx)),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    if (picked.toppings.isNotEmpty) {
+      // Choices are free too (whole line is free).
+      _showToppingsSelection(picked, freePromo: promo, onAdded: onChanged);
+    } else {
+      _addDirectlyToCart(picked, [], freePromo: promo);
+      onChanged?.call();
+    }
+  }
+  List<Map<String, dynamic>> _checkoutReceiptPayments = [];
+  double _checkoutChange = 0;
+
+  /// Split payment rows in the charge sheet: method + amount per row, an
+  /// "Add payment" button and the remaining / change line.
+  List<Widget> _splitPaymentWidgets(
+    List<_SplitPaymentRow> rows,
+    _SplitPaymentSummary split,
+    double total,
+    NumberFormat fmt,
+    StateSetter setSheetState,
+  ) {
+    return [
+      for (var i = 0; i < rows.length; i++)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: rows[i].method.id,
+                      isExpanded: true,
+                      items: [
+                        for (final m in _paymentMethods)
+                          DropdownMenuItem(
+                            value: m.id,
+                            child: Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                      ],
+                      onChanged: (id) => setSheetState(() {
+                        rows[i].method = _paymentMethods.firstWhere((m) => m.id == id);
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 4,
+                child: TextField(
+                  controller: rows[i].amount,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MoneyInputFormatter()],
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  decoration: InputDecoration(
+                    prefixText: 'K ',
+                    filled: true,
+                    fillColor: Colors.white,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                  ),
+                  onChanged: (_) => setSheetState(() {}),
+                ),
+              ),
+              if (rows.length > 1)
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                  onPressed: () => setSheetState(() => rows.removeAt(i)),
+                )
+              else
+                const SizedBox(width: 8),
+            ],
+          ),
+        ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => setSheetState(() {
+            // Next method not used yet, pre-filled with what is still owed.
+            final used = rows.map((r) => r.method.id).toSet();
+            final next = _paymentMethods.firstWhere(
+              (m) => !used.contains(m.id),
+              orElse: () => _paymentMethods.first,
+            );
+            rows.add(_SplitPaymentRow(next, split.remaining > 0 ? split.remaining : 0));
+          }),
+          icon: const Icon(Icons.add_rounded),
+          label: Text(_l10n?.addPayment ?? 'Add payment'),
+        ),
+      ),
+      const SizedBox(height: 6),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: split.ok ? Colors.green.shade50 : Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                split.tooMuchNonCash
+                    ? (_l10n?.splitOnlyCashOver ?? 'Only cash can be more than the total')
+                    : split.remaining > 0
+                        ? (_l10n?.remainingToPay ?? 'Remaining')
+                        : (_l10n?.changeDue ?? 'Change Due:'),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: split.ok ? Colors.green.shade800 : Colors.deepOrange,
+                ),
+              ),
+            ),
+            if (!split.tooMuchNonCash)
+              Text(
+                'K${fmt.format(split.remaining > 0 ? split.remaining : split.change)}',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: split.ok ? Colors.green.shade800 : Colors.deepOrange,
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 24),
+    ];
+  }
 
   Future<void> _showMoveTicketDialog(BuildContext context) async {
     List<OpenTicket> tickets = [];
@@ -2613,7 +3042,7 @@ class _PosScreenState extends State<PosScreen> {
                         border: Border.all(color: Colors.blue.shade100),
                       ),
                       child: Text(
-                        'Source total: ₭${sourceTicket.amountTotal.toStringAsFixed(2)}\nItems: ${sourceTicket.lines.length}',
+                        'Source total: ₭${money(sourceTicket.amountTotal)}\nItems: ${sourceTicket.lines.length}',
                         style: TextStyle(
                           color: Colors.blue.shade900,
                           fontWeight: FontWeight.w600,
@@ -2920,6 +3349,7 @@ class _PosScreenState extends State<PosScreen> {
 
   void _showChargeDialog(BuildContext context) {
     if (_cartItems.isEmpty) return;
+    if (_blockIfFreeOverused(context)) return;
 
     final bd = _cartBreakdown();
     final total = bd.totalDue;
@@ -2937,13 +3367,18 @@ class _PosScreenState extends State<PosScreen> {
     }
 
     final TextEditingController amountReceivedCtrl = TextEditingController(
-      text: total.toStringAsFixed(0),
+      text: money(total),
     );
     final TextEditingController manualDiscountCtrl = TextEditingController(
       text: _pendingDiscountManualValue?.toStringAsFixed(0) ?? '',
     );
 
-    final fmt = NumberFormat('#,##0.00');
+    // Whole kip with separators, like money() everywhere else.
+    final fmt = NumberFormat('#,##0');
+
+    // Split payment (e.g. BCEL 30,000 + Cash 7,000): one row per payment.
+    var splitMode = false;
+    final splitRows = <_SplitPaymentRow>[];
 
     showModalBottomSheet(
       context: context,
@@ -2960,10 +3395,23 @@ class _PosScreenState extends State<PosScreen> {
               double.tryParse(amountReceivedCtrl.text.replaceAll(',', '')) ??
               0.0;
           final changeAmount = amtReceived >= total ? amtReceived - total : 0.0;
+          final split = _SplitPaymentSummary.of(splitRows, total);
+          final canCharge = !splitMode || split.ok;
 
-          return Padding(
+          // The bottom inset is painted in the sheet colour (it used to be a
+          // grey gap) with room to spare above the 3-button navigation bar,
+          // and the height cap includes it so the sheet stays below the
+          // status bar.
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
             padding: EdgeInsets.only(
-              bottom: LaDolcePosUi.modalBottomPadding(context),
+              bottom: LaDolcePosUi.modalBottomPadding(context) + 8,
+            ),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5F7FA),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: Container(
               constraints: BoxConstraints(
@@ -3114,7 +3562,7 @@ class _PosScreenState extends State<PosScreen> {
                                     } else {
                                       valStr = opt.type == 'percentage'
                                           ? '(${opt.value!.toStringAsFixed(0)}%)'
-                                          : '(₭${opt.value!.toStringAsFixed(0)})';
+                                          : '(₭${money(opt.value!)})';
                                     }
                                     return DropdownMenuItem<PosDiscountOption?>(
                                       value: opt,
@@ -3140,8 +3588,7 @@ class _PosScreenState extends State<PosScreen> {
                                     manualValue: _pendingDiscountManualValue,
                                   );
                                   final newTotal = _cartBreakdown().totalDue;
-                                  amountReceivedCtrl.text = newTotal
-                                      .toStringAsFixed(0);
+                                  amountReceivedCtrl.text = money(newTotal);
                                 },
                               ),
                             ),
@@ -3218,8 +3665,7 @@ class _PosScreenState extends State<PosScreen> {
                                         _recomputeDiscount(manualValue: val);
                                         final newTotal =
                                             _cartBreakdown().totalDue;
-                                        amountReceivedCtrl.text = newTotal
-                                            .toStringAsFixed(0);
+                                        amountReceivedCtrl.text = money(newTotal);
                                       },
                                     ),
                                   ),
@@ -3231,18 +3677,49 @@ class _PosScreenState extends State<PosScreen> {
                           const SizedBox(height: 12),
                         ],
 
-                        // ── Payment Method Label ──────────────────────────
-                        Text(_l10n?.selectPaymentMethod ?? 'Select Payment Method',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
+                        // ── Payment Method Label (+ split toggle) ─────────
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(_l10n?.selectPaymentMethod ?? 'Select Payment Method',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            // A transfer ticket's method is fixed: no split.
+                            if (!isTransferTicket && _paymentMethods.length > 1)
+                              TextButton.icon(
+                                onPressed: () => setSheetState(() {
+                                  splitMode = !splitMode;
+                                  if (splitMode && splitRows.isEmpty) {
+                                    splitRows.add(_SplitPaymentRow(
+                                      _selectedPaymentMethod ?? _paymentMethods.first,
+                                      total,
+                                    ));
+                                  }
+                                }),
+                                icon: Icon(
+                                  splitMode ? Icons.close_rounded : Icons.call_split_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(splitMode
+                                    ? (_l10n?.singlePayment ?? 'Single payment')
+                                    : (_l10n?.splitPayment ?? 'Split payment')),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 12),
 
+                        if (splitMode)
+                          ..._splitPaymentWidgets(splitRows, split, total, fmt, setSheetState),
+
                         // ── Payment Method Pills ──────────────────────────
-                        if (_paymentMethods.isEmpty)
+                        if (splitMode)
+                          const SizedBox.shrink()
+                        else if (_paymentMethods.isEmpty)
                           Text(_l10n?.noPaymentMethods ?? 'No payment methods configured.',
                             style: TextStyle(color: Colors.grey),
                           )
@@ -3339,7 +3816,7 @@ class _PosScreenState extends State<PosScreen> {
                         const SizedBox(height: 24),
 
                         // ── Cash Input ────────────────────────────────────
-                        if (isCash) ...[
+                        if (isCash && !splitMode) ...[
                           Text(_l10n?.amountReceived ?? 'Amount Received',
                             style: TextStyle(
                               fontSize: 14,
@@ -3370,10 +3847,8 @@ class _PosScreenState extends State<PosScreen> {
                                 Expanded(
                                   child: TextField(
                                     controller: amountReceivedCtrl,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [MoneyInputFormatter()],
                                     style: const TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w600,
@@ -3445,11 +3920,35 @@ class _PosScreenState extends State<PosScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       child: ElevatedButton(
-                        onPressed: () =>
-                            _processCheckout(context, setSheetState, true, bd),
+                        onPressed: !canCharge
+                            ? null
+                            : () {
+                                // What the receipt prints under TOTAL, and the
+                                // split rows the server stores.
+                                if (splitMode) {
+                                  _checkoutPayments = split.serverPayments;
+                                  _checkoutReceiptPayments = split.receiptPayments;
+                                  _checkoutChange = split.change;
+                                  _selectedPaymentMethod = split.mainMethod;
+                                } else {
+                                  _checkoutPayments = null;
+                                  final m = _selectedPaymentMethod;
+                                  _checkoutReceiptPayments = m == null
+                                      ? []
+                                      : [
+                                          {
+                                            'payment_method': m.name,
+                                            'amount': isCash && amtReceived > total ? amtReceived : total,
+                                          },
+                                        ];
+                                  _checkoutChange = isCash ? changeAmount : 0.0;
+                                }
+                                _processCheckout(context, setSheetState, true, bd);
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF22C55E),
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade300,
                           padding: const EdgeInsets.symmetric(vertical: 18),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -3518,8 +4017,31 @@ class _PosScreenState extends State<PosScreen> {
     final snapshotActiveTicketQueueNumber = _activeTicketQueueNumber;
     final snapshotDiscountType = _appliedDiscountType;
     final snapshotDiscountValue = _appliedDiscountValue;
-    final isCash =
-        snapshotPaymentMethod?.name.toLowerCase().contains('cash') ?? false;
+    // _clearCart() below nulls the customer before the background sync runs.
+    final snapshotCustomerId = _selectedCustomer?['id'] as int?;
+    final snapshotCustomerName = (_selectedCustomer?['name'] ?? '').toString();
+    final snapshotCustomerPoints =
+        int.tryParse((_selectedCustomer?['reward_points'] ?? '').toString());
+    final snapshotPointsSpent =
+        snapshotCart.fold<int>(0, (sum, item) => sum + item.totalPoints);
+    final customerChanged =
+        snapshotCustomerId != null && snapshotCustomerId != _activeTicketPartnerId;
+    // Split payment rows (null = single method) and the receipt lines.
+    final snapshotPayments = _checkoutPayments;
+    final snapshotReceiptPayments = List<Map<String, dynamic>>.from(_checkoutReceiptPayments);
+    final snapshotChange = _checkoutChange;
+    _checkoutPayments = null;
+    _checkoutReceiptPayments = [];
+    _checkoutChange = 0;
+    // Drawer opens when a method with "Open cash drawer" ticked was used
+    // (any row of a split payment counts).
+    final drawerMethodNames = {
+      for (final m in _paymentMethods)
+        if (m.opensCashDrawer) m.name,
+    };
+    final isCash = (snapshotPaymentMethod?.opensCashDrawer ?? false) ||
+        snapshotReceiptPayments.any(
+            (p) => drawerMethodNames.contains((p['payment_method'] ?? '').toString()));
 
     // --- Optimistic UI: update local state and close dialog immediately ---
 
@@ -3574,6 +4096,24 @@ class _PosScreenState extends State<PosScreen> {
         } catch (_) {}
         final headerText = (tpl?['header_text'] ?? '').toString();
         final footerText = (tpl?['footer_text'] ?? '').toString();
+        // Points the server will add on payment (same rule as action_pay:
+        // whole points of total / ratio), worked out here because the receipt
+        // prints before the sync so it also works offline.
+        int? pointsEarned;
+        int? pointsBalance;
+        var pointsLabel = 'Points';
+        if (snapshotCustomerId != null) {
+          final loyalty = await _apiService.fetchLoyaltyConfig();
+          final ratio =
+              double.tryParse((loyalty['points_ratio'] ?? '').toString()) ?? 100.0;
+          pointsLabel = (loyalty['points_label'] ?? '').toString().trim();
+          if (pointsLabel.isEmpty) pointsLabel = 'Points';
+          pointsEarned = ratio > 0 ? (bd.totalDue / ratio).floor() : 0;
+          if (snapshotCustomerPoints != null) {
+            final balance = snapshotCustomerPoints + pointsEarned - snapshotPointsSpent;
+            pointsBalance = balance < 0 ? 0 : balance;
+          }
+        }
         final receiptPrinters = printerService.profiles
             .where((p) => p.printReceiptsAndBills)
             .toList();
@@ -3591,6 +4131,13 @@ class _PosScreenState extends State<PosScreen> {
             footerText: footerText,
             discountAmount: bd.discount.discountAmount,
             queueNumber: snapshotActiveTicketQueueNumber,
+            logoBase64: tpl?['logo']?.toString(),
+            customerName: snapshotCustomerName,
+            pointsEarned: pointsEarned,
+            pointsBalance: pointsBalance,
+            pointsLabel: pointsLabel,
+            payments: snapshotReceiptPayments,
+            change: snapshotChange,
           );
         }
         if (isCash) {
@@ -3600,13 +4147,17 @@ class _PosScreenState extends State<PosScreen> {
 
       // Sync to server (handles online success + offline queue internally).
       try {
+        // The backend requires branch_id whenever partner_id is present, and
+        // createOrder already sends the cashier's branch; match it here.
+        final branchId = await _apiService.getCachedBranchId();
         if (snapshotActiveTicketId != null) {
           if (snapshotActiveTicketId < 0) {
             // Offline mock ticket — purge old tasks and queue a paid submit.
             await _apiService.purgeOfflineTasksForOrder(snapshotActiveTicketId);
             await _apiService.submitOrder(
               userId: cashierId,
-              partnerId: _selectedCustomer?['id'],
+              partnerId: snapshotCustomerId,
+              branchId: branchId,
               tableId: snapshotActiveTicketTableId,
               paymentMethodId: snapshotPaymentMethod?.id,
               paymentType: snapshotActiveTicketPaymentType.isNotEmpty
@@ -3616,12 +4167,15 @@ class _PosScreenState extends State<PosScreen> {
               lines: allLines,
               discountType: snapshotDiscountType,
               discountValue: snapshotDiscountValue,
+              payments: snapshotPayments,
             );
           } else {
-            if (newLines.isNotEmpty) {
+            // A customer added at checkout must reach the order even when no
+            // items were added, or the paid order (and its points) has no one.
+            if (newLines.isNotEmpty || customerChanged) {
               await _apiService.updateOrder(
                 orderId: snapshotActiveTicketId,
-                customerId: _selectedCustomer?['id'],
+                customerId: snapshotCustomerId,
                 lines: newLines,
                 discountType: snapshotDiscountType,
                 discountValue: snapshotDiscountValue,
@@ -3632,17 +4186,20 @@ class _PosScreenState extends State<PosScreen> {
               paymentMethodId: snapshotPaymentMethod?.id,
               discountType: snapshotDiscountType,
               discountValue: snapshotDiscountValue,
+              payments: snapshotPayments,
             );
           }
         } else {
           await _apiService.submitOrder(
             userId: cashierId,
-            partnerId: _selectedCustomer?['id'],
+            partnerId: snapshotCustomerId,
+            branchId: branchId,
             isPaid: true,
             paymentMethodId: snapshotPaymentMethod?.id,
             lines: allLines,
             discountType: snapshotDiscountType,
             discountValue: snapshotDiscountValue,
+            payments: snapshotPayments,
           );
         }
       } catch (_) {
@@ -3651,9 +4208,97 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
-  /// Save current cart to existing ticket (update) or new ticket (table dialog)
-  Future<void> _saveCurrentTicket(BuildContext context) async {
+  /// Everything the bill needs, copied before a save clears the cart.
+  _BillSnapshot _snapshotBill({String? ticketName}) {
+    final bd = _cartBreakdown();
+    return _BillSnapshot(
+      items: List<CartItem>.from(_cartItems),
+      breakdown: bd,
+      ticketName: ticketName,
+    );
+  }
+
+  /// Prints the customer's bill (not paid yet) to the receipt printers.
+  Future<bool> _printBill(
+    BuildContext context,
+    _BillSnapshot bill, {
+    int? queueNumber,
+  }) async {
+    final bd = bill.breakdown;
+    Map<String, dynamic>? tpl;
+    try {
+      tpl = await _apiService.fetchBillTemplate(type: 'bill');
+    } catch (_) {}
+    final headerText = (tpl?['header_text'] ?? '').toString();
+    final footerText = (tpl?['footer_text'] ?? '').toString();
+    final subLabel = bd.taxActive && _taxConfig.inclusive
+        ? (_l10n?.amountExclVat ?? 'Amount (excl. VAT):')
+        : 'Subtotal:';
+    final taxLab = (bd.taxActive && _taxConfig.showOnReceipt)
+        ? 'VAT (${_taxConfig.percentLabel}%):'
+        : null;
+    final ok = await printerService.printBill(
+      cartItems: bill.items,
+      subtotal: bd.baseAmount,
+      tax: bd.taxAmount,
+      total: bd.totalDue,
+      cashierName: widget.cashierName,
+      ticketName: bill.ticketName,
+      subtotalRowLabel: subLabel,
+      taxRowLabel: taxLab,
+      headerText: headerText,
+      footerText: footerText,
+      discountAmount: bd.discount.discountAmount,
+      queueNumber: queueNumber,
+      logoBase64: tpl?['logo']?.toString(),
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ok
+                ? (_l10n?.billPrinted ?? '🧾 Bill printed!')
+                : (_l10n?.failedToPrintBill ??
+                      'Failed to print bill. Check printer connection.'),
+          ),
+          backgroundColor: ok ? Colors.green : Colors.red,
+        ),
+      );
+    }
+    return ok;
+  }
+
+  Future<bool> _confirmSaveBeforeBill(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l10n?.saveAndPrintBillTitle ?? 'Save ticket first?'),
+        content: Text(
+          _l10n?.saveAndPrintBillBody ??
+              'This ticket is not saved yet. Save it to send the order to the kitchen, then the bill will print.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l10n?.cancel ?? 'Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.print_rounded),
+            label: Text(_l10n?.saveAndPrintBill ?? 'Save & print bill'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
+  /// Save current cart to existing ticket (update) or new ticket (table dialog).
+  /// [printBill]: after the kitchen order, also print the bill (Print bill on
+  /// an unsaved ticket).
+  Future<void> _saveCurrentTicket(BuildContext context, {bool printBill = false}) async {
     if (_cartItems.isEmpty || _isSaving) return; // guard against double-tap
+    if (_blockIfFreeOverused(context)) return;
 
     if (_activeTicketId != null) {
       // Only send the NEW (unsaved) items — saved items are already on the server
@@ -3662,8 +4307,46 @@ class _PosScreenState extends State<PosScreen> {
           .map(_orderLinePayload)
           .toList();
 
-      // If there are no new items, nothing to update — just go back
+      // If there are no new items, nothing to update — just go back.
+      // Unless the cashier picked a customer: this early return used to skip
+      // the server entirely, so the customer vanished on reopening.
       if (newLines.isEmpty) {
+        final customerId = _selectedCustomer?['id'] as int?;
+        if (customerId != null && customerId != _activeTicketPartnerId) {
+          setState(() => _isSaving = true);
+          try {
+            await _apiService.updateOrder(
+              orderId: _activeTicketId!,
+              tableId: _activeTicketTableId,
+              customerId: customerId,
+              customerName: _selectedCustomer?['name']?.toString(),
+              lines: const [],
+              discountType: _appliedDiscountType,
+              discountValue: _appliedDiscountValue,
+            );
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+              );
+            }
+            return;
+          } finally {
+            if (mounted) setState(() => _isSaving = false);
+          }
+        }
+        if (printBill && context.mounted) {
+          await _printBill(
+            context,
+            _snapshotBill(
+              ticketName: _activeTicketLabel.isNotEmpty
+                  ? '$_activeTicketLabel - ${_activeTicketName ?? ''}'
+                  : _activeTicketName,
+            ),
+            queueNumber: _activeTicketQueueNumber,
+          );
+          return;
+        }
         _clearCart();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -3699,6 +4382,7 @@ class _PosScreenState extends State<PosScreen> {
           orderId: _activeTicketId!,
           tableId: _activeTicketTableId,
           customerId: _selectedCustomer?['id'],
+          customerName: _selectedCustomer?['name']?.toString(),
           lines: newLines,
           discountType: _appliedDiscountType,
           discountValue: _appliedDiscountValue,
@@ -3746,6 +4430,19 @@ class _PosScreenState extends State<PosScreen> {
             item.isSaved = true;
           }
         });
+
+        // After the kitchen order, so a shared printer gets them one by one.
+        if (printBill && context.mounted) {
+          await _printBill(
+            context,
+            _snapshotBill(
+              ticketName: _activeTicketLabel.isNotEmpty
+                  ? '$_activeTicketLabel - ${_activeTicketName ?? ''}'
+                  : _activeTicketName,
+            ),
+            queueNumber: _activeTicketQueueNumber,
+          );
+        }
       } catch (e) {
         if (dialogContext != null && dialogContext!.mounted) {
           Navigator.pop(dialogContext!);
@@ -3771,14 +4468,14 @@ class _PosScreenState extends State<PosScreen> {
       }
 
       if (context.mounted) {
-        _showTableSelectionDialog(context);
+        _showTableSelectionDialog(context, printBill: printBill);
       }
     }
   }
 
   bool _isOpeningTicket = false;
 
-  void _showTableSelectionDialog(BuildContext context) {
+  void _showTableSelectionDialog(BuildContext context, {bool printBill = false}) {
     if (_cartItems.isEmpty) return;
 
     showDialog(
@@ -3863,6 +4560,49 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                   ),
 
+                  // Save under a name instead of a table (also works with no tables).
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      isMobile ? 12 : 24,
+                      isMobile ? 12 : 16,
+                      isMobile ? 12 : 24,
+                      0,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isOpeningTicket
+                            ? null
+                            : () async {
+                                final label = await _promptTicketName(
+                                  context,
+                                  title: _l10n?.customNameAction ?? 'Custom name',
+                                  help: _l10n?.customNameHelp ??
+                                      'Save this order under a name instead of a table.',
+                                );
+                                if (label == null || label.isEmpty || !context.mounted) {
+                                  return;
+                                }
+                                await _processOpenTicket(context, setDialogState, label: label, printBill: printBill);
+                              },
+                        icon: const Icon(Icons.person_pin_rounded),
+                        label: Text(_l10n?.customNameAction ?? 'Custom name'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _brandNavy,
+                          side: const BorderSide(color: _brandNavy, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
                   // Content
                   Expanded(
                     child: _tables.isEmpty
@@ -3930,7 +4670,8 @@ class _PosScreenState extends State<PosScreen> {
                                     ? () => _processOpenTicket(
                                         context,
                                         setDialogState,
-                                        table,
+                                        table: table,
+                                        printBill: printBill,
                                       )
                                     : null,
                                 borderRadius: BorderRadius.circular(
@@ -4136,36 +4877,48 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
+  /// Opens a new ticket at [table], or under the name [label] with no table.
   Future<void> _processOpenTicket(
     BuildContext context,
-    StateSetter setDialogState,
-    PosTable table,
-  ) async {
+    StateSetter setDialogState, {
+    PosTable? table,
+    String? label,
+    bool printBill = false,
+  }) async {
     final lines = _cartItems.map(_orderLinePayload).toList();
 
     final cashierId = widget.cashierId;
+    final place = table?.name ?? label ?? '';
 
     // --- Optimistic UI: update state immediately, no waiting ---
 
     // Mark table as open in local in-memory list right away.
-    try {
-      final idx = _tables.indexWhere((t) => t.id == table.id);
-      if (idx >= 0) {
-        final current = _tables[idx];
-        setState(() {
-          _tables[idx] = PosTable(
-            id: current.id,
-            name: current.name,
-            capacity: current.capacity,
-            status: current.status,
-            hasOpenOrder: true,
-          );
-        });
-      }
-    } catch (_) {}
+    if (table != null) {
+      try {
+        final idx = _tables.indexWhere((t) => t.id == table.id);
+        if (idx >= 0) {
+          final current = _tables[idx];
+          setState(() {
+            _tables[idx] = PosTable(
+              id: current.id,
+              name: current.name,
+              capacity: current.capacity,
+              status: current.status,
+              hasOpenOrder: true,
+            );
+          });
+        }
+      } catch (_) {}
+    }
 
     // Capture items for kitchen print before cart is cleared.
     final itemsForKitchen = List<CartItem>.from(_cartItems);
+    // The bill too (items, discount, VAT): the cart is cleared below.
+    final bill = printBill ? _snapshotBill(ticketName: place) : null;
+    // Same for the customer: _clearCart nulls it, and createOrder below used to
+    // read it afterwards, so every new ticket was saved without its customer.
+    final customerId = _selectedCustomer?['id'] as int?;
+    final customerName = _selectedCustomer?['name']?.toString();
 
     // Close dialog and clear cart instantly — no waiting for server.
     _clearCart();
@@ -4173,7 +4926,7 @@ class _PosScreenState extends State<PosScreen> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_l10n?.ticketOpenedAt(table.name) ?? 'Ticket opened at ${table.name}!'),
+          content: Text(_l10n?.ticketOpenedAt(place) ?? 'Ticket opened at $place!'),
           backgroundColor: Colors.green,
         ),
       );
@@ -4183,8 +4936,10 @@ class _PosScreenState extends State<PosScreen> {
     _apiService
         .createOrder(
           userId: cashierId,
-          tableId: table.id,
-          customerId: _selectedCustomer?['id'],
+          tableId: table?.id,
+          ticketLabel: label,
+          customerId: customerId,
+          customerName: customerName,
           lines: lines,
         )
         .then((response) {
@@ -4205,7 +4960,13 @@ class _PosScreenState extends State<PosScreen> {
                     }
                   }
                 })
-                .catchError((_) {});
+                .catchError((_) {})
+                // Bill after the kitchen order, with the same queue number.
+                .whenComplete(() {
+                  if (bill != null && mounted) {
+                    _printBill(this.context, bill, queueNumber: qn);
+                  }
+                });
           }
         })
         .catchError((_) {
@@ -4222,7 +4983,12 @@ class _PosScreenState extends State<PosScreen> {
                     }
                   }
                 })
-                .catchError((_) {});
+                .catchError((_) {})
+                .whenComplete(() {
+                  if (bill != null && mounted) {
+                    _printBill(this.context, bill);
+                  }
+                });
           }
         });
     // No finally needed — _isOpeningTicket is no longer set because we never
@@ -4407,3 +5173,95 @@ class _PosScreenState extends State<PosScreen> {
 }
 
 
+
+/// One row of a split payment in the charge sheet.
+class _SplitPaymentRow {
+  PaymentMethod method;
+  final TextEditingController amount;
+
+  _SplitPaymentRow(this.method, double value)
+      : amount = TextEditingController(text: value > 0 ? money(value) : '');
+
+  double get value => parseMoney(amount.text);
+
+  bool get isCash => method.name.toLowerCase().contains('cash');
+}
+
+/// Totals of a split payment. Only cash may go over the total (that is the
+/// change); card / transfer rows must not exceed it.
+class _SplitPaymentSummary {
+  final double paid;
+  final double remaining;
+  final double change;
+  final bool tooMuchNonCash;
+  final List<_SplitPaymentRow> rows;
+  final double total;
+
+  _SplitPaymentSummary._(this.rows, this.total, this.paid, this.remaining, this.change, this.tooMuchNonCash);
+
+  factory _SplitPaymentSummary.of(List<_SplitPaymentRow> rows, double total) {
+    final nonCash = rows.where((r) => !r.isCash).fold<double>(0, (s, r) => s + r.value);
+    final paid = rows.fold<double>(0, (s, r) => s + r.value);
+    final remaining = total - paid;
+    return _SplitPaymentSummary._(
+      rows,
+      total,
+      paid,
+      remaining > 0.5 ? remaining : 0,
+      paid - total > 0.5 ? paid - total : 0,
+      nonCash > total + 0.5,
+    );
+  }
+
+  bool get ok => rows.isNotEmpty && remaining == 0 && !tooMuchNonCash;
+
+  /// What the server stores: card/transfer as typed, cash only the part that
+  /// pays the bill (the rest went back as change). Same method rows merged.
+  List<Map<String, dynamic>> get serverPayments {
+    final byMethod = <int, double>{};
+    final names = <int, String>{};
+    final nonCash = rows.where((r) => !r.isCash).fold<double>(0, (s, r) => s + r.value);
+    var cashLeft = total - nonCash;
+    for (final r in rows) {
+      var amount = r.value;
+      if (r.isCash) {
+        amount = amount < cashLeft ? amount : cashLeft;
+        cashLeft -= amount;
+      }
+      if (amount <= 0) continue;
+      byMethod[r.method.id] = (byMethod[r.method.id] ?? 0) + amount;
+      names[r.method.id] = r.method.name;
+    }
+    return [
+      for (final e in byMethod.entries)
+        {'payment_method_id': e.key, 'payment_method': names[e.key], 'amount': e.value},
+    ];
+  }
+
+  /// For the receipt: what each method actually handed over (cash before change).
+  List<Map<String, dynamic>> get receiptPayments => [
+        for (final r in rows)
+          if (r.value > 0) {'payment_method': r.method.name, 'amount': r.value},
+      ];
+
+  /// The method with the largest share becomes the order's main method.
+  PaymentMethod get mainMethod {
+    final pays = serverPayments;
+    if (pays.isEmpty) return rows.first.method;
+    pays.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    return rows.firstWhere((r) => r.method.id == pays.first['payment_method_id']).method;
+  }
+}
+
+/// A bill to print later: the cart is cleared when a new ticket is saved.
+class _BillSnapshot {
+  final List<CartItem> items;
+  final CartBreakdown breakdown;
+  final String? ticketName;
+
+  const _BillSnapshot({
+    required this.items,
+    required this.breakdown,
+    this.ticketName,
+  });
+}

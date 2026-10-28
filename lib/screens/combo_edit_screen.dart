@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../models/product.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../utils/money.dart';
 
 class ComboEditScreen extends StatefulWidget {
   final Map<String, dynamic>? combo;
@@ -35,7 +36,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.combo?['name'] ?? '');
     _priceController = TextEditingController(
-      text: widget.combo != null ? widget.combo!['price'].toString() : '',
+      text: widget.combo != null ? money(num.tryParse('${widget.combo!['price']}')) : '',
     );
 
     _lines = [];
@@ -78,7 +79,7 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     final priceStr = _priceController.text.trim();
-    final price = double.tryParse(priceStr) ?? 0.0;
+    final price = parseMoney(priceStr);
 
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -185,9 +186,13 @@ class _ComboEditScreenState extends State<ComboEditScreen> {
                       controller: _priceController,
                       decoration: LaDolcePosUi.input(
                         hintText: AppLocalizations.of(context)?.comboFixedPrice ?? (AppLocalizations.of(context)?.comboFixedPrice ?? 'Combo Fixed Price*'),
-                        prefixIcon: const Icon(Icons.attach_money, size: 20),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text('₭', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        ),
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [MoneyInputFormatter()],
                     ),
                   ],
                 ),

@@ -24,6 +24,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
   final ApiService _apiService = ApiService();
   late final TextEditingController _nameController;
   late bool _showInApp;
+  late bool _hideInSelfOrder;
   bool _isSaving = false;
 
   static const Color _accent = Colors.blue;
@@ -33,6 +34,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.category?['name'] ?? '');
     _showInApp = widget.category?['pos_show_in_app'] ?? true;
+    _hideInSelfOrder = widget.category?['hide_in_self_order'] == true;
   }
 
   @override
@@ -57,6 +59,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
         id: widget.category?['id'],
         name: name,
         showInApp: _showInApp,
+        hideInSelfOrder: _hideInSelfOrder,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -172,6 +175,45 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                             value: _showInApp,
                             activeColor: _accent,
                             onChanged: (v) => setState(() => _showInApp = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // POS only: cashiers see it, customers in self-order do not.
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm),
+                        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.15)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _hideInSelfOrder ? Icons.point_of_sale : Icons.storefront,
+                            color: _hideInSelfOrder ? Colors.deepPurple : LaDolcePosUi.mutedText,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(AppLocalizations.of(context)?.posOnlyLabel ?? 'POS only',
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                ),
+                                Text(AppLocalizations.of(context)?.posOnlyCategoryHelp ??
+                                    'Hidden in the customer self-order app; cashiers still see it.',
+                                  style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _hideInSelfOrder,
+                            activeColor: Colors.deepPurple,
+                            onChanged: (v) => setState(() => _hideInSelfOrder = v),
                           ),
                         ],
                       ),

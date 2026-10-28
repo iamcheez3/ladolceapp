@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../models/topping.dart';
 import '../theme/ladolce_pos_ui.dart';
 import '../theme/luxury_background.dart';
+import '../utils/money.dart';
 
 class ToppingEditScreen extends StatefulWidget {
   final Topping? topping;
@@ -19,21 +20,42 @@ class ToppingEditScreen extends StatefulWidget {
 class _ToppingEditScreenState extends State<ToppingEditScreen> {
   final ApiService _apiService = ApiService();
   late final TextEditingController _nameController;
+  late final TextEditingController _nameLoController;
   late final TextEditingController _priceController;
   bool _isSaving = false;
+  List<ToppingGroup> _groups = [];
+  int? _groupId;
+  bool _isDefault = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.topping?.name ?? '');
+    final t = widget.topping;
+    _nameController = TextEditingController(text: t?.name ?? '');
+    // The server fills name_lo with the English name when it is blank.
+    final lao = (t?.nameLo ?? '').trim();
+    _nameLoController = TextEditingController(text: lao == t?.name ? '' : lao);
     _priceController = TextEditingController(
-      text: widget.topping != null ? widget.topping!.extraPrice.toString() : '',
+      text: t != null && t.extraPrice > 0 ? money(t.extraPrice) : '',
     );
+    _groupId = t?.groupId;
+    _isDefault = t?.isDefault ?? false;
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final groups = await _apiService.fetchToppingGroups();
+      if (mounted) setState(() => _groups = groups);
+    } catch (e) {
+      debugPrint('[ToppingEdit] groups not loaded: $e');
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _nameLoController.dispose();
     _priceController.dispose();
     super.dispose();
   }
@@ -41,7 +63,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     final priceStr = _priceController.text.trim();
-    final price = double.tryParse(priceStr) ?? 0.0;
+    final price = parseMoney(priceStr);
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,7 +75,14 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
     setState(() => _isSaving = true);
 
     try {
-      await _apiService.addTopping(name, price);
+      await _apiService.addTopping(
+        name,
+        price,
+        id: widget.topping?.id,
+        nameLo: _nameLoController.text.trim(),
+        groupId: _groupId,
+        isDefault: _groupId != null && _isDefault,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -132,13 +161,72 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
                     ),
                     const SizedBox(height: 14),
                     TextField(
+                      controller: _nameLoController,
+                      decoration: LaDolcePosUi.input(
+                        hintText: AppLocalizations.of(context)?.toppingNameLo ?? 'Lao name (optional)',
+                        prefixIcon: const Icon(Icons.translate, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
                       controller: _priceController,
                       decoration: LaDolcePosUi.input(
                         hintText: AppLocalizations.of(context)?.extraPriceOptional ?? (AppLocalizations.of(context)?.extraPriceOptional ?? 'Extra Price (Optional)'),
-                        prefixIcon: const Icon(Icons.attach_money, size: 20),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text('₭', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        ),
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [MoneyInputFormatter()],
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: LaDolcePosUi.card,
+                  borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
+                  border: Border.all(color: LaDolcePosUi.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<int?>(
+                      // Keep the current group selectable while the list loads.
+                      initialValue: _groups.any((g) => g.id == _groupId) ? _groupId : null,
+                      key: ValueKey('group-${_groups.length}'),
+                      isExpanded: true,
+                      decoration: LaDolcePosUi.input(
+                        hintText: AppLocalizations.of(context)?.toppingGroupLabel ?? 'Group',
+                        prefixIcon: const Icon(Icons.view_agenda_outlined, size: 20),
+                      ),
+                      items: [
+                        DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text(AppLocalizations.of(context)?.toppingNoGroup ?? 'No group (add-on)'),
+                        ),
+                        for (final g in _groups)
+                          DropdownMenuItem<int?>(
+                            value: g.id,
+                            child: Text(
+                              '${g.displayName} · ${g.isSingleChoice ? (AppLocalizations.of(context)?.toppingPickOne ?? 'Pick 1') : (AppLocalizations.of(context)?.toppingPickMany ?? 'Pick many')}',
+                            ),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() => _groupId = v),
+                    ),
+                    if (_groupId != null)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _isDefault,
+                        activeThumbColor: LaDolcePosUi.navy,
+                        title: Text(AppLocalizations.of(context)?.toppingDefaultLabel ?? 'Selected by default'),
+                        subtitle: Text(AppLocalizations.of(context)?.toppingDefaultHelp ?? 'Already ticked when the item opens'),
+                        onChanged: (v) => setState(() => _isDefault = v),
+                      ),
                   ],
                 ),
               ),

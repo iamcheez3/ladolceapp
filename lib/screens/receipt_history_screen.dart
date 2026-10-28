@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import 'receipt_detail_screen.dart';
 import '../theme/ladolce_pos_ui.dart';
+import '../utils/money.dart';
 
 /// Paginated Receipt History Screen optimized for large datasets.
 ///
@@ -153,10 +154,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
   String _formatAmount(dynamic raw) {
     final amount = double.tryParse(raw.toString()) ?? 0.0;
-    if (amount == amount.truncateToDouble()) {
-      return 'K${NumberFormat('#,###').format(amount.toInt())}';
-    }
-    return 'K${NumberFormat('#,##0.00').format(amount)}';
+    return 'K${money(amount)}';
   }
 
   String? _formatVisitDuration(Map<String, dynamic> receipt) {
@@ -470,7 +468,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        'Discount: -K${(receipt['amount_discount'] as num).toStringAsFixed(0)}',
+                        'Discount: -K${money((receipt['amount_discount'] as num))}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.red,

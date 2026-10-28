@@ -734,6 +734,24 @@ abstract class AppLocalizations {
   /// **'Print bill'**
   String get printBill;
 
+  /// No description provided for @saveAndPrintBillTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save ticket first?'**
+  String get saveAndPrintBillTitle;
+
+  /// No description provided for @saveAndPrintBillBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This ticket is not saved yet. Save it to send the order to the kitchen, then the bill will print.'**
+  String get saveAndPrintBillBody;
+
+  /// No description provided for @saveAndPrintBill.
+  ///
+  /// In en, this message translates to:
+  /// **'Save & print bill'**
+  String get saveAndPrintBill;
+
   /// No description provided for @reprintOrderKitchen.
   ///
   /// In en, this message translates to:
@@ -4429,6 +4447,444 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Payment:'**
   String get paymentColon;
+
+  /// No description provided for @renameTicketAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename ticket'**
+  String get renameTicketAction;
+
+  /// No description provided for @ticketNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticket name'**
+  String get ticketNameLabel;
+
+  /// No description provided for @ticketNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. customer name'**
+  String get ticketNameHint;
+
+  /// No description provided for @ticketNameHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The ticket shows this name instead of a table, and its table becomes free for a new order.'**
+  String get ticketNameHelp;
+
+  /// No description provided for @ticketRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticket renamed to {name}. Its table is free again.'**
+  String ticketRenamed(String name);
+
+  /// No description provided for @customNameAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom name'**
+  String get customNameAction;
+
+  /// No description provided for @customNameHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Save this order under a name instead of a table.'**
+  String get customNameHelp;
+
+  /// No description provided for @renameTicketFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename failed: {error}'**
+  String renameTicketFailed(String error);
+
+  /// No description provided for @toppingPickOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick 1'**
+  String get toppingPickOne;
+
+  /// No description provided for @toppingPickMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick many'**
+  String get toppingPickMany;
+
+  /// No description provided for @toppingRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get toppingRequired;
+
+  /// No description provided for @toppingAddOns.
+  ///
+  /// In en, this message translates to:
+  /// **'Add-ons'**
+  String get toppingAddOns;
+
+  /// No description provided for @toppingChooseMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Please choose: {groups}'**
+  String toppingChooseMissing(String groups);
+
+  /// No description provided for @toppingGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Topping groups'**
+  String get toppingGroups;
+
+  /// No description provided for @toppingGroupsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Headings like Type, Taste or Size'**
+  String get toppingGroupsSubtitle;
+
+  /// No description provided for @addToppingGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add group'**
+  String get addToppingGroup;
+
+  /// No description provided for @toppingGroupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name (e.g. Size)*'**
+  String get toppingGroupName;
+
+  /// No description provided for @toppingGroupNameLo.
+  ///
+  /// In en, this message translates to:
+  /// **'Lao name (optional)'**
+  String get toppingGroupNameLo;
+
+  /// No description provided for @toppingNameLo.
+  ///
+  /// In en, this message translates to:
+  /// **'Lao name (optional)'**
+  String get toppingNameLo;
+
+  /// No description provided for @toppingPickOneHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick one, e.g. Hot / Iced / Frappe'**
+  String get toppingPickOneHelp;
+
+  /// No description provided for @toppingPickManyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick many, e.g. extra shot + oat milk'**
+  String get toppingPickManyHelp;
+
+  /// No description provided for @toppingRequiredHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'An option must be chosen before adding the item'**
+  String get toppingRequiredHelp;
+
+  /// No description provided for @noToppingGroupsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No groups yet'**
+  String get noToppingGroupsYet;
+
+  /// No description provided for @noToppingGroupsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups put toppings under headings like Type (Hot / Iced), Taste or Size (M / L).'**
+  String get noToppingGroupsHelp;
+
+  /// No description provided for @deleteToppingGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group'**
+  String get deleteToppingGroup;
+
+  /// No description provided for @deleteToppingGroupConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this group? Its toppings stay, as plain add-ons.'**
+  String get deleteToppingGroupConfirm;
+
+  /// No description provided for @toppingGroupLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get toppingGroupLabel;
+
+  /// No description provided for @toppingNoGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'No group (add-on)'**
+  String get toppingNoGroup;
+
+  /// No description provided for @toppingDefaultLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected by default'**
+  String get toppingDefaultLabel;
+
+  /// No description provided for @toppingDefaultHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Already ticked when the item opens'**
+  String get toppingDefaultHelp;
+
+  /// No description provided for @toppingGroupSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Group saved'**
+  String get toppingGroupSaved;
+
+  /// No description provided for @toppingGroupDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Group deleted'**
+  String get toppingGroupDeleted;
+
+  /// No description provided for @toppingGroupSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save group: {error}'**
+  String toppingGroupSaveFailed(String error);
+
+  /// No description provided for @toppingSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get toppingSelectAll;
+
+  /// No description provided for @toppingDefaultBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get toppingDefaultBadge;
+
+  /// No description provided for @statusReadyForPickup.
+  ///
+  /// In en, this message translates to:
+  /// **'Your order is ready for pickup'**
+  String get statusReadyForPickup;
+
+  /// No description provided for @statusReadyPill.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for pickup'**
+  String get statusReadyPill;
+
+  /// No description provided for @orderReadySent.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready ✓'**
+  String get orderReadySent;
+
+  /// No description provided for @splitPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Split payment'**
+  String get splitPayment;
+
+  /// No description provided for @singlePayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Single payment'**
+  String get singlePayment;
+
+  /// No description provided for @addPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add payment'**
+  String get addPayment;
+
+  /// No description provided for @remainingToPay.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining'**
+  String get remainingToPay;
+
+  /// No description provided for @splitOnlyCashOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Only cash can be more than the total'**
+  String get splitOnlyCashOver;
+
+  /// No description provided for @posOnlyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'POS only'**
+  String get posOnlyLabel;
+
+  /// No description provided for @posOnlyCategoryHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden in the customer self-order app; cashiers still see it.'**
+  String get posOnlyCategoryHelp;
+
+  /// No description provided for @posOnlyProductHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden in self-order; only the cashier can sell it'**
+  String get posOnlyProductHelp;
+
+  /// No description provided for @freeItemLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'FREE'**
+  String get freeItemLabel;
+
+  /// No description provided for @addFreeItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Add free'**
+  String get addFreeItem;
+
+  /// No description provided for @chooseFreeItemShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose'**
+  String get chooseFreeItemShort;
+
+  /// No description provided for @tooManyFreeItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many free items for {name}. Remove one first.'**
+  String tooManyFreeItems(String name);
+
+  /// No description provided for @freeItemsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: {count} free item(s)'**
+  String freeItemsAvailable(String name, int count);
+
+  /// No description provided for @chooseFreeItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the free item ({name})'**
+  String chooseFreeItem(String name);
+
+  /// No description provided for @historyToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get historyToday;
+
+  /// No description provided for @historyPickDates.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose dates'**
+  String get historyPickDates;
+
+  /// No description provided for @historyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get historyAll;
+
+  /// No description provided for @historyNoneToday.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders today'**
+  String get historyNoneToday;
+
+  /// No description provided for @historyNoneInRange.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders on these dates'**
+  String get historyNoneInRange;
+
+  /// No description provided for @appUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'App update'**
+  String get appUpdate;
+
+  /// No description provided for @appUpdateCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String appUpdateCurrent(String version);
+
+  /// No description provided for @appUpdateChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates…'**
+  String get appUpdateChecking;
+
+  /// No description provided for @appUpdateLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'You have the latest version.'**
+  String get appUpdateLatest;
+
+  /// No description provided for @appUpdateAvailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New version available'**
+  String get appUpdateAvailableTitle;
+
+  /// No description provided for @appUpdateAvailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} is ready ({size} MB). This tablet has {current}.'**
+  String appUpdateAvailableBody(String version, String size, String current);
+
+  /// No description provided for @appUpdateWhatsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new'**
+  String get appUpdateWhatsNew;
+
+  /// No description provided for @appUpdateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This update is required.'**
+  String get appUpdateRequired;
+
+  /// No description provided for @appUpdateLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get appUpdateLater;
+
+  /// No description provided for @appUpdateNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get appUpdateNow;
+
+  /// No description provided for @appUpdateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update…'**
+  String get appUpdateDownloading;
+
+  /// No description provided for @appUpdateAllowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow app updates'**
+  String get appUpdateAllowTitle;
+
+  /// No description provided for @appUpdateAllowBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Android asks once: turn on \"Allow from this source\" for LaDolce, then come back and tap Install.'**
+  String get appUpdateAllowBody;
+
+  /// No description provided for @appUpdateOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get appUpdateOpenSettings;
+
+  /// No description provided for @appUpdateInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get appUpdateInstall;
+
+  /// No description provided for @appUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed: {error}'**
+  String appUpdateFailed(String error);
 }
 
 class _AppLocalizationsDelegate

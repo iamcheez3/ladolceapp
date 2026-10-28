@@ -182,6 +182,9 @@
   "ticketOptions": "Ticket Options",
   "clearTicket": "Clear ticket",
   "printBill": "Print bill",
+  "saveAndPrintBillTitle": "Save ticket first?",
+  "saveAndPrintBillBody": "This ticket is not saved yet. Save it to send the order to the kitchen, then the bill will print.",
+  "saveAndPrintBill": "Save & print bill",
   "reprintOrderKitchen": "Reprint order (kitchen)",
   "splitTicketAction": "Split ticket",
   "moveTicketAction": "Move ticket",
@@ -1157,5 +1160,133 @@
   "dateColon": "Date:",
   "cashierColon": "Cashier:",
   "tableColon": "Table:",
-  "paymentColon": "Payment:"
+  "paymentColon": "Payment:",
+  "renameTicketAction": "Rename ticket",
+  "ticketNameLabel": "Ticket name",
+  "ticketNameHint": "e.g. customer name",
+  "ticketNameHelp": "The ticket shows this name instead of a table, and its table becomes free for a new order.",
+  "ticketRenamed": "Ticket renamed to {name}. Its table is free again.",
+  "@ticketRenamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customNameAction": "Custom name",
+  "customNameHelp": "Save this order under a name instead of a table.",
+  "renameTicketFailed": "Rename failed: {error}",
+  "@renameTicketFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "toppingPickOne": "Pick 1",
+  "toppingPickMany": "Pick many",
+  "toppingRequired": "Required",
+  "toppingAddOns": "Add-ons",
+  "toppingChooseMissing": "Please choose: {groups}",
+  "@toppingChooseMissing": {
+    "placeholders": {
+      "groups": {
+        "type": "String"
+      }
+    }
+  },
+  "toppingGroups": "Topping groups",
+  "toppingGroupsSubtitle": "Headings like Type, Taste or Size",
+  "addToppingGroup": "Add group",
+  "toppingGroupName": "Group name (e.g. Size)*",
+  "toppingGroupNameLo": "Lao name (optional)",
+  "toppingNameLo": "Lao name (optional)",
+  "toppingPickOneHelp": "Pick one, e.g. Hot / Iced / Frappe",
+  "toppingPickManyHelp": "Pick many, e.g. extra shot + oat milk",
+  "toppingRequiredHelp": "An option must be chosen before adding the item",
+  "noToppingGroupsYet": "No groups yet",
+  "noToppingGroupsHelp": "Groups put toppings under headings like Type (Hot / Iced), Taste or Size (M / L).",
+  "deleteToppingGroup": "Delete group",
+  "deleteToppingGroupConfirm": "Delete this group? Its toppings stay, as plain add-ons.",
+  "toppingGroupLabel": "Group",
+  "toppingNoGroup": "No group (add-on)",
+  "toppingDefaultLabel": "Selected by default",
+  "toppingDefaultHelp": "Already ticked when the item opens",
+  "toppingGroupSaved": "Group saved",
+  "toppingGroupDeleted": "Group deleted",
+  "toppingGroupSaveFailed": "Could not save group: {error}",
+  "@toppingGroupSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "toppingSelectAll": "All",
+  "toppingDefaultBadge": "Default",
+  "statusReadyForPickup": "Your order is ready for pickup",
+  "statusReadyPill": "Ready for pickup",
+  "orderReadySent": "Ready ✓",
+  "splitPayment": "Split payment",
+  "singlePayment": "Single payment",
+  "addPayment": "Add payment",
+  "remainingToPay": "Remaining",
+  "splitOnlyCashOver": "Only cash can be more than the total",
+  "posOnlyLabel": "POS only",
+  "posOnlyCategoryHelp": "Hidden in the customer self-order app; cashiers still see it.",
+  "posOnlyProductHelp": "Hidden in self-order; only the cashier can sell it",
+  "freeItemLabel": "FREE",
+  "addFreeItem": "Add free",
+  "chooseFreeItemShort": "Choose",
+  "tooManyFreeItems": "Too many free items for {name}. Remove one first.",
+  "@tooManyFreeItems": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "freeItemsAvailable": "{name}: {count} free item(s)",
+  "@freeItemsAvailable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chooseFreeItem": "Choose the free item ({name})",
+  "@chooseFreeItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "historyToday": "Today",
+  "historyPickDates": "Choose dates",
+  "historyAll": "All",
+  "historyNoneToday": "No orders today",
+  "historyNoneInRange": "No orders on these dates",
+  "appUpdate": "App update",
+  "appUpdateCurrent": "Version {version}",
+  "@appUpdateCurrent": {"placeholders": {"version": {"type": "String"}}},
+  "appUpdateChecking": "Checking for updates…",
+  "appUpdateLatest": "You have the latest version.",
+  "appUpdateAvailableTitle": "New version available",
+  "appUpdateAvailableBody": "Version {version} is ready ({size} MB). This tablet has {current}.",
+  "@appUpdateAvailableBody": {"placeholders": {"version": {"type": "String"}, "size": {"type": "String"}, "current": {"type": "String"}}},
+  "appUpdateWhatsNew": "What's new",
+  "appUpdateRequired": "This update is required.",
+  "appUpdateLater": "Later",
+  "appUpdateNow": "Update",
+  "appUpdateDownloading": "Downloading update…",
+  "appUpdateAllowTitle": "Allow app updates",
+  "appUpdateAllowBody": "Android asks once: turn on \"Allow from this source\" for LaDolce, then come back and tap Install.",
+  "appUpdateOpenSettings": "Open settings",
+  "appUpdateInstall": "Install",
+  "appUpdateFailed": "Update failed: {error}",
+  "@appUpdateFailed": {"placeholders": {"error": {"type": "String"}}}
 }

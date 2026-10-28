@@ -68,6 +68,9 @@ class Product {
   /// When true, customer self-order shows this item as run out and cannot add to cart.
   final bool blockSelfOrder;
 
+  /// POS only: the product or its category is hidden in the customer app.
+  final bool hideInSelfOrder;
+
   final bool isRecommended;
   final String? recommendedImageBase64;
 
@@ -109,6 +112,7 @@ class Product {
     this.comboLines,
     this.colorCode = 0xFF1E3A8A, // Default Dark Blue
     this.blockSelfOrder = false,
+    this.hideInSelfOrder = false,
     this.isRecommended = false,
     this.recommendedImageBase64,
     this.promotionPrice,
@@ -150,6 +154,7 @@ class Product {
       toppings: parsedToppings,
       isCombo: false,
       blockSelfOrder: _parseBool(json['block_self_order']),
+      hideInSelfOrder: _parseBool(json['hide_in_self_order']),
       isRecommended: _parseBool(json['is_recommended_self_order']),
       recommendedImageBase64: json['recommended_image_base64'] is String ? json['recommended_image_base64'] : null,
       promotionPrice: json['promotion_price'] != null ? (json['promotion_price'] as num).toDouble() : null,

@@ -10,6 +10,8 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../models/product.dart';
+import '../models/topping.dart';
+import '../models/free_promotion.dart';
 import '../models/table.dart';
 import '../models/payment_method.dart';
 import '../models/ticket.dart';
@@ -261,9 +263,33 @@ class ApiService {
     return {
       // Some environments are strict about Cookie formatting; keep a trailing ';'
       // to reduce "cookie ignored" edge cases.
-      'Cookie': 'session_id=$sessionId;',
+      'Cookie': 'session_id=${cookieSessionId(prefs) ?? sessionId};',
       'X-Openerp-Session-Id': sessionId,
     };
+  }
+
+  /// Prefs key of the real Odoo session cookie (staff logins only).
+  ///
+  /// Odoo 18 replaces the session id right after login ("session rotation"):
+  /// the `session_id` in the login JSON is the old one and only the
+  /// Set-Cookie header carries the live session. The app used to send the old
+  /// id as its cookie, so the cookie never worked and every catalog save
+  /// depended on `res.users.pos_active_sid`, which the last login overwrites:
+  /// the same account on a second tablet/phone made the first one fail with
+  /// "Missing or invalid user session". The cookie session is per device.
+  static const String cookieSessionPrefsKey = 'cached_odoo_cookie_session';
+
+  /// The Odoo session to send as the cookie, or null to use the login one.
+  static String? cookieSessionId(SharedPreferences prefs) {
+    final sid = prefs.getString(cookieSessionPrefsKey)?.trim();
+    return (sid == null || sid.isEmpty) ? null : sid;
+  }
+
+  /// `session_id` from a response's Set-Cookie header(s), if any.
+  static String? sessionIdFromSetCookie(String? setCookie) {
+    if (setCookie == null || setCookie.isEmpty) return null;
+    final m = RegExp(r'(?:^|[,;]\s*)session_id=([^;,\s]+)').firstMatch(setCookie);
+    return m?.group(1);
   }
 
   Future<Map<String, String>> _authHeaders({bool json = false}) async {
@@ -272,7 +298,9 @@ class ApiService {
     final headers = <String, String>{};
     if (json) headers['Content-Type'] = 'application/json';
     if (sessionId != null && sessionId.isNotEmpty) {
-      headers['Cookie'] = 'session_id=$sessionId;';
+      // Live Odoo session as the cookie; the login id stays in the header
+      // for the server's pos_active_sid fallback.
+      headers['Cookie'] = 'session_id=${cookieSessionId(prefs) ?? sessionId};';
       headers['X-Openerp-Session-Id'] = sessionId;
     }
     return headers;
@@ -340,10 +368,16 @@ class ApiService {
     return data.map((json) => Product.fromJson(json)).toList();
   }
 
+  /// Loads EVERY product, page by page, so no screen is cut off at a fixed
+  /// limit (Items used to show only the first 50). Offline it falls back to
+  /// the last full list in the cache; a half-loaded list is never cached.
+  ///
+  /// Small pages with a long timeout: each product carries its picture as
+  /// base64 (~170 KB), so 66 products are ~11 MB. In one request with a 5 s
+  /// timeout that never finished on cellular, and first-time opening failed.
   Future<List<Product>> fetchProducts({
     int? branchId,
-    int limit = 50,
-    int offset = 0,
+    int pageSize = 10,
     bool forceRefresh = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -360,33 +394,52 @@ class ApiService {
 
     try {
       final queryParams = branchId != null ? '&branch_id=$branchId' : '';
-      final url = Uri.parse('$base/products?limit=$limit&offset=$offset$queryParams');
-      _d('==============================');
-      _d('[API CALL] GET $url');
+      // The server sorts by name only, so two products with the same name can
+      // swap places between pages: keep each id once.
+      final seenIds = <dynamic>{};
+      final List<dynamic> data = [];
+      var offset = 0;
+      // Hard stop at 100 pages in case a server ignores offset.
+      for (var page = 0; page < 100; page++) {
+        final url = Uri.parse(
+            '$base/products?limit=$pageSize&offset=$offset$queryParams');
+        _d('==============================');
+        _d('[API CALL] GET $url');
 
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+        final response =
+            await http.get(url).timeout(const Duration(seconds: 30));
 
-      _d('[API RESP] GET $url | STATUS: ${response.statusCode}');
-      _d('[API BODY] ${response.body}');
-      _d('==============================');
+        _d('[API RESP] GET $url | STATUS: ${response.statusCode}');
+        _d('==============================');
 
-      if (response.statusCode == 200) {
+        if (response.statusCode != 200) {
+          throw Exception(
+            'Failed to connect to Odoo Server (Code: ${response.statusCode})',
+          );
+        }
         final jsonResponse = jsonDecode(response.body);
-
-        if (jsonResponse['status'] == 'success') {
-          final List<dynamic> data = jsonResponse['data'];
-          await prefs.setString(cacheKey, jsonEncode(data));
-          return data.map((json) => Product.fromJson(json)).toList();
-        } else {
+        if (jsonResponse['status'] != 'success') {
           throw Exception(
             jsonResponse['message'] ?? 'Failed to load products from server',
           );
         }
-      } else {
-        throw Exception(
-          'Failed to connect to Odoo Server (Code: ${response.statusCode})',
-        );
+        final List<dynamic> pageData = jsonResponse['data'] ?? [];
+        var added = 0;
+        for (final item in pageData) {
+          final id = item is Map ? item['id'] : null;
+          if (id == null || seenIds.add(id)) {
+            data.add(item);
+            added++;
+          }
+        }
+        // A short page is the last one; a page with nothing new means the
+        // server keeps answering the same rows.
+        if (pageData.length < pageSize || added == 0) break;
+        offset += pageSize;
       }
+
+      await prefs.setString(cacheKey, jsonEncode(data));
+      return data.map((json) => Product.fromJson(json)).toList();
     } catch (e) {
       _d(
         '[API OFFLINE] Fetch products failed. Falling back to cache. Error: $e',
@@ -957,10 +1010,18 @@ class ApiService {
     String type = 'receipt',
     bool forceRefresh = false,
   }) async {
-    // Try cache first (fast UI), then network.
+    // Network first, cache when offline. Cache-first used to keep the first
+    // template forever, so header/footer edits in Odoo never reached the
+    // tablets' printouts.
     if (!forceRefresh) {
-      final cached = await getCachedBillTemplate(type: type);
-      if (cached != null && cached.isNotEmpty) return cached;
+      try {
+        return await fetchBillTemplate(type: type, forceRefresh: true)
+            .timeout(const Duration(seconds: 4));
+      } catch (_) {
+        final cached = await getCachedBillTemplate(type: type);
+        if (cached != null && cached.isNotEmpty) return cached;
+        rethrow;
+      }
     }
     final base = await getBaseUrl();
     final user = await getCachedUser();
@@ -1366,6 +1427,17 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_user_session', sessionId ?? '');
       await prefs.setString('cached_user_data', jsonEncode(data));
+      // Staff only: customers stay on the login id, so signing in on a new
+      // phone still signs the old one out (single-device rule).
+      final role = data is Map ? data['role']?.toString() : null;
+      final cookieSid = role == 'customer'
+          ? null
+          : sessionIdFromSetCookie(response.headers['set-cookie']);
+      if (cookieSid != null) {
+        await prefs.setString(cookieSessionPrefsKey, cookieSid);
+      } else {
+        await prefs.remove(cookieSessionPrefsKey);
+      }
 
       // Cache branch from backend profile (cashier/admin)
       try {
@@ -1470,6 +1542,7 @@ class ApiService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cached_user_session');
+    await prefs.remove(cookieSessionPrefsKey);
     await prefs.remove('cached_user_data');
     await prefs.remove(_posIdentityPromptSessionKey);
   }
@@ -1595,6 +1668,7 @@ class ApiService {
     double? discountValue,
     String? couponCode,
     double? deliveryFee,
+    List<Map<String, dynamic>>? payments,
   }) async {
     final base = await getBaseUrl();
     final cn = customerName?.trim() ?? '';
@@ -1629,6 +1703,7 @@ class ApiService {
         'discount_value': discountValue,
       },
       if (deliveryFee != null && deliveryFee > 0) 'delivery_fee': deliveryFee,
+      if (payments != null && payments.isNotEmpty) 'payments': payments,
     };
 
     try {
@@ -1719,7 +1794,10 @@ class ApiService {
     required int userId,
     int? tableId,
     int? customerId,
+    String? customerName, // cache only: Open Tickets reads the cache first
     String? name,
+    /// Saves the ticket under this name instead of a table.
+    String? ticketLabel,
     int? branchId,
     required List<Map<String, dynamic>> lines,
     String? discountType,
@@ -1730,11 +1808,13 @@ class ApiService {
     final effectiveBranchId = (branchId != null && branchId > 0)
         ? branchId
         : await getCachedBranchId();
+    final label = ticketLabel?.trim() ?? '';
     final payload = {
       'user_id': userId,
       if (tableId != null && tableId > 0) 'table_id': tableId,
       if (customerId != null && customerId > 0) 'partner_id': customerId,
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      if (label.isNotEmpty) 'ticket_label': label,
       if (effectiveBranchId != null && effectiveBranchId > 0)
         'branch_id': effectiveBranchId,
       'lines': lines,
@@ -1770,15 +1850,21 @@ class ApiService {
           'id': data['order_id'],
           'name': data['order_reference'],
           'table_id': tableId,
-          'table_name': tableId != null
+          'table_name': label.isNotEmpty
+              ? label
+              : tableId != null
               ? 'Table $tableId'
               : (name ?? 'Customer'),
+          'ticket_label': label,
           'amount_total': _discountedTotal(
             subtotal,
             discountType,
             discountValue,
           ),
           'state': 'draft',
+          if (customerId != null && customerId > 0) 'partner_id': customerId,
+          if (customerId != null && customerId > 0)
+            'partner_name': customerName ?? '',
           if (discountType != null &&
               discountValue != null &&
               discountValue > 0)
@@ -1829,8 +1915,14 @@ class ApiService {
         'id': mockId,
         'name': 'OFFLINE-MOCK', // Using static or mock name
         'table_id': tableId,
-        'table_name': tableId != null ? 'Table $tableId' : (name ?? 'Customer'),
+        'table_name': label.isNotEmpty
+            ? label
+            : tableId != null
+            ? 'Table $tableId'
+            : (name ?? 'Customer'),
+        'ticket_label': label,
         'partner_id': customerId, // keeping for record
+        'partner_name': customerName ?? '',
         'amount_total': _discountedTotal(subtotal, discountType, discountValue),
         'state': 'draft',
         if (discountType != null && discountValue != null && discountValue > 0)
@@ -1865,6 +1957,7 @@ class ApiService {
     required int orderId,
     int? tableId,
     int? customerId,
+    String? customerName, // cache only: Open Tickets reads the cache first
     required List<Map<String, dynamic>> lines,
     bool replaceAll = false,
     String? discountType,
@@ -1970,6 +2063,10 @@ class ApiService {
               list[index]['discount_type'] = discountType;
               list[index]['discount_value'] = discountValue;
             }
+            if (customerId != null && customerId > 0) {
+              list[index]['partner_id'] = customerId;
+              if (customerName != null) list[index]['partner_name'] = customerName;
+            }
             // Always total the full ticket, not just this request's new lines
             // (append mode used to set amount_total to "latest lines only").
             final rawSubtotal = _sumCachedOpenTicketLinesAmount(
@@ -2052,6 +2149,10 @@ class ApiService {
             list[index]['discount_type'] = discountType;
             list[index]['discount_value'] = discountValue;
           }
+          if (customerId != null && customerId > 0) {
+            list[index]['partner_id'] = customerId;
+            if (customerName != null) list[index]['partner_name'] = customerName;
+          }
           final rawSubtotal = _sumCachedOpenTicketLinesAmount(
             list[index]['lines'],
           );
@@ -2073,11 +2174,15 @@ class ApiService {
     int? paymentMethodId,
     String? discountType,
     double? discountValue,
+    List<Map<String, dynamic>>? payments,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/order/$orderId/pay');
     final payload = {
       'payment_method_id': paymentMethodId,
+      // Split payment rows [{payment_method_id, amount}]; kept in the offline
+      // queue payload too.
+      if (payments != null && payments.isNotEmpty) 'payments': payments,
       if (discountType != null &&
           discountValue != null &&
           discountValue > 0) ...{
@@ -2319,6 +2424,51 @@ class ApiService {
     }
   }
 
+  /// Gives an open ticket a name instead of a table. The server releases the
+  /// table ([releasedTableId]) so it can take a new order; the name lives only
+  /// on this order, so it disappears once the order is paid or cleared.
+  /// Online only: a queued rename would leave the table looking occupied.
+  Future<void> renameTicket({
+    required int orderId,
+    required String label,
+    int? releasedTableId,
+  }) async {
+    final base = await getBaseUrl();
+    final response = await http
+        .post(
+          Uri.parse('$base/pos/order/$orderId/update'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'lines': [], 'ticket_label': label}),
+        )
+        .timeout(const Duration(seconds: 8));
+    final body = jsonDecode(response.body);
+    if (response.statusCode != 200 || body is! Map || body['status'] != 'success') {
+      throw Exception(body is Map ? (body['message'] ?? 'Rename failed') : 'Rename failed');
+    }
+    final data = body['data'];
+    // Servers without ticket names ignore the field and still say success.
+    if (data is! Map || !data.containsKey('ticket_label')) {
+      throw Exception('The server does not support ticket names yet (update pos_backend).');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cached_open_tickets');
+    if (cached != null) {
+      final list = List<dynamic>.from(jsonDecode(cached));
+      for (final e in list) {
+        if (e is Map && e['id'] == orderId) {
+          e['ticket_label'] = label;
+          e['table_id'] = null;
+          e['table_name'] = label;
+        }
+      }
+      await prefs.setString('cached_open_tickets', jsonEncode(list));
+    }
+    if (releasedTableId != null) {
+      await _markTableHasOpenOrder(releasedTableId, hasOpenOrder: false);
+    }
+  }
+
   Future<int> syncOfflineOrders() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> offlineQueue = prefs.getStringList('offline_orders') ?? [];
@@ -2551,15 +2701,35 @@ class ApiService {
     }
   }
 
-  Future<dynamic> addTopping(String name, double extraPrice) async {
+  /// Creates a topping, or updates topping [id] when given (editing used to
+  /// create a duplicate). Catalog writes need the login session: without it
+  /// the server answers 401 "Missing or invalid user session".
+  ///
+  /// [groupId] null puts the topping back to plain add-ons. Servers without
+  /// topping groups ignore [nameLo], [groupId] and [isDefault].
+  Future<dynamic> addTopping(
+    String name,
+    double extraPrice, {
+    int? id,
+    String? nameLo,
+    int? groupId,
+    bool isDefault = false,
+  }) async {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/toppings');
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'name': name, 'extra_price': extraPrice}),
+            headers: await _authHeaders(json: true),
+            body: jsonEncode({
+              if (id != null) 'id': id,
+              'name': name,
+              'extra_price': extraPrice,
+              'name_lo': nameLo ?? '',
+              'group_id': groupId ?? 0,
+              'is_default': isDefault,
+            }),
           )
           .timeout(const Duration(seconds: 5));
 
@@ -2580,7 +2750,7 @@ class ApiService {
     try {
       final url = Uri.parse('$base/pos/toppings/$id');
       final response = await http
-          .delete(url)
+          .delete(url, headers: await _authHeaders())
           .timeout(const Duration(seconds: 5));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
@@ -2589,6 +2759,98 @@ class ApiService {
       await _removeFromCacheList('cached_toppings', id);
     } catch (e) {
       throw Exception('Network error: Cannot delete topping');
+    }
+  }
+
+  /// Running "Buy X get Y free" promotions for [branchId]. Network first,
+  /// last good copy when offline, empty on servers without the feature.
+  Future<List<FreePromotion>> fetchFreePromotions({int? branchId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'cached_free_promotions_${branchId ?? 0}';
+    List<FreePromotion> parse(List data) => [
+          for (final p in data)
+            if (p is Map) FreePromotion.fromJson(Map<String, dynamic>.from(p)),
+        ];
+    try {
+      final base = await getBaseUrl();
+      final response = await http
+          .get(
+            Uri.parse('$base/pos/promotions/free_items')
+                .replace(queryParameters: {if (branchId != null) 'branch_id': '$branchId'}),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 404) return [];
+      final jsonResp = jsonDecode(response.body);
+      if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+        final data = (jsonResp['data'] as List?) ?? const [];
+        await prefs.setString(cacheKey, jsonEncode(data));
+        return parse(data);
+      }
+    } catch (_) {}
+    final cached = prefs.getString(cacheKey);
+    return cached == null ? [] : parse(jsonDecode(cached) as List);
+  }
+
+  /// Topping groups ("Type", "Taste", "Size"). Empty on servers that do not
+  /// have them yet (404), so the screens just show no groups.
+  Future<List<ToppingGroup>> fetchToppingGroups() async {
+    final base = await getBaseUrl();
+    final response = await http
+        .get(Uri.parse('$base/pos/topping_groups'), headers: await _authHeaders())
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode == 404) return [];
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+      return [
+        for (final g in (jsonResp['data'] as List? ?? const []))
+          ToppingGroup.fromJson(Map<String, dynamic>.from(g as Map)),
+      ];
+    }
+    throw Exception(jsonResp['message'] ?? 'Failed to load topping groups');
+  }
+
+  /// Creates a group, or updates group [id] when given.
+  Future<ToppingGroup> saveToppingGroup({
+    int? id,
+    required String name,
+    String? nameLo,
+    required bool single,
+    required bool required,
+  }) async {
+    final base = await getBaseUrl();
+    final response = await http
+        .post(
+          Uri.parse('$base/pos/topping_groups'),
+          headers: await _authHeaders(json: true),
+          body: jsonEncode({
+            if (id != null) 'id': id,
+            'name': name,
+            'name_lo': nameLo ?? '',
+            'selection_type': single ? 'single' : 'multiple',
+            'required': required,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode == 404) {
+      throw Exception('The server does not support topping groups yet (update pos_backend)');
+    }
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode == 200 && jsonResp['status'] == 'success') {
+      return ToppingGroup.fromJson(Map<String, dynamic>.from(jsonResp['data'] as Map));
+    }
+    throw Exception(jsonResp['message'] ?? 'Failed to save topping group');
+  }
+
+  /// Deletes a group; its toppings stay as plain add-ons.
+  Future<void> deleteToppingGroup(int id) async {
+    final base = await getBaseUrl();
+    final response = await http
+        .delete(Uri.parse('$base/pos/topping_groups/$id'), headers: await _authHeaders())
+        .timeout(const Duration(seconds: 8));
+    final jsonResp = jsonDecode(response.body);
+    if (response.statusCode != 200 || jsonResp['status'] != 'success') {
+      throw Exception(jsonResp['message'] ?? 'Failed to delete topping group');
     }
   }
 
@@ -2626,6 +2888,7 @@ class ApiService {
     int? id,
     required String name,
     required bool showInApp,
+    bool? hideInSelfOrder,
   }) async {
     final base = await getBaseUrl();
     try {
@@ -2633,11 +2896,12 @@ class ApiService {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: await _authHeaders(json: true),
             body: jsonEncode({
               'id': id,
               'name': name,
               'pos_show_in_app': showInApp,
+              if (hideInSelfOrder != null) 'hide_in_self_order': hideInSelfOrder,
             }),
           )
           .timeout(const Duration(seconds: 5));
@@ -2659,7 +2923,7 @@ class ApiService {
     try {
       final url = Uri.parse('$base/pos/categories/$id');
       final response = await http
-          .delete(url)
+          .delete(url, headers: await _authHeaders())
           .timeout(const Duration(seconds: 5));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
@@ -2759,6 +3023,7 @@ class ApiService {
     int? categoryId,
     List<int>? toppingIds,
     bool blockSelfOrder = false,
+    bool? hideInSelfOrder,
   }) async {
     final base = await getBaseUrl();
     final url = Uri.parse('$base/pos/products');
@@ -2766,6 +3031,7 @@ class ApiService {
       'name': name,
       'list_price': listPrice,
       'block_self_order': blockSelfOrder,
+      if (hideInSelfOrder != null) 'hide_in_self_order': hideInSelfOrder,
     };
     if (id != null) bodyData['id'] = id;
     if (categoryId != null) bodyData['categ_id'] = categoryId;
@@ -2782,7 +3048,7 @@ class ApiService {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: await _authHeaders(json: true),
             body: jsonEncode(bodyData),
           )
           .timeout(const Duration(seconds: 5));
@@ -2794,7 +3060,14 @@ class ApiService {
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode == 200 && jsonResp['status'] == 'success') {
         final data = jsonResp['data'];
-        await _updateCacheList('cached_products', data);
+        await _refreshCachedProduct(
+          variantId: id,
+          name: name,
+          listPrice: listPrice,
+          categoryId: categoryId,
+          toppingIds: toppingIds,
+          blockSelfOrder: blockSelfOrder,
+        );
         return data;
       }
       throw Exception(jsonResp['message'] ?? 'Failed to save product');
@@ -2811,12 +3084,58 @@ class ApiService {
     }
   }
 
+  /// Brings the cached catalog in line with a product just saved. The save
+  /// reply only has the template id and the name, and writing it over the
+  /// cached entry (keyed by variant id) dropped the price, category and
+  /// toppings, so the toppings looked unsaved. Edits are patched in place; a
+  /// new product needs its variant id, so the catalog is reloaded instead.
+  Future<void> _refreshCachedProduct({
+    int? variantId,
+    required String name,
+    required double listPrice,
+    int? categoryId,
+    List<int>? toppingIds,
+    required bool blockSelfOrder,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cached_products');
+    if (variantId == null || cached == null) {
+      try {
+        await fetchProducts(forceRefresh: true);
+      } catch (_) {}
+      return;
+    }
+    final list = List<dynamic>.from(jsonDecode(cached));
+    final index = list.indexWhere((e) => e is Map && e['id'] == variantId);
+    if (index < 0) return;
+    final entry = Map<String, dynamic>.from(list[index] as Map);
+    entry['name'] = name;
+    entry['list_price'] = listPrice;
+    entry['block_self_order'] = blockSelfOrder;
+    if (categoryId != null) {
+      final categories = jsonDecode(prefs.getString('cached_categories') ?? '[]');
+      for (final c in categories) {
+        if (c is Map && c['id'] == categoryId) entry['category'] = c['name'];
+      }
+    }
+    if (toppingIds != null) {
+      final toppings = jsonDecode(prefs.getString('cached_toppings') ?? '[]');
+      entry['toppings'] = [
+        for (final t in toppings)
+          // Whole entry: group, Lao name and default travel with it.
+          if (t is Map && toppingIds.contains(t['id'])) Map<String, dynamic>.from(t),
+      ];
+    }
+    list[index] = entry;
+    await prefs.setString('cached_products', jsonEncode(list));
+  }
+
   Future<void> deleteProduct(int id) async {
     final base = await getBaseUrl();
     try {
       final url = Uri.parse('$base/pos/products/$id');
       final response = await http
-          .delete(url)
+          .delete(url, headers: await _authHeaders())
           .timeout(const Duration(seconds: 5));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
@@ -2875,7 +3194,7 @@ class ApiService {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: await _authHeaders(json: true),
             body: jsonEncode(bodyData),
           )
           .timeout(const Duration(seconds: 5));
@@ -2897,7 +3216,7 @@ class ApiService {
     try {
       final url = Uri.parse('$base/pos/combos/$id');
       final response = await http
-          .delete(url)
+          .delete(url, headers: await _authHeaders())
           .timeout(const Duration(seconds: 5));
       final jsonResp = jsonDecode(response.body);
       if (response.statusCode != 200 || jsonResp['status'] != 'success') {
@@ -2932,10 +3251,21 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchCustomerOrders(int partnerId) async {
+  /// [from] / [to]: optional day range (both included). Older servers
+  /// ignore it, so the history screen also filters what comes back.
+  Future<List<Map<String, dynamic>>> fetchCustomerOrders(
+    int partnerId, {
+    DateTime? from,
+    DateTime? to,
+  }) async {
     final base = await getBaseUrl();
+    String day(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
     try {
-      final url = Uri.parse('$base/pos/my_orders?partner_id=$partnerId');
+      final url = Uri.parse('$base/pos/my_orders').replace(queryParameters: {
+        'partner_id': '$partnerId',
+        if (from != null) 'date_from': day(from),
+        if (to != null) 'date_to': day(to),
+      });
       final response = await http.get(url).timeout(const Duration(seconds: 7));
       if (response.statusCode == 200) {
         final jsonResp = jsonDecode(response.body);
@@ -3204,7 +3534,7 @@ class ApiService {
       } catch (_) {}
 
       final futures = <Future>[
-        fetchProducts(limit: 500, forceRefresh: true),
+        fetchProducts(forceRefresh: true),
         fetchTables(forceRefresh: true),
         fetchPaymentMethods(forceRefresh: true),
         fetchToppings(forceRefresh: true),
@@ -3231,7 +3561,7 @@ class ApiService {
       ),
       (
         'Loading products and prices…',
-        () => fetchProducts(limit: 500, forceRefresh: true),
+        () => fetchProducts(forceRefresh: true),
       ),
       ('Loading tables…', () => fetchTables(forceRefresh: true)),
       (

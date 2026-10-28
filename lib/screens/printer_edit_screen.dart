@@ -53,7 +53,7 @@ class _PrinterEditScreenState extends State<PrinterEditScreen> {
 
   Future<void> _loadCategories() async {
     try {
-      final products = await _apiService.fetchProducts(limit: 300);
+      final products = await _apiService.fetchProducts();
       final set = products.map((e) => e.category).where((e) => e.trim().isNotEmpty).toSet().toList()..sort();
       if (mounted) {
         setState(() {

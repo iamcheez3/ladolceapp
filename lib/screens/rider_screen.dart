@@ -10,6 +10,7 @@ import '../services/push_notifications_service.dart';
 import 'login_screen.dart';
 import 'rider_navigation_screen.dart';
 import 'order_chat_screen.dart';
+import '../utils/money.dart';
 
 class RiderScreen extends StatefulWidget {
   final String riderName;
@@ -489,7 +490,7 @@ class _RiderScreenState extends State<RiderScreen> {
               Text('Customer: $customer',
                   style: TextStyle(color: Colors.grey[700])),
             Text(
-              'Total: LAK ${total.toStringAsFixed(0)}',
+              'Total: LAK ${money(total)}',
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 color: Colors.green,
@@ -669,7 +670,7 @@ class _RiderScreenState extends State<RiderScreen> {
                           style: TextStyle(color: Colors.grey[700])),
                       const SizedBox(width: 12),
                       Text(
-                        'LAK ${(line['subtotal'] as num?)?.toDouble().toStringAsFixed(0) ?? '0'}',
+                        'LAK ${money(line['subtotal'] as num?)}',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -811,7 +812,7 @@ class _RiderScreenState extends State<RiderScreen> {
           _dashboardCard(
             icon: Icons.attach_money,
             title: AppLocalizations.of(context)?.totalRevenue ?? (AppLocalizations.of(context)?.totalRevenue ?? 'Total Revenue'),
-            value: 'LAK ${totalRevenue.toStringAsFixed(0)}',
+            value: 'LAK ${money(totalRevenue)}',
             color: Colors.teal,
           ),
           const SizedBox(height: 20),

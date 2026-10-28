@@ -3,6 +3,7 @@ import 'package:ladolce/l10n/app_localizations.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
+import '../utils/money.dart';
 
 /// Result returned when the user saves the split.
 class SplitTicketResult {
@@ -355,7 +356,7 @@ class _TicketColumn extends StatelessWidget {
                                   if (line.selectedToppings.isNotEmpty)
                                     Text(
                                       line.selectedToppings
-                                          .map((t) => t.name)
+                                          .map((t) => t.displayName)
                                           .join(', '),
                                       style: TextStyle(
                                           color: Colors.grey[500],
@@ -366,7 +367,7 @@ class _TicketColumn extends StatelessWidget {
                             ),
                             // Price
                             Text(
-                              '₭${line.unitPrice.toStringAsFixed(2)}',
+                              '₭${money(line.unitPrice)}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -394,7 +395,7 @@ class _TicketColumn extends StatelessWidget {
               Text(AppLocalizations.of(context)?.total ?? (AppLocalizations.of(context)?.total ?? 'Total'),
                   style: TextStyle(fontWeight: FontWeight.bold)),
               Text(
-                '₭${total.toStringAsFixed(2)}',
+                '₭${money(total)}',
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,

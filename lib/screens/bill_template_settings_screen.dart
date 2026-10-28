@@ -3,7 +3,8 @@ import 'package:ladolce/l10n/app_localizations.dart';
 
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../theme/ladolce_pos_ui.dart';
+import '../theme/ladolce_pos_ui.dart';
+import '../utils/money.dart';
 
 class BillTemplateSettingsScreen extends StatefulWidget {
   const BillTemplateSettingsScreen({super.key});
@@ -424,7 +425,7 @@ class _ReceiptPreview extends StatelessWidget {
       rows.add(Row(
         children: [
           Expanded(child: Text('${qty}x $name', style: _monoBold)),
-          Text('LAK ${lineTotal.toStringAsFixed(0)}', style: _mono),
+          Text('LAK ${money(lineTotal)}', style: _mono),
         ],
       ));
     }
@@ -433,24 +434,24 @@ class _ReceiptPreview extends StatelessWidget {
     if (type == 'receipt' || type == 'refund') {
       rows.add(Row(children: [
         Expanded(child: Text('Subtotal:', style: _mono)),
-        Text('LAK ${subtotal.toStringAsFixed(0)}', style: _mono),
+        Text('LAK ${money(subtotal)}', style: _mono),
       ]));
       final tax = subtotal * 0.07;
       rows.add(Row(children: [
         Expanded(child: Text('VAT (7%):', style: _mono)),
-        Text('LAK ${tax.toStringAsFixed(0)}', style: _mono),
+        Text('LAK ${money(tax)}', style: _mono),
       ]));
       rows.add(_line(_hr('=')));
       final total = subtotal + tax;
       rows.add(Row(children: [
         Expanded(child: Text('TOTAL:', style: _monoBold.copyWith(fontSize: _fontSize + 1.5))),
-        Text('LAK ${total.toStringAsFixed(0)}',
+        Text('LAK ${money(total)}',
             style: _monoBold.copyWith(fontSize: _fontSize + 1.5)),
       ]));
     } else {
       rows.add(Row(children: [
         Expanded(child: Text('TOTAL:', style: _monoBold.copyWith(fontSize: _fontSize + 1.5))),
-        Text('LAK ${subtotal.toStringAsFixed(0)}',
+        Text('LAK ${money(subtotal)}',
             style: _monoBold.copyWith(fontSize: _fontSize + 1.5)),
       ]));
     }
