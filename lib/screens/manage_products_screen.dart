@@ -3,8 +3,8 @@ import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
-import '../theme/ladolce_pos_ui.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ld.dart';
+import 'manage_items_screen.dart';
 import 'product_edit_screen.dart';
 import '../utils/money.dart';
 
@@ -24,12 +24,21 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
   List<dynamic> _categories = [];
   List<Topping> _toppings = [];
 
-  static const Color _productAccent = Color(0xFF0891B2);
+  // Local search / category filter of the loaded list (display only).
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+  String? _categoryFilter;
 
   @override
   void initState() {
     super.initState();
     _fetchData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchData() async {
@@ -88,17 +97,17 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.deleteProduct ?? (AppLocalizations.of(context)?.deleteProduct ?? 'Delete Product')),
-        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo3 ?? (AppLocalizations.of(context)?.areYouSureYouWantTo3 ?? 'Are you sure you want to delete this product?')),
+        title: Text(AppLocalizations.of(context)?.deleteProduct ?? 'Delete Product'),
+        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo3 ?? 'Are you sure you want to delete this product?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
-            style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
+            style: itemsDangerButtonStyle(),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete')),
+            child: Text(AppLocalizations.of(context)?.delete ?? 'Delete'),
           ),
         ],
       ),
@@ -113,8 +122,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)?.productDeleted ?? (AppLocalizations.of(context)?.productDeleted ?? 'Product deleted')),
-            backgroundColor: Colors.orange,
+            content: Text(AppLocalizations.of(context)?.productDeleted ?? 'Product deleted'),
+            backgroundColor: Ld.warning,
           ),
         );
       }
@@ -124,326 +133,352 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Ld.danger,
           ),
         );
       }
     }
   }
 
+  List<Product> get _visibleProducts => _products
+      .where((p) => p.matchesQuery(_query) && (_categoryFilter == null || p.category == _categoryFilter))
+      .toList();
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.manageProducts ?? (AppLocalizations.of(context)?.manageProducts ?? 'Manage Products')),
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: l10n?.manageProducts ?? 'Manage Products',
+        subtitle: !_isLoading && _errorMessage == null && _products.isNotEmpty
+            ? (l10n?.itemsCount('${_products.length}') ?? '${_products.length}')
+            : null,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)?.addProduct ?? (AppLocalizations.of(context)?.addProduct ?? 'Add Product'),
+          ItemsHeaderAction(
+            label: l10n?.addProduct ?? 'Add Product',
+            icon: Icons.add_rounded,
             onPressed: () => _openProductScreen(),
           ),
         ],
       ),
-      body: LuxuryPatternBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(
-                              Icons.error_outline_rounded,
-                              color: Colors.red,
-                              size: 32,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: _fetchData,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
-                            style: LaDolcePosUi.primaryButtonStyle(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : _products.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  color: _productAccent.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Icon(
-                                  Icons.inventory_2_outlined,
-                                  color: _productAccent.withValues(alpha: 0.5),
-                                  size: 40,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(AppLocalizations.of(context)?.noProductsYet ?? (AppLocalizations.of(context)?.noProductsYet ?? 'No products yet'),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(AppLocalizations.of(context)?.addYourFirstProductToGet ?? (AppLocalizations.of(context)?.addYourFirstProductToGet ?? 'Add your first product to get started'),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: LaDolcePosUi.mutedText,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.add, size: 18),
-                                label: Text(AppLocalizations.of(context)?.addProduct ?? (AppLocalizations.of(context)?.addProduct ?? 'Add Product')),
-                                onPressed: () => _openProductScreen(),
-                                style: LaDolcePosUi.primaryButtonStyle(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(
-                          top: 8,
-                          bottom: 88,
-                        ),
-                        itemCount: _products.length,
-                        itemBuilder: (context, index) {
-                          final product = _products[index];
-                          return _ProductCard(
-                            product: product,
-                            accentColor: _productAccent,
-                            onTap: () =>
-                                _openProductScreen(product: product),
-                            onDelete: () => _deleteProduct(product.id),
-                          );
-                        },
-                      ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? ItemsStateView(
+                  icon: Icons.error_outline_rounded,
+                  title: _errorMessage!,
+                  isError: true,
+                  actionLabel: l10n?.retry ?? 'Retry',
+                  actionIcon: Icons.refresh_rounded,
+                  onAction: _fetchData,
+                )
+              : _products.isEmpty
+                  ? ItemsStateView(
+                      icon: Icons.inventory_2_outlined,
+                      title: l10n?.noProductsYet ?? 'No products yet',
+                      message: l10n?.addYourFirstProductToGet ?? 'Add your first product to get started',
+                      actionLabel: l10n?.addProduct ?? 'Add Product',
+                      actionIcon: Icons.add_rounded,
+                      onAction: () => _openProductScreen(),
+                    )
+                  : _buildList(context),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: LaDolcePosUi.navy,
+        backgroundColor: Ld.navy,
         foregroundColor: Colors.white,
+        elevation: 0,
+        tooltip: l10n?.addProduct ?? 'Add Product',
         child: const Icon(Icons.add_rounded),
         onPressed: () => _openProductScreen(),
       ),
     );
   }
+
+  Widget _buildList(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final gutter = itemsGutter(context);
+    final categories = <String>{for (final p in _products) p.category}.toList()..sort();
+    final visible = _visibleProducts;
+    final wide = MediaQuery.sizeOf(context).width >= 720;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 10),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (v) => setState(() => _query = v),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: l10n?.searchProducts ?? 'Search products...',
+              prefixIcon: const Icon(Icons.search_rounded, color: Ld.muted),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: l10n?.clear ?? 'Clear',
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => setState(() {
+                        _searchController.clear();
+                        _query = '';
+                      }),
+                    ),
+            ),
+          ),
+        ),
+        if (categories.length > 1)
+          SizedBox(
+            height: 52,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 8),
+              children: [
+                LdChoiceChip(
+                  label: l10n?.historyAll ?? 'All',
+                  count: '${_products.length}',
+                  selected: _categoryFilter == null,
+                  onTap: () => setState(() => _categoryFilter = null),
+                ),
+                for (final c in categories) ...[
+                  const SizedBox(width: 8),
+                  LdChoiceChip(
+                    label: c,
+                    selected: _categoryFilter == c,
+                    onTap: () => setState(() => _categoryFilter = _categoryFilter == c ? null : c),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _fetchData,
+            child: visible.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                        child: Column(
+                          children: [
+                            const LdIconTile(Icons.search_off_rounded, size: 56, background: Ld.surface),
+                            const SizedBox(height: 12),
+                            Text(l10n?.noItemsFound ?? 'No items found', style: Ld.label, textAlign: TextAlign.center),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(gutter, 4, gutter, 96 + Ld.navInset(context)),
+                    itemCount: visible.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final product = visible[index];
+                      return _ProductCard(
+                        product: product,
+                        wide: wide,
+                        onTap: () => _openProductScreen(product: product),
+                        onDelete: () => _deleteProduct(product.id),
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "PROMO" → "Promo" (the design uses sentence case; Lao is unchanged).
+String _sentence(String s) {
+  if (s.length < 2 || s != s.toUpperCase() || s == s.toLowerCase()) return s;
+  return s[0] + s.substring(1).toLowerCase();
 }
 
 class _ProductCard extends StatelessWidget {
   final Product product;
-  final Color accentColor;
+  final bool wide;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
   const _ProductCard({
     required this.product,
-    required this.accentColor,
+    required this.wide,
     required this.onTap,
     required this.onDelete,
   });
 
+  /// The name in the other language, shown small under the main one.
+  String? get _otherName {
+    final lao = product.nameLo?.trim() ?? '';
+    if (lao.isEmpty || lao == product.name) return null;
+    return product.displayName == product.name ? lao : product.name;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final imageBytes = product.decodedImageBytes;
-    final hasImage = imageBytes != null ||
-        (product.imageUrl != null && product.imageUrl!.isNotEmpty);
+    final l10n = AppLocalizations.of(context);
+    final other = _otherName;
+    final openPrice = product.price == 0;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-        child: Container(
-          decoration: BoxDecoration(
-            color: LaDolcePosUi.card,
-            borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-            border: Border.all(color: LaDolcePosUi.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    final names = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          product.displayName,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Ld.ink, height: 1.3),
+        ),
+        if (other != null)
+          Text(other, maxLines: 1, overflow: TextOverflow.ellipsis, style: Ld.small),
+      ],
+    );
+
+    final price = Text(
+      '₭${money(product.price)}',
+      maxLines: 1,
+      style: Ld.price(17, color: openPrice ? Ld.muted : Ld.navy, weight: FontWeight.w600),
+    );
+
+    final tags = <Widget>[
+      if (openPrice)
+        LdPill(l10n?.enterPrice ?? 'Enter price',
+            icon: Icons.edit_note_rounded, background: Ld.infoWash, foreground: Ld.info),
+      if (product.promotionPrice != null)
+        LdPill('${_sentence(l10n?.promoBadge ?? 'Promo')} ₭${money(product.promotionPrice)}',
+            icon: Icons.local_offer_outlined, background: Ld.dangerWash, foreground: Ld.danger),
+      if (product.toppings.isNotEmpty)
+        LdPill('${product.toppings.length} ${l10n?.toppings ?? 'Toppings'}', icon: Icons.tune_rounded),
+      if (product.hideInSelfOrder)
+        LdPill(l10n?.posOnlyLabel ?? 'POS only',
+            icon: Icons.visibility_off_outlined, background: Ld.warningWash, foreground: Ld.warning),
+      if (product.blockSelfOrder)
+        LdPill(l10n?.blocked ?? 'Blocked',
+            icon: Icons.block_rounded, background: Ld.dangerWash, foreground: Ld.danger),
+    ];
+
+    final delete = ItemsRowButton(
+      icon: Icons.delete_outline_rounded,
+      tooltip: l10n?.delete ?? 'Delete',
+      danger: true,
+      onPressed: onDelete,
+    );
+
+    final Widget content;
+    if (wide) {
+      // Tablet: one table-like row (item, category, price, tags, actions).
+      content = Row(
+        children: [
+          _Thumb(product: product),
+          const SizedBox(width: 14),
+          Expanded(flex: 26, child: names),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 12,
+            child: Text(product.category,
+                maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, color: Ld.ink)),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 12,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(fit: BoxFit.scaleDown, child: price),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(flex: 18, child: Wrap(spacing: 6, runSpacing: 6, children: tags)),
+          const SizedBox(width: 12),
+          const ItemsEditMark(),
+          const SizedBox(width: 8),
+          delete,
+        ],
+      );
+    } else {
+      content = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Thumb(product: product),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Leading image / initial
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: hasImage
-                        ? Colors.transparent
-                        : Color(product.colorCode),
-                    borderRadius: BorderRadius.circular(12),
-                    border: hasImage
-                        ? Border.all(color: LaDolcePosUi.border)
-                        : null,
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: imageBytes != null
-                      ? Image.memory(imageBytes, fit: BoxFit.cover)
-                      : product.imageUrl != null &&
-                              product.imageUrl!.isNotEmpty
-                          ? Image.network(product.imageUrl!, fit: BoxFit.cover)
-                          : Center(
-                              child: Text(
-                                product.displayName.isNotEmpty
-                                    ? product.displayName
-                                          .substring(0, 1)
-                                          .toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 22,
-                                ),
-                              ),
-                            ),
+                names,
+                const SizedBox(height: 4),
+                // Price first at full size; the category moves under it when
+                // there is no room beside it.
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    price,
+                    Text(product.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: Ld.small),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                // Title + details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product.displayName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Flexible(
-                            child: _buildTag(
-                              text: product.category,
-                              color: accentColor,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '₭${money(product.price)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                              color: accentColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (product.toppings.isNotEmpty ||
-                          product.blockSelfOrder) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            if (product.toppings.isNotEmpty)
-                              Text(
-                                '${product.toppings.length} topping${product.toppings.length == 1 ? '' : 's'}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: LaDolcePosUi.mutedText,
-                                ),
-                              ),
-                            if (product.toppings.isNotEmpty &&
-                                product.blockSelfOrder)
-                              const SizedBox(width: 8),
-                            if (product.blockSelfOrder)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(AppLocalizations.of(context)?.blocked ?? (AppLocalizations.of(context)?.blocked ?? 'Blocked'),
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.orange,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Delete
-                SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                    color: Colors.red.withValues(alpha: 0.7),
-                    onPressed: onDelete,
-                    padding: EdgeInsets.zero,
-                    tooltip: AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete'),
-                  ),
-                ),
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 6, runSpacing: 6, children: tags),
+                ],
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          delete,
+        ],
+      );
+    }
+
+    return Material(
+      color: Ld.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Ld.rMd),
+        side: const BorderSide(color: Ld.line),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rMd)),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: wide ? 16 : 12, vertical: 12),
+          child: content,
         ),
       ),
     );
   }
+}
 
-  Widget _buildTag({required String text, required Color color}) {
+/// Product photo, or its first letter on a soft tile.
+class _Thumb extends StatelessWidget {
+  final Product product;
+  const _Thumb({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    final imageBytes = product.decodedImageBytes;
+    final hasUrl = product.imageUrl != null && product.imageUrl!.isNotEmpty;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        color: Ld.ground,
+        borderRadius: BorderRadius.circular(Ld.r),
+        border: Border.all(color: Ld.lineSoft),
       ),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
+      clipBehavior: Clip.antiAlias,
+      child: imageBytes != null
+          ? Image.memory(imageBytes, fit: BoxFit.cover)
+          : hasUrl
+              ? Image.network(product.imageUrl!, fit: BoxFit.cover)
+              : Center(
+                  child: Text(
+                    product.displayName.isNotEmpty ? product.displayName.substring(0, 1).toUpperCase() : '?',
+                    style: Ld.title(21),
+                  ),
+                ),
     );
   }
 }

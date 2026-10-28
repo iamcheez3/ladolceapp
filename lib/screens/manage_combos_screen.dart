@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/product.dart';
-import '../theme/ladolce_pos_ui.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ld.dart';
 import 'combo_edit_screen.dart';
+import 'manage_items_screen.dart';
 import '../utils/money.dart';
 
 class ManageCombosScreen extends StatefulWidget {
@@ -21,8 +21,6 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
 
   List<dynamic> _combos = [];
   List<Product> _allProducts = [];
-
-  static const Color _accent = Color(0xFF7C3AED);
 
   @override
   void initState() {
@@ -77,17 +75,17 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.deleteCombo ?? (AppLocalizations.of(context)?.deleteCombo ?? 'Delete Combo')),
-        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo2 ?? (AppLocalizations.of(context)?.areYouSureYouWantTo2 ?? 'Are you sure you want to delete this combo?')),
+        title: Text(AppLocalizations.of(context)?.deleteCombo ?? 'Delete Combo'),
+        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo2 ?? 'Are you sure you want to delete this combo?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
-            style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
+            style: itemsDangerButtonStyle(),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete')),
+            child: Text(AppLocalizations.of(context)?.delete ?? 'Delete'),
           ),
         ],
       ),
@@ -101,14 +99,14 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
       _fetchData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)?.comboDeleted ?? (AppLocalizations.of(context)?.comboDeleted ?? 'Combo deleted')), backgroundColor: Colors.orange),
+          SnackBar(content: Text(AppLocalizations.of(context)?.comboDeleted ?? 'Combo deleted'), backgroundColor: Ld.warning),
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Ld.danger),
         );
       }
     }
@@ -116,101 +114,71 @@ class _ManageCombosScreenState extends State<ManageCombosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final gutter = itemsGutter(context);
+    final wide = MediaQuery.sizeOf(context).width >= 720;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.manageCombos ?? (AppLocalizations.of(context)?.manageCombos ?? 'Manage Combos')),
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: l10n?.manageCombos ?? 'Manage Combos',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)?.addCombo ?? (AppLocalizations.of(context)?.addCombo ?? 'Add Combo'),
+          ItemsHeaderAction(
+            label: l10n?.addCombo ?? 'Add Combo',
+            icon: Icons.add_rounded,
             onPressed: () => _openComboScreen(),
           ),
         ],
       ),
-      body: LuxuryPatternBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64, height: 64,
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 32),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: _fetchData,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
-                            style: LaDolcePosUi.primaryButtonStyle(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : _combos.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 80, height: 80,
-                                decoration: BoxDecoration(
-                                  color: _accent.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Icon(Icons.dashboard_customize_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(AppLocalizations.of(context)?.noCombosYet ?? (AppLocalizations.of(context)?.noCombosYet ?? 'No combos yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 6),
-                              Text(AppLocalizations.of(context)?.addYourFirstComboToGet ?? (AppLocalizations.of(context)?.addYourFirstComboToGet ?? 'Add your first combo to get started'),
-                                  style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText)),
-                              const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.add, size: 18),
-                                label: Text(AppLocalizations.of(context)?.addCombo ?? (AppLocalizations.of(context)?.addCombo ?? 'Add Combo')),
-                                onPressed: () => _openComboScreen(),
-                                style: LaDolcePosUi.primaryButtonStyle(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 8, bottom: 88),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? ItemsStateView(
+                  icon: Icons.error_outline_rounded,
+                  title: _errorMessage!,
+                  isError: true,
+                  actionLabel: l10n?.retry ?? 'Retry',
+                  actionIcon: Icons.refresh_rounded,
+                  onAction: _fetchData,
+                )
+              : _combos.isEmpty
+                  ? ItemsStateView(
+                      icon: Icons.dashboard_customize_outlined,
+                      title: l10n?.noCombosYet ?? 'No combos yet',
+                      message: l10n?.addYourFirstComboToGet ?? 'Add your first combo to get started',
+                      actionLabel: l10n?.addCombo ?? 'Add Combo',
+                      actionIcon: Icons.add_rounded,
+                      onAction: () => _openComboScreen(),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _fetchData,
+                      child: ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 96 + Ld.navInset(context)),
                         itemCount: _combos.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final combo = _combos[index];
                           final itemsCount = (combo['lines'] as List).length;
-                          return _ComboCard(
-                            name: combo['name'] ?? '',
-                            price: (combo['price'] ?? 0.0).toDouble(),
-                            itemsCount: itemsCount,
-                            accent: _accent,
-                            onTap: () => _openComboScreen(combo: combo),
-                            onDelete: () => _deleteCombo(combo['id']),
+                          return Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1100),
+                              child: _ComboCard(
+                                name: combo['name'] ?? '',
+                                price: (combo['price'] ?? 0.0).toDouble(),
+                                itemsCount: itemsCount,
+                                wide: wide,
+                                onTap: () => _openComboScreen(combo: combo),
+                                onDelete: () => _deleteCombo(combo['id']),
+                              ),
+                            ),
                           );
                         },
                       ),
-      ),
+                    ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: LaDolcePosUi.navy,
+        backgroundColor: Ld.navy,
         foregroundColor: Colors.white,
+        elevation: 0,
+        tooltip: l10n?.addCombo ?? 'Add Combo',
         child: const Icon(Icons.add_rounded),
         onPressed: () => _openComboScreen(),
       ),
@@ -222,7 +190,7 @@ class _ComboCard extends StatelessWidget {
   final String name;
   final double price;
   final int itemsCount;
-  final Color accent;
+  final bool wide;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
@@ -230,89 +198,76 @@ class _ComboCard extends StatelessWidget {
     required this.name,
     required this.price,
     required this.itemsCount,
-    required this.accent,
+    required this.wide,
     required this.onTap,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    final l10n = AppLocalizations.of(context);
+    return Material(
+      color: Ld.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Ld.rMd),
+        side: const BorderSide(color: Ld.line),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-        child: Container(
-          decoration: BoxDecoration(
-            color: LaDolcePosUi.card,
-            borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-            border: Border.all(color: LaDolcePosUi.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+        customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rMd)),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: wide ? 16 : 12, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: Ld.ground, borderRadius: BorderRadius.circular(Ld.r)),
+                child: Text(
+                  name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
+                  style: Ld.title(20),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Ld.ink),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text('₭${money(price)}', style: Ld.price(16, weight: FontWeight.w600)),
+                        LdPill(
+                          l10n?.itemsCount('$itemsCount') ?? '$itemsCount item${itemsCount == 1 ? '' : 's'}',
+                          icon: Icons.widgets_outlined,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (wide) ...[
+                const ItemsEditMark(),
+                const SizedBox(width: 8),
+              ],
+              ItemsRowButton(
+                icon: Icons.delete_outline_rounded,
+                tooltip: l10n?.delete ?? 'Delete',
+                danger: true,
+                onPressed: onDelete,
               ),
             ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-                      style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 20),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            '₭${money(price)}',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: accent),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '$itemsCount item${itemsCount == 1 ? '' : 's'}',
-                            style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 36, height: 36,
-                  child: IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                    color: Colors.red.withValues(alpha: 0.7),
-                    onPressed: onDelete,
-                    padding: EdgeInsets.zero,
-                    tooltip: AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete'),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),

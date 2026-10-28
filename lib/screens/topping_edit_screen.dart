@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/topping.dart';
-import '../theme/ladolce_pos_ui.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ld.dart';
 import '../utils/money.dart';
+import 'manage_items_screen.dart';
 
 class ToppingEditScreen extends StatefulWidget {
   final Topping? topping;
@@ -67,7 +67,7 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.nameIsRequired ?? (AppLocalizations.of(context)?.nameIsRequired ?? 'Name is required'))),
+        SnackBar(content: Text(AppLocalizations.of(context)?.nameIsRequired ?? 'Name is required')),
       );
       return;
     }
@@ -86,8 +86,8 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)?.toppingSavedSuccessfully ?? (AppLocalizations.of(context)?.toppingSavedSuccessfully ?? 'Topping saved successfully')),
-            backgroundColor: Colors.green,
+            content: Text(AppLocalizations.of(context)?.toppingSavedSuccessfully ?? 'Topping saved successfully'),
+            backgroundColor: Ld.success,
           ),
         );
         Navigator.pop(context, true);
@@ -97,7 +97,10 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
       debugPrint('[ToppingEdit] save failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)?.couldNotSaveToppingPleaseTry ?? (AppLocalizations.of(context)?.couldNotSaveToppingPleaseTry ?? 'Could not save topping. Please try again.')), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.couldNotSaveToppingPleaseTry ?? 'Could not save topping. Please try again.'),
+            backgroundColor: Ld.danger,
+          ),
         );
       }
     }
@@ -105,144 +108,121 @@ class _ToppingEditScreenState extends State<ToppingEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final gutter = itemsGutter(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEditing ? widget.topping!.name : (AppLocalizations.of(context)?.addTopping ?? 'Add Topping')),
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: widget.isEditing ? widget.topping!.name : (l10n?.addTopping ?? 'Add Topping'),
         actions: [
-          if (_isSaving)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: SizedBox(
-                  width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                ),
-              ),
-            )
-          else
-            TextButton(
-              onPressed: _save,
-              child: Text(AppLocalizations.of(context)?.save ?? (AppLocalizations.of(context)?.save ?? 'Save'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-            ),
+          ItemsHeaderAction(
+            label: l10n?.save ?? 'Save',
+            icon: Icons.check_rounded,
+            busy: _isSaving,
+            onPressed: _save,
+          ),
         ],
       ),
-      body: LuxuryPatternBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: LaDolcePosUi.card,
-                  borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-                  border: Border.all(color: LaDolcePosUi.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 40 + Ld.navInset(context)),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ItemsFormCard(
                   children: [
                     TextField(
                       controller: _nameController,
-                      decoration: LaDolcePosUi.input(
-                        hintText: AppLocalizations.of(context)?.toppingName ?? (AppLocalizations.of(context)?.toppingName ?? 'Topping Name*'),
+                      style: const TextStyle(fontSize: 17, color: Ld.ink),
+                      decoration: InputDecoration(
+                        labelText: l10n?.toppingName ?? 'Topping Name*',
                         prefixIcon: const Icon(Icons.label_outline, size: 20),
                       ),
                       autofocus: !widget.isEditing,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: _nameLoController,
-                      decoration: LaDolcePosUi.input(
-                        hintText: AppLocalizations.of(context)?.toppingNameLo ?? 'Lao name (optional)',
+                      style: const TextStyle(fontSize: 17, color: Ld.ink),
+                      decoration: InputDecoration(
+                        labelText: l10n?.toppingNameLo ?? 'Lao name (optional)',
                         prefixIcon: const Icon(Icons.translate, size: 20),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: _priceController,
-                      decoration: LaDolcePosUi.input(
-                        hintText: AppLocalizations.of(context)?.extraPriceOptional ?? (AppLocalizations.of(context)?.extraPriceOptional ?? 'Extra Price (Optional)'),
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Text('₭', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                        ),
+                      style: itemsMoneyInputStyle,
+                      decoration: InputDecoration(
+                        labelText: l10n?.extraPriceOptional ?? 'Extra Price (Optional)',
+                        prefixIcon: itemsKipPrefix,
+                        prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 48),
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [MoneyInputFormatter()],
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: LaDolcePosUi.card,
-                  borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-                  border: Border.all(color: LaDolcePosUi.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 16),
+                ItemsFormCard(
                   children: [
                     DropdownButtonFormField<int?>(
                       // Keep the current group selectable while the list loads.
                       initialValue: _groups.any((g) => g.id == _groupId) ? _groupId : null,
                       key: ValueKey('group-${_groups.length}'),
                       isExpanded: true,
-                      decoration: LaDolcePosUi.input(
-                        hintText: AppLocalizations.of(context)?.toppingGroupLabel ?? 'Group',
+                      decoration: InputDecoration(
+                        labelText: l10n?.toppingGroupLabel ?? 'Group',
                         prefixIcon: const Icon(Icons.view_agenda_outlined, size: 20),
                       ),
                       items: [
                         DropdownMenuItem<int?>(
                           value: null,
-                          child: Text(AppLocalizations.of(context)?.toppingNoGroup ?? 'No group (add-on)'),
+                          child: Text(
+                            l10n?.toppingNoGroup ?? 'No group (add-on)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         for (final g in _groups)
                           DropdownMenuItem<int?>(
                             value: g.id,
                             child: Text(
-                              '${g.displayName} · ${g.isSingleChoice ? (AppLocalizations.of(context)?.toppingPickOne ?? 'Pick 1') : (AppLocalizations.of(context)?.toppingPickMany ?? 'Pick many')}',
+                              '${g.displayName} · ${g.isSingleChoice ? (l10n?.toppingPickOne ?? 'Pick 1') : (l10n?.toppingPickMany ?? 'Pick many')}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                       ],
                       onChanged: (v) => setState(() => _groupId = v),
                     ),
-                    if (_groupId != null)
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
+                    if (_groupId != null) ...[
+                      const SizedBox(height: 8),
+                      ItemsSwitchRow(
+                        icon: Icons.check_circle_outline_rounded,
+                        title: l10n?.toppingDefaultLabel ?? 'Selected by default',
+                        subtitle: l10n?.toppingDefaultHelp ?? 'Already ticked when the item opens',
                         value: _isDefault,
-                        activeThumbColor: LaDolcePosUi.navy,
-                        title: Text(AppLocalizations.of(context)?.toppingDefaultLabel ?? 'Selected by default'),
-                        subtitle: Text(AppLocalizations.of(context)?.toppingDefaultHelp ?? 'Already ticked when the item opens'),
                         onChanged: (v) => setState(() => _isDefault = v),
                       ),
+                    ],
                   ],
                 ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _isSaving ? null : _save,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : (AppLocalizations.of(context)?.saveTopping ?? 'Save Topping')),
-                style: LaDolcePosUi.primaryButtonStyle(),
-              ),
-            ],
+                const SizedBox(height: 28),
+                ElevatedButton.icon(
+                  onPressed: _isSaving ? null : _save,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.save_outlined, size: 20),
+                  label: Text(_isSaving ? 'Saving...' : (l10n?.saveTopping ?? 'Save Topping')),
+                ),
+              ],
+            ),
           ),
         ),
       ),

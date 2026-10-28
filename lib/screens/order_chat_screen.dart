@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../models/chat_message.dart';
 import '../services/api_service.dart';
+import '../theme/ld.dart';
 
 /// Full-screen per-order chat between Customer ↔ Rider.
 ///
@@ -34,11 +35,10 @@ class OrderChatScreen extends StatefulWidget {
 }
 
 class _OrderChatScreenState extends State<OrderChatScreen> {
-  static const Color _navy = Color(0xFF1E3A8A);
-  static const Color _navyLight = Color(0xFF3B5FC0);
-  static const Color _bubbleMe = Color(0xFF1E3A8A);
-  static const Color _bubbleThem = Color(0xFFF1F5F9);
-  static const Color _bgPage = Color(0xFFEFF3FB);
+  static const Color _navy = Ld.navy;
+  static const Color _bubbleMe = Ld.navy;
+  static const Color _bubbleThem = Ld.surface;
+  static const Color _bgPage = Ld.ground;
 
   final ApiService _apiService = ApiService();
   final TextEditingController _inputCtrl = TextEditingController();
@@ -244,9 +244,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   void _showImagePicker() {
     showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      useSafeArea: true,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -256,13 +254,13 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: Ld.line,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 12),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: _navy),
+              leading: const LdIconTile(Icons.photo_library_outlined),
               title: Text(AppLocalizations.of(context)?.chooseFromGallery ?? (AppLocalizations.of(context)?.chooseFromGallery ?? 'Choose from gallery')),
               onTap: () {
                 Navigator.pop(context);
@@ -270,7 +268,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: _navy),
+              leading: const LdIconTile(Icons.camera_alt_outlined),
               title: Text(AppLocalizations.of(context)?.takeAPhoto ?? (AppLocalizations.of(context)?.takeAPhoto ?? 'Take a photo')),
               onTap: () {
                 Navigator.pop(context);
@@ -304,53 +302,15 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     );
   }
 
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: _navy,
-      foregroundColor: Colors.white,
-      elevation: 0,
-      titleSpacing: 0,
-      title: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: _navyLight,
-            child: Icon(
-              widget.currentRole == 'customer'
-                  ? Icons.delivery_dining
-                  : Icons.person,
-              color: Colors.white,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.otherPartyName.isNotEmpty
-                    ? widget.otherPartyName
-                    : (widget.currentRole == 'customer' ? (AppLocalizations.of(context)?.roleRider ?? 'Rider') : (AppLocalizations.of(context)?.roleCustomer ?? 'Customer')),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                widget.orderRef,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withOpacity(0.7),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+  PreferredSizeWidget _buildAppBar() {
+    return LdHeader(
+      title: widget.otherPartyName.isNotEmpty
+          ? widget.otherPartyName
+          : (widget.currentRole == 'customer' ? (AppLocalizations.of(context)?.roleRider ?? 'Rider') : (AppLocalizations.of(context)?.roleCustomer ?? 'Customer')),
+      subtitle: widget.orderRef,
       actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh, size: 22),
+        LdNavIconButton(
+          icon: Icons.refresh_rounded,
           onPressed: () => _loadChat(),
           tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
         ),
@@ -362,15 +322,23 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: _navy.withOpacity(0.08),
+      decoration: const BoxDecoration(
+        color: Ld.surface,
+        border: Border(bottom: BorderSide(color: Ld.line)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.lock_outline, size: 13, color: Colors.grey[500]),
+          const Icon(Icons.lock_outline_rounded, size: 14, color: Ld.muted),
           const SizedBox(width: 6),
-          Text(
-            'This chat is for order ${widget.orderRef} only',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          Flexible(
+            child: Text(
+              'This chat is for order ${widget.orderRef} only',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: Ld.small,
+            ),
           ),
         ],
       ),
@@ -390,9 +358,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 40, color: Colors.red[300]),
+            const LdIconTile(Icons.error_outline_rounded, size: 56, background: Ld.dangerWash, color: Ld.danger),
             const SizedBox(height: 12),
-            Text(_errorMessage!, style: TextStyle(color: Colors.grey[600])),
+            Text(_errorMessage!, style: Ld.label),
             const SizedBox(height: 12),
             ElevatedButton(onPressed: _loadChat, child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry'))),
           ],
@@ -404,18 +372,18 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 56, color: Colors.grey[300]),
+            const LdIconTile(Icons.chat_bubble_outline_rounded, size: 64, background: Ld.surface),
             const SizedBox(height: 16),
             Text(AppLocalizations.of(context)?.noMessagesYet ?? (AppLocalizations.of(context)?.noMessagesYet ?? 'No messages yet'),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[500],
+                color: Ld.ink,
               ),
             ),
             const SizedBox(height: 8),
             Text(AppLocalizations.of(context)?.startTheConversationBelow ?? (AppLocalizations.of(context)?.startTheConversationBelow ?? 'Start the conversation below'),
-              style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+              style: Ld.small,
             ),
           ],
         ),
@@ -441,7 +409,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
     return ListView.builder(
       controller: _scrollCtrl,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
@@ -455,22 +423,12 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   Widget _buildDateSeparator(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          const Expanded(child: Divider()),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[500],
-              ),
-            ),
-          ),
-          const Expanded(child: Divider()),
-        ],
+      child: Center(
+        child: LdPill(
+          label,
+          background: Ld.surface,
+          foreground: Ld.muted,
+        ),
       ),
     );
   }
@@ -487,7 +445,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: _bubbleMe.withOpacity(0.6),
+              color: _bubbleMe.withValues(alpha: 0.6),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(18),
                 topRight: Radius.circular(18),
@@ -507,10 +465,17 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
+                // The label carries a camera emoji; show a real icon instead.
+                if (label.startsWith('📷')) ...[
+                  const Icon(Icons.photo_camera_outlined, size: 16, color: Colors.white),
+                  const SizedBox(width: 6),
+                ],
                 Flexible(
                   child: Text(
-                    label,
-                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                    label.startsWith('📷')
+                        ? label.substring('📷'.length).trim()
+                        : label,
+                    style: const TextStyle(fontSize: 14, color: Colors.white),
                   ),
                 ),
               ],
@@ -546,10 +511,10 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                     padding: const EdgeInsets.only(left: 4, bottom: 2),
                     child: Text(
                       msg.senderName,
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: const TextStyle(
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
+                        color: Ld.muted,
                       ),
                     ),
                   ),
@@ -563,16 +528,14 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                     children: [
                       Text(
                         _formatTime(msg.createdAt),
-                        style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                        style: const TextStyle(fontSize: 11, color: Ld.muted),
                       ),
                       if (isMe) ...[
                         const SizedBox(width: 4),
                         Icon(
                           msg.isRead ? Icons.done_all : Icons.done,
                           size: 13,
-                          color: msg.isRead
-                              ? Colors.blue[400]
-                              : Colors.grey[400],
+                          color: msg.isRead ? Ld.info : Ld.faint,
                         ),
                       ],
                     ],
@@ -604,19 +567,13 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           bottomLeft: Radius.circular(isMe ? 18 : 4),
           bottomRight: Radius.circular(isMe ? 4 : 18),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: isMe ? null : Border.all(color: Ld.line),
       ),
       child: Text(
         msg.message,
         style: TextStyle(
-          fontSize: 14,
-          color: isMe ? Colors.white : const Color(0xFF1E293B),
+          fontSize: 15,
+          color: isMe ? Colors.white : Ld.ink,
           height: 1.4,
         ),
       ),
@@ -639,13 +596,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             bottomLeft: Radius.circular(isMe ? 18 : 4),
             bottomRight: Radius.circular(isMe ? 4 : 18),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: isMe ? null : Border.all(color: Ld.line),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -656,9 +607,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             else
               Container(
                 height: 120,
-                color: Colors.grey[200],
+                color: Ld.ground,
                 child: const Center(
-                  child: Icon(Icons.broken_image, size: 40, color: Colors.grey),
+                  child: Icon(Icons.broken_image_outlined, size: 40, color: Ld.faint),
                 ),
               ),
             if (msg.message.isNotEmpty)
@@ -668,7 +619,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   msg.message,
                   style: TextStyle(
                     fontSize: 13,
-                    color: isMe ? Colors.white70 : const Color(0xFF475569),
+                    color: isMe ? Ld.onNavyMuted : Ld.muted,
                     height: 1.3,
                   ),
                 ),
@@ -705,16 +656,16 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             return Container(
               height: 160,
               width: maxW,
-              color: Colors.grey[100],
+              color: Ld.ground,
               child: const Center(child: CircularProgressIndicator()),
             );
           },
           errorBuilder: (_, __, ___) => Container(
             height: 120,
             width: maxW,
-            color: Colors.grey[200],
+            color: Ld.ground,
             child: const Center(
-              child: Icon(Icons.broken_image, size: 40, color: Colors.grey),
+              child: Icon(Icons.broken_image_outlined, size: 40, color: Ld.faint),
             ),
           ),
         );
@@ -734,14 +685,14 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   }
 
   Widget _buildAvatar(String role) {
+    final isCustomer = role == 'customer';
     return CircleAvatar(
       radius: 14,
-      backgroundColor:
-          role == 'customer' ? const Color(0xFF0D9488) : const Color(0xFF7C3AED),
+      backgroundColor: isCustomer ? Ld.goldWash : Ld.infoWash,
       child: Icon(
-        role == 'customer' ? Icons.person : Icons.delivery_dining,
-        size: 14,
-        color: Colors.white,
+        isCustomer ? Icons.person_rounded : Icons.delivery_dining_rounded,
+        size: 16,
+        color: isCustomer ? Ld.goldWashInk : Ld.navy,
       ),
     );
   }
@@ -752,35 +703,43 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   Widget _buildImagePreview() {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      decoration: const BoxDecoration(
+        color: Ld.surface,
+        border: Border(top: BorderSide(color: Ld.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              const Icon(Icons.image_outlined, size: 16, color: _navy),
+              const Icon(Icons.image_outlined, size: 18, color: _navy),
               const SizedBox(width: 6),
-              Text(AppLocalizations.of(context)?.imageReadyToSend ?? (AppLocalizations.of(context)?.imageReadyToSend ?? 'Image ready to send'),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _navy,
+              Expanded(
+                child: Text(AppLocalizations.of(context)?.imageReadyToSend ?? (AppLocalizations.of(context)?.imageReadyToSend ?? 'Image ready to send'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _navy,
+                  ),
                 ),
               ),
-              const Spacer(),
-              GestureDetector(
-                onTap: _clearPendingImage,
-                child: const Icon(Icons.close, size: 18, color: Colors.grey),
+              IconButton(
+                onPressed: _clearPendingImage,
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                icon: const Icon(Icons.close_rounded, size: 20, color: Ld.muted),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(Ld.rSm),
                 child: Image.file(
                   _pendingImage!,
                   width: 80,
@@ -793,23 +752,11 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 child: TextField(
                   decoration: InputDecoration(
                     hintText: AppLocalizations.of(context)?.addACaptionOptional ?? (AppLocalizations.of(context)?.addACaptionOptional ?? 'Add a caption (optional)'),
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                    hintStyle: const TextStyle(color: Ld.faint, fontSize: 14),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _navy, width: 1.5),
+                      vertical: 10,
                     ),
                   ),
                   onChanged: (v) => _pendingCaption = v,
@@ -819,26 +766,21 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 ),
               ),
             ],
+            ),
           ),
           const SizedBox(height: 8),
-          SizedBox(
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _isSending ? null : _sendImage,
               icon: const Icon(Icons.send_rounded, size: 16),
               label: Text(AppLocalizations.of(context)?.sendImage ?? (AppLocalizations.of(context)?.sendImage ?? 'Send Image')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _navy,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+            ),
             ),
           ),
-          const SizedBox(height: 8),
-          const Divider(height: 1),
+          const SizedBox(height: 10),
         ],
       ),
     );
@@ -850,15 +792,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   Widget _buildInputBar() {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color: Ld.surface,
+        border: Border(top: BorderSide(color: Ld.line)),
       ),
       padding: EdgeInsets.only(
         left: 8,
@@ -866,14 +802,14 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         top: 10,
         bottom: MediaQuery.of(context).viewInsets.bottom > 0
             ? 10
-            : 10 + MediaQuery.of(context).padding.bottom,
+            : 10 + Ld.navInset(context),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Camera / gallery button
           _isSending
-              ? const SizedBox(width: 40)
+              ? const SizedBox(width: 44)
               : IconButton(
                   icon: const Icon(Icons.add_photo_alternate_outlined, size: 24),
                   color: _navy,
@@ -881,8 +817,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   tooltip: AppLocalizations.of(context)?.sendImage2 ?? (AppLocalizations.of(context)?.sendImage2 ?? 'Send image'),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
-                    minWidth: 40,
-                    minHeight: 40,
+                    minWidth: 44,
+                    minHeight: 44,
                   ),
                 ),
           const SizedBox(width: 4),
@@ -898,23 +834,23 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 decoration: InputDecoration(
                   hintText: AppLocalizations.of(context)?.typeAMessage ?? (AppLocalizations.of(context)?.typeAMessage ?? 'Type a message…'),
                   hintStyle:
-                      TextStyle(color: Colors.grey[400], fontSize: 14),
+                      const TextStyle(color: Ld.faint, fontSize: 15),
                   filled: true,
-                  fillColor: const Color(0xFFF1F5F9),
+                  fillColor: Ld.ground,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 10,
+                    vertical: 12,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: const BorderSide(color: Ld.line),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: const BorderSide(color: Ld.line),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(22),
                     borderSide: const BorderSide(color: _navy, width: 1.5),
                   ),
                 ),
@@ -925,7 +861,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           const SizedBox(width: 8),
           _isSending
               ? const Padding(
-                  padding: EdgeInsets.all(10),
+                  padding: EdgeInsets.all(12),
                   child: SizedBox(
                     width: 24,
                     height: 24,
@@ -935,20 +871,23 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                     ),
                   ),
                 )
-              : InkWell(
-                  onTap: _sendMessage,
-                  borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: _navy,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 20,
+              : Semantics(
+                  button: true,
+                  child: Material(
+                    color: _navy,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: _sendMessage,
+                      customBorder: const CircleBorder(),
+                      child: const SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Icon(
+                          Icons.send_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ),
                 ),

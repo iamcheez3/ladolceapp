@@ -3,11 +3,15 @@ import 'package:ladolce/l10n/app_localizations.dart';
 
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../theme/ladolce_pos_ui.dart';
+import '../theme/ld.dart';
 import '../utils/money.dart';
 
 class BillTemplateSettingsScreen extends StatefulWidget {
-  const BillTemplateSettingsScreen({super.key});
+  /// True when shown inside the tablet Settings screen (right-hand pane):
+  /// no own app bar, Save sits in the section header.
+  final bool embedded;
+
+  const BillTemplateSettingsScreen({super.key, this.embedded = false});
 
   @override
   State<BillTemplateSettingsScreen> createState() =>
@@ -16,7 +20,6 @@ class BillTemplateSettingsScreen extends StatefulWidget {
 
 class _BillTemplateSettingsScreenState
     extends State<BillTemplateSettingsScreen> {
-  static const _navy = LaDolcePosUi.navy;
   final ApiService _api = ApiService();
 
   bool _loading = true;
@@ -126,7 +129,7 @@ class _BillTemplateSettingsScreenState
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        SnackBar(content: Text(e.toString()), backgroundColor: Ld.danger),
       );
     }
   }
@@ -140,117 +143,204 @@ class _BillTemplateSettingsScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Ld.ink)),
         const SizedBox(height: 8),
         DropdownButtonFormField<int>(
           initialValue: value,
+          isExpanded: true,
           items: items
               .map(
                 (t) => DropdownMenuItem<int>(
                   value: _toId(t['id']),
-                  child: Text((t['name'] ?? '').toString()),
+                  child: Text(
+                    (t['name'] ?? '').toString(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),
           onChanged: _loading ? null : onChanged,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
+          decoration: const InputDecoration(),
         ),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.billTemplates ?? (AppLocalizations.of(context)?.billTemplates ?? 'Bill Templates')),
-        backgroundColor: _navy,
-        foregroundColor: Colors.white,
-        actions: [
-          TextButton(
-            onPressed: _loading ? null : _save,
-            child: const Text('SAVE', style: TextStyle(color: Colors.white)),
+  Widget _templateSection({
+    required String label,
+    required List<Map<String, dynamic>> items,
+    required int? value,
+    required ValueChanged<int?> onChanged,
+    required String type,
+  }) {
+    return Container(
+      decoration: Ld.card(),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _dropdown(label: label, items: items, value: value, onChanged: onChanged),
+          const SizedBox(height: 14),
+          _ReceiptPreview(
+            template: _findTemplate(items, value),
+            templateType: type,
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: _load,
-                        child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(16),
+    );
+  }
+
+  Widget _saveButton({required bool onNavy}) {
+    final label = Text(AppLocalizations.of(context)?.save ?? 'Save');
+    if (onNavy) {
+      return FilledButton(
+        onPressed: _loading ? null : _save,
+        style: FilledButton.styleFrom(
+          backgroundColor: Ld.gold,
+          foregroundColor: Ld.navy,
+          disabledBackgroundColor: Ld.navyRaised,
+          disabledForegroundColor: Ld.onNavyMuted,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+        ),
+        child: label,
+      );
+    }
+    return FilledButton(onPressed: _loading ? null : _save, child: label);
+  }
+
+  Widget _body() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const LdIconTile(Icons.error_outline_rounded, size: 56, background: Ld.dangerWash, color: Ld.danger),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Ld.danger, fontSize: 15)),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(AppLocalizations.of(context)?.retry ?? 'Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final sections = <Widget>[
+      _templateSection(
+        label: l10n?.billPreReceipt ?? 'Bill (pre-receipt)',
+        items: _billTemplates,
+        value: _selectedBillId,
+        onChanged: (v) => setState(() => _selectedBillId = v),
+        type: 'bill',
+      ),
+      _templateSection(
+        label: l10n?.receiptPaid ?? 'Receipt (paid)',
+        items: _receiptTemplates,
+        value: _selectedReceiptId,
+        onChanged: (v) => setState(() => _selectedReceiptId = v),
+        type: 'receipt',
+      ),
+      _templateSection(
+        label: l10n?.refundVoid ?? 'Refund / Void',
+        items: _refundTemplates,
+        value: _selectedRefundId,
+        onChanged: (v) => setState(() => _selectedRefundId = v),
+        type: 'refund',
+      ),
+      _templateSection(
+        label: l10n?.kitchenOrderTicket2 ?? 'Kitchen / Order ticket',
+        items: _kitchenTemplates,
+        value: _selectedKitchenId,
+        onChanged: (v) => setState(() => _selectedKitchenId = v),
+        type: 'kitchen',
+      ),
+    ];
+
+    final tip = Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Ld.infoWash, borderRadius: BorderRadius.circular(Ld.r)),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, size: 18, color: Ld.info),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Tip: Duplicate a standard template in Odoo, change the name and text, then select it here.',
+              style: TextStyle(color: Ld.info, fontSize: 14, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final hPad = widget.embedded ? 28.0 : 16.0;
+    return LayoutBuilder(
+      builder: (context, c) {
+        final twoCols = c.maxWidth >= 760;
+        return ListView(
+          padding: EdgeInsets.fromLTRB(hPad, widget.embedded ? 8 : 16, hPad, 24 + Ld.navInset(context)),
+          children: [
+            if (twoCols)
+              for (var i = 0; i < sections.length; i += 2) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _dropdown(
-                      label: AppLocalizations.of(context)?.billPreReceipt ?? (AppLocalizations.of(context)?.billPreReceipt ?? 'Bill (pre-receipt)'),
-                      items: _billTemplates,
-                      value: _selectedBillId,
-                      onChanged: (v) => setState(() => _selectedBillId = v),
-                    ),
-                    const SizedBox(height: 10),
-                    _ReceiptPreview(
-                      template: _findTemplate(_billTemplates, _selectedBillId),
-                      templateType: 'bill',
-                    ),
-                    const SizedBox(height: 20),
-                    _dropdown(
-                      label: AppLocalizations.of(context)?.receiptPaid ?? (AppLocalizations.of(context)?.receiptPaid ?? 'Receipt (paid)'),
-                      items: _receiptTemplates,
-                      value: _selectedReceiptId,
-                      onChanged: (v) => setState(() => _selectedReceiptId = v),
-                    ),
-                    const SizedBox(height: 10),
-                    _ReceiptPreview(
-                      template:
-                          _findTemplate(_receiptTemplates, _selectedReceiptId),
-                      templateType: 'receipt',
-                    ),
-                    const SizedBox(height: 20),
-                    _dropdown(
-                      label: AppLocalizations.of(context)?.refundVoid ?? (AppLocalizations.of(context)?.refundVoid ?? 'Refund / Void'),
-                      items: _refundTemplates,
-                      value: _selectedRefundId,
-                      onChanged: (v) => setState(() => _selectedRefundId = v),
-                    ),
-                    const SizedBox(height: 10),
-                    _ReceiptPreview(
-                      template:
-                          _findTemplate(_refundTemplates, _selectedRefundId),
-                      templateType: 'refund',
-                    ),
-                    const SizedBox(height: 20),
-                    _dropdown(
-                      label: AppLocalizations.of(context)?.kitchenOrderTicket2 ?? (AppLocalizations.of(context)?.kitchenOrderTicket2 ?? 'Kitchen / Order ticket'),
-                      items: _kitchenTemplates,
-                      value: _selectedKitchenId,
-                      onChanged: (v) => setState(() => _selectedKitchenId = v),
-                    ),
-                    const SizedBox(height: 10),
-                    _ReceiptPreview(
-                      template:
-                          _findTemplate(_kitchenTemplates, _selectedKitchenId),
-                      templateType: 'kitchen',
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Tip: Duplicate a standard template in Odoo, change the name and text, then select it here.',
-                      style: TextStyle(color: Colors.black54),
-                    ),
+                    Expanded(child: sections[i]),
+                    const SizedBox(width: 16),
+                    Expanded(child: i + 1 < sections.length ? sections[i + 1] : const SizedBox()),
                   ],
                 ),
+                const SizedBox(height: 16),
+              ]
+            else
+              for (final s in sections) ...[s, const SizedBox(height: 16)],
+            tip,
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = AppLocalizations.of(context)?.billTemplates ?? 'Bill Templates';
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(title, style: Ld.title(24), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 12),
+                _saveButton(onNavy: false),
+              ],
+            ),
+          ),
+          Expanded(child: _body()),
+        ],
+      );
+    }
+    return Scaffold(
+      backgroundColor: Ld.ground,
+      appBar: LdHeader(
+        title: title,
+        actions: [_saveButton(onNavy: true)],
+      ),
+      body: _body(),
     );
   }
 }
@@ -507,18 +597,19 @@ class _ReceiptPreview extends StatelessWidget {
     if (template == null) {
       return Container(
         margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey[300]!),
+          color: Ld.ground,
+          borderRadius: BorderRadius.circular(Ld.r),
         ),
         child: Row(
           children: [
-            Icon(Icons.receipt_long_outlined, color: Colors.grey[400], size: 18),
-            const SizedBox(width: 8),
-            Text(AppLocalizations.of(context)?.noTemplateSelectedPreviewUnavailable ?? (AppLocalizations.of(context)?.noTemplateSelectedPreviewUnavailable ?? 'No template selected — preview unavailable'),
-              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            const Icon(Icons.receipt_long_outlined, color: Ld.muted, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(AppLocalizations.of(context)?.noTemplateSelectedPreviewUnavailable ?? 'No template selected — preview unavailable',
+                style: Ld.small,
+              ),
             ),
           ],
         ),
@@ -542,63 +633,56 @@ class _ReceiptPreview extends StatelessWidget {
 
     contentRows.addAll(_buildFooter(footerLogoRaw, footerText));
 
-    return Center(
-      child: Container(
-        width: 240,
-        margin: const EdgeInsets.only(bottom: 4),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.10),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: LaDolcePosUi.navy.withOpacity(0.08),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(6)),
+    // The paper sits on a porcelain well, with the torn ticket edge below.
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+      decoration: BoxDecoration(
+        color: Ld.ground,
+        borderRadius: BorderRadius.circular(Ld.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.visibility_outlined, size: 16, color: Ld.muted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Preview — ${(template!['name'] ?? templateType).toString()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Ld.small,
+                ),
               ),
-              child: Row(
+            ],
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: SizedBox(
+              width: 240,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.receipt_long,
-                      size: 13, color: LaDolcePosUi.navy),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Preview — ${(template!['name'] ?? templateType).toString()}',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: LaDolcePosUi.navy,
+                  Container(
+                    color: Colors.white,
+                    padding: EdgeInsets.only(
+                      left: _paddingH.toDouble(),
+                      right: _paddingH.toDouble(),
+                      top: ((template!['padding_top'] ?? 10) as num).toDouble(),
+                      bottom: ((template!['padding_bottom'] ?? 10) as num).toDouble(),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: contentRows,
                     ),
                   ),
+                  const LdTicketEdge(),
                 ],
               ),
             ),
-            Padding(
-              padding: EdgeInsets.only(
-                left: _paddingH.toDouble(),
-                right: _paddingH.toDouble(),
-                top: ((template!['padding_top'] ?? 10) as num).toDouble(),
-                bottom: ((template!['padding_bottom'] ?? 10) as num).toDouble(),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: contentRows,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

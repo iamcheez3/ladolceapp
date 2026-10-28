@@ -9,6 +9,7 @@ import '../models/cart_item.dart';
 import '../services/api_service.dart';
 import '../widgets/topping_picker.dart';
 import '../utils/money.dart';
+import '../theme/ld.dart';
 
 /// Result object returned when a ticket is resumed
 class ResumedTicket {
@@ -468,18 +469,20 @@ class _TicketsScreenState extends State<TicketsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final showSummary = !_isLoading && _errorMessage == null && _tickets.isNotEmpty;
+    final grandTotal = _tickets.fold<double>(0, (s, t) => s + t.amountTotal);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.openTickets ?? (AppLocalizations.of(context)?.openTickets ?? 'Open Tickets')),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
+      backgroundColor: Ld.ground,
+      appBar: LdHeader(
+        title: l10n?.openTickets ?? 'Open Tickets',
+        subtitle: showSummary ? '${_tickets.length}  ·  ₭${money(grandTotal)}' : null,
         actions: [
-          IconButton(
-            icon: Icon(_listView ? Icons.grid_view_rounded : Icons.view_list_rounded),
+          LdNavIconButton(
+            icon: _listView ? Icons.grid_view_rounded : Icons.view_list_rounded,
             tooltip: _listView
-                ? (AppLocalizations.of(context)?.switchToGrid ?? 'Switch to Grid')
-                : (AppLocalizations.of(context)?.switchToList ?? 'Switch to List'),
+                ? (l10n?.switchToGrid ?? 'Switch to Grid')
+                : (l10n?.switchToList ?? 'Switch to List'),
             onPressed: () {
               setState(() => _listView = !_listView);
               SharedPreferences.getInstance()
@@ -487,9 +490,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
                   .catchError((_) => false);
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
+          LdNavIconButton(
+            icon: Icons.refresh_rounded,
+            tooltip: l10n?.refresh ?? 'Refresh',
             onPressed: () => _fetchTickets(backgroundRefresh: true),
           ),
         ],
@@ -499,72 +502,122 @@ class _TicketsScreenState extends State<TicketsScreen> {
   }
 
   Widget _buildBody() {
+    final l10n = AppLocalizations.of(context);
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (_errorMessage != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.wifi_off, color: Colors.red, size: 64),
-            const SizedBox(height: 16),
-            Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _fetchTickets(backgroundRefresh: false),
-              child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
-            ),
-          ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const LdIconTile(Icons.wifi_off_rounded, size: 64, background: Ld.dangerWash, color: Ld.danger),
+              const SizedBox(height: 16),
+              Text(_errorMessage!, textAlign: TextAlign.center, style: Ld.body.copyWith(color: Ld.danger)),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () => _fetchTickets(backgroundRefresh: false),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(l10n?.retry ?? 'Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     if (_tickets.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.receipt_long, size: 64, color: Colors.grey),
-            SizedBox(height: 12),
-            Text(AppLocalizations.of(context)?.noOpenTickets ?? (AppLocalizations.of(context)?.noOpenTickets ?? 'No open tickets'),
-              style: TextStyle(fontSize: 18, color: Colors.grey),
+      return RefreshIndicator(
+        onRefresh: () => _fetchTickets(backgroundRefresh: true),
+        child: LayoutBuilder(
+          builder: (context, c) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: c.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const LdIconTile(Icons.receipt_long_outlined, size: 72, background: Colors.white),
+                      const SizedBox(height: 14),
+                      Text(
+                        l10n?.noOpenTickets ?? 'No open tickets',
+                        textAlign: TextAlign.center,
+                        style: Ld.title(20),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ],
+          ),
         ),
       );
     }
 
+    // Bottom inset: last ticket stays above the 3-button navigation bar.
+    final bottom = 16 + Ld.navInset(context);
+    final tablet = Ld.isTablet(context);
+    final side = tablet ? 24.0 : 16.0;
+
     if (_listView) {
-      return ListView.separated(
-        // Bottom inset: last ticket stays above the 3-button navigation bar.
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(context).bottom),
-        itemCount: _tickets.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, index) => _buildTicketRow(_tickets[index]),
+      return RefreshIndicator(
+        onRefresh: () => _fetchTickets(backgroundRefresh: true),
+        child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(side, 16, side, bottom),
+          itemCount: _tickets.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (context, index) => _buildTicketRow(_tickets[index]),
+        ),
       );
     }
 
-    return GridView.builder(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(context).bottom),
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        // One card per row on the smallest phones (320 px): two were too
-        // narrow and the table name shrank to a third.
-        maxCrossAxisExtent: MediaQuery.sizeOf(context).width < 340 ? 400 : 200,
-        // Fixed height that grows with the text size: a ratio made cards on
-        // narrow phones (and with large text) too short for their content.
-        mainAxisExtent: 200 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4),
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: _tickets.length,
-      itemBuilder: (context, index) {
-        final ticket = _tickets[index];
-        return _buildTicketCard(ticket);
+    return LayoutBuilder(
+      builder: (context, c) {
+        const spacing = 14.0;
+        final avail = c.maxWidth - side * 2;
+        // One card per row on the smallest phones, two on phones, and
+        // cards about 360 px wide on tablets (three across at 1280).
+        final int cols;
+        if (c.maxWidth < 340) {
+          cols = 1;
+        } else if (!tablet) {
+          cols = (avail / 300).floor().clamp(2, 3);
+        } else {
+          cols = ((avail + spacing) / (360 + spacing)).floor().clamp(2, 5);
+        }
+        final cellW = (avail - spacing * (cols - 1)) / cols;
+        final narrow = cellW < _wideCardMin;
+        final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4);
+        // Fixed height that grows with the text size.
+        final extent = (narrow ? 236.0 : 192.0) * scale;
+        return RefreshIndicator(
+          onRefresh: () => _fetchTickets(backgroundRefresh: true),
+          child: GridView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(side, 16, side, bottom),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              mainAxisExtent: extent,
+              crossAxisSpacing: spacing,
+              mainAxisSpacing: spacing,
+            ),
+            itemCount: _tickets.length,
+            itemBuilder: (context, index) => _buildTicketCard(_tickets[index], narrow: narrow),
+          ),
+        );
       },
     );
   }
+
+  /// Cards narrower than this stack the total above the "order ready" button.
+  static const double _wideCardMin = 300;
 
   /// Returns a human-readable "open for" string, e.g. "5 min", "1h 23m".
   String _formatElapsed(DateTime openedAt) {
@@ -579,200 +632,119 @@ class _TicketsScreenState extends State<TicketsScreen> {
   /// Color for the duration badge based on how long the table has been open.
   Color _durationColor(DateTime openedAt) {
     final mins = DateTime.now().difference(openedAt).inMinutes;
-    if (mins < 30) return Colors.green.shade600;
-    if (mins < 60) return Colors.orange.shade700;
-    return Colors.red.shade600; // over 1 hour — draw attention
+    if (mins < 30) return Ld.success;
+    if (mins < 60) return Ld.warning;
+    return Ld.danger; // over 1 hour — draw attention
   }
 
-  Widget _buildTicketCard(_DisplayTicket ticket) {
-    final isOffline = ticket.isOffline;
-    final isSelfOrderTicket = ticket.isSelfOrder && !isOffline;
-    final accentColor = isOffline ? Colors.orange : const Color(0xFF1E3A8A);
+  Color _durationWash(DateTime openedAt) {
+    final mins = DateTime.now().difference(openedAt).inMinutes;
+    if (mins < 30) return Ld.successWash;
+    if (mins < 60) return Ld.warningWash;
+    return Ld.dangerWash;
+  }
+
+  /// The offline label without its emoji (an icon is shown instead).
+  String _offlineText() =>
+      (AppLocalizations.of(context)?.offline ?? 'Offline').replaceAll('⚡', '').trim();
+
+  String _itemsText(int count) =>
+      AppLocalizations.of(context)?.itemsCount('$count') ?? '$count item${count == 1 ? '' : 's'}';
+
+  /// Time-open pill (colored by age) or the offline pill, plus the note.
+  List<Widget> _statusPills(_DisplayTicket ticket) {
     final openedAt = ticket.openedAt;
+    return [
+      if (ticket.isOffline)
+        LdPill(_offlineText(), background: Ld.warningWash, foreground: Ld.warning, icon: Icons.cloud_off_rounded)
+      else if (openedAt != null)
+        LdPill(
+          _formatElapsed(openedAt),
+          background: _durationWash(openedAt),
+          foreground: _durationColor(openedAt),
+          icon: Icons.schedule_rounded,
+        ),
+      if (!ticket.isOffline && ticket.note.isNotEmpty)
+        LdPill(ticket.note, background: Ld.goldWash, foreground: Ld.goldWashInk, icon: Icons.edit_note_rounded),
+    ];
+  }
+
+  Widget _buildTicketCard(_DisplayTicket ticket, {required bool narrow}) {
+    final isSelfOrderTicket = ticket.isSelfOrder && !ticket.isOffline;
     final isNotifyingReady =
         ticket.id != null && _notifyingReadyOrderIds.contains(ticket.id);
-    final bodyIconSize = isSelfOrderTicket ? 20.0 : 28.0;
-    final tableFontSize = isSelfOrderTicket ? 12.0 : 15.0;
-    final itemFontSize = isSelfOrderTicket ? 10.0 : 11.0;
-    final totalFontSize = isSelfOrderTicket ? 16.0 : 18.0;
+    final hasPlace = ticket.tableName != null || ticket.tableId != null;
+    final total = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        '₭${money(ticket.amountTotal)}',
+        maxLines: 1,
+        style: Ld.price(narrow ? 19 : 22, color: Ld.ink),
+      ),
+    );
 
-    return InkWell(
-      onTap: () => _resumeTicket(ticket),
-      borderRadius: BorderRadius.circular(12),
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Material(
+      color: Ld.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Ld.rLg),
+        side: BorderSide(color: ticket.isOffline ? Ld.gold : Ld.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _resumeTicket(ticket),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.fromLTRB(narrow ? 12 : 18, 14, narrow ? 12 : 18, 14),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Header row ───────────────────────────────────────────
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    isOffline ? Icons.cloud_off : Icons.receipt_long,
-                    color: accentColor,
-                    size: 18,
-                  ),
-                  Flexible(
-                    child: Text(
-                      ticket.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                        color: accentColor,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                ],
-              ),
-
-              // ── Offline badge OR duration badge ───────────────────────
-              if (isOffline)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(AppLocalizations.of(context)?.offline ?? (AppLocalizations.of(context)?.offline ?? '⚡ OFFLINE'),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                )
-              else ...[
-                if (openedAt != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _durationColor(openedAt).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '🕐 ${_formatElapsed(openedAt)}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: _durationColor(openedAt),
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                if (ticket.note.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber.shade200),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.edit_note_rounded,
-                          size: 14,
-                          color: Colors.amber.shade800,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            ticket.note,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.amber.shade900,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-
-              const Divider(height: 1),
-
-              // ── Body ─────────────────────────────────────────────────
-              Expanded(
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
+                  Expanded(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          _placeIcon(ticket),
-                          color: accentColor,
-                          size: bodyIconSize,
-                        ),
-                        SizedBox(height: isSelfOrderTicket ? 2 : 4),
                         Text(
                           _placeText(ticket),
-                          style: TextStyle(
-                            fontSize: tableFontSize,
-                            fontWeight: FontWeight.bold,
-                            color:
-                                ticket.tableName != null ||
-                                    ticket.tableId != null
-                                ? Colors.black87
-                                : Colors.grey,
-                          ),
-                          textAlign: TextAlign.center,
+                          maxLines: narrow ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Ld.title(narrow ? 17 : 21, color: hasPlace ? Ld.navy : Ld.muted),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          '${ticket.lines.length} item${ticket.lines.length == 1 ? '' : 's'}',
-                          style: TextStyle(
-                            fontSize: itemFontSize,
-                            color: Colors.grey,
-                          ),
+                          '${ticket.name}, ${_itemsText(ticket.lines.length)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Ld.small,
                         ),
                       ],
                     ),
                   ),
-                ),
+                  if (!narrow) ...[
+                    const SizedBox(width: 10),
+                    Icon(ticket.isOffline ? Icons.cloud_off_rounded : _placeIcon(ticket),
+                        color: Ld.faint, size: 22),
+                  ],
+                ],
               ),
-
-              const Divider(height: 1),
-
-              // ── Total ────────────────────────────────────────────────
-              Padding(
-                padding: EdgeInsets.only(top: isSelfOrderTicket ? 4 : 6),
-                child: Text(
-                  '₭${money(ticket.amountTotal)}',
-                  style: TextStyle(
-                    fontSize: totalFontSize,
-                    fontWeight: FontWeight.bold,
-                    color: accentColor,
-                  ),
-                  textAlign: TextAlign.center,
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, runSpacing: 6, children: _statusPills(ticket)),
+              const Spacer(),
+              if (!isSelfOrderTicket)
+                total
+              else if (narrow) ...[
+                total,
+                const SizedBox(height: 8),
+                SizedBox(height: 44, child: _orderReadyButton(ticket, isNotifyingReady)),
+              ] else
+                Row(
+                  children: [
+                    Expanded(child: total),
+                    const SizedBox(width: 10),
+                    SizedBox(height: 44, child: _orderReadyButton(ticket, isNotifyingReady)),
+                  ],
                 ),
-              ),
-              if (isSelfOrderTicket) ...[
-                const SizedBox(height: 6),
-                SizedBox(height: 32, child: _orderReadyButton(ticket, isNotifyingReady)),
-              ],
             ],
           ),
         ),
@@ -783,7 +755,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
   /// A named ticket has no table; its tableName then holds the name.
   IconData _placeIcon(_DisplayTicket ticket) {
     if (ticket.ticketLabel.isNotEmpty) return Icons.person_pin_rounded;
-    return ticket.tableName != null ? Icons.table_restaurant : Icons.receipt;
+    return ticket.tableName != null ? Icons.table_restaurant_rounded : Icons.receipt_rounded;
   }
 
   String _placeText(_DisplayTicket ticket) =>
@@ -795,22 +767,24 @@ class _TicketsScreenState extends State<TicketsScreen> {
   Widget _orderReadyButton(_DisplayTicket ticket, bool isNotifyingReady) {
     final sent = ticket.deliveryStatus == 'ready' ||
         (ticket.id != null && _readySentOrderIds.contains(ticket.id));
+    const shape = RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Ld.r)));
     if (sent && !isNotifyingReady) {
       // Already told the customer; tapping sends the notification again.
       return OutlinedButton.icon(
         onPressed: () => _notifySelfOrderReady(ticket),
-        icon: const Icon(Icons.check_circle_rounded, size: 15),
+        icon: const Icon(Icons.check_circle_rounded, size: 18),
         label: FittedBox(
           child: Text(
             AppLocalizations.of(context)?.orderReadySent ?? 'Ready ✓',
-            style: const TextStyle(fontSize: 12),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF059669),
-          side: const BorderSide(color: Color(0xFF059669)),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          foregroundColor: Ld.success,
+          side: const BorderSide(color: Ld.success),
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: shape,
         ),
       );
     }
@@ -820,49 +794,24 @@ class _TicketsScreenState extends State<TicketsScreen> {
           ? const SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(strokeWidth: 2, color: Ld.success),
             )
-          : const Icon(Icons.notifications_active_rounded, size: 15),
+          : const Icon(Icons.notifications_active_outlined, size: 18),
       label: FittedBox(
         child: Text(
           AppLocalizations.of(context)?.orderReady ?? 'Order Ready',
-          style: const TextStyle(fontSize: 12),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF059669),
+        elevation: 0,
+        backgroundColor: Ld.successStrong,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: Colors.green.shade100,
-        disabledForegroundColor: Colors.green.shade800,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _badge(String text, Color color, {IconData? icon}) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 220),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 13, color: color),
-            const SizedBox(width: 3),
-          ],
-          Flexible(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+        disabledBackgroundColor: Ld.successWash,
+        disabledForegroundColor: Ld.success,
+        minimumSize: const Size(0, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        shape: shape,
       ),
     );
   }
@@ -872,31 +821,28 @@ class _TicketsScreenState extends State<TicketsScreen> {
   Widget _buildTicketRow(_DisplayTicket ticket) {
     final isOffline = ticket.isOffline;
     final isSelfOrderTicket = ticket.isSelfOrder && !isOffline;
-    final accentColor = isOffline ? Colors.orange : const Color(0xFF1E3A8A);
-    final openedAt = ticket.openedAt;
     final isNotifyingReady =
         ticket.id != null && _notifyingReadyOrderIds.contains(ticket.id);
     final hasPlace = ticket.tableName != null || ticket.tableId != null;
-    final itemCount = ticket.lines.length;
+    final pills = _statusPills(ticket);
 
-    return Card(
-      elevation: 2,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Material(
+      color: Ld.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Ld.rMd),
+        side: BorderSide(color: isOffline ? Ld.gold : Ld.line),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _resumeTicket(ticket),
-        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: accentColor.withOpacity(0.1),
-                child: Icon(
-                  isOffline ? Icons.cloud_off : _placeIcon(ticket),
-                  color: accentColor,
-                ),
+              LdIconTile(
+                isOffline ? Icons.cloud_off_rounded : _placeIcon(ticket),
+                background: isOffline ? Ld.warningWash : Ld.ground,
+                color: isOffline ? Ld.warning : Ld.navy,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -905,65 +851,41 @@ class _TicketsScreenState extends State<TicketsScreen> {
                   children: [
                     Text(
                       _placeText(ticket),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: hasPlace ? Colors.black87 : Colors.grey,
-                      ),
+                      style: Ld.title(17, color: hasPlace ? Ld.navy : Ld.muted),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${ticket.name} · $itemCount item${itemCount == 1 ? '' : 's'}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      '${ticket.name}, ${_itemsText(ticket.lines.length)}',
+                      style: Ld.small,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        if (isOffline)
-                          _badge(
-                            AppLocalizations.of(context)?.offline ?? '⚡ OFFLINE',
-                            Colors.orange,
-                          )
-                        else if (openedAt != null)
-                          _badge(
-                            '🕐 ${_formatElapsed(openedAt)}',
-                            _durationColor(openedAt),
-                          ),
-                        if (ticket.note.isNotEmpty)
-                          _badge(
-                            ticket.note,
-                            Colors.amber.shade800,
-                            icon: Icons.edit_note_rounded,
-                          ),
-                      ],
-                    ),
+                    if (pills.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(spacing: 6, runSpacing: 4, children: pills),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '₭${money(ticket.amountTotal)}',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: accentColor,
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.42),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('₭${money(ticket.amountTotal)}', style: Ld.price(18, color: Ld.ink)),
                     ),
-                  ),
-                  if (isSelfOrderTicket) ...[
-                    const SizedBox(height: 6),
-                    SizedBox(height: 30, child: _orderReadyButton(ticket, isNotifyingReady)),
+                    if (isSelfOrderTicket) ...[
+                      const SizedBox(height: 6),
+                      SizedBox(height: 44, child: _orderReadyButton(ticket, isNotifyingReady)),
+                    ],
                   ],
-                ],
+                ),
               ),
             ],
           ),

@@ -3,8 +3,8 @@ import 'package:ladolce/l10n/app_localizations.dart';
 
 import '../models/topping.dart';
 import '../services/api_service.dart';
-import '../theme/ladolce_pos_ui.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ld.dart';
+import 'manage_items_screen.dart';
 
 /// Items → Toppings → Topping groups: the headings of the topping picker
 /// ("Type", "Taste", "Size"), each pick-one or pick-many, optionally required.
@@ -74,16 +74,16 @@ class _ManageToppingGroupsScreenState extends State<ManageToppingGroupsScreen> {
                 TextField(
                   controller: nameCtrl,
                   autofocus: group == null,
-                  decoration: LaDolcePosUi.input(
-                    hintText: l10n?.toppingGroupName ?? 'Group name (e.g. Size)*',
+                  decoration: InputDecoration(
+                    labelText: l10n?.toppingGroupName ?? 'Group name (e.g. Size)*',
                     prefixIcon: const Icon(Icons.label_outline, size: 20),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: nameLoCtrl,
-                  decoration: LaDolcePosUi.input(
-                    hintText: l10n?.toppingGroupNameLo ?? 'Lao name (optional)',
+                  decoration: InputDecoration(
+                    labelText: l10n?.toppingGroupNameLo ?? 'Lao name (optional)',
                     prefixIcon: const Icon(Icons.translate, size: 20),
                   ),
                 ),
@@ -111,7 +111,6 @@ class _ManageToppingGroupsScreenState extends State<ManageToppingGroupsScreen> {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: required,
-                  activeThumbColor: LaDolcePosUi.navy,
                   title: Text(l10n?.toppingRequired ?? 'Required'),
                   subtitle: Text(l10n?.toppingRequiredHelp ?? 'An option must be chosen before adding the item'),
                   onChanged: (v) => setDialogState(() => required = v),
@@ -125,7 +124,7 @@ class _ManageToppingGroupsScreenState extends State<ManageToppingGroupsScreen> {
               child: Text(l10n?.cancel ?? 'Cancel'),
             ),
             ElevatedButton(
-              style: LaDolcePosUi.primaryButtonStyle(),
+              style: ElevatedButton.styleFrom(minimumSize: const Size(88, 48)),
               onPressed: () {
                 if (nameCtrl.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -160,7 +159,7 @@ class _ManageToppingGroupsScreenState extends State<ManageToppingGroupsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n?.toppingGroupSaved ?? 'Group saved'),
-          backgroundColor: Colors.green,
+          backgroundColor: Ld.success,
         ),
       );
       _load();
@@ -169,7 +168,7 @@ class _ManageToppingGroupsScreenState extends State<ManageToppingGroupsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n?.toppingGroupSaveFailed(e.toString()) ?? 'Could not save group: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Ld.danger,
         ),
       );
     }
@@ -189,7 +188,7 @@ class _ManageToppingGroupsScreenState extends State<ManageToppingGroupsScreen> {
             child: Text(l10n?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
-            style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
+            style: itemsDangerButtonStyle(),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(l10n?.delete ?? 'Delete'),
           ),
@@ -203,14 +202,14 @@ class _ManageToppingGroupsScreenState extends State<ManageToppingGroupsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n?.toppingGroupDeleted ?? 'Group deleted'),
-          backgroundColor: Colors.orange,
+          backgroundColor: Ld.warning,
         ),
       );
       _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Ld.danger),
       );
     }
   }
@@ -219,107 +218,146 @@ class _ManageToppingGroupsScreenState extends State<ManageToppingGroupsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n?.toppingGroups ?? 'Topping groups'),
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: l10n?.toppingGroups ?? 'Topping groups',
+        subtitle: l10n?.toppingGroupsSubtitle,
+        actions: [
+          ItemsHeaderAction(
+            label: l10n?.addToppingGroup ?? 'Add group',
+            icon: Icons.add_rounded,
+            onPressed: () => _edit(),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: LaDolcePosUi.navy,
+        backgroundColor: Ld.navy,
         foregroundColor: Colors.white,
+        elevation: 0,
         tooltip: l10n?.addToppingGroup ?? 'Add group',
         onPressed: () => _edit(),
         child: const Icon(Icons.add_rounded),
       ),
-      body: LuxuryPatternBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_errorMessage!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.red)),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: _load,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: Text(l10n?.retry ?? 'Retry'),
-                            style: LaDolcePosUi.primaryButtonStyle(),
-                          ),
-                        ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? ItemsStateView(
+                  icon: Icons.error_outline_rounded,
+                  title: _errorMessage!,
+                  isError: true,
+                  actionLabel: l10n?.retry ?? 'Retry',
+                  actionIcon: Icons.refresh_rounded,
+                  onAction: _load,
+                )
+              : _groups.isEmpty
+                  ? ItemsStateView(
+                      icon: Icons.view_agenda_outlined,
+                      title: l10n?.noToppingGroupsYet ?? 'No groups yet',
+                      message: l10n?.noToppingGroupsHelp ??
+                          'Groups put toppings under headings like Type (Hot / Iced), Taste or Size (M / L).',
+                      actionLabel: l10n?.addToppingGroup ?? 'Add group',
+                      actionIcon: Icons.add_rounded,
+                      onAction: () => _edit(),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: LayoutBuilder(
+                        builder: (context, box) {
+                          final gutter = itemsGutter(context);
+                          const gap = 14.0;
+                          final inner = box.maxWidth - gutter * 2;
+                          final columns = (inner / 300).floor().clamp(1, 4);
+                          final w = (inner - gap * (columns - 1)) / columns;
+                          return SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: EdgeInsets.fromLTRB(gutter, 18, gutter, 96 + Ld.navInset(context)),
+                            child: Wrap(
+                              spacing: gap,
+                              runSpacing: gap,
+                              children: [
+                                for (final g in _groups)
+                                  SizedBox(
+                                    width: w,
+                                    child: _GroupCard(
+                                      group: g,
+                                      onTap: () => _edit(group: g),
+                                      onDelete: () => _delete(g),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  )
-                : _groups.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.view_agenda_outlined,
-                                  size: 48, color: LaDolcePosUi.mutedText),
-                              const SizedBox(height: 16),
-                              Text(l10n?.noToppingGroupsYet ?? 'No groups yet',
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 8),
-                              Text(
-                                l10n?.noToppingGroupsHelp ??
-                                    'Groups put toppings under headings like Type (Hot / Iced), Taste or Size (M / L).',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: LaDolcePosUi.mutedText),
-                              ),
-                              const SizedBox(height: 20),
-                              ElevatedButton.icon(
-                                onPressed: () => _edit(),
-                                icon: const Icon(Icons.add, size: 18),
-                                label: Text(l10n?.addToppingGroup ?? 'Add group'),
-                                style: LaDolcePosUi.primaryButtonStyle(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
-                        children: [
-                          for (final g in _groups)
-                            Card(
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-                                side: const BorderSide(color: LaDolcePosUi.border),
-                              ),
-                              child: ListTile(
-                                onTap: () => _edit(group: g),
-                                leading: const Icon(Icons.view_agenda_outlined,
-                                    color: LaDolcePosUi.navy),
-                                title: Text(
-                                  g.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                                subtitle: Text([
-                                  if ((g.nameLo ?? '').trim().isNotEmpty && g.nameLo != g.name) g.nameLo!,
-                                  g.isSingleChoice
-                                      ? (l10n?.toppingPickOne ?? 'Pick 1')
-                                      : (l10n?.toppingPickMany ?? 'Pick many'),
-                                  if (g.required) l10n?.toppingRequired ?? 'Required',
-                                ].join(' · ')),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded),
-                                  color: Colors.red.withValues(alpha: 0.7),
-                                  tooltip: l10n?.delete ?? 'Delete',
-                                  onPressed: () => _delete(g),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+    );
+  }
+}
+
+class _GroupCard extends StatelessWidget {
+  final ToppingGroup group;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _GroupCard({required this.group, required this.onTap, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final g = group;
+    final lao = (g.nameLo ?? '').trim();
+    return Material(
+      color: Ld.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Ld.rXl),
+        side: const BorderSide(color: Ld.line),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rXl)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      g.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Ld.title(19),
+                    ),
+                    if (lao.isNotEmpty && g.nameLo != g.name)
+                      Text(lao, maxLines: 1, overflow: TextOverflow.ellipsis, style: Ld.small),
+                    const SizedBox(height: 10),
+                    // Rule pills, e.g. "Pick 1" and "Required".
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        LdPill(g.isSingleChoice
+                            ? (l10n?.toppingPickOne ?? 'Pick 1')
+                            : (l10n?.toppingPickMany ?? 'Pick many')),
+                        if (g.required)
+                          LdPill(l10n?.toppingRequired ?? 'Required',
+                              background: Ld.dangerWash, foreground: Ld.danger),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              ItemsRowButton(
+                icon: Icons.delete_outline_rounded,
+                tooltip: l10n?.delete ?? 'Delete',
+                danger: true,
+                onPressed: onDelete,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

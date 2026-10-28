@@ -30,11 +30,12 @@ import '../widgets/topping_picker.dart';
 import '../models/free_promotion.dart';
 import '../models/combo.dart';
 import '../theme/ladolce_pos_ui.dart';
+import '../theme/ld.dart';
 import 'package:intl/intl.dart';
 import '../models/pos_tax_config.dart';
 import '../models/pos_discount_config.dart';
 import '../utils/pos_discount.dart';
-import '../utils/responsive_layout.dart';
+import '../utils/responsive_layout.dart';
 import '../utils/money.dart';
 import 'package:flutter/services.dart';
 
@@ -55,9 +56,7 @@ class PosScreen extends StatefulWidget {
 }
 
 class _PosScreenState extends State<PosScreen> {
-  static const Color _brandNavy = LaDolcePosUi.navy;
-  static const Color _brandNavy2 = LaDolcePosUi.navy2;
-  static const Color _brandSurface = LaDolcePosUi.surface;
+  static const Color _brandNavy = Ld.navy;
 
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
@@ -213,33 +212,43 @@ class _PosScreenState extends State<PosScreen> {
     required VoidCallback onTap,
     bool isActive = false,
     Widget? trailing,
+    /// Quick action row (slightly smaller, under the divider).
+    bool quick = false,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFEEF1FB) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 22, color: isActive ? _brandNavy : Colors.black54),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive ? _brandNavy : Colors.black87,
-                ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: isActive ? Ld.ground : Colors.transparent,
+        borderRadius: BorderRadius.circular(Ld.r),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Ld.r),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: quick ? 52 : 56),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(icon, size: 22, color: isActive ? Ld.navy : Ld.muted),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: quick ? 16 : 17,
+                        height: 1.3,
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                        color: isActive ? Ld.navy : Ld.ink,
+                      ),
+                    ),
+                  ),
+                  if (trailing != null) ...[const SizedBox(width: 8), trailing],
+                ],
               ),
             ),
-            if (trailing != null) ...[const SizedBox(width: 8), trailing],
-          ],
+          ),
         ),
       ),
     );
@@ -1022,18 +1031,16 @@ class _PosScreenState extends State<PosScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      useSafeArea: true,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.fromLTRB(
-                24,
-                24,
-                24,
-                24 + LaDolcePosUi.modalBottomPadding(context),
+                20,
+                22,
+                20,
+                16 + LaDolcePosUi.modalBottomPadding(context),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1042,10 +1049,9 @@ class _PosScreenState extends State<PosScreen> {
                   Text(
                     _l10n?.selectToppingsFor(product.displayName) ??
         'Select Toppings for ${product.displayName}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: Ld.title(21),
                   ),
                   const SizedBox(height: 16),
                   Flexible(
@@ -1053,7 +1059,7 @@ class _PosScreenState extends State<PosScreen> {
                       child: ToppingPicker(
                         toppings: product.toppings,
                         selected: selectedToppings,
-                        accent: _brandNavy,
+                        accent: Ld.navy,
                         addOnsTitle: _l10n?.toppingAddOns ?? 'Add-ons',
                         onChanged: (next) =>
                             setSheetState(() => selectedToppings = next),
@@ -1076,8 +1082,8 @@ class _PosScreenState extends State<PosScreen> {
                                   ) ??
                                   'Please choose: ${missing.map((s) => s.title).join(', ')}',
                               style: const TextStyle(
-                                color: Colors.deepOrange,
-                                fontWeight: FontWeight.w700,
+                                color: Ld.warning,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -1088,6 +1094,10 @@ class _PosScreenState extends State<PosScreen> {
                             if (!hasRequired) ...[
                               Expanded(
                                 child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(64, 52),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  ),
                                   onPressed: () {
                                     Navigator.pop(context);
                                     _addDirectlyToCart(
@@ -1097,16 +1107,24 @@ class _PosScreenState extends State<PosScreen> {
                                     ); // Skip toppings completely
                                     onAdded?.call();
                                   },
-                                  child: Text(_l10n?.addWithoutToppings ?? 'Add Without Toppings'),
+                                  child: Text(
+                                    _l10n?.addWithoutToppings ?? 'Add Without Toppings',
+                                    maxLines: 2,
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 12),
                             ],
                             Expanded(
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _brandNavy,
+                                  backgroundColor: Ld.navy,
                                   foregroundColor: Colors.white,
+                                  disabledBackgroundColor: Ld.line,
+                                  minimumSize: const Size(64, 52),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
                                 ),
                                 onPressed: missing.isNotEmpty
                                     ? null
@@ -1115,7 +1133,12 @@ class _PosScreenState extends State<PosScreen> {
                                         _addDirectlyToCart(product, selectedToppings, freePromo: freePromo);
                                         onAdded?.call();
                                       },
-                                child: Text(_l10n?.addToOrder ?? 'Add To Order'),
+                                child: Text(
+                                  _l10n?.addToOrder ?? 'Add To Order',
+                                  maxLines: 2,
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ],
@@ -1313,16 +1336,13 @@ class _PosScreenState extends State<PosScreen> {
                 height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.12),
+                  color: Ld.navyRaised,
+                  border: Border.all(color: Ld.navyLine),
                 ),
                 child: Center(
                   child: Text(
                     number,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: Ld.price(28, color: Colors.white, weight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -1347,10 +1367,7 @@ class _PosScreenState extends State<PosScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             title: Text(_l10n?.adminPinRequired ?? 'Admin PIN Required',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+              style: Ld.title(21, color: Colors.white),
             ),
             content: SizedBox(
               width: 320,
@@ -1358,7 +1375,7 @@ class _PosScreenState extends State<PosScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(_l10n?.enterPinToClearTicket ?? 'Enter PIN to clear selected ticket',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: Ld.onNavyMuted),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 22),
@@ -1373,12 +1390,12 @@ class _PosScreenState extends State<PosScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: index < pin.length
-                              ? Colors.white
-                              : Colors.white.withOpacity(0.25),
+                              ? Ld.gold
+                              : Colors.transparent,
                           border: Border.all(
                             color: hasError
-                                ? Colors.redAccent
-                                : Colors.transparent,
+                                ? Ld.dangerLine
+                                : (index < pin.length ? Ld.gold : Ld.onNavyMuted),
                             width: 2,
                           ),
                         ),
@@ -1428,7 +1445,7 @@ class _PosScreenState extends State<PosScreen> {
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx, null),
                 child: Text(_l10n?.cancel ?? 'Cancel',
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
             ],
@@ -1441,9 +1458,6 @@ class _PosScreenState extends State<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final showInlineCart = ResponsiveLayout.showsPosCartRail(context);
-    final appBarTrailingWidth = MediaQuery.sizeOf(context).width < 360
-        ? 12.0
-        : 16.0;
 
     // Android Back used to close the POS and throw the unsaved cart away.
     return PopScope(
@@ -1463,7 +1477,7 @@ class _PosScreenState extends State<PosScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: TextButton.styleFrom(foregroundColor: Ld.danger),
                 child: Text(_l10n?.leaveUnsavedDiscard ?? 'Discard'),
               ),
             ],
@@ -1483,983 +1497,1247 @@ class _PosScreenState extends State<PosScreen> {
         // Disable resizeToAvoidBottomInset to prevent keyboard animation loops
         // Each dialog/sheet handles its own keyboard padding via useSafeArea
         resizeToAvoidBottomInset: false,
-        backgroundColor: _brandSurface,
-        appBar: AppBar(
-          backgroundColor: _brandNavy,
-          centerTitle: true,
-          title: InkWell(
-            onTap: () async {
-              final result = await Navigator.push<ResumedTicket>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TicketsScreen(cachedProducts: _products),
-                ),
-              );
-              if (result != null) {
-                _applyResumedTicket(result);
-              }
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 8.0,
+        backgroundColor: Ld.ground,
+        // Tablets (inline ticket rail): no app bar, the tools sit above the
+        // products and on the ticket rail, as in the design.
+        appBar: showInlineCart ? null : _buildPhoneAppBar(context),
+        drawer: _buildDrawer(context),
+        body: showInlineCart
+            ? _buildTabletBody(context)
+            : SafeArea(
+                top: false,
+                child: _buildCatalog(context, tablet: false),
               ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.receipt_outlined, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      MediaQuery.sizeOf(context).width < 380
-                          ? (_l10n?.tickets ?? 'Tickets')
-                          : (_l10n?.openTickets ?? 'Open Tickets'),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            // Scanner Icon
-            IconButton(
-              onPressed: () {
-                _openScannerDialog();
-              },
-              icon: const Icon(Icons.qr_code_scanner),
-              tooltip: _l10n?.scanVoucher ?? 'Scan Voucher',
-            ),
-            const SizedBox(width: 8),
-
-            // View toggle (Grid / List)
-            IconButton(
-              onPressed: () {
-                setState(() => _isGridView = !_isGridView);
-              },
-              icon: const Icon(Icons.filter_list_rounded),
-              tooltip: _isGridView
-                  ? (_l10n?.switchToList ?? 'Switch to List')
-                  : (_l10n?.switchToGrid ?? 'Switch to Grid'),
-            ),
-            const SizedBox(width: 8),
-
-            // Ticket / Sync Operations Menu
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_horiz_rounded),
-              tooltip: _l10n?.ticketOptions ?? 'Ticket Options',
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              elevation: 8,
-              color: Colors.white,
-              onSelected: (value) async {
-                switch (value) {
-                  case 'clear':
-                    await _handleClearTicket(context);
-                    break;
-
-                  case 'print':
-                    if (_cartItems.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_l10n?.noItemsToPrint ?? 'No items in the current ticket to print.',
-                          ),
-                        ),
-                      );
-                      break;
-                    }
-                    if (!printerService.isConfigured) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_l10n?.noPrinterConfiguredSettings ?? 'No printer configured. Set up a printer in Settings first.',
-                          ),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                      break;
-                    }
-                    // Unsaved items: the kitchen has not got them yet, so save
-                    // first (kitchen order prints), then print the bill.
-                    if (_activeTicketId == null ||
-                        _cartItems.any((i) => !i.isSaved)) {
-                      final save = await _confirmSaveBeforeBill(context);
-                      if (save && context.mounted) {
-                        await _saveCurrentTicket(context, printBill: true);
-                      }
-                      break;
-                    }
-                    await _printBill(
-                      context,
-                      _snapshotBill(
-                        ticketName: _activeTicketLabel.isNotEmpty
-                            ? '$_activeTicketLabel - ${_activeTicketName ?? ''}'
-                            : _activeTicketName,
-                      ),
-                      queueNumber: _activeTicketQueueNumber,
-                    );
-                    break;
-
-                  case 'reprint':
-                    // Reprint ALL items in the current ticket to kitchen/bar printers
-                    if (_activeTicketId == null) {
-                      break;
-                    }
-                    if (_cartItems.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_l10n?.noItemsToReprint ?? 'No items in the current ticket to reprint.',
-                          ),
-                        ),
-                      );
-                      break;
-                    }
-                    if (!printerService.isConfigured) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_l10n?.noPrinterConfiguredSettings ?? 'No printer configured. Set up a printer in Settings first.',
-                          ),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                      break;
-                    }
-                    {
-                      // Reprint must send ALL lines (ignore category routing filters).
-                      final reprintCount = await _printOrderItemsToKitchen(
-                        _cartItems,
-                        respectCategoryFilters: false,
-                        queueNumber: _activeTicketQueueNumber,
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              reprintCount > 0
-                                  ? _l10n?.orderReprinted('$reprintCount') ??
-        '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
-                                  : (_l10n?.noPrinterForReprint ??
-                                        'No available printer could print this reprint request.'),
-                            ),
-                            backgroundColor: reprintCount > 0
-                                ? Colors.green
-                                : Colors.orange,
-                          ),
-                        );
-                      }
-                    }
-                    break;
-                  case 'split':
-                    if (_cartItems.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_l10n?.noItemsToSplit ?? 'No items in the current ticket to split.',
-                          ),
-                        ),
-                      );
-                      break;
-                    }
-                    if (_activeTicketId == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_l10n?.saveTicketBeforeSplit ?? 'Please save the ticket first before splitting.',
-                          ),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                      break;
-                    }
-                    final splitResult = await Navigator.push<SplitTicketResult>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SplitTicketScreen(
-                          cartItems: List.from(_cartItems),
-                          ticketName: _activeTicketName ?? 'Ticket',
-                        ),
-                      ),
-                    );
-                    if (!context.mounted || splitResult == null) break;
-                    {
-                      setState(() => _isLoading = true);
-                      try {
-                        final messenger = ScaffoldMessenger.of(context);
-                        // Build line format matching _saveCurrentTicket
-                        List<Map<String, dynamic>> toLines(
-                          List<CartItem> items,
-                        ) => items.map(_orderLinePayload).toList();
-
-                        // Step 1: Replace ALL lines on the original ticket with ONLY the remaining items
-                        await _apiService.updateOrder(
-                          orderId: _activeTicketId!,
-                          tableId: _activeTicketTableId,
-                          customerId: _selectedCustomer?['id'],
-                          lines: toLines(splitResult.remainingItems),
-                          replaceAll: true,
-                        );
-
-                        // Step 2: Create a brand-new separate ticket with the moved items
-                        await _apiService.createOrder(
-                          userId: widget.cashierId,
-                          tableId: _activeTicketTableId,
-                          customerId: _selectedCustomer?['id'],
-                          name: splitResult.newTicketName,
-                          lines: toLines(splitResult.newItems),
-                        );
-
-                        // Step 3: Update local cart to show the remaining items
-                        // Mark them as saved since we just synced this state with the server
-                        for (var item in splitResult.remainingItems) {
-                          item.isSaved = true;
-                        }
-
-                        setState(() {
-                          _cartItems = splitResult.remainingItems;
-                          _isLoading = false;
-                        });
-
-                        if (!context.mounted) return;
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _l10n?.ticketSplitCreated(splitResult.newTicketName) ??
-        'Ticket split! "${splitResult.newTicketName}" created.',
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      } catch (e) {
-                        setState(() => _isLoading = false);
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(_l10n?.splitError('$e') ?? 'Split error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                    break;
-                  case 'sync':
-                    await _syncAllDataAndRefresh();
-                    break;
-                  case 'move':
-                    await _showMoveTicketDialog(context);
-                    break;
-                  case 'rename':
-                    await _showRenameTicketDialog(context);
-                    break;
-                  case 'drawer':
-                    if (!printerService.isConfigured) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_l10n?.noPrinterConfigured ?? 'No printer configured. Set up a printer first.',
-                          ),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                      break;
-                    }
-                    final opened = await printerService.openCashDrawer();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            opened
-                                ? (_l10n?.cashDrawerOpened ??
-                                      '🗃️ Cash drawer opened!')
-                                : (_l10n?.failedToOpenDrawer ??
-                                      'Failed to open drawer. Check printer connection.'),
-                          ),
-                          backgroundColor: opened ? Colors.green : Colors.red,
-                        ),
-                      );
-                    }
-                    break;
-
-                  case 'send_to_rider':
-                    if (_activeTicketId == null) break;
-                    await _showRiderPickerDialog(context);
-                    break;
-
-                  default:
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(_l10n?.featureComingSoon ?? 'Feature coming soon!')),
-                    );
-                }
-              },
-              itemBuilder: (BuildContext menuCtx) {
-                final bool hasItems = _cartItems.isNotEmpty;
-                final bool hasTicket = _activeTicketId != null;
-                final bool ticketSelected = hasItems || hasTicket;
-
-                Widget disablableTile(
-                  IconData icon,
-                  String label, {
-                  required bool enabled,
-                }) {
-                  final Color? col = enabled ? null : Colors.grey.shade400;
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(icon, color: col),
-                    title: Text(label, style: TextStyle(color: col)),
-                  );
-                }
-
-                return <PopupMenuEntry<String>>[
-                  // ── Ticket actions ──────────────────────────────────────
-                  PopupMenuItem<String>(
-                    value: 'clear',
-                    enabled: ticketSelected,
-                    child: disablableTile(
-                      Icons.delete_outline_rounded,
-                      _l10n?.clearTicket ?? 'Clear ticket',
-                      enabled: ticketSelected,
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-
-                  // ── Printer actions ─────────────────────────────────────
-                  PopupMenuItem<String>(
-                    value: 'print',
-                    enabled: hasItems,
-                    child: disablableTile(
-                      Icons.receipt_outlined,
-                      _l10n?.printBill ?? 'Print bill',
-                      enabled: hasItems,
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'reprint',
-                    enabled: hasTicket,
-                    child: disablableTile(
-                      Icons.print_outlined,
-                      _l10n?.reprintOrderKitchen ?? 'Reprint order (kitchen)',
-                      enabled: hasTicket,
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-
-                  // ── Transfer actions ────────────────────────────────────
-                  PopupMenuItem<String>(
-                    value: 'split',
-                    enabled: hasItems && hasTicket,
-                    child: disablableTile(
-                      Icons.call_split_rounded,
-                      _l10n?.splitTicketAction ?? 'Split ticket',
-                      enabled: hasItems && hasTicket,
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'move',
-                    enabled: hasTicket,
-                    child: disablableTile(
-                      Icons.open_in_new_rounded,
-                      _l10n?.moveTicketAction ?? 'Move ticket',
-                      enabled: hasTicket,
-                    ),
-                  ),
-                  // Saved (server) tickets only: offline tickets have negative ids.
-                  PopupMenuItem<String>(
-                    value: 'rename',
-                    enabled: hasTicket && _activeTicketId! > 0,
-                    child: disablableTile(
-                      Icons.drive_file_rename_outline_rounded,
-                      _l10n?.renameTicketAction ?? 'Rename ticket',
-                      enabled: hasTicket && _activeTicketId! > 0,
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-
-                  // ── Rider delivery ──────────────────────────────────────────
-                  PopupMenuItem<String>(
-                    value: 'send_to_rider',
-                    enabled: hasTicket && _activeTicketIsSelfOrder,
-                    child: disablableTile(
-                      Icons.delivery_dining_rounded,
-                      _l10n?.sendToRider ?? 'Send to rider',
-                      enabled: hasTicket && _activeTicketIsSelfOrder,
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-
-                  // ── Always-enabled ──────────────────────────────────────
-                  PopupMenuItem<String>(
-                    value: 'drawer',
-                    child: ListTile(
-                      dense: true,
-                      leading: Icon(Icons.lock_open_outlined),
-                      title: Text(_l10n?.openCashDrawer ?? 'Open cash drawer'),
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'sync',
-                    child: ListTile(
-                      dense: true,
-                      leading: Icon(Icons.sync_rounded),
-                      title: Text(_l10n?.syncAction ?? 'Sync'),
-                    ),
-                  ),
-                ];
-              },
-            ),
-            SizedBox(width: appBarTrailingWidth),
-          ],
-        ),
-        drawer: Drawer(
-          backgroundColor: _brandSurface,
-          child: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                // ── Header ──────────────────────────────────────────
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    MediaQuery.paddingOf(context).top + 48,
-                    20,
-                    24,
-                  ),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [_brandNavy, _brandNavy2],
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Colors.white.withOpacity(0.18),
-                            child: Text(
-                              widget.cashierName.isNotEmpty
-                                  ? widget.cashierName[0].toLowerCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.cashierName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  widget.role == 'admin'
-                                      ? (_l10n?.administrator ?? 'Administrator')
-                                      : (_l10n?.roleCashier ?? 'Cashier'),
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.10),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.terminal_outlined,
-                              color: Colors.white70,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                [
-                                  if ((_cachedPosName ?? '').trim().isNotEmpty)
-                                    (_cachedPosName ?? '').trim()
-                                  else
-                                    _l10n?.posTerminal ?? 'POS Terminal',
-                                  if ((_cachedBranchName ?? '')
-                                      .trim()
-                                      .isNotEmpty)
-                                    ' • ${(_cachedBranchName ?? '').trim()}',
-                                ].join(''),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // ── Menu Items ───────────────────────────────────────
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    children: [
-                      _drawerItem(
-                        icon: Icons.storefront_outlined,
-                        label: _l10n?.sales ?? 'Sales',
-                        isActive: true,
-                        onTap: () => Navigator.pop(context),
-                      ),
-                      _drawerItem(
-                        icon: Icons.receipt_long_outlined,
-                        label: _l10n?.receipts ?? 'Receipts',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ReceiptHistoryScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _drawerItem(
-                        icon: Icons.fact_check_outlined,
-                        label: _l10n?.selfOrdersReview ?? 'Self Orders Review',
-                        trailing: _pendingSelfOrdersCount > 0
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade600,
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  '$_pendingSelfOrdersCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              )
-                            : null,
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SelfOrdersReviewScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _drawerItem(
-                        icon: Icons.inventory_2_outlined,
-                        label: 'Items',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ManageItemsScreen(),
-                            ),
-                            // Products, toppings or categories may have changed:
-                            // reload so the POS offers them right away.
-                          ).then((_) {
-                            if (mounted) _fetchOdooProducts(backgroundRefresh: true);
-                          });
-                        },
-                      ),
-                      _drawerItem(
-                        icon: Icons.settings_outlined,
-                        label: _l10n?.settings ?? 'Settings',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PosSettingsScreen(),
-                            ),
-                          ).then((_) {
-                            _loadPromotionPriceSetting();
-                            _loadPosProfileLabels();
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── Lock / Switch User ───────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm),
-                    onTap: () async {
-                      final navigator = Navigator.of(context);
-                      await _apiService.logout();
-                      if (!mounted) return;
-                      navigator.pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _brandNavy.withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(
-                          LaDolcePosUi.radiusSm,
-                        ),
-                        border: Border.all(color: _brandNavy.withOpacity(0.14)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.lock_outline_rounded,
-                            color: _brandNavy,
-                            size: 22,
-                          ),
-                          SizedBox(width: 14),
-                          Text(_l10n?.lockSwitchUser ?? 'Lock / Switch User',
-                            style: TextStyle(
-                              color: _brandNavy,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                          Spacer(),
-                          Icon(
-                            Icons.chevron_right,
-                            color: _brandNavy,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
-        body: SafeArea(
-          top: false,
-          child: Row(
-            children: [
-              // Products Section
-              Expanded(
-                flex: 5,
-                child: _categories.isEmpty && _isLoading
-                    ? PosProductSkeleton(isGridView: _isGridView)
-                    : _categories.isEmpty && _errorMessage != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              color: Colors.red,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error: $_errorMessage',
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isLoading = true;
-                                  _errorMessage = null;
-                                });
-                                _fetchOdooProducts();
-                              },
-                              child: Text(_l10n?.retry ?? 'Retry'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : DefaultTabController(
-                        length: _categories.length,
-                        child: Column(
-                          children: [
-                            // Permanent Search Bar
-                            // Minimalist Search Bar (Underline)
-                            Container(
-                              color: Colors.white,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 4,
-                                ),
-                                child: TextField(
-                                  controller: _searchController,
-                                  style: const TextStyle(fontSize: 15),
-                                  decoration: InputDecoration(
-                                    hintText: _l10n?.searchProducts ?? 'Search products...',
-                                    hintStyle: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    prefixIcon: const Icon(
-                                      Icons.search,
-                                      color: Colors.grey,
-                                      size: 20,
-                                    ),
-                                    prefixIconConstraints: const BoxConstraints(
-                                      minWidth: 32,
-                                    ),
-                                    suffixIcon: _searchQuery.isNotEmpty
-                                        ? IconButton(
-                                            icon: const Icon(
-                                              Icons.clear,
-                                              size: 18,
-                                            ),
-                                            onPressed: () {
-                                              _searchController.clear();
-                                              setState(() => _searchQuery = '');
-                                            },
-                                          )
-                                        : null,
-                                    border: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade200,
-                                      ),
-                                    ),
-                                    enabledBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade200,
-                                      ),
-                                    ),
-                                    focusedBorder: const UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: _brandNavy,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  onChanged: (value) {
-                                    setState(() => _searchQuery = value);
-                                  },
-                                ),
-                              ),
-                            ),
-
-                            // Swipeable Categories TabBar
-                            Container(
-                              color: Colors.white,
-                              child: TabBar(
-                                isScrollable: true,
-                                indicatorColor: _brandNavy,
-                                labelColor: _brandNavy,
-                                unselectedLabelColor: Colors.grey[500],
-                                labelStyle: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                                unselectedLabelStyle: const TextStyle(
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                tabs: _categories
-                                    .map((c) => Tab(text: c.name))
-                                    .toList(),
-                              ),
-                            ),
-                            const Divider(height: 1),
-
-                            // Products TabBarView (Grid/List)
-                            Expanded(
-                              child: _isLoading
-                                  ? PosProductSkeleton(isGridView: _isGridView)
-                                  : _errorMessage != null
-                                  ? Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(
-                                            Icons.error_outline,
-                                            color: Colors.red,
-                                            size: 48,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'Error: $_errorMessage',
-                                            style: const TextStyle(
-                                              color: Colors.red,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          ElevatedButton(
-                                            onPressed: _fetchOdooProducts,
-                                            child: Text(_l10n?.retry ?? 'Retry'),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  : TabBarView(
-                                      children: _categories.map((category) {
-                                        // Filter products dynamically for each tab
-                                        List<Product> tabProducts = _products;
-                                        if (category.name != 'All Items') {
-                                          tabProducts = tabProducts
-                                              .where(
-                                                (p) =>
-                                                    p.category == category.name,
-                                              )
-                                              .toList();
-                                        }
-
-                                        // Apply search across the active tab's items
-                                        if (_searchQuery.isNotEmpty) {
-                                          final query = _searchQuery
-                                              .toLowerCase();
-                                          tabProducts = tabProducts
-                                              .where(
-                                                (p) =>
-                                                    p.matchesQuery(query) ||
-                                                    p.category
-                                                        .toLowerCase()
-                                                        .contains(query) ||
-                                                    (p.defaultCode != null &&
-                                                        p.defaultCode!
-                                                            .toLowerCase()
-                                                            .contains(query)),
-                                              )
-                                              .toList();
-                                        }
-
-                                        if (tabProducts.isEmpty) {
-                                          return Center(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.search_off,
-                                                  size: 64,
-                                                  color: Colors.grey[400],
-                                                ),
-                                                const SizedBox(height: 16),
-                                                Text(
-                                                  _searchQuery.isNotEmpty
-                                                      ? _l10n?.noProductsMatching(_searchQuery) ??
-        'No products matching "$_searchQuery"'
-                                                      : (_l10n?.noProductsInCategory ??
-                                                            'No products in this category'),
-                                                  style: TextStyle(
-                                                    color: Colors.grey[600],
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        }
-
-                                        return _isGridView
-                                            ? ProductGrid(
-                                                products: tabProducts,
-                                                onProductTap: _addToCart,
-                                              )
-                                            : ProductList(
-                                                products: tabProducts,
-                                                onProductTap: _addToCart,
-                                              );
-                                      }).toList(),
-                                    ),
-                            ),
-                          ],
-                        ),
-                      ),
-              ),
-
-              // Cart Section (Sidebar)
-              if (showInlineCart) const VerticalDivider(width: 1),
-              if (showInlineCart)
-                Expanded(
-                  flex: 3,
-                  child: CartSidebar(
-                    cartItems: _cartItems,
-                    onUpdateQuantity: _updateQuantity,
-                    onEditKitchenNote: _editCartItemKitchenNote,
-                    // A saved ticket is deleted on the server (admin PIN);
-                    // only an unsaved cart is just cleared. The trash used to
-                    // clear the screen only, so the ticket came back.
-                    onClearCart: () => _handleClearTicket(context),
-                    onViewTickets: () async {
-                      final result = await Navigator.push<ResumedTicket>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              TicketsScreen(cachedProducts: _products),
-                        ),
-                      );
-                      if (result != null) {
-                        _applyResumedTicket(result);
-                      }
-                    },
-                    onSaveTicket: () {
-                      _saveCurrentTicket(context);
-                    },
-                    onCharge: () {
-                      _showChargeDialog(context);
-                    },
-                    selectedCustomer: _selectedCustomer,
-                    onAddCustomer: () => _showCustomerSelection(context),
-                    onClearCustomer: () =>
-                        setState(() => _selectedCustomer = null),
-                    promoBanner: _freePromoBanner(context),
-                    taxConfig: _taxConfig,
-                    selectedDiscountOption: _selectedDiscountOption,
-                    discountManualValue: _pendingDiscountManualValue,
-                  ),
-                ),
-            ],
-          ),
-        ),
         bottomNavigationBar: !showInlineCart && _cartItems.isNotEmpty
             ? _buildMobileCartBar(context)
             : null,
       ),
       ),
+    );
+  }
+
+  /// Open Tickets screen; a picked ticket is loaded into the cart.
+  Future<void> _openTicketsScreen(BuildContext context) async {
+    final result = await Navigator.push<ResumedTicket>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TicketsScreen(cachedProducts: _products),
+      ),
+    );
+    if (result != null) {
+      _applyResumedTicket(result);
+    }
+  }
+
+  /// Quantity of each product in the ticket (gold badge on the tiles).
+  Map<int, int> _cartQuantities() {
+    final out = <int, int>{};
+    for (final item in _cartItems) {
+      out[item.product.id] = (out[item.product.id] ?? 0) + item.quantity;
+    }
+    return out;
+  }
+
+  /// Name shown on the ticket: custom name, else table, else order name.
+  String? get _ticketTitle {
+    if (_activeTicketId == null) return null;
+    if (_activeTicketLabel.isNotEmpty) return _activeTicketLabel;
+    final table = _tables.where((t) => t.id == _activeTicketTableId).firstOrNull;
+    if (table != null) return table.name;
+    return _activeTicketName;
+  }
+
+  /// Order number under the ticket name when the name is a table / label.
+  String? get _ticketSubtitle {
+    final title = _ticketTitle;
+    if (title == null || title == _activeTicketName) return null;
+    return _activeTicketName;
+  }
+
+  String _categoryLabel(Category c) =>
+      c.id == 'All' ? (_l10n?.allItems ?? c.name) : c.name;
+
+  int _categoryCount(Category c) => c.name == 'All Items'
+      ? _products.length
+      : _products.where((p) => p.category == c.name).length;
+
+  // ── Phone app bar ─────────────────────────────────────────────────────────
+  PreferredSizeWidget _buildPhoneAppBar(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 380;
+    return AppBar(
+      backgroundColor: Ld.navy,
+      centerTitle: false,
+      titleSpacing: 0,
+      title: Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: () => _openTicketsScreen(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Ld.navyLine),
+            minimumSize: const Size(44, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.r)),
+            textStyle: const TextStyle(fontFamily: Ld.sans, fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          icon: const Icon(Icons.receipt_long_outlined, size: 20),
+          label: Text(
+            narrow ? (_l10n?.tickets ?? 'Tickets') : (_l10n?.openTickets ?? 'Open Tickets'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+      actions: [
+        // Scanner Icon
+        IconButton(
+          onPressed: () {
+            _openScannerDialog();
+          },
+          icon: const Icon(Icons.qr_code_scanner_rounded),
+          tooltip: _l10n?.scanVoucher ?? 'Scan Voucher',
+        ),
+        // View toggle (Grid / List)
+        IconButton(
+          onPressed: () {
+            setState(() => _isGridView = !_isGridView);
+          },
+          icon: Icon(_isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded),
+          tooltip: _isGridView
+              ? (_l10n?.switchToList ?? 'Switch to List')
+              : (_l10n?.switchToGrid ?? 'Switch to Grid'),
+        ),
+        // Ticket / Sync Operations Menu
+        _ticketOptionsButton(context),
+        SizedBox(width: narrow ? 4 : 8),
+      ],
+    );
+  }
+
+  /// 52 px white square tool button (tablet toolbar).
+  Widget _squareButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 52,
+        height: 52,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Ld.surface,
+            foregroundColor: Ld.navy,
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(52, 52),
+            side: const BorderSide(color: Ld.line),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rMd)),
+          ),
+          child: Icon(icon, size: 22),
+        ),
+      ),
+    );
+  }
+
+  // ── Ticket options (⋯) ────────────────────────────────────────────────────
+  /// The ticket options menu: in the phone app bar, or [onRail] as a 44 px
+  /// outlined button on the navy ticket rail.
+  Widget _ticketOptionsButton(BuildContext context, {bool onRail = false}) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
+      tooltip: _l10n?.ticketOptions ?? 'Ticket Options',
+      style: onRail
+          ? IconButton.styleFrom(
+              fixedSize: const Size(44, 44),
+              minimumSize: const Size(44, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Ld.r),
+                side: const BorderSide(color: Ld.navyLine),
+              ),
+            )
+          : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Ld.rXl),
+      ),
+      elevation: 8,
+      color: Ld.surface,
+      constraints: const BoxConstraints(minWidth: 260, maxWidth: 360),
+      position: PopupMenuPosition.under,
+      onSelected: (value) => _handleTicketOption(context, value),
+      itemBuilder: (BuildContext menuCtx) => _ticketOptionItems(),
+    );
+  }
+
+  List<PopupMenuEntry<String>> _ticketOptionItems() {
+    final bool hasItems = _cartItems.isNotEmpty;
+    final bool hasTicket = _activeTicketId != null;
+    final bool ticketSelected = hasItems || hasTicket;
+
+    PopupMenuItem<String> option(
+      String value,
+      IconData icon,
+      String label, {
+      bool enabled = true,
+      bool danger = false,
+    }) {
+      final Color fg = !enabled ? Ld.faint : (danger ? Ld.danger : Ld.ink);
+      return PopupMenuItem<String>(
+        value: value,
+        enabled: enabled,
+        height: 52,
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: danger && enabled ? Ld.dangerWash : Ld.ground,
+                borderRadius: BorderRadius.circular(Ld.rSm),
+              ),
+              child: Icon(icon, size: 20, color: !enabled ? Ld.faint : (danger ? Ld.danger : Ld.navy)),
+            ),
+            const SizedBox(width: 14),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: fg),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return <PopupMenuEntry<String>>[
+      // ── Which ticket ────────────────────────────────────────────────────
+      if (ticketSelected)
+        PopupMenuItem<String>(
+          enabled: false,
+          height: 48,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  _ticketTitle ?? (_l10n?.currentTicket2 ?? 'Current Ticket'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Ld.title(19),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '₭${money(_cartBreakdown().totalDue)}',
+                style: Ld.price(14, color: Ld.muted, weight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+
+      // ── Printer actions ─────────────────────────────────────────────────
+      option('print', Icons.receipt_outlined, _l10n?.printBill ?? 'Print bill', enabled: hasItems),
+      option('reprint', Icons.print_outlined, _l10n?.reprintOrderKitchen ?? 'Reprint order (kitchen)',
+          enabled: hasTicket),
+      const PopupMenuDivider(),
+
+      // ── Transfer actions ────────────────────────────────────────────────
+      option('split', Icons.call_split_rounded, _l10n?.splitTicketAction ?? 'Split ticket',
+          enabled: hasItems && hasTicket),
+      option('move', Icons.swap_horiz_rounded, _l10n?.moveTicketAction ?? 'Move ticket',
+          enabled: hasTicket),
+      // Saved (server) tickets only: offline tickets have negative ids.
+      option('rename', Icons.drive_file_rename_outline_rounded, _l10n?.renameTicketAction ?? 'Rename ticket',
+          enabled: hasTicket && _activeTicketId! > 0),
+      const PopupMenuDivider(),
+
+      // ── Rider delivery ──────────────────────────────────────────────────
+      option('send_to_rider', Icons.delivery_dining_rounded, _l10n?.sendToRider ?? 'Send to rider',
+          enabled: hasTicket && _activeTicketIsSelfOrder),
+      const PopupMenuDivider(),
+
+      // ── Always-enabled ──────────────────────────────────────────────────
+      option('drawer', Icons.point_of_sale_outlined, _l10n?.openCashDrawer ?? 'Open cash drawer'),
+      option('sync', Icons.sync_rounded, _l10n?.syncAction ?? 'Sync'),
+      const PopupMenuDivider(),
+
+      // ── Clear ticket (red, last) ────────────────────────────────────────
+      option('clear', Icons.delete_outline_rounded, _l10n?.clearTicket ?? 'Clear ticket',
+          enabled: ticketSelected, danger: true),
+    ];
+  }
+
+  /// What a ticket option does (⋯ menu, and the drawer's quick actions).
+  Future<void> _handleTicketOption(BuildContext context, String value) async {
+    switch (value) {
+      case 'clear':
+        await _handleClearTicket(context);
+        break;
+
+      case 'print':
+        if (_cartItems.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l10n?.noItemsToPrint ?? 'No items in the current ticket to print.',
+              ),
+            ),
+          );
+          break;
+        }
+        if (!printerService.isConfigured) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l10n?.noPrinterConfiguredSettings ?? 'No printer configured. Set up a printer in Settings first.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          break;
+        }
+        // Unsaved items: the kitchen has not got them yet, so save
+        // first (kitchen order prints), then print the bill.
+        if (_activeTicketId == null ||
+            _cartItems.any((i) => !i.isSaved)) {
+          final save = await _confirmSaveBeforeBill(context);
+          if (save && context.mounted) {
+            await _saveCurrentTicket(context, printBill: true);
+          }
+          break;
+        }
+        await _printBill(
+          context,
+          _snapshotBill(
+            ticketName: _activeTicketLabel.isNotEmpty
+                ? '$_activeTicketLabel - ${_activeTicketName ?? ''}'
+                : _activeTicketName,
+          ),
+          queueNumber: _activeTicketQueueNumber,
+        );
+        break;
+
+      case 'reprint':
+        // Reprint ALL items in the current ticket to kitchen/bar printers
+        if (_activeTicketId == null) {
+          break;
+        }
+        if (_cartItems.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l10n?.noItemsToReprint ?? 'No items in the current ticket to reprint.',
+              ),
+            ),
+          );
+          break;
+        }
+        if (!printerService.isConfigured) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l10n?.noPrinterConfiguredSettings ?? 'No printer configured. Set up a printer in Settings first.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          break;
+        }
+        {
+          // Reprint must send ALL lines (ignore category routing filters).
+          final reprintCount = await _printOrderItemsToKitchen(
+            _cartItems,
+            respectCategoryFilters: false,
+            queueNumber: _activeTicketQueueNumber,
+          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  reprintCount > 0
+                      ? _l10n?.orderReprinted('$reprintCount') ??
+        '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
+                      : (_l10n?.noPrinterForReprint ??
+                            'No available printer could print this reprint request.'),
+                ),
+                backgroundColor: reprintCount > 0
+                    ? Colors.green
+                    : Colors.orange,
+              ),
+            );
+          }
+        }
+        break;
+      case 'split':
+        if (_cartItems.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l10n?.noItemsToSplit ?? 'No items in the current ticket to split.',
+              ),
+            ),
+          );
+          break;
+        }
+        if (_activeTicketId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l10n?.saveTicketBeforeSplit ?? 'Please save the ticket first before splitting.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          break;
+        }
+        final splitResult = await Navigator.push<SplitTicketResult>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SplitTicketScreen(
+              cartItems: List.from(_cartItems),
+              ticketName: _activeTicketName ?? 'Ticket',
+            ),
+          ),
+        );
+        if (!context.mounted || splitResult == null) break;
+        {
+          setState(() => _isLoading = true);
+          try {
+            final messenger = ScaffoldMessenger.of(context);
+            // Build line format matching _saveCurrentTicket
+            List<Map<String, dynamic>> toLines(
+              List<CartItem> items,
+            ) => items.map(_orderLinePayload).toList();
+
+            // Step 1: Replace ALL lines on the original ticket with ONLY the remaining items
+            await _apiService.updateOrder(
+              orderId: _activeTicketId!,
+              tableId: _activeTicketTableId,
+              customerId: _selectedCustomer?['id'],
+              lines: toLines(splitResult.remainingItems),
+              replaceAll: true,
+            );
+
+            // Step 2: Create a brand-new separate ticket with the moved items
+            await _apiService.createOrder(
+              userId: widget.cashierId,
+              tableId: _activeTicketTableId,
+              customerId: _selectedCustomer?['id'],
+              name: splitResult.newTicketName,
+              lines: toLines(splitResult.newItems),
+            );
+
+            // Step 3: Update local cart to show the remaining items
+            // Mark them as saved since we just synced this state with the server
+            for (var item in splitResult.remainingItems) {
+              item.isSaved = true;
+            }
+
+            setState(() {
+              _cartItems = splitResult.remainingItems;
+              _isLoading = false;
+            });
+
+            if (!context.mounted) return;
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  _l10n?.ticketSplitCreated(splitResult.newTicketName) ??
+        'Ticket split! "${splitResult.newTicketName}" created.',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } catch (e) {
+            setState(() => _isLoading = false);
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(_l10n?.splitError('$e') ?? 'Split error: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+        break;
+      case 'sync':
+        await _syncAllDataAndRefresh();
+        break;
+      case 'move':
+        await _showMoveTicketDialog(context);
+        break;
+      case 'rename':
+        await _showRenameTicketDialog(context);
+        break;
+      case 'drawer':
+        if (!printerService.isConfigured) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l10n?.noPrinterConfigured ?? 'No printer configured. Set up a printer first.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          break;
+        }
+        final opened = await printerService.openCashDrawer();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                opened
+                    ? (_l10n?.cashDrawerOpened ??
+                          '🗃️ Cash drawer opened!')
+                    : (_l10n?.failedToOpenDrawer ??
+                          'Failed to open drawer. Check printer connection.'),
+              ),
+              backgroundColor: opened ? Colors.green : Colors.red,
+            ),
+          );
+        }
+        break;
+
+      case 'send_to_rider':
+        if (_activeTicketId == null) break;
+        await _showRiderPickerDialog(context);
+        break;
+
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_l10n?.featureComingSoon ?? 'Feature coming soon!')),
+        );
+    }
+  }
+
+  // ── Side drawer ───────────────────────────────────────────────────────────
+  Widget _buildDrawer(BuildContext context) {
+    final screenW = MediaQuery.sizeOf(context).width;
+    final name = widget.cashierName.trim();
+    final terminal = [
+      if ((_cachedPosName ?? '').trim().isNotEmpty)
+        (_cachedPosName ?? '').trim()
+      else
+        _l10n?.posTerminal ?? 'POS Terminal',
+      if ((_cachedBranchName ?? '').trim().isNotEmpty)
+        ', ${(_cachedBranchName ?? '').trim()}',
+    ].join('');
+
+    return Drawer(
+      width: screenW * 0.86 > 360 ? 360 : screenW * 0.86,
+      backgroundColor: Ld.surface,
+      child: Column(
+        children: [
+          // ── Profile header ──────────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            color: Ld.navy,
+            padding: EdgeInsets.fromLTRB(
+              24,
+              MediaQuery.paddingOf(context).top + 28,
+              24,
+              22,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: Ld.gold,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        name.isNotEmpty ? name.characters.first.toUpperCase() : '?',
+                        style: Ld.title(24, color: Ld.navy),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.cashierName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w700,
+                              height: 1.3,
+                            ),
+                          ),
+                          Text(
+                            widget.role == 'admin'
+                                ? (_l10n?.administrator ?? 'Administrator')
+                                : (_l10n?.roleCashier ?? 'Cashier'),
+                            style: const TextStyle(
+                              color: Ld.onNavyMuted,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.point_of_sale_outlined,
+                      color: Ld.onNavyMuted,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        terminal,
+                        style: const TextStyle(
+                          color: Ld.onNavyMuted,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // ── Menu Items ───────────────────────────────────────────────────
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+              children: [
+                _drawerItem(
+                  icon: Icons.storefront_outlined,
+                  label: _l10n?.sales ?? 'Sales',
+                  isActive: true,
+                  onTap: () => Navigator.pop(context),
+                ),
+                _drawerItem(
+                  icon: Icons.receipt_long_outlined,
+                  label: _l10n?.receipts ?? 'Receipts',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ReceiptHistoryScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.fact_check_outlined,
+                  label: _l10n?.selfOrdersReview ?? 'Self Orders Review',
+                  trailing: _pendingSelfOrdersCount > 0
+                      ? LdBadge('$_pendingSelfOrdersCount')
+                      : null,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SelfOrdersReviewScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.inventory_2_outlined,
+                  label: _l10n?.itemsMenu ?? 'Items',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ManageItemsScreen(),
+                      ),
+                      // Products, toppings or categories may have changed:
+                      // reload so the POS offers them right away.
+                    ).then((_) {
+                      if (mounted) _fetchOdooProducts(backgroundRefresh: true);
+                    });
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.tune_rounded,
+                  label: _l10n?.settings ?? 'Settings',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PosSettingsScreen(),
+                      ),
+                    ).then((_) {
+                      _loadPromotionPriceSetting();
+                      _loadPosProfileLabels();
+                    });
+                  },
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                  child: Divider(),
+                ),
+                // Quick actions: the same as the ⋯ menu entries.
+                _drawerItem(
+                  icon: Icons.point_of_sale_outlined,
+                  label: _l10n?.openCashDrawer ?? 'Open cash drawer',
+                  quick: true,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleTicketOption(context, 'drawer');
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.sync_rounded,
+                  label: _l10n?.syncAction ?? 'Sync',
+                  quick: true,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleTicketOption(context, 'sync');
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // ── Lock / Switch User ─────────────────────────────────────────
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final navigator = Navigator.of(context);
+                    await _apiService.logout();
+                    if (!mounted) return;
+                    navigator.pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Ld.navy,
+                    side: const BorderSide(color: Ld.line),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rMd)),
+                  ),
+                  icon: const Icon(Icons.lock_outline_rounded, size: 20),
+                  label: Text(
+                    _l10n?.lockSwitchUser ?? 'Lock / Switch User',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Tablet: catalog + navy ticket rail ────────────────────────────────────
+  Widget _buildTabletBody(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final railWidth = (w * 0.3).clamp(320.0, 400.0);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: SafeArea(
+        // The ticket rail pads itself for the system navigation bar.
+        bottom: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: SafeArea(
+                top: false,
+                child: _buildCatalog(context, tablet: true),
+              ),
+            ),
+            SizedBox(
+              width: railWidth,
+              child: CartSidebar(
+                cartItems: _cartItems,
+                onUpdateQuantity: _updateQuantity,
+                onEditKitchenNote: _editCartItemKitchenNote,
+                // A saved ticket is deleted on the server (admin PIN);
+                // only an unsaved cart is just cleared. The trash used to
+                // clear the screen only, so the ticket came back.
+                onClearCart: () => _handleClearTicket(context),
+                onViewTickets: () => _openTicketsScreen(context),
+                onSaveTicket: () {
+                  _saveCurrentTicket(context);
+                },
+                onCharge: () {
+                  _showChargeDialog(context);
+                },
+                selectedCustomer: _selectedCustomer,
+                onAddCustomer: () => _showCustomerSelection(context),
+                onClearCustomer: () =>
+                    setState(() => _selectedCustomer = null),
+                promoBanner: _freePromoBanner(context),
+                taxConfig: _taxConfig,
+                selectedDiscountOption: _selectedDiscountOption,
+                discountManualValue: _pendingDiscountManualValue,
+                ticketName: _ticketTitle,
+                ticketSubtitle: _ticketSubtitle,
+                optionsButton: _ticketOptionsButton(context, onRail: true),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Error state of the catalog with a retry button.
+  Widget _catalogError(VoidCallback onRetry) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Ld.danger,
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error: $_errorMessage',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Ld.danger),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: Text(_l10n?.retry ?? 'Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Search, categories and the products. [tablet]: toolbar row and, when
+  /// wide enough, the category rail on the left.
+  Widget _buildCatalog(BuildContext context, {required bool tablet}) {
+    if (_categories.isEmpty && (_isLoading || _errorMessage != null)) {
+      final state = _isLoading
+          ? PosProductSkeleton(isGridView: _isGridView)
+          : _catalogError(() {
+              setState(() {
+                _isLoading = true;
+                _errorMessage = null;
+              });
+              _fetchOdooProducts();
+            });
+      if (!tablet) return state;
+      return Column(
+        children: [
+          _tabletToolbar(context, showMenuButton: true),
+          Expanded(child: state),
+        ],
+      );
+    }
+
+    return DefaultTabController(
+      length: _categories.length,
+      child: Builder(builder: (context) {
+        final tabs = DefaultTabController.of(context);
+        final showRail = tablet && MediaQuery.sizeOf(context).width >= 1100;
+        final column = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (tablet)
+              _tabletToolbar(context, showMenuButton: !showRail)
+            else
+              _phoneSearchField(),
+            if (!showRail)
+              _CategoryChipsBar(
+                controller: tabs,
+                labels: [for (final c in _categories) _categoryLabel(c)],
+                counts: [for (final c in _categories) _categoryCount(c)],
+              ),
+            if (tablet) _categoryHeading(tabs),
+            // Products TabBarView (Grid/List): swipe still changes category.
+            Expanded(child: _productsArea()),
+          ],
+        );
+        if (!showRail) return column;
+        return Row(
+          children: [
+            _categoryRail(context, tabs),
+            Expanded(child: column),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _phoneSearchField() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: _searchField(height: 48),
+    );
+  }
+
+  /// The product search box (same controller and filter on every layout).
+  Widget _searchField({required double height}) {
+    return SizedBox(
+      height: height,
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(fontSize: 16, color: Ld.ink),
+        textAlignVertical: TextAlignVertical.center,
+        decoration: InputDecoration(
+          hintText: _l10n?.searchProducts ?? 'Search products...',
+          prefixIcon: const Icon(Icons.search_rounded, color: Ld.muted, size: 22),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  color: Ld.muted,
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(Ld.rMd),
+            borderSide: const BorderSide(color: Ld.line),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(Ld.rMd),
+            borderSide: const BorderSide(color: Ld.line),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(Ld.rMd),
+            borderSide: const BorderSide(color: Ld.navy, width: 2),
+          ),
+        ),
+        onChanged: (value) {
+          setState(() => _searchQuery = value);
+        },
+      ),
+    );
+  }
+
+  /// Tablet tools above the products: menu (when there is no category
+  /// rail), search, Open Tickets, scanner and grid / list.
+  Widget _tabletToolbar(BuildContext context, {required bool showMenuButton}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+      child: LayoutBuilder(builder: (context, box) {
+        final showLabel = box.maxWidth >= 620;
+        return Row(
+          children: [
+            if (showMenuButton) ...[
+              Builder(
+                builder: (ctx) => Tooltip(
+                  message: MaterialLocalizations.of(ctx).openAppDrawerTooltip,
+                  child: SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
+                      style: FilledButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(52, 52),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rMd)),
+                      ),
+                      child: const Icon(Icons.menu_rounded, size: 22),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+            Expanded(child: _searchField(height: 52)),
+            const SizedBox(width: 10),
+            if (showLabel)
+              SizedBox(
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openTicketsScreen(context),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Ld.surface,
+                    foregroundColor: Ld.navy,
+                    side: const BorderSide(color: Ld.line),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rMd)),
+                    textStyle: const TextStyle(fontFamily: Ld.sans, fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  icon: const Icon(Icons.receipt_long_outlined, size: 20),
+                  label: Text(
+                    _l10n?.openTickets ?? 'Open Tickets',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+            else
+              _squareButton(
+                icon: Icons.receipt_long_outlined,
+                tooltip: _l10n?.openTickets ?? 'Open Tickets',
+                onPressed: () => _openTicketsScreen(context),
+              ),
+            const SizedBox(width: 10),
+            _squareButton(
+              icon: Icons.qr_code_scanner_rounded,
+              tooltip: _l10n?.scanVoucher ?? 'Scan Voucher',
+              onPressed: _openScannerDialog,
+            ),
+            const SizedBox(width: 10),
+            _squareButton(
+              icon: _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
+              tooltip: _isGridView
+                  ? (_l10n?.switchToList ?? 'Switch to List')
+                  : (_l10n?.switchToGrid ?? 'Switch to Grid'),
+              onPressed: () => setState(() => _isGridView = !_isGridView),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  /// Tablet: category name in the receipt font and how many items it has.
+  Widget _categoryHeading(TabController tabs) {
+    return AnimatedBuilder(
+      animation: tabs,
+      builder: (context, _) {
+        final i = tabs.index.clamp(0, _categories.length - 1);
+        final c = _categories[i];
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  _categoryLabel(c),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Ld.title(24),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                _l10n?.itemsCount('${_categoryCount(c)}') ?? '${_categoryCount(c)} items',
+                style: const TextStyle(fontSize: 14, color: Ld.muted),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Wide tablets: white category rail with the menu button and brand.
+  Widget _categoryRail(BuildContext context, TabController tabs) {
+    final branch = (_cachedBranchName ?? '').trim().isNotEmpty
+        ? _cachedBranchName!.trim()
+        : (_cachedPosName ?? '').trim();
+    return Container(
+      width: 188,
+      decoration: const BoxDecoration(
+        color: Ld.surface,
+        border: Border(right: BorderSide(color: Ld.line)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 16, 10, 14),
+            child: Row(
+              children: [
+                Builder(
+                  builder: (ctx) => Tooltip(
+                    message: MaterialLocalizations.of(ctx).openAppDrawerTooltip,
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: FilledButton(
+                        onPressed: () => Scaffold.of(ctx).openDrawer(),
+                        style: FilledButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(44, 44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.r)),
+                        ),
+                        child: const Icon(Icons.menu_rounded, size: 20),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('LaDolce', maxLines: 1, style: Ld.title(18)),
+                      if (branch.isNotEmpty)
+                        Text(
+                          branch,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: Ld.muted),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: AnimatedBuilder(
+              animation: tabs,
+              builder: (context, _) => ListView.separated(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 16),
+                itemCount: _categories.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 4),
+                itemBuilder: (context, i) {
+                  final c = _categories[i];
+                  final selected = tabs.index == i;
+                  return Material(
+                    color: selected ? Ld.navy : Colors.transparent,
+                    borderRadius: BorderRadius.circular(Ld.r),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(Ld.r),
+                      onTap: () => tabs.animateTo(i),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _categoryLabel(c),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 15.5,
+                                    height: 1.3,
+                                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                                    color: selected ? Colors.white : Ld.ink,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${_categoryCount(c)}',
+                                style: TextStyle(fontSize: 13, color: selected ? Ld.gold : Ld.muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// One page of products per category (swipe between them).
+  Widget _productsArea() {
+    if (_isLoading) return PosProductSkeleton(isGridView: _isGridView);
+    if (_errorMessage != null) return _catalogError(_fetchOdooProducts);
+    final quantities = _cartQuantities();
+    return TabBarView(
+      children: _categories.map((category) {
+        // Filter products dynamically for each tab
+        List<Product> tabProducts = _products;
+        if (category.name != 'All Items') {
+          tabProducts = tabProducts
+              .where(
+                (p) =>
+                    p.category == category.name,
+              )
+              .toList();
+        }
+
+        // Apply search across the active tab's items
+        if (_searchQuery.isNotEmpty) {
+          final query = _searchQuery
+              .toLowerCase();
+          tabProducts = tabProducts
+              .where(
+                (p) =>
+                    p.matchesQuery(query) ||
+                    p.category
+                        .toLowerCase()
+                        .contains(query) ||
+                    (p.defaultCode != null &&
+                        p.defaultCode!
+                            .toLowerCase()
+                            .contains(query)),
+              )
+              .toList();
+        }
+
+        if (tabProducts.isEmpty) {
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.search_off_rounded,
+                    size: 56,
+                    color: Ld.faint,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _searchQuery.isNotEmpty
+                        ? _l10n?.noProductsMatching(_searchQuery) ??
+                            'No products matching "$_searchQuery"'
+                        : (_l10n?.noProductsInCategory ??
+                            'No products in this category'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Ld.muted,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return _isGridView
+            ? ProductGrid(
+                products: tabProducts,
+                onProductTap: _addToCart,
+                cartQuantities: quantities,
+              )
+            : ProductList(
+                products: tabProducts,
+                onProductTap: _addToCart,
+                cartQuantities: quantities,
+              );
+      }).toList(),
     );
   }
 
@@ -2469,12 +2747,15 @@ class _PosScreenState extends State<PosScreen> {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        16,
         12,
-        16,
-        12 + LaDolcePosUi.gestureBarBottomPad(context),
+        8,
+        12,
+        8 + Ld.navInset(context),
       ),
-      child: InkWell(
+      child: Material(
+        color: Ld.navy,
+        borderRadius: BorderRadius.circular(Ld.rLg),
+        child: InkWell(
         onTap: () {
           showModalBottomSheet(
             context: context,
@@ -2485,12 +2766,28 @@ class _PosScreenState extends State<PosScreen> {
               builder: (ctx, setSheetState) => FractionallySizedBox(
                 heightFactor: 0.85,
                 child: Container(
+                  clipBehavior: Clip.antiAlias,
                   decoration: const BoxDecoration(
-                    color: Colors.white,
+                    color: Ld.navy,
                     borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(20),
+                      top: Radius.circular(24),
                     ),
                   ),
+                  child: Column(
+                    children: [
+                      // Drag handle: swipe down closes the ticket.
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Ld.navyLine,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Expanded(
                   child: CartSidebar(
                     cartItems: _cartItems,
                     onUpdateQuantity: (item, newQty) {
@@ -2542,99 +2839,72 @@ class _PosScreenState extends State<PosScreen> {
                     taxConfig: _taxConfig,
                     selectedDiscountOption: _selectedDiscountOption,
                     discountManualValue: _pendingDiscountManualValue,
+                    ticketName: _ticketTitle,
+                    ticketSubtitle: _ticketSubtitle,
+                  ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           );
         },
-        borderRadius: BorderRadius.circular(40),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          decoration: BoxDecoration(
-            color: _brandNavy,
-            borderRadius: BorderRadius.circular(40),
-          ),
+        borderRadius: BorderRadius.circular(Ld.rLg),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 60),
+          child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
           child: Row(
             children: [
-              // ── Left: label + amount ──────────────────────────────
+              const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 12),
+              // ── Left: label + item count ──────────────────────────
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_l10n?.currentTicket ?? 'CURRENT TICKET',
-                      style: TextStyle(
-                        color: Color(0xFF9CA3AF),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.4,
+                    Text(_ticketTitle ?? (_l10n?.currentTicket2 ?? 'Current Ticket'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Ld.onNavyMuted,
+                        fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: '$tItems Items  ',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          TextSpan(
-                            text:
-                                'K${money(payTotal)}',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ],
+                    Text(
+                      _l10n?.itemsCount('$tItems') ?? '$tItems Items',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              // ── Right: button ─────────────────────────────────────
-              Flexible(
+              const SizedBox(width: 8),
+              // ── Right: total in gold, opens the ticket ────────────
+              Expanded(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerRight,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E3A8A),
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'View Ticket &\nCharge',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            height: 1.3,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ],
-                    ),
+                  child: Text(
+                    '₭${money(payTotal)}',
+                    style: Ld.price(22, color: Ld.gold),
                   ),
                 ),
               ),
+              const SizedBox(width: 4),
+              const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white, size: 28),
             ],
           ),
+          ),
         ),
+      ),
       ),
     );
   }
@@ -2681,17 +2951,21 @@ class _PosScreenState extends State<PosScreen> {
       if (available == 0) continue;
       final over = available < 0;
       rows.add(Container(
-        margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+        margin: const EdgeInsets.fromLTRB(10, 6, 10, 0),
         padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
         decoration: BoxDecoration(
-          color: over ? Colors.red.shade50 : Colors.green.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: over ? Colors.red.shade200 : Colors.green.shade300),
+          color: over ? Ld.dangerWash : Ld.goldWash,
+          borderRadius: BorderRadius.circular(Ld.rSm),
+          border: over ? Border.all(color: Ld.dangerLine) : null,
         ),
         child: Row(
           children: [
-            Text(over ? '⚠️' : '🎁', style: const TextStyle(fontSize: 20)),
-            const SizedBox(width: 8),
+            Icon(
+              over ? Icons.warning_amber_rounded : Icons.card_giftcard_rounded,
+              size: 20,
+              color: over ? Ld.danger : Ld.goldInk,
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 over
@@ -2699,18 +2973,30 @@ class _PosScreenState extends State<PosScreen> {
                         'Too many free items for ${promo.name}. Remove one first.')
                     : (_l10n?.freeItemsAvailable(promo.name, available) ??
                         '${promo.name}: $available free item(s)'),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: over ? Colors.red.shade800 : Colors.green.shade800,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: over ? Ld.danger : Ld.goldWashInk,
                 ),
               ),
             ),
-            if (!over)
+            if (!over) ...[
+              const SizedBox(width: 8),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Ld.goldInk,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(44, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rSm)),
+                  textStyle: const TextStyle(fontFamily: Ld.sans, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
                 onPressed: () => _pickFreeItem(context, promo, onChanged: onChanged),
                 child: Text(_l10n?.addFreeItem ?? 'Add free'),
               ),
+            ],
           ],
         ),
       ));
@@ -2724,9 +3010,7 @@ class _PosScreenState extends State<PosScreen> {
     final choices = _products.where((p) => promo.freeProductIds.contains(p.id)).toList();
     final picked = await showModalBottomSheet<Product>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      useSafeArea: true,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2736,7 +3020,7 @@ class _PosScreenState extends State<PosScreen> {
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
               child: Text(
                 _l10n?.chooseFreeItem(promo.name) ?? 'Choose the free item (${promo.name})',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: Ld.title(19),
               ),
             ),
             Flexible(
@@ -2745,12 +3029,21 @@ class _PosScreenState extends State<PosScreen> {
                 children: [
                   for (final p in choices)
                     ListTile(
-                      leading: const Text('🎁', style: TextStyle(fontSize: 22)),
+                      minVerticalPadding: 12,
+                      leading: const LdIconTile(
+                        Icons.card_giftcard_rounded,
+                        background: Ld.goldWash,
+                        color: Ld.goldInk,
+                      ),
                       title: Text(p.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: Text('₭${money(p.effectivePrice)}',
-                          style: const TextStyle(decoration: TextDecoration.lineThrough)),
-                      trailing: Text(_l10n?.freeItemLabel ?? 'FREE',
-                          style: TextStyle(fontWeight: FontWeight.w800, color: Colors.green.shade700)),
+                          style: const TextStyle(
+                            fontFamily: Ld.serif,
+                            color: Ld.muted,
+                            decoration: TextDecoration.lineThrough,
+                          )),
+                      trailing: Text(_sentence(_l10n?.freeItemLabel ?? 'FREE'),
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Ld.success)),
                       onTap: () => Navigator.pop(ctx, p),
                     ),
                 ],
@@ -2783,69 +3076,90 @@ class _PosScreenState extends State<PosScreen> {
     NumberFormat fmt,
     StateSetter setSheetState,
   ) {
+    Widget methodPicker(int i) => DropdownButtonHideUnderline(
+          child: DropdownButton<int>(
+            value: rows[i].method.id,
+            isExpanded: true,
+            style: const TextStyle(fontFamily: Ld.sans, fontSize: 16, fontWeight: FontWeight.w600, color: Ld.ink),
+            items: [
+              for (final m in _paymentMethods)
+                DropdownMenuItem(
+                  value: m.id,
+                  child: Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (id) => setSheetState(() {
+              rows[i].method = _paymentMethods.firstWhere((m) => m.id == id);
+            }),
+          ),
+        );
+
+    Widget amountField(int i) => TextField(
+          controller: rows[i].amount,
+          keyboardType: TextInputType.number,
+          inputFormatters: [MoneyInputFormatter()],
+          textAlign: TextAlign.right,
+          style: Ld.price(22, color: Ld.ink),
+          decoration: InputDecoration(
+            prefixText: '₭ ',
+            prefixStyle: Ld.price(17, color: Ld.muted, weight: FontWeight.w500),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          ),
+          onChanged: (_) => setSheetState(() {}),
+        );
+
+    Widget removeButton(int i) => rows.length > 1
+        ? IconButton(
+            icon: const Icon(Icons.remove_circle_outline_rounded, color: Ld.danger),
+            onPressed: () => setSheetState(() => rows.removeAt(i)),
+          )
+        : const SizedBox(width: 8);
+
     return [
       for (var i = 0; i < rows.length; i++)
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 5,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: rows[i].method.id,
-                      isExpanded: true,
-                      items: [
-                        for (final m in _paymentMethods)
-                          DropdownMenuItem(
-                            value: m.id,
-                            child: Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            decoration: Ld.card(radius: Ld.rLg),
+            child: LayoutBuilder(builder: (context, box) {
+              final icon = LdIconTile(
+                rows[i].isCash ? Icons.payments_outlined : Icons.qr_code_2_rounded,
+                size: 40,
+              );
+              // Narrow sheets: method on top, amount under it.
+              if (box.maxWidth < 440) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        icon,
+                        const SizedBox(width: 10),
+                        Expanded(child: methodPicker(i)),
+                        removeButton(i),
                       ],
-                      onChanged: (id) => setSheetState(() {
-                        rows[i].method = _paymentMethods.firstWhere((m) => m.id == id);
-                      }),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 4,
-                child: TextField(
-                  controller: rows[i].amount,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyInputFormatter()],
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                  decoration: InputDecoration(
-                    prefixText: 'K ',
-                    filled: true,
-                    fillColor: Colors.white,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: amountField(i),
                     ),
-                  ),
-                  onChanged: (_) => setSheetState(() {}),
-                ),
-              ),
-              if (rows.length > 1)
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                  onPressed: () => setSheetState(() => rows.removeAt(i)),
-                )
-              else
-                const SizedBox(width: 8),
-            ],
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  icon,
+                  const SizedBox(width: 12),
+                  Expanded(flex: 5, child: methodPicker(i)),
+                  const SizedBox(width: 10),
+                  Expanded(flex: 4, child: amountField(i)),
+                  removeButton(i),
+                ],
+              );
+            }),
           ),
         ),
       Align(
@@ -2860,19 +3174,33 @@ class _PosScreenState extends State<PosScreen> {
             );
             rows.add(_SplitPaymentRow(next, split.remaining > 0 ? split.remaining : 0));
           }),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(48, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Ld.r),
+              side: const BorderSide(color: Ld.faint),
+            ),
+          ),
           icon: const Icon(Icons.add_rounded),
           label: Text(_l10n?.addPayment ?? 'Add payment'),
         ),
       ),
-      const SizedBox(height: 6),
+      const SizedBox(height: 10),
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: split.ok ? Colors.green.shade50 : Colors.orange.shade50,
-          borderRadius: BorderRadius.circular(12),
+          color: split.ok ? Ld.successWash : Ld.warningWash,
+          borderRadius: BorderRadius.circular(Ld.r),
         ),
         child: Row(
           children: [
+            Icon(
+              split.ok ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
+              size: 20,
+              color: split.ok ? Ld.success : Ld.warning,
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 split.tooMuchNonCash
@@ -2881,18 +3209,20 @@ class _PosScreenState extends State<PosScreen> {
                         ? (_l10n?.remainingToPay ?? 'Remaining')
                         : (_l10n?.changeDue ?? 'Change Due:'),
                 style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: split.ok ? Colors.green.shade800 : Colors.deepOrange,
+                  fontWeight: FontWeight.w600,
+                  color: split.ok ? Ld.success : Ld.warning,
                 ),
               ),
             ),
             if (!split.tooMuchNonCash)
-              Text(
-                'K${fmt.format(split.remaining > 0 ? split.remaining : split.change)}',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: split.ok ? Colors.green.shade800 : Colors.deepOrange,
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '₭${fmt.format(split.remaining > 0 ? split.remaining : split.change)}',
+                    style: Ld.price(18, color: split.ok ? Ld.success : Ld.warning),
+                  ),
                 ),
               ),
           ],
@@ -3497,7 +3827,10 @@ class _PosScreenState extends State<PosScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
+      // Wide enough for the two-pane sheet on tablets.
+      constraints: const BoxConstraints(maxWidth: 1080),
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
           final bd = _cartBreakdown();
@@ -3510,580 +3843,753 @@ class _PosScreenState extends State<PosScreen> {
           final split = _SplitPaymentSummary.of(splitRows, total);
           final canCharge = !splitMode || split.ok;
 
-          // The bottom inset is painted in the sheet colour (it used to be a
-          // grey gap) with room to spare above the 3-button navigation bar,
-          // and the height cap includes it so the sheet stays below the
-          // status bar.
-          return Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.9,
-            ),
-            padding: EdgeInsets.only(
-              bottom: LaDolcePosUi.modalBottomPadding(context) + 8,
-            ),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.92,
-              ),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F7FA),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
+          final media = MediaQuery.sizeOf(context);
+          // Tablets: amount on a navy panel at the left, payment at the right.
+          final wide = media.width >= 760;
+          // The bottom inset (keyboard + 3-button navigation bar) is painted
+          // in the sheet colour, with room to spare above the bar.
+          final bottomPad = LaDolcePosUi.modalBottomPadding(context) + 8;
+          final changeLabel = (_l10n?.changeDue ?? 'Change Due:')
+              .replaceAll(RegExp(r'\s*:\s*$'), '');
+
+          void toggleSplit() => setSheetState(() {
+                splitMode = !splitMode;
+                if (splitMode && splitRows.isEmpty) {
+                  splitRows.add(_SplitPaymentRow(
+                    _selectedPaymentMethod ?? _paymentMethods.first,
+                    total,
+                  ));
+                }
+              });
+
+          // ── Amount summary (on navy) ──────────────────────────────────
+          Widget summaryRow(String label, double value, {bool big = false}) => Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: big ? 17 : 15,
+                          color: big ? Colors.white : Ld.onNavyMuted,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '₭${fmt.format(value)}',
+                          style: Ld.price(big ? 26 : 16, color: Colors.white, weight: big ? FontWeight.w700 : FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+          final summary = <Widget>[
+            if (splitMode) ...[
+              summaryRow(_l10n?.amountReceived ?? 'Amount Received', split.paid),
+              summaryRow(_l10n?.remainingToPay ?? 'Remaining', split.remaining),
+              summaryRow(changeLabel, split.change, big: true),
+            ] else if (isCash) ...[
+              summaryRow(_l10n?.amountReceived ?? 'Amount Received', amtReceived),
+              summaryRow(changeLabel, changeAmount, big: true),
+            ],
+          ];
+
+          Widget closeButton() => SizedBox(
+                width: 44,
+                height: 44,
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  style: IconButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(Ld.r),
+                      side: const BorderSide(color: Ld.navyLine),
+                    ),
+                  ),
+                  icon: const Icon(Icons.close_rounded, size: 22),
+                ),
+              );
+
+          Widget amountBlock({required double size}) => Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ── Header ────────────────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    child: Row(
-                      children: [
-                        // X button (left)
-                        InkWell(
-                          onTap: () => Navigator.pop(context),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 18,
-                              color: Colors.black54,
-                            ),
-                          ),
+                  Row(
+                    children: [
+                      closeButton(),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _l10n?.charge ?? 'Charge',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Ld.title(21, color: Colors.white),
                         ),
-                        const Spacer(),
-                        Text(_l10n?.charge ?? 'Charge',
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: wide ? 28 : 16),
+                  Text(
+                    _l10n?.totalAmount ?? 'Total Amount',
+                    style: const TextStyle(fontSize: 15, color: Ld.onNavyMuted),
+                  ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '₭${fmt.format(total)}',
+                      style: Ld.price(size, color: Ld.gold).copyWith(height: 1.15),
+                    ),
+                  ),
+                  if (summary.isNotEmpty) ...[
+                    SizedBox(height: wide ? 18 : 10),
+                    const Divider(color: Ld.navyLine, height: 1),
+                    ...summary,
+                  ],
+                ],
+              );
+
+          // ── Payment content ───────────────────────────────────────────
+          Widget sectionLabel(String text) => Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Ld.ink,
+                ),
+              );
+
+          Widget segment(String label, bool selected, VoidCallback onTap) => Material(
+                color: selected ? Ld.navy : Colors.transparent,
+                borderRadius: BorderRadius.circular(9),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(9),
+                  onTap: onTap,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 40, minWidth: 44),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Center(
+                        widthFactor: 1,
+                        child: Text(
+                          label,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            fontSize: 15,
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                            color: selected ? Colors.white : Ld.muted,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-
-                  // ── Total Card ────────────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 24,
-                        horizontal: 20,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _brandNavy,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(_l10n?.totalAmount ?? 'Total Amount',
-                            style: TextStyle(
-                              color: Colors.white60,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'K${fmt.format(total)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 36,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),
+                ),
+              );
 
-                  // ── Scrollable content ────────────────────────────────────
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                      children: [
-                        // Transfer lock notice
-                        if (isTransferTicket)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Text(
-                              _activeTicketPaymentMethodName.isNotEmpty
-                                  ? _l10n?.transferTicketFixedTo(_activeTicketPaymentMethodName) ??
+          // Quick cash: the exact total, then round notes above it.
+          final quickCash = <double>[];
+          if (total > 0) {
+            for (final v in [
+              total,
+              (total / 10000).ceil() * 10000.0,
+              (total / 50000).ceil() * 50000.0,
+              (total / 100000).ceil() * 100000.0,
+            ]) {
+              if (v >= total && !quickCash.contains(v)) quickCash.add(v);
+            }
+          }
+
+          final content = <Widget>[
+            // Transfer lock notice
+            if (isTransferTicket)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Ld.infoWash,
+                  borderRadius: BorderRadius.circular(Ld.r),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.lock_outline_rounded, size: 20, color: Ld.info),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _activeTicketPaymentMethodName.isNotEmpty
+                            ? _l10n?.transferTicketFixedTo(_activeTicketPaymentMethodName) ??
         'Transfer ticket: fixed to $_activeTicketPaymentMethodName.'
-                                  : (_l10n?.transferTicketFixed ??
-                                        'Transfer ticket: payment method is fixed.'),
-                              style: TextStyle(
-                                color: Colors.blue.shade900,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-
-                        // ── Select Discount Dropdown ──────────────────────
-                        if (_discountConfig.enabled) ...[
-                          Text(_l10n?.selectDiscount ?? 'Select Discount',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<PosDiscountOption?>(
-                                value: _selectedDiscountOption,
-                                hint: Text(_l10n?.noDiscount ?? 'No Discount'),
-                                isExpanded: true,
-                                items: [
-                                  DropdownMenuItem<PosDiscountOption?>(
-                                    value: null,
-                                    child: Text(_l10n?.noDiscount ?? 'No Discount'),
-                                  ),
-                                  ..._discountConfig.options.map((opt) {
-                                    String valStr = '';
-                                    if (opt.value == null) {
-                                      valStr = opt.type == 'percentage'
-                                          ? (_l10n?.customPercent ?? '(Custom %)')
-                                          : (_l10n?.customAmount ?? '(Custom Amount)');
-                                    } else {
-                                      valStr = opt.type == 'percentage'
-                                          ? '(${opt.value!.toStringAsFixed(0)}%)'
-                                          : '(₭${money(opt.value!)})';
-                                    }
-                                    return DropdownMenuItem<PosDiscountOption?>(
-                                      value: opt,
-                                      child: Text('${opt.name} $valStr'),
-                                    );
-                                  }),
-                                ],
-                                onChanged: (opt) {
-                                  setSheetState(() {
-                                    _selectedDiscountOption = opt;
-                                    if (opt == null || !opt.isManual) {
-                                      _pendingDiscountManualValue = null;
-                                      manualDiscountCtrl.clear();
-                                    }
-                                  });
-                                  setState(() {
-                                    _selectedDiscountOption = opt;
-                                    if (opt == null || !opt.isManual) {
-                                      _pendingDiscountManualValue = null;
-                                    }
-                                  });
-                                  _recomputeDiscount(
-                                    manualValue: _pendingDiscountManualValue,
-                                  );
-                                  final newTotal = _cartBreakdown().totalDue;
-                                  amountReceivedCtrl.text = money(newTotal);
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (_selectedDiscountOption != null &&
-                              _selectedDiscountOption!.isManual) ...[
-                            Text(
-                              _selectedDiscountOption!.type == 'percentage'
-                                  ? (_l10n?.enterDiscountPercentage ?? 'Enter Discount Percentage')
-                                  : (_l10n?.enterDiscountAmount ?? 'Enter Discount Amount'),
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Row(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 16),
-                                    child: Text(
-                                      _selectedDiscountOption!.type ==
-                                              'percentage'
-                                          ? '% '
-                                          : '₭ ',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black45,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: manualDiscountCtrl,
-                                      keyboardType:
-                                          const TextInputType.numberWithOptions(
-                                            decimal: true,
-                                          ),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
-                                      ),
-                                      decoration: InputDecoration(
-                                        border: InputBorder.none,
-                                        hintText:
-                                            _selectedDiscountOption!.type ==
-                                                'percentage'
-                                            ? (_l10n?.egTen ?? 'e.g. 10')
-                                            : (_l10n?.egFiveThousand ?? 'e.g. 5000'),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              vertical: 12,
-                                              horizontal: 4,
-                                            ),
-                                      ),
-                                      onChanged: (v) {
-                                        final val = double.tryParse(v);
-                                        setSheetState(() {
-                                          _pendingDiscountManualValue = val;
-                                        });
-                                        setState(() {
-                                          _pendingDiscountManualValue = val;
-                                        });
-                                        _recomputeDiscount(manualValue: val);
-                                        final newTotal =
-                                            _cartBreakdown().totalDue;
-                                        amountReceivedCtrl.text = money(newTotal);
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                          const SizedBox(height: 12),
-                        ],
-
-                        // ── Payment Method Label (+ split toggle) ─────────
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(_l10n?.selectPaymentMethod ?? 'Select Payment Method',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                            // A transfer ticket's method is fixed: no split.
-                            if (!isTransferTicket && _paymentMethods.length > 1)
-                              TextButton.icon(
-                                onPressed: () => setSheetState(() {
-                                  splitMode = !splitMode;
-                                  if (splitMode && splitRows.isEmpty) {
-                                    splitRows.add(_SplitPaymentRow(
-                                      _selectedPaymentMethod ?? _paymentMethods.first,
-                                      total,
-                                    ));
-                                  }
-                                }),
-                                icon: Icon(
-                                  splitMode ? Icons.close_rounded : Icons.call_split_rounded,
-                                  size: 18,
-                                ),
-                                label: Text(splitMode
-                                    ? (_l10n?.singlePayment ?? 'Single payment')
-                                    : (_l10n?.splitPayment ?? 'Split payment')),
-                              ),
-                          ],
+                            : (_l10n?.transferTicketFixed ??
+                                  'Transfer ticket: payment method is fixed.'),
+                        style: const TextStyle(
+                          color: Ld.info,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(height: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-                        if (splitMode)
-                          ..._splitPaymentWidgets(splitRows, split, total, fmt, setSheetState),
+            // ── Select Discount Dropdown ──────────────────────────────
+            if (_discountConfig.enabled) ...[
+              sectionLabel(_l10n?.selectDiscount ?? 'Select Discount'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: Ld.card(radius: Ld.r),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<PosDiscountOption?>(
+                    value: _selectedDiscountOption,
+                    hint: Text(_l10n?.noDiscount ?? 'No Discount'),
+                    isExpanded: true,
+                    style: const TextStyle(fontFamily: Ld.sans, fontSize: 16, color: Ld.ink),
+                    items: [
+                      DropdownMenuItem<PosDiscountOption?>(
+                        value: null,
+                        child: Text(_l10n?.noDiscount ?? 'No Discount'),
+                      ),
+                      ..._discountConfig.options.map((opt) {
+                        String valStr = '';
+                        if (opt.value == null) {
+                          valStr = opt.type == 'percentage'
+                              ? (_l10n?.customPercent ?? '(Custom %)')
+                              : (_l10n?.customAmount ?? '(Custom Amount)');
+                        } else {
+                          valStr = opt.type == 'percentage'
+                              ? '(${opt.value!.toStringAsFixed(0)}%)'
+                              : '(₭${money(opt.value!)})';
+                        }
+                        return DropdownMenuItem<PosDiscountOption?>(
+                          value: opt,
+                          child: Text('${opt.name} $valStr', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        );
+                      }),
+                    ],
+                    onChanged: (opt) {
+                      setSheetState(() {
+                        _selectedDiscountOption = opt;
+                        if (opt == null || !opt.isManual) {
+                          _pendingDiscountManualValue = null;
+                          manualDiscountCtrl.clear();
+                        }
+                      });
+                      setState(() {
+                        _selectedDiscountOption = opt;
+                        if (opt == null || !opt.isManual) {
+                          _pendingDiscountManualValue = null;
+                        }
+                      });
+                      _recomputeDiscount(
+                        manualValue: _pendingDiscountManualValue,
+                      );
+                      final newTotal = _cartBreakdown().totalDue;
+                      amountReceivedCtrl.text = money(newTotal);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (_selectedDiscountOption != null &&
+                  _selectedDiscountOption!.isManual) ...[
+                Text(
+                  _selectedDiscountOption!.type == 'percentage'
+                      ? (_l10n?.enterDiscountPercentage ?? 'Enter Discount Percentage')
+                      : (_l10n?.enterDiscountAmount ?? 'Enter Discount Amount'),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Ld.muted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: manualDiscountCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: Ld.ink,
+                  ),
+                  decoration: InputDecoration(
+                    prefixText: _selectedDiscountOption!.type ==
+                            'percentage'
+                        ? '% '
+                        : '₭ ',
+                    prefixStyle: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: Ld.muted,
+                    ),
+                    hintText:
+                        _selectedDiscountOption!.type ==
+                            'percentage'
+                        ? (_l10n?.egTen ?? 'e.g. 10')
+                        : (_l10n?.egFiveThousand ?? 'e.g. 5000'),
+                  ),
+                  onChanged: (v) {
+                    final val = double.tryParse(v);
+                    setSheetState(() {
+                      _pendingDiscountManualValue = val;
+                    });
+                    setState(() {
+                      _pendingDiscountManualValue = val;
+                    });
+                    _recomputeDiscount(manualValue: val);
+                    final newTotal =
+                        _cartBreakdown().totalDue;
+                    amountReceivedCtrl.text = money(newTotal);
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+              const SizedBox(height: 8),
+            ],
 
-                        // ── Payment Method Pills ──────────────────────────
-                        if (splitMode)
-                          const SizedBox.shrink()
-                        else if (_paymentMethods.isEmpty)
-                          Text(_l10n?.noPaymentMethods ?? 'No payment methods configured.',
-                            style: TextStyle(color: Colors.grey),
-                          )
-                        else
-                          LayoutBuilder(
-                            builder: (ctx, constraints) {
-                              final locked =
-                                  isTransferTicket &&
-                                  _activeTicketPaymentMethodId != null;
-                              return GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    const SliverGridDelegateWithMaxCrossAxisExtent(
-                                      maxCrossAxisExtent: 240,
-                                      mainAxisExtent: 88,
-                                      crossAxisSpacing: 10,
-                                      mainAxisSpacing: 10,
-                                    ),
-                                itemCount: _paymentMethods.length,
-                                itemBuilder: (context, i) {
-                                  final m = _paymentMethods[i];
-                                  final isSelected =
-                                      _selectedPaymentMethod?.id == m.id;
-                                  final isCashMethod = m.name
-                                      .toLowerCase()
-                                      .contains('cash');
-
-                                  return InkWell(
-                                    onTap: locked
-                                        ? null
-                                        : () => setSheetState(
-                                            () => _selectedPaymentMethod = m,
-                                          ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                        horizontal: 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? _brandNavy
-                                              : Colors.grey.shade300,
-                                          width: isSelected ? 2 : 1,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            isCashMethod
-                                                ? Icons.point_of_sale_rounded
-                                                : Icons.credit_card_rounded,
-                                            color: isSelected
-                                                ? _brandNavy
-                                                : Colors.black38,
-                                            size: 24,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              m.name,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.w700
-                                                    : FontWeight.w600,
-                                                color: isSelected
-                                                    ? _brandNavy
-                                                    : Colors.black54,
-                                              ),
-                                            ),
-                                          ),
-                                          if (locked)
-                                            const Icon(
-                                              Icons.lock_outline_rounded,
-                                              size: 16,
-                                              color: Colors.black26,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
+            // ── Payment Method Label (+ single / split switch) ────────
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                Text(
+                  _l10n?.selectPaymentMethod ?? 'Select Payment Method',
+                  style: wide
+                      ? Ld.title(22)
+                      : const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Ld.ink),
+                ),
+                // A transfer ticket's method is fixed: no split.
+                if (!isTransferTicket && _paymentMethods.length > 1)
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: Ld.card(radius: Ld.r),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: segment(
+                            _l10n?.singlePayment ?? 'Single payment',
+                            !splitMode,
+                            () {
+                              if (splitMode) toggleSplit();
                             },
                           ),
-
-                        const SizedBox(height: 24),
-
-                        // ── Cash Input ────────────────────────────────────
-                        if (isCash && !splitMode) ...[
-                          Text(_l10n?.amountReceived ?? 'Amount Received',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
+                        ),
+                        Flexible(
+                          child: segment(
+                            _l10n?.splitPayment ?? 'Split payment',
+                            splitMode,
+                            () {
+                              if (!splitMode) toggleSplit();
+                            },
                           ),
-                          const SizedBox(height: 10),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Row(
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 16),
-                                  child: Text(
-                                    'K ',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black45,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: TextField(
-                                    controller: amountReceivedCtrl,
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [MoneyInputFormatter()],
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        vertical: 16,
-                                        horizontal: 4,
-                                      ),
-                                    ),
-                                    onChanged: (_) => setSheetState(() {}),
-                                  ),
-                                ),
-                                if (amountReceivedCtrl.text.isNotEmpty)
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.cancel_rounded,
-                                      color: Colors.black26,
-                                      size: 20,
-                                    ),
-                                    onPressed: () {
-                                      amountReceivedCtrl.clear();
-                                      setSheetState(() {});
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Change Due row
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(_l10n?.changeDue ?? 'Change Due:',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                                Text(
-                                  'K${fmt.format(changeAmount)}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: changeAmount > 0
-                                        ? Colors.green.shade700
-                                        : Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-
-                        if (_isCharging)
-                          const Center(child: CircularProgressIndicator()),
+                        ),
                       ],
                     ),
                   ),
+              ],
+            ),
+            const SizedBox(height: 12),
 
-                  // ── Charge Button ─────────────────────────────────────────
-                  if (!_isCharging)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      child: ElevatedButton(
-                        onPressed: !canCharge
-                            ? null
-                            : () {
-                                // What the receipt prints under TOTAL, and the
-                                // split rows the server stores.
-                                // Drawer: any method used that has "Open cash
-                                // drawer" ticked, exact amount or not.
-                                _checkoutOpensDrawer = splitMode
-                                    ? split.rows.any((r) => r.value > 0 && r.method.opensCashDrawer)
-                                    : (_selectedPaymentMethod?.opensCashDrawer ?? false);
-                                if (splitMode) {
-                                  _checkoutPayments = split.serverPayments;
-                                  _checkoutReceiptPayments = split.receiptPayments;
-                                  _checkoutChange = split.change;
-                                  _selectedPaymentMethod = split.mainMethod;
-                                } else {
-                                  _checkoutPayments = null;
-                                  final m = _selectedPaymentMethod;
-                                  _checkoutReceiptPayments = m == null
-                                      ? []
-                                      : [
-                                          {
-                                            'payment_method': m.name,
-                                            'amount': isCash && amtReceived > total ? amtReceived : total,
-                                          },
-                                        ];
-                                  _checkoutChange = isCash ? changeAmount : 0.0;
-                                }
-                                _processCheckout(context, setSheetState, true, bd);
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF22C55E),
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: Colors.grey.shade300,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
+            if (splitMode)
+              ..._splitPaymentWidgets(splitRows, split, total, fmt, setSheetState),
+
+            // ── Payment Method Pills ──────────────────────────────────
+            if (splitMode)
+              const SizedBox.shrink()
+            else if (_paymentMethods.isEmpty)
+              Text(_l10n?.noPaymentMethods ?? 'No payment methods configured.',
+                style: const TextStyle(color: Ld.muted),
+              )
+            else
+              LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final locked =
+                      isTransferTicket &&
+                      _activeTicketPaymentMethodId != null;
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 280,
+                          mainAxisExtent: MediaQuery.textScalerOf(ctx).scale(76),
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
                         ),
+                    itemCount: _paymentMethods.length,
+                    itemBuilder: (context, i) {
+                      final m = _paymentMethods[i];
+                      final isSelected =
+                          _selectedPaymentMethod?.id == m.id;
+                      final isCashMethod = m.name
+                          .toLowerCase()
+                          .contains('cash');
+
+                      return Material(
+                        color: Ld.surface,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(Ld.rMd),
+                          side: BorderSide(
+                            color: isSelected ? Ld.navy : Ld.line,
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        child: InkWell(
+                          onTap: locked
+                              ? null
+                              : () => setSheetState(
+                                  () => _selectedPaymentMethod = m,
+                                ),
+                          borderRadius: BorderRadius.circular(Ld.rMd),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 12,
+                            ),
+                            child: Row(
+                              children: [
+                                LdIconTile(
+                                  isCashMethod
+                                      ? Icons.payments_outlined
+                                      : Icons.qr_code_2_rounded,
+                                  size: 40,
+                                  background: isSelected ? Ld.navy : Ld.ground,
+                                  color: isSelected ? Colors.white : Ld.navy,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    m.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      height: 1.3,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w600,
+                                      color: isSelected
+                                          ? Ld.navy
+                                          : Ld.ink,
+                                    ),
+                                  ),
+                                ),
+                                if (locked)
+                                  const Icon(
+                                    Icons.lock_outline_rounded,
+                                    size: 16,
+                                    color: Ld.faint,
+                                  )
+                                else if (isSelected)
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 20,
+                                    color: Ld.navy,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+
+            const SizedBox(height: 20),
+
+            // ── Cash Input ────────────────────────────────────────────
+            if (isCash && !splitMode) ...[
+              sectionLabel(_l10n?.amountReceived ?? 'Amount Received'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: amountReceivedCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [MoneyInputFormatter()],
+                textAlign: TextAlign.right,
+                style: Ld.price(26, color: Ld.ink),
+                decoration: InputDecoration(
+                  prefixText: '₭ ',
+                  prefixStyle: Ld.price(19, color: Ld.muted, weight: FontWeight.w500),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  suffixIcon: amountReceivedCtrl.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.cancel_rounded,
+                            color: Ld.faint,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            amountReceivedCtrl.clear();
+                            setSheetState(() {});
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: (_) => setSheetState(() {}),
+              ),
+              if (quickCash.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                LayoutBuilder(builder: (ctx, box) {
+                  final cols = box.maxWidth >= 420 ? 4 : 2;
+                  const gap = 10.0;
+                  final w = (box.maxWidth - gap * (cols - 1)) / cols;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final v in quickCash)
+                        SizedBox(
+                          width: w,
+                          height: 52,
+                          child: OutlinedButton(
+                            onPressed: () => setSheetState(() {
+                              amountReceivedCtrl.text = money(v);
+                            }),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Ld.surface,
+                              foregroundColor: Ld.ink,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              side: BorderSide(
+                                color: (amtReceived - v).abs() < 0.5 ? Ld.navy : Ld.line,
+                                width: (amtReceived - v).abs() < 0.5 ? 2 : 1,
+                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.r)),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '₭${fmt.format(v)}',
+                                style: Ld.price(17, color: Ld.ink, weight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                }),
+              ],
+              const SizedBox(height: 12),
+
+              // Change Due row
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: changeAmount > 0 ? Ld.successWash : Ld.surface,
+                  borderRadius: BorderRadius.circular(Ld.r),
+                  border: changeAmount > 0 ? null : Border.all(color: Ld.line),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(_l10n?.changeDue ?? 'Change Due:',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: changeAmount > 0 ? Ld.success : Ld.muted,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
                         child: Text(
-                          _l10n?.chargeAmount(fmt.format(total)) ?? 'CHARGE K${fmt.format(total)}',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
+                          '₭${fmt.format(changeAmount)}',
+                          style: Ld.price(
+                            20,
+                            color: changeAmount > 0 ? Ld.success : Ld.ink,
                           ),
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            if (_isCharging)
+              const Center(child: CircularProgressIndicator()),
+          ];
+
+          // ── Charge Button ─────────────────────────────────────────────
+          final chargeButton = _isCharging
+              ? const SizedBox.shrink()
+              : SizedBox(
+                  height: 64,
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: !canCharge
+                        ? null
+                        : () {
+                            // What the receipt prints under TOTAL, and the
+                            // split rows the server stores.
+                            // Drawer: any method used that has "Open cash
+                            // drawer" ticked, exact amount or not.
+                            _checkoutOpensDrawer = splitMode
+                                ? split.rows.any((r) => r.value > 0 && r.method.opensCashDrawer)
+                                : (_selectedPaymentMethod?.opensCashDrawer ?? false);
+                            if (splitMode) {
+                              _checkoutPayments = split.serverPayments;
+                              _checkoutReceiptPayments = split.receiptPayments;
+                              _checkoutChange = split.change;
+                              _selectedPaymentMethod = split.mainMethod;
+                            } else {
+                              _checkoutPayments = null;
+                              final m = _selectedPaymentMethod;
+                              _checkoutReceiptPayments = m == null
+                                  ? []
+                                  : [
+                                      {
+                                        'payment_method': m.name,
+                                        'amount': isCash && amtReceived > total ? amtReceived : total,
+                                      },
+                                    ];
+                              _checkoutChange = isCash ? changeAmount : 0.0;
+                            }
+                            _processCheckout(context, setSheetState, true, bd);
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Ld.navy,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Ld.line,
+                      disabledForegroundColor: Ld.muted,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Ld.rLg),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _l10n?.charge ?? 'Charge',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '₭${fmt.format(total)}',
+                              style: Ld.price(21, color: canCharge ? Ld.gold : Ld.muted),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+
+          const sheetShape = BorderRadius.vertical(top: Radius.circular(24));
+
+          if (wide) {
+            final panelWidth = (media.width * 0.38).clamp(300.0, 460.0);
+            return Container(
+              constraints: BoxConstraints(maxHeight: media.height * 0.9),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(color: Ld.ground, borderRadius: sheetShape),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Left: the amount, large, on navy ───────────────────
+                  Container(
+                    width: panelWidth,
+                    color: Ld.navy,
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(28, 24, 28, 24 + bottomPad),
+                      child: amountBlock(size: panelWidth >= 420 ? 64 : 48),
+                    ),
+                  ),
+                  // ── Right: how it is paid ──────────────────────────────
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
+                            children: content,
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(28, 8, 28, bottomPad),
+                          child: chargeButton,
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
+            );
+          }
+
+          // Phones: everything stacked, the navy amount card scrolls with
+          // the rest so short screens and the keyboard always fit.
+          return Container(
+            constraints: BoxConstraints(maxHeight: media.height * 0.9),
+            padding: EdgeInsets.only(bottom: bottomPad),
+            decoration: BoxDecoration(color: Ld.ground, borderRadius: sheetShape),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: Ld.line,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                        decoration: BoxDecoration(
+                          color: Ld.navy,
+                          borderRadius: BorderRadius.circular(Ld.rXl),
+                        ),
+                        child: amountBlock(size: 44),
+                      ),
+                      const SizedBox(height: 18),
+                      ...content,
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: chargeButton,
+                ),
+              ],
             ),
           );
         },
@@ -4694,25 +5200,20 @@ class _PosScreenState extends State<PosScreen> {
                       horizontal: isMobile ? 16 : 24,
                       vertical: isMobile ? 16 : 20,
                     ),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [_brandNavy, _brandNavy2],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
+                    color: Ld.navy,
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
+                            color: Ld.navyRaised,
+                            borderRadius: BorderRadius.circular(Ld.r),
+                            border: Border.all(color: Ld.navyLine),
                           ),
                           child: const Icon(
                             Icons.table_restaurant_outlined,
                             color: Colors.white,
-                            size: 28,
+                            size: 26,
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -4721,30 +5222,33 @@ class _PosScreenState extends State<PosScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(_l10n?.selectTable ?? 'Select Table',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
-                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Ld.title(22, color: Colors.white),
                               ),
                               Text(_l10n?.chooseLocationNewTicket ?? 'Choose a location to open a new ticket',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w500,
+                                  color: Ld.onNavyMuted,
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
                         IconButton(
                           onPressed: () => Navigator.pop(context),
                           style: IconButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.1),
                             foregroundColor: Colors.white,
+                            fixedSize: const Size(44, 44),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Ld.r),
+                              side: const BorderSide(color: Ld.navyLine),
+                            ),
                           ),
-                          icon: const Icon(Icons.close),
+                          icon: const Icon(Icons.close_rounded),
                         ),
                       ],
                     ),
@@ -4778,15 +5282,17 @@ class _PosScreenState extends State<PosScreen> {
                         icon: const Icon(Icons.person_pin_rounded),
                         label: Text(_l10n?.customNameAction ?? 'Custom name'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: _brandNavy,
-                          side: const BorderSide(color: _brandNavy, width: 1.5),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          foregroundColor: Ld.navy,
+                          side: const BorderSide(color: Ld.navy, width: 1.5),
+                          minimumSize: const Size(64, 52),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(Ld.rMd),
                           ),
                           textStyle: const TextStyle(
+                            fontFamily: Ld.sans,
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -4803,14 +5309,14 @@ class _PosScreenState extends State<PosScreen> {
                                 Icon(
                                   Icons.sync_problem,
                                   size: 48,
-                                  color: Colors.grey[400],
+                                  color: Ld.faint,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No tables available.\nPlease sync catalog.',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Colors.grey[600],
+                                    color: Ld.muted,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -4840,13 +5346,13 @@ class _PosScreenState extends State<PosScreen> {
                               IconData statusIcon;
 
                               if (!isAvailable) {
-                                statusColor = Colors.red[400]!;
+                                statusColor = Ld.danger;
                                 statusIcon = Icons.lock_outline;
                               } else if (hasOpenOrder) {
-                                statusColor = Colors.orange[400]!;
+                                statusColor = Ld.warning;
                                 statusIcon = Icons.receipt_long_outlined;
                               } else {
-                                statusColor = Colors.green[400]!;
+                                statusColor = Ld.success;
                                 statusIcon = Icons.check_circle_outline;
                               }
 
@@ -4870,28 +5376,17 @@ class _PosScreenState extends State<PosScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: selectable
-                                        ? const Color(0xFFF8FAFC)
-                                        : Colors.grey[50],
+                                        ? Ld.surface
+                                        : Ld.ground,
                                     borderRadius: BorderRadius.circular(
                                       isMobile ? 16 : 20,
                                     ),
                                     border: Border.all(
                                       color: selectable
-                                          ? const Color(0xFFE2E8F0)
+                                          ? Ld.line
                                           : statusColor.withOpacity(0.3),
-                                      width: 1.5,
+                                      width: selectable ? 1 : 1.5,
                                     ),
-                                    boxShadow: selectable
-                                        ? [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(
-                                                0.03,
-                                              ),
-                                              blurRadius: 10,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ]
-                                        : null,
                                   ),
                                   child: Stack(
                                     children: [
@@ -4925,12 +5420,15 @@ class _PosScreenState extends State<PosScreen> {
                                             Text(
                                               table.name,
                                               textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                fontSize: isMobile ? 14 : 16,
-                                                fontWeight: FontWeight.w800,
+                                                fontFamily: Ld.serif,
+                                                fontSize: isMobile ? 15 : 17,
+                                                fontWeight: FontWeight.w700,
                                                 color: selectable
-                                                    ? _brandNavy
-                                                    : Colors.grey[500],
+                                                    ? Ld.navy
+                                                    : Ld.muted,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
@@ -4941,7 +5439,7 @@ class _PosScreenState extends State<PosScreen> {
                                                 Icon(
                                                   Icons.people_outline,
                                                   size: isMobile ? 12 : 14,
-                                                  color: Colors.grey[400],
+                                                  color: Ld.faint,
                                                 ),
                                                 const SizedBox(width: 4),
                                                 Text(
@@ -4950,7 +5448,7 @@ class _PosScreenState extends State<PosScreen> {
                                                     fontSize: isMobile
                                                         ? 11
                                                         : 13,
-                                                    color: Colors.grey[500],
+                                                    color: Ld.muted,
                                                   ),
                                                 ),
                                               ],
@@ -4987,8 +5485,8 @@ class _PosScreenState extends State<PosScreen> {
                       vertical: isMobile ? 12 : 16,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                      color: Ld.ground,
+                      border: Border(top: BorderSide(color: Ld.line)),
                     ),
                     child: isMobile
                         ? Wrap(
@@ -4996,15 +5494,15 @@ class _PosScreenState extends State<PosScreen> {
                             runSpacing: 8,
                             children: [
                               _statusDot(
-                                Colors.green[400]!,
+                                Ld.success,
                                 _l10n?.tableAvailable ?? 'Available',
                               ),
                               _statusDot(
-                                Colors.orange[400]!,
+                                Ld.warning,
                                 _l10n?.tableOpen ?? 'Open',
                               ),
                               _statusDot(
-                                Colors.red[400]!,
+                                Ld.danger,
                                 _l10n?.tableOccupied ?? 'Occupied',
                               ),
                             ],
@@ -5012,17 +5510,17 @@ class _PosScreenState extends State<PosScreen> {
                         : Row(
                             children: [
                               _statusDot(
-                                Colors.green[400]!,
+                                Ld.success,
                                 _l10n?.tableAvailable ?? 'Available',
                               ),
                               const SizedBox(width: 24),
                               _statusDot(
-                                Colors.orange[400]!,
+                                Ld.warning,
                                 _l10n?.openOrder ?? 'Open Order',
                               ),
                               const SizedBox(width: 24),
                               _statusDot(
-                                Colors.red[400]!,
+                                Ld.danger,
                                 _l10n?.tableOccupied ?? 'Occupied',
                               ),
                               const Spacer(),
@@ -5060,7 +5558,7 @@ class _PosScreenState extends State<PosScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Colors.grey[600],
+            color: Ld.muted,
           ),
         ),
       ],
@@ -5230,11 +5728,11 @@ class _PosScreenState extends State<PosScreen> {
             if (claimedData != null) {
               return AlertDialog(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: Text(_l10n?.rewardClaimed ?? 'Reward Claimed!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                title: Text(_l10n?.rewardClaimed ?? 'Reward Claimed!', style: Ld.title(21, color: Ld.success)),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                    const Icon(Icons.check_circle_rounded, color: Ld.success, size: 64),
                     const SizedBox(height: 16),
                     Text('Customer: ${claimedData!['customer_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
@@ -5258,7 +5756,7 @@ class _PosScreenState extends State<PosScreen> {
 
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text(_l10n?.claimRewardVoucher ?? 'Claim Reward Voucher', style: TextStyle(fontWeight: FontWeight.w900)),
+              title: Text(_l10n?.claimRewardVoucher ?? 'Claim Reward Voucher', style: Ld.title(21)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -5311,7 +5809,7 @@ class _PosScreenState extends State<PosScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+                              icon: const Icon(Icons.qr_code_scanner_rounded, color: Ld.navy),
                               onPressed: () {
                                 setDialogState(() {
                                   isScanning = true;
@@ -5353,11 +5851,11 @@ class _PosScreenState extends State<PosScreen> {
               actions: [
                 TextButton(
                   onPressed: isClaiming ? null : () => Navigator.pop(ctx),
-                  child: Text(_l10n?.cancel ?? 'Cancel', style: TextStyle(color: Colors.grey)),
+                  child: Text(_l10n?.cancel ?? 'Cancel', style: TextStyle(color: Ld.muted)),
                 ),
                 if (!isScanning)
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: _brandNavy, foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(backgroundColor: Ld.navy, foregroundColor: Colors.white),
                     onPressed: isClaiming ? null : () async {
                       if (codeController.text.trim().isEmpty) return;
                       setDialogState(() {
@@ -5482,4 +5980,98 @@ class _BillSnapshot {
     required this.breakdown,
     this.ticketName,
   });
+}
+
+/// "SAVE TICKET" -> "Save ticket": some English labels are stored in capitals;
+/// the design uses sentence case. Lao (no case) is returned unchanged.
+String _sentence(String s) {
+  if (s != s.toUpperCase() || !RegExp(r'[A-Z]').hasMatch(s)) return s;
+  final lower = s.toLowerCase();
+  return lower[0].toUpperCase() + lower.substring(1);
+}
+
+/// Category chips that scroll sideways (phones and narrow tablets). Follows
+/// [controller], so swiping the products still changes the category and the
+/// chosen chip scrolls into view.
+class _CategoryChipsBar extends StatefulWidget {
+  final TabController controller;
+  final List<String> labels;
+  final List<int> counts;
+
+  const _CategoryChipsBar({
+    required this.controller,
+    required this.labels,
+    required this.counts,
+  });
+
+  @override
+  State<_CategoryChipsBar> createState() => _CategoryChipsBarState();
+}
+
+class _CategoryChipsBarState extends State<_CategoryChipsBar> {
+  final List<GlobalKey> _keys = [];
+  int _shown = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onTab);
+  }
+
+  @override
+  void didUpdateWidget(_CategoryChipsBar old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      old.controller.removeListener(_onTab);
+      widget.controller.addListener(_onTab);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTab);
+    super.dispose();
+  }
+
+  void _onTab() {
+    if (!mounted) return;
+    final i = widget.controller.index;
+    if (i == _shown) return;
+    setState(() => _shown = i);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || i >= _keys.length) return;
+      final ctx = _keys[i].currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(ctx, alignment: 0.5, duration: const Duration(milliseconds: 200));
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    while (_keys.length < widget.labels.length) {
+      _keys.add(GlobalKey());
+    }
+    final selected = widget.controller.index;
+    return SizedBox(
+      height: 60,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        itemCount: widget.labels.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) => KeyedSubtree(
+          key: _keys[i],
+          child: Center(
+            child: LdChoiceChip(
+              label: widget.labels[i],
+              selected: i == selected,
+              count: i < widget.counts.length ? '${widget.counts[i]}' : null,
+              onTap: () => widget.controller.animateTo(i),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

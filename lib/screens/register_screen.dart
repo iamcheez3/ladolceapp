@@ -6,6 +6,7 @@ import '../services/firebase_auth_service.dart';
 import '../services/push_notifications_service.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../main.dart';
+import '../theme/ld.dart';
 import '../utils/responsive_layout.dart';
 import 'loading_screen.dart';
 import 'privacy_policy_screen.dart';
@@ -19,10 +20,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static const Color _brandNavy = Color(0xFF001460);
-  static const Color _brandNavy2 = Color(0xFF142B8C);
-  static const Color _brandSurface = Color(0xFFF6F7FB);
-
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _loginController = TextEditingController();
@@ -104,7 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       messenger.showSnackBar(
-        SnackBar(content: Text(errorMsg), backgroundColor: Colors.orange),
+        SnackBar(content: Text(errorMsg), backgroundColor: Ld.warning),
       );
       return false;
     } catch (e) {
@@ -114,7 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             l10n?.failedToSendOtpError(e.toString()) ??
                 'Failed to send OTP: ${e.toString()}',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Ld.danger,
         ),
       );
       return false;
@@ -133,8 +130,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
-              backgroundColor: _brandSurface,
-              child: Padding(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -143,19 +141,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          AppLocalizations.of(context)?.otpVerification ??
-                              'OTP Verification',
-                          style: TextStyle(
-                            color: _brandNavy,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.of(context)?.otpVerification ??
+                                'OTP Verification',
+                            style: Ld.title(20),
                           ),
                         ),
                         IconButton(
                           icon: const Icon(
                             Icons.close,
-                            color: Color(0xFF64748B),
+                            color: Ld.muted,
                           ),
                           onPressed: _isVerifyingOtp || _isSendingOtp
                               ? null
@@ -168,7 +164,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       AppLocalizations.of(context)?.otpSentTo(telbizPhone) ??
                           'We have sent a 6-digit OTP to your phone number:\n+856 $telbizPhone',
                       style: const TextStyle(
-                        color: Color(0xFF64748B),
+                        color: Ld.muted,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -183,13 +179,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 8,
-                        color: _brandNavy,
+                        color: Ld.navy,
                       ),
                       decoration: InputDecoration(
                         counterText: '',
                         hintText: '000000',
                         hintStyle: TextStyle(
-                          color: const Color(0xFF64748B).withOpacity(0.3),
+                          color: Ld.faint,
                           letterSpacing: 8,
                         ),
                         filled: true,
@@ -197,19 +193,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: const BorderSide(
-                            color: Color(0xFFDCE5FF),
+                            color: Ld.line,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: const BorderSide(
-                            color: Color(0xFFDCE5FF),
+                            color: Ld.line,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: const BorderSide(
-                            color: _brandNavy,
+                            color: Ld.navy,
                             width: 1.5,
                           ),
                         ),
@@ -227,7 +223,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text(
                         _otpError,
                         style: const TextStyle(
-                          color: Colors.red,
+                          color: Ld.danger,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -292,7 +288,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             l10n?.registrationSuccessful ??
                                             'Registration successful',
                                       ),
-                                      backgroundColor: Colors.green,
+                                      backgroundColor: Ld.success,
                                     ),
                                   );
                                   Navigator.pop(
@@ -311,7 +307,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 }
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _brandNavy,
+                          backgroundColor: Ld.navy,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -328,8 +324,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               )
                             : Text(
-                                AppLocalizations.of(context)?.verifyAndRegister ??
-                                    'VERIFY & REGISTER',
+                                _sentence(AppLocalizations.of(context)?.verifyAndRegister ??
+                                    'Verify & register'),
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w900,
@@ -359,7 +355,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                               )?.otpResentSuccessfully ??
                                               'OTP code resent successfully!',
                                         ),
-                                        backgroundColor: Colors.green,
+                                        backgroundColor: Ld.success,
                                       ),
                                     );
                                   }
@@ -371,14 +367,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: _brandNavy,
+                                  color: Ld.navy,
                                 ),
                               )
                             : Text(
                                 AppLocalizations.of(context)?.resendCode ??
                                     'Resend Code',
                                 style: TextStyle(
-                                  color: _brandNavy,
+                                  color: Ld.navy,
                                   fontWeight: FontWeight.w800,
                                   fontSize: 14,
                                 ),
@@ -422,7 +418,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 AppLocalizations.of(context)?.registrationSuccessful ??
                 'Registration successful',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: Ld.success,
         ),
       );
 
@@ -435,7 +431,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             AppLocalizations.of(context)?.registrationFailed(e.toString()) ??
                 'Registration Failed: ${e.toString()}',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Ld.danger,
         ),
       );
     } finally {
@@ -496,7 +492,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             AppLocalizations.of(context)?.selectBranchBeforeGoogle ??
                 'Please select a branch before Google registration',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Ld.danger,
         ),
       );
       return;
@@ -561,7 +557,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 )?.googleRegistrationFailed(e.toString()) ??
                 'Google Registration Failed: ${e.toString()}',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Ld.danger,
         ),
       );
     } finally {
@@ -573,179 +569,138 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return 'g${uid.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_brandNavy, _brandNavy2],
+  /// "REGISTER" → "Register": some English labels are upper case in the
+  /// strings; the design uses sentence case. Lao text is left as it is.
+  static String _sentence(String s) {
+    if (s.length < 2 || s != s.toUpperCase() || s == s.toLowerCase()) return s;
+    return s[0] + s.substring(1).toLowerCase();
+  }
+
+  Widget _languageToggle(BuildContext context) {
+    final code = Localizations.localeOf(context).languageCode;
+    Widget option(String label, Locale locale, bool selected) {
+      return Semantics(
+        button: true,
+        selected: selected,
+        child: Material(
+          color: selected ? Colors.white : Colors.transparent,
+          shape: const StadiumBorder(),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () => PosApp.setLocale(context, locale),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 46, minHeight: 36),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? Ld.navy : Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-        child: SafeArea(
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Ld.navyLine),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          option('ລາວ', const Locale('lo', ''), code == 'lo'),
+          option('EN', const Locale('en', ''), code == 'en'),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Ld.ink,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      backgroundColor: Ld.ground,
+      appBar: LdHeader(
+        title: l10n?.createAccountTitle ?? 'Create Account',
+        subtitle: l10n?.joinLaDolce ?? 'Join LaDolce and start ordering',
+        leading: LdNavIconButton(
+          icon: Icons.arrow_back_rounded,
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () => Navigator.pop(context),
+        ),
+        // EN / Lao switcher, mirroring the login screen so the language
+        // choice carries into registration.
+        actions: [_languageToggle(context)],
+      ),
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            ResponsiveLayout.pageHorizontalPadding(context).clamp(12.0, 32.0),
+            16,
+            ResponsiveLayout.pageHorizontalPadding(context).clamp(12.0, 32.0),
+            24,
+          ),
           child: Center(
-            child: SingleChildScrollView(
-              padding: ResponsiveLayout.scrollablePaddingWithKeyboard(
-                context,
-                top: 20,
-                horizontal: ResponsiveLayout.pageHorizontalPadding(context),
-                bottomExtra: 20,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _brandSurface,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x33000000),
-                        blurRadius: 20,
-                        offset: Offset(0, 12),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
-                    child: Form(
-                      key: _formKey,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    LdSection(
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                              ),
-                              color: _brandNavy,
-                            ),
-                          ),
-                          Center(
-                            child: Container(
-                              width: 96,
-                              height: 96,
-                              decoration: BoxDecoration(
-                                color: _brandNavy,
-                                borderRadius: BorderRadius.circular(22),
-                              ),
-                              alignment: Alignment.center,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.asset(
-                                  'assets/images/ladolce_bear_logo.png',
-                                  width: 80,
-                                  height: 80,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) {
-                                    return const Icon(
-                                      Icons.pets_rounded,
-                                      size: 48,
-                                      color: Colors.white,
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            AppLocalizations.of(context)?.createAccountTitle ??
-                                'Create Account',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: _brandNavy,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            AppLocalizations.of(context)?.joinLaDolce ??
-                                'Join LaDolce and start ordering',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // EN / Lao switcher, mirroring the login screen so
-                          // the language choice carries into registration.
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              TextButton(
-                                onPressed: () => PosApp.setLocale(
-                                  context,
-                                  const Locale('en', ''),
-                                ),
-                                style: TextButton.styleFrom(
-                                  foregroundColor:
-                                      Localizations.localeOf(
-                                            context,
-                                          ).languageCode ==
-                                          'en'
-                                      ? _brandNavy
-                                      : const Color(0xFF94A3B8),
-                                ),
-                                child: const Text('EN'),
-                              ),
-                              const Text(
-                                '|',
-                                style: TextStyle(color: Color(0xFFCBD5E1)),
-                              ),
-                              TextButton(
-                                onPressed: () => PosApp.setLocale(
-                                  context,
-                                  const Locale('lo', ''),
-                                ),
-                                style: TextButton.styleFrom(
-                                  foregroundColor:
-                                      Localizations.localeOf(
-                                            context,
-                                          ).languageCode ==
-                                          'lo'
-                                      ? _brandNavy
-                                      : const Color(0xFF94A3B8),
-                                ),
-                                child: const Text('ລາວ'),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
                           TextFormField(
                             controller: _nameController,
+                            style: Ld.body,
                             decoration: _inputDecoration(
-                              AppLocalizations.of(context)?.fullName ?? 'Full Name',
+                              l10n?.fullName ?? 'Full Name',
                               Icons.badge_outlined,
                             ),
-                            validator: (value) =>
-                                value!.isEmpty
-                                ? (AppLocalizations.of(
-                                        context,
-                                      )?.pleaseEnterName ??
-                                      'Please enter name')
+                            validator: (value) => value!.isEmpty
+                                ? (l10n?.pleaseEnterName ?? 'Please enter name')
                                 : null,
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           IntlPhoneField(
                             initialCountryCode: 'LA', // Laos (+856)
                             disableLengthCheck: true,
+                            style: Ld.body,
                             decoration: _inputDecoration(
                               _selectedRole == 'customer'
-                                  ? (AppLocalizations.of(
-                                              context,
-                                            )?.phoneRequiredCustomers ??
-                                            'Phone Number (Required for Customers)')
-                                  : (AppLocalizations.of(
-                                              context,
-                                            )?.phoneOptional ??
-                                            'Phone Number (Optional)'),
+                                  ? (l10n?.phoneRequiredCustomers ??
+                                      'Phone Number (Required for Customers)')
+                                  : (l10n?.phoneOptional ?? 'Phone Number (Optional)'),
                               Icons.phone_outlined,
                             ),
                             onChanged: (phone) {
@@ -754,320 +709,266 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             validator: (phone) {
                               final v = phone?.completeNumber.trim() ?? '';
                               if (_selectedRole == 'customer' && v.isEmpty) {
-                                return AppLocalizations.of(
-                                      context,
-                                    )?.phoneRequiredForCustomers ??
+                                return l10n?.phoneRequiredForCustomers ??
                                     'Phone number is required for customers';
                               }
                               if (v.isNotEmpty) {
                                 final numberOnly = phone?.number ?? '';
                                 if (numberOnly.length != 10 ||
                                     !numberOnly.startsWith('20')) {
-                                  return AppLocalizations.of(
-                                        context,
-                                      )?.phoneMustBe10Digits ??
+                                  return l10n?.phoneMustBe10Digits ??
                                       'Phone must be 10 digits starting with 20';
                                 }
                               }
                               return null;
                             },
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 6),
                           TextFormField(
                             controller: _loginController,
+                            style: Ld.body,
                             decoration: _inputDecoration(
-                              AppLocalizations.of(context)?.emailOrLogin ?? 'Email / Login',
+                              l10n?.emailOrLogin ?? 'Email / Login',
                               Icons.email_outlined,
                             ),
                             validator: (value) => value!.isEmpty
-                                ? (AppLocalizations.of(
-                                        context,
-                                      )?.pleaseEnterLoginEmail ??
-                                      'Please enter login/email')
+                                ? (l10n?.pleaseEnterLoginEmail ??
+                                    'Please enter login/email')
                                 : null,
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            decoration:
-                                _inputDecoration(
-                                  AppLocalizations.of(context)?.password ?? 'Password',
-                                  Icons.lock_outline,
-                                ).copyWith(
-                                  suffixIcon: IconButton(
-                                    onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
-                                    ),
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      color: const Color(0xFF64748B),
-                                    ),
-                                  ),
+                            style: Ld.body,
+                            decoration: _inputDecoration(
+                              l10n?.password ?? 'Password',
+                              Icons.lock_outline_rounded,
+                            ).copyWith(
+                              suffixIcon: IconButton(
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
                                 ),
-                            validator: (value) =>
-                                value!.isEmpty
-                                ? (AppLocalizations.of(
-                                        context,
-                                      )?.pleaseEnterPassword ??
-                                      'Please enter password')
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: Ld.muted,
+                                ),
+                              ),
+                            ),
+                            validator: (value) => value!.isEmpty
+                                ? (l10n?.pleaseEnterPassword ??
+                                    'Please enter password')
                                 : null,
                           ),
-                          const SizedBox(height: 16),
-                          if (widget.showStaffRoles) ...[
-                            Text(
-                              AppLocalizations.of(context)?.role ?? 'Role',
-                              style: TextStyle(
-                                color: _brandNavy,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 10,
-                              children: [
-                                ChoiceChip(
-                                  label: Text(
-                                    AppLocalizations.of(context)?.roleCustomer ??
-                                        'Customer',
-                                  ),
-                                  selected: _selectedRole == 'customer',
-                                  selectedColor: _brandNavy,
-                                  labelStyle: TextStyle(
-                                    color: _selectedRole == 'customer'
-                                        ? Colors.white
-                                        : _brandNavy,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  side: const BorderSide(
-                                    color: Color(0xFFDCE5FF),
-                                  ),
-                                  onSelected: (_) => setState(() {
-                                    _selectedRole = 'customer';
-                                    _branches = const [];
-                                    _selectedBranchId = null;
-                                  }),
-                                ),
-                                ChoiceChip(
-                                  label: Text(
-                                    AppLocalizations.of(context)?.roleCashier ??
-                                        'Cashier',
-                                  ),
-                                  selected: _selectedRole == 'cashier',
-                                  selectedColor: _brandNavy,
-                                  labelStyle: TextStyle(
-                                    color: _selectedRole == 'cashier'
-                                        ? Colors.white
-                                        : _brandNavy,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  side: const BorderSide(
-                                    color: Color(0xFFDCE5FF),
-                                  ),
-                                  onSelected: (_) async {
-                                    setState(() => _selectedRole = 'cashier');
-                                    await _maybeLoadBranches();
-                                  },
-                                ),
-                                ChoiceChip(
-                                  label: Text(
-                                    AppLocalizations.of(context)?.roleRider ?? 'Rider',
-                                  ),
-                                  selected: _selectedRole == 'rider',
-                                  selectedColor: _brandNavy,
-                                  labelStyle: TextStyle(
-                                    color: _selectedRole == 'rider'
-                                        ? Colors.white
-                                        : _brandNavy,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  side: const BorderSide(
-                                    color: Color(0xFFDCE5FF),
-                                  ),
-                                  onSelected: (_) async {
-                                    setState(() => _selectedRole = 'rider');
-                                    await _maybeLoadBranches();
-                                  },
-                                ),
-                              ],
-                            ),
-                          ], // end showStaffRoles
-                          if (_selectedRole == 'cashier' ||
-                              _selectedRole == 'rider') ...[
-                            const SizedBox(height: 14),
-                            Text(
-                              AppLocalizations.of(context)?.branch ?? 'Branch',
-                              style: TextStyle(
-                                color: _brandNavy,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (_isLoadingBranches)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            else
-                              DropdownButtonFormField<int>(
-                                value: _selectedBranchId,
-                                items: _branches.map((b) {
-                                  final id = (b['id'] is int)
-                                      ? b['id'] as int
-                                      : int.tryParse('${b['id']}') ?? 0;
-                                  final name = (b['name'] ?? '').toString();
-                                  final code = (b['code'] ?? '')
-                                      .toString()
-                                      .trim();
-                                  final label = code.isNotEmpty
-                                      ? '$name ($code)'
-                                      : name;
-                                  return DropdownMenuItem<int>(
-                                    value: id,
-                                    child: Text(label),
-                                  );
-                                }).toList(),
-                                onChanged: _isLoading
-                                    ? null
-                                    : (v) =>
-                                          setState(() => _selectedBranchId = v),
-                                decoration: _inputDecoration(
-                                  AppLocalizations.of(context)?.selectBranchHint ??
-                                      'Select branch',
-                                  Icons.account_tree_outlined,
-                                ),
-                                validator: (v) {
-                                  if (_selectedRole != 'cashier' &&
-                                      _selectedRole != 'rider')
-                                    return null;
-                                  if (v == null || v <= 0) {
-                                    return AppLocalizations.of(
-                                          context,
-                                        )?.pleaseSelectBranch ??
-                                        'Please select a branch';
-                                  }
-                                  return null;
-                                },
-                              ),
-                          ],
-                          const SizedBox(height: 14),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Checkbox(
-                                value: _isAccepted,
-                                activeColor: _brandNavy,
-                                checkColor: Colors.white,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                visualDensity: VisualDensity.compact,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _isAccepted = value ?? false;
-                                  });
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: const Color(0xFF64748B),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                    children: [
-                                      TextSpan(
-                                        text:
-                                            AppLocalizations.of(
-                                              context,
-                                            )?.agreeToTerms ??
-                                            'I agree to the Terms of Service and ',
-                                      ),
-                                      TextSpan(
-                                        text:
-                                            AppLocalizations.of(
-                                              context,
-                                            )?.privacyPolicy ??
-                                            'Privacy Policy',
-                                        style: const TextStyle(
-                                          color: _brandNavy,
-                                          fontWeight: FontWeight.bold,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                        recognizer: _privacyPolicyRecognizer,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: (_isLoading || !_isAccepted)
-                                  ? null
-                                  : _register,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _brandNavy,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2.2,
-                                      ),
-                                    )
-                                  : Text(
-                                      AppLocalizations.of(context)?.registerButton ??
-                                          'REGISTER',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          if (FirebaseAuthService.isGoogleAuthAvailable) ...[
-                            const SizedBox(height: 12),
-                            _GoogleAuthButton(
-                              label:
-                                  AppLocalizations.of(
-                                    context,
-                                  )?.continueWithGoogle ??
-                                  'Continue with Google',
-                              isLoading: _isLoading,
-                              onPressed: _continueWithGoogle,
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                  ),
+                    if (widget.showStaffRoles ||
+                        _selectedRole == 'cashier' ||
+                        _selectedRole == 'rider') ...[
+                      const SizedBox(height: 12),
+                      LdSection(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (widget.showStaffRoles) ...[
+                              _sectionLabel(l10n?.role ?? 'Role'),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  LdChoiceChip(
+                                    label: l10n?.roleCustomer ?? 'Customer',
+                                    selected: _selectedRole == 'customer',
+                                    onTap: () => setState(() {
+                                      _selectedRole = 'customer';
+                                      _branches = const [];
+                                      _selectedBranchId = null;
+                                    }),
+                                  ),
+                                  LdChoiceChip(
+                                    label: l10n?.roleCashier ?? 'Cashier',
+                                    selected: _selectedRole == 'cashier',
+                                    onTap: () async {
+                                      setState(() => _selectedRole = 'cashier');
+                                      await _maybeLoadBranches();
+                                    },
+                                  ),
+                                  LdChoiceChip(
+                                    label: l10n?.roleRider ?? 'Rider',
+                                    selected: _selectedRole == 'rider',
+                                    onTap: () async {
+                                      setState(() => _selectedRole = 'rider');
+                                      await _maybeLoadBranches();
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ], // end showStaffRoles
+                            if (_selectedRole == 'cashier' ||
+                                _selectedRole == 'rider') ...[
+                              if (widget.showStaffRoles) const SizedBox(height: 16),
+                              _sectionLabel(l10n?.branch ?? 'Branch'),
+                              if (_isLoadingBranches)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: Ld.navy,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                DropdownButtonFormField<int>(
+                                  value: _selectedBranchId,
+                                  isExpanded: true,
+                                  items: _branches.map((b) {
+                                    final id = (b['id'] is int)
+                                        ? b['id'] as int
+                                        : int.tryParse('${b['id']}') ?? 0;
+                                    final name = (b['name'] ?? '').toString();
+                                    final code = (b['code'] ?? '')
+                                        .toString()
+                                        .trim();
+                                    final label = code.isNotEmpty
+                                        ? '$name ($code)'
+                                        : name;
+                                    return DropdownMenuItem<int>(
+                                      value: id,
+                                      child: Text(
+                                        label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: _isLoading
+                                      ? null
+                                      : (v) =>
+                                            setState(() => _selectedBranchId = v),
+                                  decoration: _inputDecoration(
+                                    l10n?.selectBranchHint ?? 'Select branch',
+                                    Icons.account_tree_outlined,
+                                  ),
+                                  validator: (v) {
+                                    if (_selectedRole != 'cashier' &&
+                                        _selectedRole != 'rider')
+                                      return null;
+                                    if (v == null || v <= 0) {
+                                      return l10n?.pleaseSelectBranch ??
+                                          'Please select a branch';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Checkbox(
+                          value: _isAccepted,
+                          activeColor: Ld.navy,
+                          checkColor: Colors.white,
+                          side: const BorderSide(color: Ld.muted, width: 1.5),
+                          onChanged: (value) {
+                            setState(() {
+                              _isAccepted = value ?? false;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: RichText(
+                            textScaler: MediaQuery.textScalerOf(context),
+                            text: TextSpan(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Ld.muted,
+                                    fontSize: 14,
+                                    height: 1.4,
+                                  ),
+                              children: [
+                                TextSpan(
+                                  text: l10n?.agreeToTerms ??
+                                      'I agree to the Terms of Service and ',
+                                ),
+                                TextSpan(
+                                  text: l10n?.privacyPolicy ?? 'Privacy Policy',
+                                  style: const TextStyle(
+                                    color: Ld.navy,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  recognizer: _privacyPolicyRecognizer,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: (_isLoading || !_isAccepted)
+                            ? null
+                            : _register,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Ld.navy,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Ld.lineSoft,
+                          disabledForegroundColor: Ld.faint,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Ld.rMd),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Ld.navy,
+                                  strokeWidth: 2.2,
+                                ),
+                              )
+                            : Text(
+                                _sentence(l10n?.registerButton ?? 'Register'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                    ),
+                    if (FirebaseAuthService.isGoogleAuthAvailable) ...[
+                      const SizedBox(height: 12),
+                      _GoogleAuthButton(
+                        label: l10n?.continueWithGoogle ?? 'Continue with Google',
+                        isLoading: _isLoading,
+                        onPressed: _continueWithGoogle,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -1078,23 +979,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   InputDecoration _inputDecoration(String label, IconData icon) {
+    OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Ld.r),
+          borderSide: BorderSide(color: c, width: w),
+        );
     return InputDecoration(
       labelText: label,
       filled: true,
       fillColor: Colors.white,
-      prefixIcon: Icon(icon, color: _brandNavy),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: _brandNavy, width: 1.5),
-      ),
+      prefixIcon: Icon(icon, color: Ld.muted),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      border: border(Ld.line),
+      enabledBorder: border(Ld.line),
+      focusedBorder: border(Ld.navy, 1.5),
+      errorBorder: border(Ld.danger),
+      focusedErrorBorder: border(Ld.danger, 1.5),
     );
   }
 }
@@ -1115,39 +1014,42 @@ class _GoogleAuthButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: OutlinedButton.icon(
+      child: OutlinedButton(
         onPressed: isLoading ? null : onPressed,
-        icon: Container(
-          width: 24,
-          height: 24,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-          ),
-          child: const Text(
-            'G',
-            style: TextStyle(
-              color: Color(0xFF4285F4),
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF001460),
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
-          side: const BorderSide(color: Color(0xFFDCE5FF)),
+          foregroundColor: Ld.ink,
+          side: const BorderSide(color: Ld.line),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(Ld.rMd),
           ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'G',
+              style: TextStyle(
+                color: Color(0xFF4285F4),
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Ld.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
-import '../theme/coffee_luxury_background.dart';
+import '../theme/ld.dart';
 import 'pin_screen.dart';
 
 class PosIdentityScreen extends StatefulWidget {
@@ -91,133 +91,180 @@ class _PosIdentityScreenState extends State<PosIdentityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kCoffeeBrandNavy,
-      body: PinStyleBackground(
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.14),
-                    ),
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(AppLocalizations.of(context)?.setPosName ?? (AppLocalizations.of(context)?.setPosName ?? 'Set POS Name'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(AppLocalizations.of(context)?.thisHelpsTrackWhichDeviceWas ?? (AppLocalizations.of(context)?.thisHelpsTrackWhichDeviceWas ?? 'This helps track which device was used when something happens.'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.78),
-                            height: 1.35,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        TextFormField(
-                          controller: _posNameController,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _saveAndContinue(),
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)?.posNameExCounter1Ipad ?? (AppLocalizations.of(context)?.posNameExCounter1Ipad ?? 'POS name (ex: Counter-1, iPad-Bar, Android-Front)'),
-                            labelStyle: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.72),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.10),
-                            prefixIcon: Icon(
-                              Icons.store_mall_directory_rounded,
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.20),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.20),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: kCoffeeGold,
-                                width: 1.6,
-                              ),
-                            ),
-                          ),
-                          validator: (v) {
-                            final s = v?.trim() ?? '';
-                            if (s.isEmpty) return (AppLocalizations.of(context)?.pleaseEnterAPosName ?? 'Please enter a POS name');
-                            if (s.length < 2) return (AppLocalizations.of(context)?.posNameIsTooShort ?? 'POS name is too short');
-                            if (s.length > 40) return (AppLocalizations.of(context)?.posNameIsTooLong ?? 'POS name is too long');
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: _isSaving ? null : _saveAndContinue,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: kCoffeeGold,
-                              foregroundColor: kCoffeeBrandNavy,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            icon: _isSaving
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: kCoffeeBrandNavy,
-                                    ),
-                                  )
-                                : const Icon(Icons.check_rounded),
-                            label: Text(_isSaving ? 'Saving…' : (AppLocalizations.of(context)?.continueLabel ?? 'Continue')),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'We will also send device info (Android/iOS + model) to the backend for auditing.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.62),
-                            fontSize: 12,
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ),
+    final l10n = AppLocalizations.of(context);
+    final tablet = Ld.isTablet(context);
+    final short = MediaQuery.sizeOf(context).height < 700;
+    OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Ld.r),
+          borderSide: BorderSide(color: c, width: w),
+        );
+
+    final card = Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: tablet
+            ? BorderRadius.circular(28)
+            : const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 26, 24, 20 + (tablet ? 4 : Ld.navInset(context))),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const LdIconTile(Icons.point_of_sale_rounded),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    l10n?.setPosName ?? 'Set POS Name',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Ld.title(22),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              l10n?.thisHelpsTrackWhichDeviceWas ??
+                  'This helps track which device was used when something happens.',
+              style: Ld.label,
+            ),
+            const SizedBox(height: 18),
+            TextFormField(
+              controller: _posNameController,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _saveAndContinue(),
+              style: Ld.body,
+              decoration: InputDecoration(
+                labelText: l10n?.posNameExCounter1Ipad ??
+                    'POS name (ex: Counter-1, iPad-Bar, Android-Front)',
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: const Icon(
+                  Icons.store_mall_directory_outlined,
+                  color: Ld.muted,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                border: border(Ld.line),
+                enabledBorder: border(Ld.line),
+                focusedBorder: border(Ld.navy, 1.5),
+                errorBorder: border(Ld.danger),
+                focusedErrorBorder: border(Ld.danger, 1.5),
+              ),
+              validator: (v) {
+                final s = v?.trim() ?? '';
+                if (s.isEmpty) return (l10n?.pleaseEnterAPosName ?? 'Please enter a POS name');
+                if (s.length < 2) return (l10n?.posNameIsTooShort ?? 'POS name is too short');
+                if (s.length > 40) return (l10n?.posNameIsTooLong ?? 'POS name is too long');
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: _isSaving ? null : _saveAndContinue,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Ld.navy,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Ld.navy.withValues(alpha: 0.75),
+                  disabledForegroundColor: Colors.white,
+                  elevation: 0,
+                  textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Ld.rMd),
+                  ),
+                ),
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_rounded),
+                label: Text(_isSaving ? 'Saving…' : (l10n?.continueLabel ?? 'Continue')),
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 1),
+                  child: Icon(Icons.info_outline_rounded, size: 16, color: Ld.muted),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'We will also send device info (Android/iOS + model) to the backend for auditing.',
+                    style: Ld.small.copyWith(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: Ld.navy,
+      body: SafeArea(
+        bottom: tablet,
+        child: CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              'assets/images/ladolce_bear_logo.png',
+                              width: short ? 64 : 88,
+                              height: short ? 64 : 88,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, _, _) => const Icon(
+                                Icons.pets_rounded,
+                                size: 52,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text('LaDolce', style: Ld.title(short ? 28 : 34, color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (tablet)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 460),
+                        child: card,
+                      ),
+                    )
+                  else
+                    card,
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

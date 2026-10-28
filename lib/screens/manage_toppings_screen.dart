@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/topping.dart';
-import '../theme/ladolce_pos_ui.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ld.dart';
 import '../widgets/topping_picker.dart';
+import 'manage_items_screen.dart';
 import 'manage_topping_groups_screen.dart';
 import 'topping_edit_screen.dart';
 import '../utils/money.dart';
@@ -21,8 +21,6 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<Topping> _toppings = [];
-
-  static const Color _accent = Colors.green;
 
   @override
   void initState() {
@@ -68,21 +66,28 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
     });
   }
 
+  void _openGroups() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ManageToppingGroupsScreen()),
+    ).then((_) => _fetchToppings());
+  }
+
   Future<void> _deleteTopping(int id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.deleteTopping ?? (AppLocalizations.of(context)?.deleteTopping ?? 'Delete Topping')),
-        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo4 ?? (AppLocalizations.of(context)?.areYouSureYouWantTo4 ?? 'Are you sure you want to delete this topping?')),
+        title: Text(AppLocalizations.of(context)?.deleteTopping ?? 'Delete Topping'),
+        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo4 ?? 'Are you sure you want to delete this topping?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
-            style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
+            style: itemsDangerButtonStyle(),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete')),
+            child: Text(AppLocalizations.of(context)?.delete ?? 'Delete'),
           ),
         ],
       ),
@@ -96,14 +101,14 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
       _fetchToppings();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)?.toppingDeleted ?? (AppLocalizations.of(context)?.toppingDeleted ?? 'Topping deleted')), backgroundColor: Colors.orange),
+          SnackBar(content: Text(AppLocalizations.of(context)?.toppingDeleted ?? 'Topping deleted'), backgroundColor: Ld.warning),
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Ld.danger),
         );
       }
     }
@@ -111,257 +116,252 @@ class _ManageToppingsScreenState extends State<ManageToppingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.manageToppings ?? (AppLocalizations.of(context)?.manageToppings ?? 'Manage Toppings')),
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: l10n?.manageToppings ?? 'Manage Toppings',
         actions: [
-          TextButton.icon(
-            style: TextButton.styleFrom(foregroundColor: Colors.white),
-            icon: const Icon(Icons.view_agenda_outlined, size: 20),
-            label: Text(AppLocalizations.of(context)?.toppingGroups ?? 'Topping groups'),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ManageToppingGroupsScreen()),
-            ).then((_) => _fetchToppings()),
+          ItemsHeaderAction(
+            label: l10n?.toppingGroups ?? 'Topping groups',
+            icon: Icons.view_agenda_outlined,
+            primary: false,
+            onPressed: _openGroups,
           ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)?.addTopping ?? (AppLocalizations.of(context)?.addTopping ?? 'Add Topping'),
+          ItemsHeaderAction(
+            label: l10n?.addTopping ?? 'Add Topping',
+            icon: Icons.add_rounded,
             onPressed: () => _openToppingScreen(),
           ),
         ],
       ),
-      body: LuxuryPatternBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64, height: 64,
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 32),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: _fetchToppings,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
-                            style: LaDolcePosUi.primaryButtonStyle(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : _toppings.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 80, height: 80,
-                                decoration: BoxDecoration(
-                                  color: _accent.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Icon(Icons.eco_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(AppLocalizations.of(context)?.noToppingsYet ?? (AppLocalizations.of(context)?.noToppingsYet ?? 'No toppings yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 6),
-                              Text(AppLocalizations.of(context)?.addYourFirstToppingToGet ?? (AppLocalizations.of(context)?.addYourFirstToppingToGet ?? 'Add your first topping to get started'),
-                                  style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText)),
-                              const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.add, size: 18),
-                                label: Text(AppLocalizations.of(context)?.addTopping ?? (AppLocalizations.of(context)?.addTopping ?? 'Add Topping')),
-                                onPressed: () => _openToppingScreen(),
-                                style: LaDolcePosUi.primaryButtonStyle(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.only(top: 8, bottom: 88),
-                        children: [
-                          for (final section in ToppingRules.sections(_toppings)) ...[
-                            // Group heading, e.g. "Size · Pick 1 · Required".
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
-                              child: Text(
-                                [
-                                  section.groupId == null
-                                      ? (AppLocalizations.of(context)?.toppingNoGroup ?? 'No group (add-on)')
-                                      : section.title,
-                                  if (section.groupId != null)
-                                    section.single
-                                        ? (AppLocalizations.of(context)?.toppingPickOne ?? 'Pick 1')
-                                        : (AppLocalizations.of(context)?.toppingPickMany ?? 'Pick many'),
-                                  if (section.required)
-                                    AppLocalizations.of(context)?.toppingRequired ?? 'Required',
-                                ].join(' · '),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
-                                  color: LaDolcePosUi.navy,
-                                ),
-                              ),
-                            ),
-                            for (final topping in section.options)
-                              _ToppingCard(
-                                topping: topping,
-                                accent: _accent,
-                                onTap: () => _openToppingScreen(topping: topping),
-                                onDelete: () => _deleteTopping(topping.id),
-                              ),
-                          ],
-                        ],
-                      ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? ItemsStateView(
+                  icon: Icons.error_outline_rounded,
+                  title: _errorMessage!,
+                  isError: true,
+                  actionLabel: l10n?.retry ?? 'Retry',
+                  actionIcon: Icons.refresh_rounded,
+                  onAction: _fetchToppings,
+                )
+              : _toppings.isEmpty
+                  ? ItemsStateView(
+                      icon: Icons.eco_outlined,
+                      title: l10n?.noToppingsYet ?? 'No toppings yet',
+                      message: l10n?.addYourFirstToppingToGet ?? 'Add your first topping to get started',
+                      actionLabel: l10n?.addTopping ?? 'Add Topping',
+                      actionIcon: Icons.add_rounded,
+                      onAction: () => _openToppingScreen(),
+                    )
+                  : _buildGroups(context),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: LaDolcePosUi.navy,
+        backgroundColor: Ld.navy,
         foregroundColor: Colors.white,
+        elevation: 0,
+        tooltip: l10n?.addTopping ?? 'Add Topping',
         child: const Icon(Icons.add_rounded),
         onPressed: () => _openToppingScreen(),
       ),
     );
   }
+
+  /// One card per group (Type, Taste, Size, add-ons), laid out in as many
+  /// columns as fit: 1 on phones, up to 4 on a landscape tablet.
+  Widget _buildGroups(BuildContext context) {
+    final gutter = itemsGutter(context);
+    final sections = ToppingRules.sections(_toppings);
+    return RefreshIndicator(
+      onRefresh: _fetchToppings,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final inner = box.maxWidth - gutter * 2;
+          final columns = (inner / 340).floor().clamp(1, 4);
+          const gap = 14.0;
+          final cols = List.generate(columns, (_) => <Widget>[]);
+          for (var i = 0; i < sections.length; i++) {
+            cols[i % columns].add(Padding(
+              padding: const EdgeInsets.only(bottom: gap),
+              child: _ToppingGroupCard(
+                section: sections[i],
+                onEdit: (t) => _openToppingScreen(topping: t),
+                onDelete: (t) => _deleteTopping(t.id),
+              ),
+            ));
+          }
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(gutter, 18, gutter, 96 + Ld.navInset(context)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var c = 0; c < columns; c++) ...[
+                  if (c > 0) const SizedBox(width: gap),
+                  Expanded(child: Column(children: cols[c])),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
-class _ToppingCard extends StatelessWidget {
+class _ToppingGroupCard extends StatelessWidget {
+  final ToppingSection section;
+  final ValueChanged<Topping> onEdit;
+  final ValueChanged<Topping> onDelete;
+
+  const _ToppingGroupCard({required this.section, required this.onEdit, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final grouped = section.groupId != null;
+    return Container(
+      decoration: Ld.card(radius: Ld.rXl),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            grouped ? section.title : (l10n?.toppingNoGroup ?? 'No group (add-on)'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Ld.title(19),
+          ),
+          if (grouped) ...[
+            const SizedBox(height: 8),
+            // Rule pills, e.g. "Pick 1" and "Required".
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                LdPill(section.single ? (l10n?.toppingPickOne ?? 'Pick 1') : (l10n?.toppingPickMany ?? 'Pick many')),
+                if (section.required)
+                  LdPill(l10n?.toppingRequired ?? 'Required', background: Ld.dangerWash, foreground: Ld.danger),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          for (final topping in section.options)
+            _ToppingRow(
+              topping: topping,
+              onTap: () => onEdit(topping),
+              onDelete: () => onDelete(topping),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToppingRow extends StatelessWidget {
   final Topping topping;
-  final Color accent;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  const _ToppingCard({
+  const _ToppingRow({
     required this.topping,
-    required this.accent,
     required this.onTap,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    final l10n = AppLocalizations.of(context);
+    final lao = (topping.nameLo ?? '').trim();
+    final hasLao = lao.isNotEmpty && lao != topping.name;
+    final primary = topping.displayName;
+    final secondary = hasLao ? (primary == topping.name ? lao : topping.name) : null;
+    final paid = topping.extraPrice > 0;
+
+    final priceText = Text(
+      paid ? '+₭${money(topping.extraPrice)}' : (l10n?.free ?? 'Free'),
+      maxLines: 1,
+      style: paid
+          ? Ld.price(15, weight: FontWeight.w600)
+          : const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Ld.muted),
+    );
+
+    return Container(
+      decoration: const BoxDecoration(border: Border(top: BorderSide(color: Ld.lineSoft))),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-        child: Container(
-          decoration: BoxDecoration(
-            color: LaDolcePosUi.card,
-            borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-            border: Border.all(color: LaDolcePosUi.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+        borderRadius: BorderRadius.circular(Ld.rSm),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
           child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.eco_outlined, color: accent, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        topping.name,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if ((topping.nameLo ?? '').trim().isNotEmpty &&
-                          topping.nameLo!.trim() != topping.name)
-                        Text(
-                          topping.nameLo!,
-                          style: const TextStyle(fontSize: 13, color: LaDolcePosUi.mutedText),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 6,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: LayoutBuilder(
+              builder: (context, box) {
+                // Narrow card (phones): the price goes under the name so the
+                // name keeps its width.
+                final compact = box.maxWidth < 330;
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: topping.extraPrice > 0
-                                  ? accent.withValues(alpha: 0.1)
-                                  : LaDolcePosUi.mutedText.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              topping.extraPrice > 0
-                                  ? '+₭${money(topping.extraPrice)}'
-                                  : (AppLocalizations.of(context)?.free ?? 'Free'),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: topping.extraPrice > 0 ? accent : LaDolcePosUi.mutedText,
-                              ),
-                            ),
+                          Text(
+                            primary,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Ld.ink),
                           ),
-                          if (topping.isDefault && topping.groupId != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: LaDolcePosUi.navy.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                AppLocalizations.of(context)?.toppingDefaultBadge ?? 'Default',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: LaDolcePosUi.navy,
-                                ),
+                          if (secondary != null)
+                            Text(secondary, maxLines: 1, overflow: TextOverflow.ellipsis, style: Ld.small),
+                          if (compact || (topping.isDefault && topping.groupId != null))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Wrap(
+                                spacing: 10,
+                                runSpacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  if (compact) priceText,
+                                  if (topping.isDefault && topping.groupId != null)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.check_circle_outline_rounded, size: 14, color: Ld.warning),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            l10n?.toppingDefaultBadge ?? 'Default',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontSize: 12.5, fontWeight: FontWeight.w600, color: Ld.warning),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
                               ),
                             ),
                         ],
                       ),
+                    ),
+                    if (!compact) ...[
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 120),
+                        child: FittedBox(fit: BoxFit.scaleDown, child: priceText),
+                      ),
                     ],
-                  ),
-                ),
-                SizedBox(
-                  width: 36, height: 36,
-                  child: IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                    color: Colors.red.withValues(alpha: 0.7),
-                    onPressed: onDelete,
-                    padding: EdgeInsets.zero,
-                    tooltip: AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete'),
-                  ),
-                ),
-              ],
+                    const SizedBox(width: 8),
+                    ItemsRowButton(
+                      icon: Icons.delete_outline_rounded,
+                      tooltip: l10n?.delete ?? 'Delete',
+                      danger: true,
+                      onPressed: onDelete,
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),

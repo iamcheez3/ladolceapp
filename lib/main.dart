@@ -10,7 +10,7 @@ import 'services/push_notifications_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'theme/ld_theme.dart';
 import 'screens/maintenance_screen.dart';
 import 'models/product.dart';
 import 'services/maintenance_service.dart';
@@ -114,31 +114,20 @@ class _PosAppState extends State<PosApp> {
       locale: _locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      builder: (context, child) => _OrientationLocker(
-        child: ResponsiveLayout.withClampedTextScaling(
-          child: UpgradeAlert(
-            child: child ?? const SizedBox.shrink(),
+      // Light status-bar icons by default: almost every screen has a navy top.
+      // Screens with a light top (tablet POS) declare their own region,
+      // which wins over this one.
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: _OrientationLocker(
+          child: ResponsiveLayout.withClampedTextScaling(
+            child: UpgradeAlert(
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         ),
       ),
-      theme: ThemeData(
-        fontFamily: _locale?.languageCode == 'lo'
-            ? GoogleFonts.notoSansLao().fontFamily
-            : 'Inter',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF001460), // Brand navy
-          primary: const Color(0xFF001460),
-          secondary: const Color(0xFF3B82F6),
-          surface: Colors.white,
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF001460),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        useMaterial3: true,
-      ),
+      theme: buildLdTheme(),
       home: _initialScreen(),
       onGenerateRoute: (settings) {
         if (settings.name == '/maintenance') {

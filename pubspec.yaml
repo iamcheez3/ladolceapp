@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.1+9
+version: 1.0.1+10
 
 environment:
   sdk: '>=3.10.3 <4.0.0'
@@ -120,6 +120,17 @@ flutter:
       fonts:
         - asset: assets/fonts/NotoSerifLao-Regular.ttf
         - asset: assets/fonts/NotoSerifLao-Bold.ttf
+          weight: 700
+    # App UI font (screens). Bundled so Lao looks the same offline and on
+    # every phone; Latin letters fall back to the system font.
+    - family: NotoSansLao
+      fonts:
+        - asset: assets/fonts/NotoSansLao-Regular.ttf
+        - asset: assets/fonts/NotoSansLao-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansLao-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansLao-Bold.ttf
           weight: 700
 
   # To add custom fonts to your application, add a fonts section here,

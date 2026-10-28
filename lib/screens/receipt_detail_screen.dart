@@ -3,12 +3,24 @@ import '../utils/bilingual_name.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
+import '../theme/ld.dart';
 import '../utils/money.dart';
 
 class ReceiptDetailScreen extends StatefulWidget {
   final int orderId;
 
-  const ReceiptDetailScreen({super.key, required this.orderId});
+  /// Shown inside the tablet receipts split view instead of as its own
+  /// page: no header, and after a refund [onRefunded] runs instead of
+  /// popping the route.
+  final bool embedded;
+  final VoidCallback? onRefunded;
+
+  const ReceiptDetailScreen({
+    super.key,
+    required this.orderId,
+    this.embedded = false,
+    this.onRefunded,
+  });
 
   @override
   State<ReceiptDetailScreen> createState() => _ReceiptDetailScreenState();
@@ -22,7 +34,8 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
   Map<String, dynamic>? _receiptData;
   bool _isRefunded = false;
 
-  static const Color _navy = Color(0xFF1E3A8A);
+  /// Width of the paper receipt.
+  static const double _paperWidth = 440;
 
   @override
   void initState() {
@@ -74,50 +87,54 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.undo_rounded, color: Colors.red),
-            SizedBox(width: 8),
-            Text(AppLocalizations.of(context)?.confirmRefund ?? (AppLocalizations.of(context)?.confirmRefund ?? 'Confirm Refund'), style: TextStyle(fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This will cancel order ${_receiptData?['order_reference'] ?? ''} and reverse any loyalty points.',
-              style: const TextStyle(color: Colors.black87),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pinCtrl,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)?.adminPin ?? (AppLocalizations.of(context)?.adminPin ?? 'Admin PIN'),
-                prefixIcon: const Icon(Icons.lock_outlined),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                counterText: '',
+            const Icon(Icons.undo_rounded, color: Ld.danger),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                AppLocalizations.of(context)?.confirmRefund ?? 'Confirm Refund',
+                style: Ld.title(19, color: Ld.ink),
               ),
             ),
           ],
         ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will cancel order ${_receiptData?['order_reference'] ?? ''} and reverse any loyalty points.',
+                style: Ld.body,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: pinCtrl,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)?.adminPin ?? 'Admin PIN',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  counterText: '',
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Ld.danger,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(AppLocalizations.of(context)?.refund ?? (AppLocalizations.of(context)?.refund ?? 'Refund')),
+            child: Text(AppLocalizations.of(context)?.refund ?? 'Refund'),
           ),
         ],
       ),
@@ -168,7 +185,13 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
         _snack('✅ Order refunded successfully.', Colors.green);
         // Go back to history after a short delay so the snack is visible
         await Future.delayed(const Duration(seconds: 2));
-        if (mounted) Navigator.pop(context, true); // true = list should refresh
+        if (mounted) {
+          if (widget.embedded) {
+            widget.onRefunded?.call(); // the list beside it refreshes
+          } else {
+            Navigator.pop(context, true); // true = list should refresh
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -188,268 +211,347 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final body = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _errorMessage != null
+            ? _buildError()
+            : _buildContent();
+    if (widget.embedded) {
+      return ColoredBox(color: Ld.ground, child: body);
+    }
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_receiptData?['order_reference'] ?? 'Receipt Details'),
-        backgroundColor: _navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: (_receiptData?['order_reference'] ?? 'Receipt Details').toString(),
       ),
-      backgroundColor: Colors.grey[100],
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? _buildError()
-              : _buildContent(),
+      backgroundColor: Ld.ground,
+      body: body,
     );
   }
 
   Widget _buildError() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-          const SizedBox(height: 16),
-          ElevatedButton(onPressed: _fetchReceipt, child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry'))),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const LdIconTile(Icons.error_outline_rounded, size: 64, background: Ld.dangerWash, color: Ld.danger),
+            const SizedBox(height: 16),
+            Text(_errorMessage!, textAlign: TextAlign.center, style: Ld.body.copyWith(color: Ld.danger)),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _fetchReceipt,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(AppLocalizations.of(context)?.retry ?? 'Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildContent() {
-    final data = _receiptData!;
-    return Stack(
+    final paper = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-          child: Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // ── Refunded badge ────────────────────────────────
-                      if (_isRefunded)
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
-                              SizedBox(width: 8),
-                              Text(AppLocalizations.of(context)?.thisOrderHasBeenRefunded ?? (AppLocalizations.of(context)?.thisOrderHasBeenRefunded ?? 'This order has been refunded'), style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
+        _buildPaper(_receiptData!),
+        const LdTicketEdge(height: 12),
+      ],
+    );
 
-                      // ── Header ────────────────────────────────────────
-                      Text(
-                        data['order_reference'] ?? (AppLocalizations.of(context)?.receipt ?? 'Receipt'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
+    if (widget.embedded) {
+      // Tablet: the buttons sit right under the paper.
+      return SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + Ld.navInset(context)),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _paperWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                paper,
+                if (!_isRefunded) ...[
+                  const SizedBox(height: 16),
+                  _buildActions(),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
-                      // ── Meta ──────────────────────────────────────────
-                      _metaRow(AppLocalizations.of(context)?.dateColon ?? 'Date:', data['date_order'] ?? ''),
-                      _metaRow(AppLocalizations.of(context)?.cashierColon ?? 'Cashier:', data['cashier'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')),
-                      if ((data['table']?.toString() ?? '').isNotEmpty)
-                        _metaRow(AppLocalizations.of(context)?.tableColon ?? 'Table:', data['table'].toString()),
-                      _metaRow(AppLocalizations.of(context)?.paymentColon ?? 'Payment:', data['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')),
-
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 16),
-
-                      // ── Items header ──────────────────────────────────
-                      Row(
-                        children: [
-                          Expanded(flex: 3, child: Text(AppLocalizations.of(context)?.item ?? (AppLocalizations.of(context)?.item ?? 'Item'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                          Expanded(flex: 1, child: Text(AppLocalizations.of(context)?.qty ?? (AppLocalizations.of(context)?.qty ?? 'Qty'), textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                          Expanded(flex: 2, child: Text(AppLocalizations.of(context)?.total ?? (AppLocalizations.of(context)?.total ?? 'Total'), textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // ── Items list ────────────────────────────────────
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: (data['lines'] as List).length,
-                        itemBuilder: (context, index) {
-                          final line = data['lines'][index];
-                          final subtotal = (line['subtotal'] as num?)?.toDouble() ?? 0.0;
-                          final currency = data['currency']?.toString() ?? 'LAK';
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: Text(bilingualName(line, fallback: AppLocalizations.of(context)?.item ?? 'Item'),
-                                      style: const TextStyle(fontWeight: FontWeight.w500)),
-                                ),
-                                Expanded(
-                                  flex: 1,
-                                  child: Text('${line['qty']}',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(color: Colors.grey[700])),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    '$currency ${money(subtotal)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontWeight: FontWeight.w500),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 16),
-
-                      // ── Discount ───────────────────────────────────────
-                      if (((data['amount_discount'] as num?)?.toDouble() ?? 0) > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(AppLocalizations.of(context)?.discount ?? (AppLocalizations.of(context)?.discount ?? 'Discount'),
-                                  style: TextStyle(fontSize: 16, color: Colors.red),
-                                ),
-                              ),
-                              Flexible(
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerRight,
-                                  child: Text(
-                                    '-${data['currency'] ?? 'LAK'} ${money(data['amount_discount'] as num)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.red,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                      // ── Total ─────────────────────────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(AppLocalizations.of(context)?.totalAmount ?? (AppLocalizations.of(context)?.totalAmount ?? 'Total Amount'),
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                '${data['currency'] ?? 'LAK'} ${money(data['amount_total'] as num)}',
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: _navy,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+    // Phone: the paper scrolls, the buttons stay above the navigation bar.
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _paperWidth),
+                child: paper,
               ),
             ),
           ),
         ),
-
-        // ── Floating action bar ────────────────────────────────────────────
         if (!_isRefunded)
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 24,
-            child: _isActionLoading
-                ? const Center(child: CircularProgressIndicator())
-                : Row(
-                    children: [
-                      // Reprint
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _reprintReceipt,
-                          icon: const Icon(Icons.print_outlined),
-                          label: Text(AppLocalizations.of(context)?.reprintReceipt ?? (AppLocalizations.of(context)?.reprintReceipt ?? 'Reprint Receipt')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _navy,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 3,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Refund
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _showRefundDialog,
-                          icon: const Icon(Icons.undo_rounded),
-                          label: Text(AppLocalizations.of(context)?.refundOrder ?? (AppLocalizations.of(context)?.refundOrder ?? 'Refund Order')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade600,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+          Container(
+            decoration: const BoxDecoration(
+              color: Ld.surface,
+              border: Border(top: BorderSide(color: Ld.line)),
+            ),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + Ld.navInset(context)),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: _buildActions(),
+              ),
+            ),
           ),
       ],
     );
   }
 
+  Widget _buildActions() {
+    final l10n = AppLocalizations.of(context);
+    if (_isActionLoading) {
+      return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
+    }
+    const shape = RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Ld.rMd)));
+    return Row(
+      children: [
+        // Reprint
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _reprintReceipt,
+            icon: const Icon(Icons.print_outlined),
+            label: Text(
+              l10n?.reprintReceipt ?? 'Reprint Receipt',
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: Ld.navy,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 56),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, height: 1.25),
+              shape: shape,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Refund
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _showRefundDialog,
+            icon: const Icon(Icons.undo_rounded),
+            label: Text(
+              l10n?.refundOrder ?? 'Refund Order',
+            ),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Ld.surface,
+              foregroundColor: Ld.danger,
+              side: const BorderSide(color: Ld.dangerLine),
+              minimumSize: const Size(0, 56),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, height: 1.25),
+              shape: shape,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The receipt drawn as the printed paper, in the receipt font.
+  Widget _buildPaper(Map<String, dynamic> data) {
+    final l10n = AppLocalizations.of(context);
+    final currency = data['currency']?.toString() ?? 'LAK';
+    final lines = (data['lines'] as List?) ?? const [];
+    final discount = (data['amount_discount'] as num?)?.toDouble() ?? 0;
+    const paperText = TextStyle(fontFamily: Ld.serif, fontSize: 15, color: Ld.ink, height: 1.35);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Ld.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+      ),
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+      child: DefaultTextStyle.merge(
+        style: paperText,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Refunded badge ────────────────────────────────
+            if (_isRefunded)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: Ld.card(radius: Ld.rSm, color: Ld.dangerWash, border: Ld.dangerLine),
+                child: Row(
+                  children: [
+                    const Icon(Icons.cancel_outlined, color: Ld.danger, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        l10n?.thisOrderHasBeenRefunded ?? 'This order has been refunded',
+                        style: const TextStyle(fontFamily: Ld.sans, color: Ld.danger, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // ── Header ────────────────────────────────────────
+            Text(
+              (data['order_reference'] ?? (l10n?.receipt ?? 'Receipt')).toString(),
+              style: Ld.title(22),
+            ),
+            const SizedBox(height: 6),
+
+            // ── Meta ──────────────────────────────────────────
+            _metaRow(l10n?.dateColon ?? 'Date:', (data['date_order'] ?? '').toString()),
+            _metaRow(l10n?.cashierColon ?? 'Cashier:', (data['cashier'] ?? (l10n?.unknown ?? 'Unknown')).toString()),
+            if ((data['table']?.toString() ?? '').isNotEmpty)
+              _metaRow(l10n?.tableColon ?? 'Table:', data['table'].toString()),
+            _metaRow(l10n?.paymentColon ?? 'Payment:', (data['payment_method'] ?? (l10n?.unknown ?? 'Unknown')).toString()),
+
+            const _DashedLine(),
+
+            // ── Items list ────────────────────────────────────
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${line['qty']}× ${bilingualName(line, fallback: l10n?.item ?? 'Item')}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '$currency ${money((line['subtotal'] as num?)?.toDouble() ?? 0.0)}',
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+
+            const _DashedLine(),
+
+            // ── Discount ───────────────────────────────────────
+            if (discount > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n?.discount ?? 'Discount',
+                        style: const TextStyle(color: Ld.danger),
+                      ),
+                    ),
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '-$currency ${money(data['amount_discount'] as num)}',
+                          style: const TextStyle(fontWeight: FontWeight.w600, color: Ld.danger),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // ── Total ─────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n?.totalAmount ?? 'Total Amount',
+                    style: Ld.title(19, color: Ld.ink),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '$currency ${money(data['amount_total'] as num)}',
+                      style: Ld.price(24),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _metaRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 15)),
-          Flexible(
-            child: Text(value,
-                textAlign: TextAlign.right,
-                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
+          Text(label, style: const TextStyle(fontFamily: Ld.sans, color: Ld.muted, fontSize: 14)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontFamily: Ld.sans, fontWeight: FontWeight.w500, fontSize: 14, color: Ld.ink),
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Dashed rule between receipt sections, like the printed slip.
+class _DashedLine extends StatelessWidget {
+  const _DashedLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 10),
+      child: SizedBox(
+        height: 1,
+        width: double.infinity,
+        child: CustomPaint(painter: _DashPainter()),
+      ),
+    );
+  }
+}
+
+class _DashPainter extends CustomPainter {
+  const _DashPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Ld.faint
+      ..strokeWidth = 1;
+    const dash = 4.0, gap = 3.0;
+    for (double x = 0; x < size.width; x += dash + gap) {
+      canvas.drawLine(Offset(x, 0), Offset((x + dash).clamp(0, size.width), 0), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashPainter oldDelegate) => false;
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
-import '../theme/ladolce_pos_ui.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ld.dart';
 import 'category_edit_screen.dart';
+import 'manage_items_screen.dart';
 
 class ManageCategoriesScreen extends StatefulWidget {
   const ManageCategoriesScreen({super.key});
@@ -17,8 +17,6 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _categories = [];
-
-  static const Color _accent = Colors.blue;
 
   @override
   void initState() {
@@ -68,17 +66,17 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.deleteCategory ?? (AppLocalizations.of(context)?.deleteCategory ?? 'Delete Category')),
-        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo ?? (AppLocalizations.of(context)?.areYouSureYouWantTo ?? 'Are you sure you want to delete this category?')),
+        title: Text(AppLocalizations.of(context)?.deleteCategory ?? 'Delete Category'),
+        content: Text(AppLocalizations.of(context)?.areYouSureYouWantTo ?? 'Are you sure you want to delete this category?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel')),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
-            style: LaDolcePosUi.primaryButtonStyle(isDestructive: true),
+            style: itemsDangerButtonStyle(),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete')),
+            child: Text(AppLocalizations.of(context)?.delete ?? 'Delete'),
           ),
         ],
       ),
@@ -92,14 +90,14 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
       _fetchCategories();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)?.categoryDeleted ?? (AppLocalizations.of(context)?.categoryDeleted ?? 'Category deleted')), backgroundColor: Colors.orange),
+          SnackBar(content: Text(AppLocalizations.of(context)?.categoryDeleted ?? 'Category deleted'), backgroundColor: Ld.warning),
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Ld.danger),
         );
       }
     }
@@ -107,99 +105,73 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final gutter = itemsGutter(context);
+    final wide = MediaQuery.sizeOf(context).width >= 720;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.manageCategories ?? (AppLocalizations.of(context)?.manageCategories ?? 'Manage Categories')),
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: l10n?.manageCategories ?? 'Manage Categories',
+        subtitle: !_isLoading && _errorMessage == null && _categories.isNotEmpty
+            ? (l10n?.itemsCount('${_categories.length}') ?? '${_categories.length}')
+            : null,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)?.addCategory ?? (AppLocalizations.of(context)?.addCategory ?? 'Add Category'),
+          ItemsHeaderAction(
+            label: l10n?.addCategory ?? 'Add Category',
+            icon: Icons.add_rounded,
             onPressed: () => _openCategoryScreen(),
           ),
         ],
       ),
-      body: LuxuryPatternBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64, height: 64,
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 32),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: _fetchCategories,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
-                            style: LaDolcePosUi.primaryButtonStyle(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : _categories.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 80, height: 80,
-                                decoration: BoxDecoration(
-                                  color: _accent.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Icon(Icons.category_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(AppLocalizations.of(context)?.noCategoriesYet ?? (AppLocalizations.of(context)?.noCategoriesYet ?? 'No categories yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 6),
-                              Text(AppLocalizations.of(context)?.addYourFirstCategoryToGet ?? (AppLocalizations.of(context)?.addYourFirstCategoryToGet ?? 'Add your first category to get started'),
-                                  style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText)),
-                              const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.add, size: 18),
-                                label: Text(AppLocalizations.of(context)?.addCategory ?? (AppLocalizations.of(context)?.addCategory ?? 'Add Category')),
-                                onPressed: () => _openCategoryScreen(),
-                                style: LaDolcePosUi.primaryButtonStyle(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 8, bottom: 88),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? ItemsStateView(
+                  icon: Icons.error_outline_rounded,
+                  title: _errorMessage!,
+                  isError: true,
+                  actionLabel: l10n?.retry ?? 'Retry',
+                  actionIcon: Icons.refresh_rounded,
+                  onAction: _fetchCategories,
+                )
+              : _categories.isEmpty
+                  ? ItemsStateView(
+                      icon: Icons.category_outlined,
+                      title: l10n?.noCategoriesYet ?? 'No categories yet',
+                      message: l10n?.addYourFirstCategoryToGet ?? 'Add your first category to get started',
+                      actionLabel: l10n?.addCategory ?? 'Add Category',
+                      actionIcon: Icons.add_rounded,
+                      onAction: () => _openCategoryScreen(),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _fetchCategories,
+                      child: ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 96 + Ld.navInset(context)),
                         itemCount: _categories.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final cat = _categories[index];
-                          return _CategoryCard(
-                            name: cat['name'] ?? '',
-                            isVisible: cat['pos_show_in_app'] ?? true,
-                            accent: _accent,
-                            onTap: () => _openCategoryScreen(category: cat),
-                            onDelete: () => _deleteCategory(cat['id']),
+                          return Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1100),
+                              child: _CategoryCard(
+                                name: cat['name'] ?? '',
+                                isVisible: cat['pos_show_in_app'] ?? true,
+                                posOnly: cat['hide_in_self_order'] == true,
+                                wide: wide,
+                                onTap: () => _openCategoryScreen(category: cat),
+                                onDelete: () => _deleteCategory(cat['id']),
+                              ),
+                            ),
                           );
                         },
                       ),
-      ),
+                    ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: LaDolcePosUi.navy,
+        backgroundColor: Ld.navy,
         foregroundColor: Colors.white,
+        elevation: 0,
+        tooltip: l10n?.addCategory ?? 'Add Category',
         child: const Icon(Icons.add_rounded),
         onPressed: () => _openCategoryScreen(),
       ),
@@ -210,96 +182,96 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
 class _CategoryCard extends StatelessWidget {
   final String name;
   final bool isVisible;
-  final Color accent;
+  final bool posOnly;
+  final bool wide;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
   const _CategoryCard({
     required this.name,
     required this.isVisible,
-    required this.accent,
+    required this.posOnly,
+    required this.wide,
     required this.onTap,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    final l10n = AppLocalizations.of(context);
+    final tags = Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        LdPill(
+          isVisible ? (l10n?.visibleInApp ?? 'Visible in app') : (l10n?.hiddenInApp ?? 'Hidden in app'),
+          icon: isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          background: isVisible ? Ld.successWash : Ld.ground,
+          foreground: isVisible ? Ld.success : Ld.muted,
+        ),
+        if (posOnly)
+          LdPill(l10n?.posOnlyLabel ?? 'POS only',
+              icon: Icons.point_of_sale_outlined, background: Ld.warningWash, foreground: Ld.warning),
+      ],
+    );
+    return Material(
+      color: Ld.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Ld.rMd),
+        side: const BorderSide(color: Ld.line),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-        child: Container(
-          decoration: BoxDecoration(
-            color: LaDolcePosUi.card,
-            borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-            border: Border.all(color: LaDolcePosUi.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.category, color: accent, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
+        customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rMd)),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: wide ? 16 : 12, vertical: 12),
+          child: Row(
+            children: [
+              const LdIconTile(Icons.category_outlined, size: 48),
+              const SizedBox(width: 14),
+              Expanded(
+                child: wide
+                    ? Row(
                         children: [
-                          Icon(
-                            isVisible ? Icons.visibility : Icons.visibility_off,
-                            size: 14,
-                            color: isVisible ? Colors.green : LaDolcePosUi.mutedText,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isVisible ? (AppLocalizations.of(context)?.visibleInApp ?? 'Visible in app') : (AppLocalizations.of(context)?.hiddenInApp ?? 'Hidden in app'),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isVisible ? Colors.green : LaDolcePosUi.mutedText,
+                          Expanded(
+                            flex: 3,
+                            child: Text(
+                              name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Ld.ink),
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 2, child: tags),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Ld.ink),
+                          ),
+                          const SizedBox(height: 6),
+                          tags,
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 36, height: 36,
-                  child: IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                    color: Colors.red.withValues(alpha: 0.7),
-                    onPressed: onDelete,
-                    padding: EdgeInsets.zero,
-                    tooltip: AppLocalizations.of(context)?.delete ?? (AppLocalizations.of(context)?.delete ?? 'Delete'),
-                  ),
-                ),
+              ),
+              const SizedBox(width: 8),
+              if (wide) ...[
+                const ItemsEditMark(),
+                const SizedBox(width: 8),
               ],
-            ),
+              ItemsRowButton(
+                icon: Icons.delete_outline_rounded,
+                tooltip: l10n?.delete ?? 'Delete',
+                danger: true,
+                onPressed: onDelete,
+              ),
+            ],
           ),
         ),
       ),

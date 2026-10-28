@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
-import '../theme/ladolce_pos_ui.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ld.dart';
+import 'manage_items_screen.dart';
 
 class CategoryEditScreen extends StatefulWidget {
   final Map<String, dynamic>? category;
@@ -27,8 +27,6 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
   late bool _hideInSelfOrder;
   bool _isSaving = false;
 
-  static const Color _accent = Colors.blue;
-
   @override
   void initState() {
     super.initState();
@@ -47,7 +45,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.nameIsRequired ?? (AppLocalizations.of(context)?.nameIsRequired ?? 'Name is required'))),
+        SnackBar(content: Text(AppLocalizations.of(context)?.nameIsRequired ?? 'Name is required')),
       );
       return;
     }
@@ -67,7 +65,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
             content: Text(widget.isEditing
                 ? (AppLocalizations.of(context)?.categoryUpdatedSuccessfully ?? 'Category updated successfully')
                 : (AppLocalizations.of(context)?.categoryAddedSuccessfully ?? 'Category added successfully')),
-            backgroundColor: Colors.green,
+            backgroundColor: Ld.success,
           ),
         );
         Navigator.pop(context, true);
@@ -76,7 +74,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Ld.danger),
         );
       }
     }
@@ -84,156 +82,73 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final gutter = itemsGutter(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEditing ? widget.category!['name'] : (AppLocalizations.of(context)?.addCategory ?? 'Add Category')),
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: widget.isEditing ? widget.category!['name'] : (l10n?.addCategory ?? 'Add Category'),
         actions: [
-          if (_isSaving)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: SizedBox(
-                  width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                ),
-              ),
-            )
-          else
-            TextButton(
-              onPressed: _save,
-              child: Text(AppLocalizations.of(context)?.save ?? (AppLocalizations.of(context)?.save ?? 'Save'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-            ),
+          ItemsHeaderAction(
+            label: l10n?.save ?? 'Save',
+            icon: Icons.check_rounded,
+            busy: _isSaving,
+            onPressed: _save,
+          ),
         ],
       ),
-      body: LuxuryPatternBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: LaDolcePosUi.card,
-                  borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-                  border: Border.all(color: LaDolcePosUi.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 40 + Ld.navInset(context)),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ItemsFormCard(
                   children: [
                     TextField(
                       controller: _nameController,
-                      decoration: LaDolcePosUi.input(
-                        hintText: AppLocalizations.of(context)?.categoryName ?? (AppLocalizations.of(context)?.categoryName ?? 'Category Name*'),
+                      style: const TextStyle(fontSize: 17, color: Ld.ink),
+                      decoration: InputDecoration(
+                        labelText: l10n?.categoryName ?? 'Category Name*',
                         prefixIcon: const Icon(Icons.label_outline, size: 20),
                       ),
                       autofocus: !widget.isEditing,
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _accent.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm),
-                        border: Border.all(color: _accent.withValues(alpha: 0.15)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _showInApp ? Icons.visibility : Icons.visibility_off,
-                            color: _showInApp ? Colors.green : LaDolcePosUi.mutedText,
-                            size: 22,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(AppLocalizations.of(context)?.showInApp ?? (AppLocalizations.of(context)?.showInApp ?? 'Show in app'),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: _showInApp ? LaDolcePosUi.text : LaDolcePosUi.mutedText,
-                                  ),
-                                ),
-                                Text(AppLocalizations.of(context)?.onlyCheckedCategoriesAreVisibleIn ?? (AppLocalizations.of(context)?.onlyCheckedCategoriesAreVisibleIn ?? 'Only checked categories are visible in POS app.'),
-                                  style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: _showInApp,
-                            activeColor: _accent,
-                            onChanged: (v) => setState(() => _showInApp = v),
-                          ),
-                        ],
-                      ),
-                    ),
                     const SizedBox(height: 12),
+                    ItemsSwitchRow(
+                      icon: _showInApp ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      title: l10n?.showInApp ?? 'Show in app',
+                      subtitle: l10n?.onlyCheckedCategoriesAreVisibleIn ?? 'Only checked categories are visible in POS app.',
+                      value: _showInApp,
+                      onChanged: (v) => setState(() => _showInApp = v),
+                    ),
+                    const Divider(height: 1, indent: 56),
                     // POS only: cashiers see it, customers in self-order do not.
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.deepPurple.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(LaDolcePosUi.radiusSm),
-                        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.15)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _hideInSelfOrder ? Icons.point_of_sale : Icons.storefront,
-                            color: _hideInSelfOrder ? Colors.deepPurple : LaDolcePosUi.mutedText,
-                            size: 22,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(AppLocalizations.of(context)?.posOnlyLabel ?? 'POS only',
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                                ),
-                                Text(AppLocalizations.of(context)?.posOnlyCategoryHelp ??
-                                    'Hidden in the customer self-order app; cashiers still see it.',
-                                  style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: _hideInSelfOrder,
-                            activeColor: Colors.deepPurple,
-                            onChanged: (v) => setState(() => _hideInSelfOrder = v),
-                          ),
-                        ],
-                      ),
+                    ItemsSwitchRow(
+                      icon: _hideInSelfOrder ? Icons.point_of_sale_outlined : Icons.storefront_outlined,
+                      title: l10n?.posOnlyLabel ?? 'POS only',
+                      subtitle: l10n?.posOnlyCategoryHelp ??
+                          'Hidden in the customer self-order app; cashiers still see it.',
+                      value: _hideInSelfOrder,
+                      onChanged: (v) => setState(() => _hideInSelfOrder = v),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _isSaving ? null : _save,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : (AppLocalizations.of(context)?.saveCategory ?? 'Save Category')),
-                style: LaDolcePosUi.primaryButtonStyle(),
-              ),
-            ],
+                const SizedBox(height: 28),
+                ElevatedButton.icon(
+                  onPressed: _isSaving ? null : _save,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.save_outlined, size: 20),
+                  label: Text(_isSaving ? 'Saving...' : (l10n?.saveCategory ?? 'Save Category')),
+                ),
+              ],
+            ),
           ),
         ),
       ),

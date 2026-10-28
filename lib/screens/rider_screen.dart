@@ -11,6 +11,7 @@ import 'login_screen.dart';
 import 'rider_navigation_screen.dart';
 import 'order_chat_screen.dart';
 import '../utils/money.dart';
+import '../theme/ld.dart';
 
 class RiderScreen extends StatefulWidget {
   final String riderName;
@@ -28,7 +29,6 @@ class RiderScreen extends StatefulWidget {
 
 class _RiderScreenState extends State<RiderScreen> {
   final ApiService _apiService = ApiService();
-  static const Color _navy = Color(0xFF1E3A8A);
 
   bool _isLoading = true;
   List<Map<String, dynamic>> _allOrders = [];
@@ -262,63 +262,83 @@ class _RiderScreenState extends State<RiderScreen> {
     }
   }
 
+  /// Text / icon color of a delivery status (always shown with its label).
   Color _deliveryStatusColor(String? status) {
     switch (status) {
       case 'pending':
-      case 'preparing': return Colors.orange;
-      case 'on_the_way': return Colors.blue;
-      case 'arrived': return Colors.teal;
-      case 'delivered': return Colors.green;
-      default: return Colors.grey;
+      case 'preparing': return Ld.warning;
+      case 'on_the_way': return Ld.navy;
+      case 'arrived': return Ld.info;
+      case 'delivered': return Ld.success;
+      default: return Ld.muted;
+    }
+  }
+
+  /// Soft background matching [_deliveryStatusColor].
+  Color _deliveryStatusWash(String? status) {
+    switch (status) {
+      case 'pending':
+      case 'preparing': return Ld.warningWash;
+      case 'on_the_way': return Ld.ground;
+      case 'arrived': return Ld.infoWash;
+      case 'delivered': return Ld.successWash;
+      default: return Ld.ground;
     }
   }
 
   IconData _deliveryStatusIcon(String? status) {
     switch (status) {
       case 'pending':
-      case 'preparing': return Icons.hourglass_empty;
-      case 'on_the_way': return Icons.delivery_dining;
-      case 'arrived': return Icons.location_on;
-      case 'delivered': return Icons.check_circle;
-      default: return Icons.help_outline;
+      case 'preparing': return Icons.hourglass_empty_rounded;
+      case 'on_the_way': return Icons.delivery_dining_outlined;
+      case 'arrived': return Icons.location_on_outlined;
+      case 'delivered': return Icons.check_circle_outline_rounded;
+      default: return Icons.help_outline_rounded;
     }
   }
 
+  Widget _statusPill(String status) => LdPill(
+        _deliveryStatusLabel(status),
+        icon: _deliveryStatusIcon(status),
+        background: _deliveryStatusWash(status),
+        foreground: _deliveryStatusColor(status),
+      );
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_appBarTitle()),
-        backgroundColor: _navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: _appBarTitle(),
+        subtitle: widget.riderName,
         actions: [
           if (_locationTimer != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Icon(Icons.gps_fixed, size: 18, color: Colors.green[300]),
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Center(
-              child: Text(
-                widget.riderName,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+            Tooltip(
+              message: l10n?.riderLocation ?? 'Rider location',
+              child: Container(
+                height: 34,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: Ld.successStrong,
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: const Icon(Icons.gps_fixed_rounded,
+                    size: 18, color: Colors.white),
               ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
+          LdNavIconButton(
+            icon: Icons.refresh_rounded,
             onPressed: _fetchOrders,
             tooltip: AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh'),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
+          LdNavIconButton(
+            icon: Icons.logout_rounded,
             onPressed: _logout,
             tooltip: AppLocalizations.of(context)?.logout ?? (AppLocalizations.of(context)?.logout ?? 'Logout'),
           ),
         ],
       ),
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Ld.ground,
       body: _buildBody(),
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -334,7 +354,7 @@ class _RiderScreenState extends State<RiderScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const Center(child: CircularProgressIndicator(color: Ld.navy));
     if (_errorMessage != null) return _buildError();
 
     switch (_selectedTabIndex) {
@@ -355,44 +375,62 @@ class _RiderScreenState extends State<RiderScreen> {
 
   Widget _buildEmpty(String title, String subtitle) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.delivery_dining, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: TextStyle(color: Colors.grey[500]),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _fetchOrders,
-            icon: const Icon(Icons.refresh),
-            label: Text(AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh')),
-          ),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const LdIconTile(Icons.delivery_dining_outlined,
+                size: 80, background: Ld.surface, color: Ld.faint),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Ld.title(19),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: Ld.label,
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: _fetchOrders,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(AppLocalizations.of(context)?.refresh ?? (AppLocalizations.of(context)?.refresh ?? 'Refresh')),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Ld.navy,
+                backgroundColor: Ld.surface,
+                side: const BorderSide(color: Ld.line),
+                minimumSize: const Size(160, Ld.tap),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildError() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const LdIconTile(Icons.error_outline_rounded,
+                size: 64, background: Ld.dangerWash, color: Ld.danger),
             const SizedBox(height: 16),
-            Text(_errorMessage!, textAlign: TextAlign.center),
+            Text(_errorMessage!, textAlign: TextAlign.center, style: Ld.body),
             const SizedBox(height: 16),
-            ElevatedButton(
+            FilledButton(
               onPressed: _fetchOrders,
+              style: FilledButton.styleFrom(
+                backgroundColor: Ld.navy,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(160, Ld.tap),
+              ),
               child: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
             ),
           ],
@@ -401,31 +439,57 @@ class _RiderScreenState extends State<RiderScreen> {
     );
   }
 
+  /// The order the rider is on right now: the first one on the way / at
+  /// the door, else the first open one.
+  int _heroIndex(List<Map<String, dynamic>> orders) {
+    final i = orders.indexWhere((o) {
+      final s = (o['delivery_status'] ?? '').toString();
+      return s == 'on_the_way' || s == 'arrived';
+    });
+    return i < 0 ? 0 : i;
+  }
+
   Widget _buildOrderList(List<Map<String, dynamic>> orders, {bool isHistory = false}) {
+    final hero = isHistory ? -1 : _heroIndex(orders);
+    final rest = <Map<String, dynamic>>[
+      for (var i = 0; i < orders.length; i++)
+        if (i != hero) orders[i],
+    ];
     return RefreshIndicator(
       onRefresh: _fetchOrders,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: orders.length,
-        itemBuilder: (context, index) {
-          return _buildOrderCard(orders[index], isHistory: isHistory);
+      color: Ld.navy,
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final side = c.maxWidth >= 600 ? 24.0 : 12.0;
+          // Keep cards readable on wide tablets.
+          final extra = c.maxWidth > 820 ? (c.maxWidth - 820) / 2 : 0.0;
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(side + extra, 14, side + extra, 24),
+            children: [
+              if (hero >= 0) _buildCurrentCard(orders[hero]),
+              if (hero >= 0 && rest.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 18, 6, 8),
+                  child: Text(
+                    '${AppLocalizations.of(context)?.orders ?? 'Orders'} (${rest.length})',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Ld.muted,
+                    ),
+                  ),
+                ),
+              for (final o in rest) _buildOrderCard(o, isHistory: isHistory),
+            ],
+          );
         },
       ),
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order, {bool isHistory = false}) {
-    final lines = List<Map<String, dynamic>>.from(order['lines'] ?? []);
-    final total = (order['amount_total'] as num?)?.toDouble() ?? 0.0;
-    final ref = order['order_reference'] ?? '';
-    final customer = order['customer_name'] ?? '';
-    final phone = order['customer_phone'] ?? '';
-    final place = order['delivery_place_name'] ?? '';
-    final address = order['delivery_place_address'] ?? '';
-    final status = order['delivery_status']?.toString() ?? 'none';
+  ({double? lat, double? lng, bool valid}) _destination(Map<String, dynamic> order) {
     final mapsUrl = order['delivery_maps_url']?.toString() ?? '';
-    final orderNote = order['note']?.toString() ?? '';
-
     final rawLat = order['delivery_latitude'];
     final rawLng = order['delivery_longitude'];
     double? destLat;
@@ -445,322 +509,455 @@ class _RiderScreenState extends State<RiderScreen> {
       }
     }
     final hasValidCoordinates = destLat != null && destLng != null && destLat != 0.0 && destLng != 0.0;
+    return (lat: destLat, lng: destLng, valid: hasValidCoordinates);
+  }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        leading: Icon(_deliveryStatusIcon(status), color: _deliveryStatusColor(status)),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                ref,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: _navy,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: _deliveryStatusColor(status).withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _deliveryStatusLabel(status),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: _deliveryStatusColor(status),
-                ),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (customer.isNotEmpty)
-              Text('Customer: $customer',
-                  style: TextStyle(color: Colors.grey[700])),
-            Text(
-              'Total: LAK ${money(total)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
+  /// "Current delivery" card: map band, customer, amount, details and the
+  /// actions, always open.
+  Widget _buildCurrentCard(Map<String, dynamic> order) {
+    final total = (order['amount_total'] as num?)?.toDouble() ?? 0.0;
+    final ref = order['order_reference'] ?? '';
+    final customer = order['customer_name'] ?? '';
+    final place = (order['delivery_place_name'] ?? '').toString();
+    final address = (order['delivery_place_address'] ?? '').toString();
+    final status = order['delivery_status']?.toString() ?? 'none';
+    final where = place.isNotEmpty ? place : address;
+
+    return Container(
+      decoration: Ld.card(radius: Ld.rXl),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (phone.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.phone, size: 16, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Text(phone, style: TextStyle(color: Colors.grey[700])),
-                ],
-              ),
-            ),
-          if (orderNote.isNotEmpty)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade200),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.edit_note, size: 20, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Customer Note:\n$orderNote',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (place.isNotEmpty || address.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (place.isNotEmpty)
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on,
-                            size: 16, color: Colors.blue),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(place,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ),
-                  if (address.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(address,
-                        style: TextStyle(color: Colors.grey[700])),
-                  ],
-                  if (!isHistory && hasValidCoordinates && (status == 'on_the_way' || status == 'arrived')) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.navigation_outlined, size: 18),
-                        label: Text(AppLocalizations.of(context)?.navigateInApp ?? (AppLocalizations.of(context)?.navigateInApp ?? 'Navigate (In App)')),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _navy,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          elevation: 1,
-                        ),
-                        onPressed: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RiderNavigationScreen(
-                                orderId: order['id'],
-                                orderRef: ref,
-                                customerName: customer,
-                                customerPhone: phone,
-                                deliveryPlace: place,
-                                deliveryAddress: address,
-                                destinationLat: destLat!,
-                                destinationLng: destLng!,
-                                mapsUrl: mapsUrl,
-                                initialStatus: status,
-                              ),
-                            ),
-                          );
-                          if (result == true) {
-                            _fetchOrders();
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                  if (mapsUrl.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    InkWell(
-                      onTap: () async {
-                        final uri = Uri.tryParse(mapsUrl);
-                        if (uri != null) {
-                          try {
-                            await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            );
-                          } catch (_) {}
-                        }
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.map, size: 16, color: Colors.blue[700]),
-                            const SizedBox(width: 6),
-                            Text(AppLocalizations.of(context)?.openInGoogleMapsApp ?? (AppLocalizations.of(context)?.openInGoogleMapsApp ?? 'Open in Google Maps App'),
-                              style: TextStyle(
-                                color: Colors.blue[700],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          const Divider(),
-          ...lines.map((line) {
-            final lineNote = line['note']?.toString() ?? '';
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          bilingualName(
-                            line,
-                            fallback:
-                                AppLocalizations.of(context)?.item ?? 'Item',
-                          ),
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                      Text('x${line['qty']}',
-                          style: TextStyle(color: Colors.grey[700])),
-                      const SizedBox(width: 12),
-                      Text(
-                        'LAK ${money(line['subtotal'] as num?)}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  if (lineNote.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2, left: 8),
-                      child: Text(
-                        '- $lineNote',
-                        style: const TextStyle(fontSize: 12, color: Colors.redAccent, fontStyle: FontStyle.italic),
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }),
-          if (order['id'] != null) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: Text(isHistory ? (AppLocalizations.of(context)?.viewChatHistory ?? 'View Chat History') : (AppLocalizations.of(context)?.chatWithCustomer ?? 'Chat with Customer')),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _navy,
-                  side: const BorderSide(color: _navy),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OrderChatScreen(
-                        orderId: order['id'] as int,
-                        orderRef: order['order_reference']?.toString() ?? '',
-                        currentRole: 'rider',
-                        otherPartyName: order['customer_name']?.toString() ?? (AppLocalizations.of(context)?.roleCustomer ?? 'Customer'),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-          if (!isHistory && (status == 'on_the_way' || status == 'arrived')) ...[
-            const SizedBox(height: 12),
-            const Divider(),
-            Row(
+          SizedBox(
+            height: 150,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                if (status == 'on_the_way')
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _handleAction(order['id'], 'arrived'),
-                      icon: const Icon(Icons.location_on, size: 18),
-                      label: Text(AppLocalizations.of(context)?.statusArrived ?? (AppLocalizations.of(context)?.statusArrived ?? 'Arrived')),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (status == 'on_the_way') const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _handleAction(order['id'], 'complete'),
-                    icon: const Icon(Icons.check_circle, size: 18),
-                    label: Text(AppLocalizations.of(context)?.statusComplete ?? (AppLocalizations.of(context)?.statusComplete ?? 'Complete')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
+                const ExcludeSemantics(
+                  child: CustomPaint(painter: _MapBandPainter()),
                 ),
+                if (where.isNotEmpty)
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 12,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: LdPill(
+                        where,
+                        icon: Icons.place_outlined,
+                        background: Ld.surface,
+                      ),
+                    ),
+                  ),
               ],
             ),
-          ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  customer.toString().isNotEmpty ? customer.toString() : ref.toString(),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: Ld.title(19),
+                ),
+                if (customer.toString().isNotEmpty)
+                  Text(ref.toString(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Ld.label),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Flexible(child: _statusPill(status)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(AppLocalizations.of(context)?.total ?? 'Total',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Ld.small),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text('LAK ${money(total)}', style: Ld.price(20, color: Ld.ink)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ..._orderDetails(order, isHistory: false),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildOrderCard(Map<String, dynamic> order, {bool isHistory = false}) {
+    final total = (order['amount_total'] as num?)?.toDouble() ?? 0.0;
+    final ref = order['order_reference'] ?? '';
+    final customer = order['customer_name'] ?? '';
+    final status = order['delivery_status']?.toString() ?? 'none';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: Ld.card(),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.fromLTRB(14, 6, 10, 6),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          iconColor: Ld.navy,
+          collapsedIconColor: Ld.muted,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          leading: LdIconTile(
+            _deliveryStatusIcon(status),
+            background: _deliveryStatusWash(status),
+            color: _deliveryStatusColor(status),
+          ),
+          title: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  ref.toString(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: Ld.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topRight,
+                  child: Text('LAK ${money(total)}', style: Ld.price(16, color: Ld.ink, weight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _statusPill(status),
+                if (customer.toString().isNotEmpty)
+                  Text('Customer: $customer', style: Ld.small),
+              ],
+            ),
+          ),
+          expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+          children: _orderDetails(order, isHistory: isHistory),
+        ),
+      ),
+    );
+  }
+
+  /// Phone, note, place, lines, chat and the delivery actions of an order.
+  List<Widget> _orderDetails(Map<String, dynamic> order, {required bool isHistory}) {
+    final lines = List<Map<String, dynamic>>.from(order['lines'] ?? []);
+    final ref = order['order_reference'] ?? '';
+    final customer = order['customer_name'] ?? '';
+    final phone = order['customer_phone'] ?? '';
+    final place = order['delivery_place_name'] ?? '';
+    final address = order['delivery_place_address'] ?? '';
+    final status = order['delivery_status']?.toString() ?? 'none';
+    final mapsUrl = order['delivery_maps_url']?.toString() ?? '';
+    final orderNote = order['note']?.toString() ?? '';
+
+    final dest = _destination(order);
+    final destLat = dest.lat;
+    final destLng = dest.lng;
+    final hasValidCoordinates = dest.valid;
+
+    const btnShape = RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(Ld.rMd)));
+    const btnText = TextStyle(fontSize: 15, fontWeight: FontWeight.w700);
+
+    return [
+      if (phone.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              const Icon(Icons.phone_outlined, size: 18, color: Ld.muted),
+              const SizedBox(width: 8),
+              Expanded(child: Text(phone, style: Ld.body.copyWith(fontSize: 15))),
+            ],
+          ),
+        ),
+      if (orderNote.isNotEmpty)
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: Ld.card(radius: Ld.r, color: Ld.warningWash, border: Ld.lineSoft),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.edit_note_rounded, size: 20, color: Ld.warning),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Customer Note:\n$orderNote',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Ld.ink,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      if (place.isNotEmpty || address.isNotEmpty) ...[
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: Ld.card(radius: Ld.r, color: Ld.ground, border: Ld.lineSoft),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (place.isNotEmpty)
+                Row(
+                  children: [
+                    const Icon(Icons.place_outlined, size: 18, color: Ld.navy),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(place,
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Ld.ink)),
+                    ),
+                  ],
+                ),
+              if (address.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(address, style: Ld.label),
+              ],
+              if (!isHistory && hasValidCoordinates && (status == 'on_the_way' || status == 'arrived')) ...[
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  icon: const Icon(Icons.navigation_outlined, size: 20),
+                  label: Text(AppLocalizations.of(context)?.navigateInApp ?? (AppLocalizations.of(context)?.navigateInApp ?? 'Navigate (In App)'),
+                      maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Ld.navy,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(Ld.tap),
+                    shape: btnShape,
+                    textStyle: btnText,
+                  ),
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RiderNavigationScreen(
+                          orderId: order['id'],
+                          orderRef: ref,
+                          customerName: customer,
+                          customerPhone: phone,
+                          deliveryPlace: place,
+                          deliveryAddress: address,
+                          destinationLat: destLat!,
+                          destinationLng: destLng!,
+                          mapsUrl: mapsUrl,
+                          initialStatus: status,
+                        ),
+                      ),
+                    );
+                    if (result == true) {
+                      _fetchOrders();
+                    }
+                  },
+                ),
+              ],
+              if (mapsUrl.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                TextButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.tryParse(mapsUrl);
+                    if (uri != null) {
+                      try {
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      } catch (_) {}
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Ld.navy,
+                    minimumSize: const Size.fromHeight(44),
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  icon: const Icon(Icons.map_outlined, size: 18),
+                  label: Text(
+                    AppLocalizations.of(context)?.openInGoogleMapsApp ?? (AppLocalizations.of(context)?.openInGoogleMapsApp ?? 'Open in Google Maps App'),
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+      const Divider(height: 1, color: Ld.line),
+      const SizedBox(height: 6),
+      ...lines.map((line) {
+        final lineNote = line['note']?.toString() ?? '';
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${line['qty']}×',
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Ld.navy)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      bilingualName(
+                        line,
+                        fallback:
+                            AppLocalizations.of(context)?.item ?? 'Item',
+                      ),
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Ld.ink),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'LAK ${money(line['subtotal'] as num?)}',
+                    style: Ld.price(15, color: Ld.ink, weight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              if (lineNote.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, left: 26),
+                  child: Text(
+                    '- $lineNote',
+                    style: const TextStyle(fontSize: 13, color: Ld.danger, fontStyle: FontStyle.italic),
+                  ),
+                ),
+            ],
+          ),
+        );
+      }),
+      if (order['id'] != null) ...[
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+          label: Text(
+              isHistory ? (AppLocalizations.of(context)?.viewChatHistory ?? 'View Chat History') : (AppLocalizations.of(context)?.chatWithCustomer ?? 'Chat with Customer'),
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Ld.navy,
+            side: const BorderSide(color: Ld.line),
+            minimumSize: const Size.fromHeight(Ld.tap),
+            shape: btnShape,
+            textStyle: btnText,
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OrderChatScreen(
+                  orderId: order['id'] as int,
+                  orderRef: order['order_reference']?.toString() ?? '',
+                  currentRole: 'rider',
+                  otherPartyName: order['customer_name']?.toString() ?? (AppLocalizations.of(context)?.roleCustomer ?? 'Customer'),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+      if (!isHistory && (status == 'on_the_way' || status == 'arrived')) ...[
+        const SizedBox(height: 10),
+        LayoutBuilder(builder: (context, c) {
+          final arrived = OutlinedButton.icon(
+            onPressed: () => _handleAction(order['id'], 'arrived'),
+            icon: const Icon(Icons.location_on_outlined, size: 20),
+            label: Text(AppLocalizations.of(context)?.statusArrived ?? (AppLocalizations.of(context)?.statusArrived ?? 'Arrived'),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Ld.navy,
+              side: const BorderSide(color: Ld.navy),
+              minimumSize: const Size.fromHeight(52),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              shape: btnShape,
+              textStyle: btnText,
+            ),
+          );
+          final complete = FilledButton.icon(
+            onPressed: () => _handleAction(order['id'], 'complete'),
+            icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+            label: Text(AppLocalizations.of(context)?.statusComplete ?? (AppLocalizations.of(context)?.statusComplete ?? 'Complete'),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            style: FilledButton.styleFrom(
+              backgroundColor: Ld.navy,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(52),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              shape: btnShape,
+              textStyle: btnText,
+            ),
+          );
+          // Narrow phones: one full-width button per row.
+          if (status == 'on_the_way' && c.maxWidth < 360) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [arrived, const SizedBox(height: 10), complete],
+            );
+          }
+          return Row(
+            children: [
+              if (status == 'on_the_way') Expanded(child: arrived),
+              if (status == 'on_the_way') const SizedBox(width: 10),
+              Expanded(child: complete),
+            ],
+          );
+        }),
+      ],
+    ];
   }
 
   Widget _buildDashboard() {
@@ -777,59 +974,78 @@ class _RiderScreenState extends State<RiderScreen> {
 
     return RefreshIndicator(
       onRefresh: _fetchOrders,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _dashboardCard(
-            icon: Icons.delivery_dining,
-            title: AppLocalizations.of(context)?.totalOrders ?? (AppLocalizations.of(context)?.totalOrders ?? 'Total Orders'),
-            value: '$totalOrders',
-            color: _navy,
-          ),
-          const SizedBox(height: 12),
-          Row(
+      color: Ld.navy,
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final side = c.maxWidth >= 600 ? 24.0 : 12.0;
+          final extra = c.maxWidth > 820 ? (c.maxWidth - 820) / 2 : 0.0;
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(side + extra, 14, side + extra, 24),
             children: [
-              Expanded(
-                child: _dashboardCard(
-                  icon: Icons.timer,
-                  title: AppLocalizations.of(context)?.active ?? (AppLocalizations.of(context)?.active ?? 'Active'),
-                  value: '$activeOrders',
-                  color: Colors.orange,
+              _dashboardCard(
+                icon: Icons.delivery_dining_outlined,
+                title: AppLocalizations.of(context)?.totalOrders ?? (AppLocalizations.of(context)?.totalOrders ?? 'Total Orders'),
+                value: '$totalOrders',
+                color: Ld.navy,
+                wash: Ld.ground,
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _dashboardCard(
+                      icon: Icons.timer_outlined,
+                      title: AppLocalizations.of(context)?.active ?? (AppLocalizations.of(context)?.active ?? 'Active'),
+                      value: '$activeOrders',
+                      color: Ld.warning,
+                      wash: Ld.warningWash,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _dashboardCard(
+                      icon: Icons.check_circle_outline_rounded,
+                      title: AppLocalizations.of(context)?.completed ?? (AppLocalizations.of(context)?.completed ?? 'Completed'),
+                      value: '$completedOrders',
+                      color: Ld.success,
+                      wash: Ld.successWash,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _dashboardCard(
+                icon: Icons.payments_outlined,
+                title: AppLocalizations.of(context)?.totalRevenue ?? (AppLocalizations.of(context)?.totalRevenue ?? 'Total Revenue'),
+                value: 'LAK ${money(totalRevenue)}',
+                color: Ld.info,
+                wash: Ld.infoWash,
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(AppLocalizations.of(context)?.ordersByStatus ?? (AppLocalizations.of(context)?.ordersByStatus ?? 'Orders by Status'),
+                  style: Ld.title(18),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _dashboardCard(
-                  icon: Icons.check_circle,
-                  title: AppLocalizations.of(context)?.completed ?? (AppLocalizations.of(context)?.completed ?? 'Completed'),
-                  value: '$completedOrders',
-                  color: Colors.green,
+              const SizedBox(height: 10),
+              Container(
+                decoration: Ld.card(),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    _buildStatusRow('pending', pendingCount),
+                    _buildStatusRow('preparing', preparingCount),
+                    _buildStatusRow('on_the_way', onTheWayCount),
+                    _buildStatusRow('arrived', arrivedCount),
+                    _buildStatusRow('delivered', completedOrders, last: true),
+                  ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          _dashboardCard(
-            icon: Icons.attach_money,
-            title: AppLocalizations.of(context)?.totalRevenue ?? (AppLocalizations.of(context)?.totalRevenue ?? 'Total Revenue'),
-            value: 'LAK ${money(totalRevenue)}',
-            color: Colors.teal,
-          ),
-          const SizedBox(height: 20),
-          Text(AppLocalizations.of(context)?.ordersByStatus ?? (AppLocalizations.of(context)?.ordersByStatus ?? 'Orders by Status'),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: _navy,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ..._buildStatusRow(Icons.hourglass_empty, 'Pending', pendingCount, Colors.orange),
-          ..._buildStatusRow(Icons.coffee, 'Preparing', preparingCount, Colors.orange),
-          ..._buildStatusRow(Icons.delivery_dining, 'On The Way', onTheWayCount, Colors.blue),
-          ..._buildStatusRow(Icons.location_on, 'Arrived', arrivedCount, Colors.teal),
-          ..._buildStatusRow(Icons.check_circle, 'Delivered', completedOrders, Colors.green),
-        ],
+          );
+        },
       ),
     );
   }
@@ -839,51 +1055,30 @@ class _RiderScreenState extends State<RiderScreen> {
     required String title,
     required String value,
     required Color color,
+    required Color wash,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(14),
+      decoration: Ld.card(),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 14),
+          LdIconTile(icon, background: wash, color: color),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Ld.small,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: _navy,
-                  ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, style: Ld.price(22)),
                 ),
               ],
             ),
@@ -893,94 +1088,133 @@ class _RiderScreenState extends State<RiderScreen> {
     );
   }
 
-  List<Widget> _buildStatusRow(IconData icon, String label, int count, Color color) {
-    return [
-      Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: _navy,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ),
-          ],
-        ),
+  Widget _buildStatusRow(String status, int count, {bool last = false}) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 52),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        border: last ? null : const Border(bottom: BorderSide(color: Ld.lineSoft)),
       ),
-    ];
-  }
-
-  Widget _buildBottomNav() {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        navigationBarTheme: const NavigationBarThemeData(
-          indicatorColor: Colors.transparent,
-          elevation: 0,
-          height: 64,
-          labelTextStyle: WidgetStatePropertyAll(
-            TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+      child: Row(
+        children: [
+          Icon(_deliveryStatusIcon(status), size: 20, color: _deliveryStatusColor(status)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _deliveryStatusLabel(status),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Ld.ink,
+              ),
+            ),
           ),
-        ),
-      ),
-      child: NavigationBar(
-        selectedIndex: _selectedTabIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _selectedTabIndex = index),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined, color: _navy.withOpacity(0.5)),
-            selectedIcon: const Icon(Icons.receipt_long, color: _navy),
-            label: AppLocalizations.of(context)?.order ?? (AppLocalizations.of(context)?.order ?? 'Order'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_outlined, color: _navy.withOpacity(0.5)),
-            selectedIcon: const Icon(Icons.history, color: _navy),
-            label: AppLocalizations.of(context)?.navHistory ?? (AppLocalizations.of(context)?.navHistory ?? 'History'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined, color: _navy.withOpacity(0.5)),
-            selectedIcon: const Icon(Icons.dashboard, color: _navy),
-            label: AppLocalizations.of(context)?.dashboard ?? (AppLocalizations.of(context)?.dashboard ?? 'Dashboard'),
+          LdBadge(
+            '$count',
+            color: _deliveryStatusWash(status),
+            textColor: _deliveryStatusColor(status),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildBottomNav() {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Ld.line)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          navigationBarTheme: NavigationBarThemeData(
+            indicatorColor: Ld.ground,
+            elevation: 0,
+            height: 68,
+            labelTextStyle: WidgetStateProperty.resolveWith(
+              (states) => TextStyle(
+                fontWeight: states.contains(WidgetState.selected)
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                fontSize: 13,
+                color: states.contains(WidgetState.selected) ? Ld.navy : Ld.muted,
+              ),
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedTabIndex,
+          onDestinationSelected: (index) =>
+              setState(() => _selectedTabIndex = index),
+          backgroundColor: Ld.surface,
+          surfaceTintColor: Colors.transparent,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.receipt_long_outlined, color: Ld.muted),
+              selectedIcon: const Icon(Icons.receipt_long_rounded, color: Ld.navy),
+              label: AppLocalizations.of(context)?.order ?? (AppLocalizations.of(context)?.order ?? 'Order'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.history_rounded, color: Ld.muted),
+              selectedIcon: const Icon(Icons.history_rounded, color: Ld.navy),
+              label: AppLocalizations.of(context)?.navHistory ?? (AppLocalizations.of(context)?.navHistory ?? 'History'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.dashboard_outlined, color: Ld.muted),
+              selectedIcon: const Icon(Icons.dashboard_rounded, color: Ld.navy),
+              label: AppLocalizations.of(context)?.dashboard ?? (AppLocalizations.of(context)?.dashboard ?? 'Dashboard'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Illustrative street-map band on the current delivery card (decorative,
+/// not a live map: the live map is in [RiderNavigationScreen]).
+class _MapBandPainter extends CustomPainter {
+  const _MapBandPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFFDCE3F0));
+    final street = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 10;
+    for (final y in [size.height * 0.35, size.height * 0.72]) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), street);
+    }
+    for (final x in [size.width * 0.25, size.width * 0.64]) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), street);
+    }
+    final start = Offset(size.width * 0.16, size.height * 0.82);
+    final end = Offset(size.width * 0.84, size.height * 0.22);
+    final route = Path()
+      ..moveTo(start.dx, start.dy)
+      ..cubicTo(size.width * 0.34, start.dy, size.width * 0.34, size.height * 0.42,
+          size.width * 0.56, size.height * 0.42)
+      ..quadraticBezierTo(size.width * 0.78, size.height * 0.42, end.dx, end.dy);
+    canvas.drawPath(
+      route,
+      Paint()
+        ..color = Ld.navy
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(start, 8, Paint()..color = Ld.navy);
+    canvas.drawCircle(end, 10, Paint()..color = Ld.gold);
+    canvas.drawCircle(
+      end,
+      10,
+      Paint()
+        ..color = Ld.navy
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MapBandPainter oldDelegate) => false;
 }

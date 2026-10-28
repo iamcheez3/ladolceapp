@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/http_client_wrapper.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/api_service.dart';
+import '../theme/ld.dart';
 
 class RiderNavigationScreen extends StatefulWidget {
   final int orderId;
@@ -62,8 +63,6 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
   LatLng? _lastRouteFetchedLatLng;
   bool _isFetchingRoute = false;
 
-  static const Color _navy = Color(0xFF1E3A8A);
-  static const Color _accentBlue = Color(0xFF2563EB);
 
   @override
   void initState() {
@@ -459,34 +458,46 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
           points: _routePoints.isNotEmpty
               ? _routePoints
               : [LatLng(_riderLat, _riderLng), destLatLng],
-          color: _accentBlue.withOpacity(0.8),
+          color: Ld.navy.withValues(alpha: 0.85),
           width: 6,
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Navigate: ${widget.orderRef}'),
-        backgroundColor: _navy,
-        foregroundColor: Colors.white,
+      backgroundColor: Ld.ground,
+      appBar: LdHeader(
+        title: 'Navigate: ${widget.orderRef}',
+        subtitle: widget.customerName,
         actions: [
-          IconButton(
-            icon: _isFetchingRoute
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
+          _isFetchingRoute
+              ? Tooltip(
+                  message: AppLocalizations.of(context)?.refreshRoute ?? 'Refresh route',
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(Ld.r),
+                      border: Border.all(color: Ld.navyLine),
                     ),
-                  )
-                : const Icon(Icons.refresh),
-            tooltip: AppLocalizations.of(context)?.refreshRoute ?? (AppLocalizations.of(context)?.refreshRoute ?? 'Refresh route'),
-            onPressed: _isFetchingRoute ? null : _fetchRoute,
-          ),
-          IconButton(
-            icon: const Icon(Icons.zoom_out_map),
+                    child: const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  ),
+                )
+              : LdNavIconButton(
+                  icon: Icons.refresh_rounded,
+                  tooltip: AppLocalizations.of(context)?.refreshRoute ?? (AppLocalizations.of(context)?.refreshRoute ?? 'Refresh route'),
+                  onPressed: _fetchRoute,
+                ),
+          LdNavIconButton(
+            icon: Icons.zoom_out_map_rounded,
             tooltip: AppLocalizations.of(context)?.fitRouteOnScreen ?? (AppLocalizations.of(context)?.fitRouteOnScreen ?? 'Fit route on screen'),
             onPressed: _zoomToIncludeMarkers,
           ),
@@ -519,12 +530,24 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
             Positioned(
               right: 16,
               top: 16,
-              child: FloatingActionButton(
-                mini: true,
-                backgroundColor: Colors.white,
-                foregroundColor: _navy,
-                onPressed: _animateCameraToRider,
-                child: const Icon(Icons.my_location),
+              child: Tooltip(
+                message: AppLocalizations.of(context)?.riderLocation ?? 'Rider location',
+                child: Material(
+                  color: Ld.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Ld.r),
+                    side: const BorderSide(color: Ld.line),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(Ld.r),
+                    onTap: _animateCameraToRider,
+                    child: const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Icon(Icons.my_location_rounded, color: Ld.navy),
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -558,237 +581,200 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
       }
     }
 
+    final l10n = AppLocalizations.of(context);
+    final String statusText;
+    final Color statusBg;
+    final Color statusFg;
+    final IconData statusIcon;
+    if (_currentStatus == 'arrived') {
+      statusText = l10n?.statusArrived ?? 'Arrived';
+      statusBg = Ld.infoWash;
+      statusFg = Ld.info;
+      statusIcon = Icons.location_on_outlined;
+    } else if (_currentStatus == 'delivered') {
+      statusText = l10n?.statusDelivered ?? 'Delivered';
+      statusBg = Ld.successWash;
+      statusFg = Ld.success;
+      statusIcon = Icons.check_circle_outline_rounded;
+    } else {
+      statusText = l10n?.onTheWay ?? 'On The Way';
+      statusBg = Ld.warningWash;
+      statusFg = Ld.warning;
+      statusIcon = Icons.delivery_dining_outlined;
+    }
+
+    const btnShape = RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(Ld.rMd)));
+    const btnText = TextStyle(fontSize: 15, fontWeight: FontWeight.w700);
+
+    final hasCall = widget.customerPhone.isNotEmpty;
+    final hasMaps = widget.mapsUrl.isNotEmpty;
+    final showArrived = _currentStatus == 'on_the_way';
+    final showComplete =
+        _currentStatus == 'on_the_way' || _currentStatus == 'arrived';
+
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+        maxWidth: 720,
+      ),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, -3),
-          ),
-        ],
+        color: Ld.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(Ld.rXl + 6)),
+        border: Border(top: BorderSide(color: Ld.line)),
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ETA and Distance Row
-              Row(
+              // ETA, distance and status
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.access_time,
-                          size: 16,
-                          color: _accentBlue,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          etaText,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _accentBlue,
-                          ),
-                        ),
-                      ],
-                    ),
+                  LdPill(
+                    etaText,
+                    icon: Icons.schedule_rounded,
+                    background: Ld.navy,
+                    foreground: Colors.white,
                   ),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.navigation_outlined,
-                          size: 16,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          distanceText,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ],
-                    ),
+                  LdPill(
+                    distanceText,
+                    icon: Icons.near_me_outlined,
                   ),
-                  const Spacer(),
-                  // Active Status pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _currentStatus == 'arrived'
-                          ? Colors.teal.withOpacity(0.15)
-                          : _currentStatus == 'delivered'
-                          ? Colors.green.withOpacity(0.15)
-                          : Colors.blue.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _currentStatus == 'arrived'
-                          ? (AppLocalizations.of(context)?.statusArrived ?? 'Arrived')
-                          : _currentStatus == 'delivered'
-                          ? (AppLocalizations.of(context)?.statusDelivered ?? 'Delivered')
-                          : (AppLocalizations.of(context)?.onTheWay ?? 'On The Way'),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: _currentStatus == 'arrived'
-                            ? Colors.teal
-                            : _currentStatus == 'delivered'
-                            ? Colors.green
-                            : Colors.blue,
-                      ),
-                    ),
+                  LdPill(
+                    statusText,
+                    icon: statusIcon,
+                    background: statusBg,
+                    foreground: statusFg,
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               // Customer name & Delivery Details
               Text(
                 widget.customerName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Ld.title(20),
               ),
               if (widget.deliveryPlace.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   widget.deliveryPlace,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[900],
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Ld.ink,
                   ),
                 ),
               ],
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 widget.deliveryAddress,
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: Ld.label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Action buttons row
-              Row(
-                children: [
-                  // Call button
-                  if (widget.customerPhone.isNotEmpty) ...[
-                    IconButton(
-                      icon: const Icon(
-                        Icons.phone_in_talk,
-                        color: Colors.white,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.all(12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _makePhoneCall,
-                      tooltip: AppLocalizations.of(context)?.callCustomer2 ?? (AppLocalizations.of(context)?.callCustomer2 ?? 'Call Customer'),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-
-                  // Fallback External Maps launcher button
-                  if (widget.mapsUrl.isNotEmpty) ...[
-                    IconButton(
-                      icon: const Icon(Icons.directions, color: Colors.white),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        padding: const EdgeInsets.all(12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _openExternalMaps,
-                      tooltip: AppLocalizations.of(context)?.openInExternalGoogleMapsApp ?? (AppLocalizations.of(context)?.openInExternalGoogleMapsApp ?? 'Open in External Google Maps app'),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-
-                  // Arrived / Complete Actions
-                  Expanded(
-                    child: Row(
-                      children: [
-                        if (_currentStatus == 'on_the_way')
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => _handleStatusAction('arrived'),
-                              icon: const Icon(Icons.location_on, size: 18),
-                              label: Text(AppLocalizations.of(context)?.statusArrived ?? (AppLocalizations.of(context)?.statusArrived ?? 'Arrived')),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.teal,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+              // Call + external maps
+              if (hasCall || hasMaps) ...[
+                Row(
+                  children: [
+                    if (hasCall)
+                      Expanded(
+                        child: Tooltip(
+                          message: l10n?.callCustomer2 ?? 'Call Customer',
+                          child: OutlinedButton.icon(
+                            onPressed: _makePhoneCall,
+                            icon: const Icon(Icons.phone_in_talk_outlined, size: 20),
+                            label: Text(l10n?.call ?? 'Call',
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Ld.navy,
+                              side: const BorderSide(color: Ld.line),
+                              minimumSize: const Size.fromHeight(52),
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              shape: btnShape,
+                              textStyle: btnText,
                             ),
                           ),
-                        if (_currentStatus == 'on_the_way')
-                          const SizedBox(width: 10),
-                        if (_currentStatus == 'on_the_way' ||
-                            _currentStatus == 'arrived')
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => _handleStatusAction('complete'),
-                              icon: const Icon(Icons.check_circle, size: 18),
-                              label: Text(AppLocalizations.of(context)?.statusComplete ?? (AppLocalizations.of(context)?.statusComplete ?? 'Complete')),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                        ),
+                      ),
+                    if (hasCall && hasMaps) const SizedBox(width: 10),
+                    if (hasMaps)
+                      Expanded(
+                        child: Tooltip(
+                          message: l10n?.openInExternalGoogleMapsApp ??
+                              'Open in External Google Maps app',
+                          child: OutlinedButton.icon(
+                            onPressed: _openExternalMaps,
+                            icon: const Icon(Icons.directions_outlined, size: 20),
+                            label: Text(l10n?.openMap ?? 'Open map',
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Ld.navy,
+                              side: const BorderSide(color: Ld.line),
+                              minimumSize: const Size.fromHeight(52),
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              shape: btnShape,
+                              textStyle: btnText,
                             ),
                           ),
-                      ],
+                        ),
+                      ),
+                  ],
+                ),
+                if (showComplete) const SizedBox(height: 10),
+              ],
+
+              // Arrived / Complete Actions
+              if (showComplete)
+                Row(
+                  children: [
+                    if (showArrived)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _handleStatusAction('arrived'),
+                          icon: const Icon(Icons.location_on_outlined, size: 20),
+                          label: Text(l10n?.statusArrived ?? 'Arrived',
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Ld.navy,
+                            side: const BorderSide(color: Ld.navy),
+                            minimumSize: const Size.fromHeight(52),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            shape: btnShape,
+                            textStyle: btnText,
+                          ),
+                        ),
+                      ),
+                    if (showArrived) const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _handleStatusAction('complete'),
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                        label: Text(l10n?.statusComplete ?? 'Complete',
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Ld.navy,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(52),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          shape: btnShape,
+                          textStyle: btnText,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
         ),

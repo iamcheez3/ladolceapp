@@ -3,10 +3,10 @@ import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
-import '../theme/ladolce_pos_ui.dart';
-import '../theme/luxury_background.dart';
+import '../theme/ld.dart';
 import '../widgets/topping_picker.dart';
 import '../utils/money.dart';
+import 'manage_items_screen.dart';
 
 class ProductEditScreen extends StatefulWidget {
   final Product? product;
@@ -35,8 +35,6 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   late bool _hideInSelfOrder;
   late List<int> _selectedToppingIds;
   bool _isSaving = false;
-
-  static const Color _productAccent = Color(0xFF0891B2);
 
   @override
   void initState() {
@@ -75,7 +73,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     // Price 0 = no fixed price: the cashier types it on the POS.
     if (name.isEmpty || price < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? (AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? 'Valid name and price are required'))),
+        SnackBar(content: Text(AppLocalizations.of(context)?.validNameAndPriceAreRequired ?? 'Valid name and price are required')),
       );
       return;
     }
@@ -95,8 +93,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)?.productSavedSuccessfully ?? (AppLocalizations.of(context)?.productSavedSuccessfully ?? 'Product saved successfully')),
-            backgroundColor: Colors.green,
+            content: Text(AppLocalizations.of(context)?.productSavedSuccessfully ?? 'Product saved successfully'),
+            backgroundColor: Ld.success,
           ),
         );
         Navigator.pop(context, true);
@@ -105,7 +103,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Ld.danger),
         );
       }
     }
@@ -113,211 +111,304 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEditing ? widget.product!.name : (AppLocalizations.of(context)?.addProduct ?? 'Add Product')),
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
+      appBar: LdHeader(
+        title: widget.isEditing ? widget.product!.name : (l10n?.addProduct ?? 'Add Product'),
         actions: [
-          if (_isSaving)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            )
-          else
-            TextButton(
-              onPressed: _save,
-              child: Text(AppLocalizations.of(context)?.save ?? (AppLocalizations.of(context)?.save ?? 'Save'),
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
-              ),
-            ),
+          ItemsHeaderAction(
+            label: l10n?.save ?? 'Save',
+            icon: Icons.check_rounded,
+            busy: _isSaving,
+            onPressed: _save,
+          ),
         ],
       ),
-      body: LuxuryPatternBackground(
-        child: SingleChildScrollView(
-          // Keep the Save button above the navigation bar.
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 40 + MediaQuery.viewPaddingOf(context).bottom),
-          child: Column(
+      body: LayoutBuilder(
+        builder: (context, box) {
+          final wide = box.maxWidth >= 840;
+          final gutter = box.maxWidth >= 600 ? 24.0 : 16.0;
+          final form = <Widget>[
+            _buildMainFields(wide),
+            const SizedBox(height: 16),
+            _buildToppingsCard(wide),
+            const SizedBox(height: 16),
+            _buildSelfOrderCard(),
+          ];
+          final saveButton = ElevatedButton.icon(
+            onPressed: _isSaving ? null : _save,
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.save_outlined, size: 20),
+            label: Text(_isSaving ? 'Saving...' : (l10n?.saveProduct ?? 'Save Product')),
+          );
+          return SingleChildScrollView(
+            // Keep the Save button above the navigation bar.
+            padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 40 + Ld.navInset(context)),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1180),
+                child: wide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 13,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [...form, const SizedBox(height: 24), saveButton],
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(flex: 7, child: _buildPreview()),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ...form,
+                          const SizedBox(height: 16),
+                          _buildPreview(),
+                          const SizedBox(height: 24),
+                          saveButton,
+                        ],
+                      ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMainFields(bool wide) {
+    final l10n = AppLocalizations.of(context);
+    final name = TextField(
+      controller: _nameController,
+      style: const TextStyle(fontSize: 17, color: Ld.ink),
+      decoration: InputDecoration(
+        labelText: l10n?.productName ?? 'Product Name*',
+        prefixIcon: const Icon(Icons.label_outline, size: 20),
+      ),
+    );
+    final price = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _priceController,
+          style: itemsMoneyInputStyle,
+          decoration: InputDecoration(
+            labelText: l10n?.listPrice ?? 'List Price*',
+            prefixIcon: itemsKipPrefix,
+            prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 48),
+          ),
+          keyboardType: TextInputType.number,
+          inputFormatters: [MoneyInputFormatter()],
+        ),
+        ItemsFieldHint(l10n?.openPriceHint ?? '0 = enter the price at the POS'),
+      ],
+    );
+    final category = DropdownButtonFormField<int>(
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: l10n?.category ?? 'Category',
+        prefixIcon: const Icon(Icons.grid_view_outlined, size: 20),
+      ),
+      // ignore: deprecated_member_use
+      value: _selectedCategoryId,
+      items: widget.categories.map((c) {
+        return DropdownMenuItem<int>(
+          value: c['id'],
+          child: Text(
+            c['name'] ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: (val) {
+        setState(() => _selectedCategoryId = val);
+      },
+    );
+
+    return ItemsFormCard(
+      children: wide
+          ? [
+              name,
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: category),
+                  const SizedBox(width: 16),
+                  Expanded(child: price),
+                ],
+              ),
+            ]
+          : [
+              name,
+              const SizedBox(height: 16),
+              price,
+              const SizedBox(height: 16),
+              category,
+            ],
+    );
+  }
+
+  Widget _buildToppingsCard(bool wide) {
+    final l10n = AppLocalizations.of(context);
+    return ItemsFormCard(
+      title: l10n?.availableToppings ?? 'Available Toppings',
+      icon: Icons.extension_outlined,
+      children: [
+        if (widget.toppings.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(l10n?.noToppingsConfigured ?? 'No toppings configured.', style: Ld.label),
+          )
+        else
+          for (final section in ToppingRules.sections(widget.toppings)) _buildToppingSection(section, wide),
+      ],
+    );
+  }
+
+  Widget _buildSelfOrderCard() {
+    final l10n = AppLocalizations.of(context);
+    return ItemsFormCard(
+      title: l10n?.customerSelfOrder ?? 'Customer self-order',
+      icon: Icons.shopping_cart_outlined,
+      children: [
+        _buildSelfOrderTile(
+          icon: Icons.check_circle_outline,
+          iconColor: Ld.success,
+          iconBackground: Ld.successWash,
+          title: l10n?.tableAvailable ?? 'Available',
+          subtitle: l10n?.customersCanSelectAndOrder ?? 'Customers can select and order',
+          isSelected: !_blockSelfOrder && !_hideInSelfOrder,
+          onTap: () => setState(() {
+            _blockSelfOrder = false;
+            _hideInSelfOrder = false;
+          }),
+        ),
+        const Divider(height: 1, indent: 56),
+        _buildSelfOrderTile(
+          icon: Icons.remove_circle_outline,
+          iconColor: Ld.warning,
+          iconBackground: Ld.warningWash,
+          title: l10n?.runOutBlocked ?? 'Run out (blocked)',
+          subtitle: l10n?.shownAsRunOutCannotAdd ?? 'Shown as run out; cannot add to cart',
+          isSelected: _blockSelfOrder && !_hideInSelfOrder,
+          onTap: () => setState(() {
+            _blockSelfOrder = true;
+            _hideInSelfOrder = false;
+          }),
+        ),
+        const Divider(height: 1, indent: 56),
+        // POS only: not listed in the customer app at all.
+        _buildSelfOrderTile(
+          icon: Icons.visibility_off_outlined,
+          iconColor: Ld.info,
+          iconBackground: Ld.infoWash,
+          title: l10n?.posOnlyLabel ?? 'POS only',
+          subtitle: l10n?.posOnlyProductHelp ?? 'Hidden in self-order; only the cashier can sell it',
+          isSelected: _hideInSelfOrder,
+          onTap: () => setState(() {
+            _hideInSelfOrder = true;
+            _blockSelfOrder = false;
+          }),
+        ),
+      ],
+    );
+  }
+
+  /// How the product tile will look on the sales screen, updated as the
+  /// name and price are typed.
+  Widget _buildPreview() {
+    final l10n = AppLocalizations.of(context);
+    final product = widget.product;
+    final imageBytes = product?.decodedImageBytes;
+    final imageUrl = product?.imageUrl;
+    final hasImage = imageBytes != null || (imageUrl != null && imageUrl.isNotEmpty);
+    final lao = product?.nameLo?.trim() ?? '';
+
+    return Container(
+      decoration: Ld.card(radius: Ld.rXl),
+      padding: const EdgeInsets.all(18),
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_nameController, _priceController]),
+        builder: (context, _) {
+          final typed = _nameController.text.trim();
+          final laoFirst = Product.useLaoNames && lao.isNotEmpty;
+          final primary = laoFirst ? lao : typed;
+          final secondary = laoFirst ? typed : (lao.isNotEmpty && lao != typed ? lao : '');
+          final price = parseMoney(_priceController.text.trim());
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSection(
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    decoration: LaDolcePosUi.input(
-                      hintText: AppLocalizations.of(context)?.productName ?? (AppLocalizations.of(context)?.productName ?? 'Product Name*'),
-                      prefixIcon: const Icon(Icons.label_outline, size: 20),
-                    ),
+              if (hasImage) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(Ld.rMd),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 10,
+                    child: imageBytes != null
+                        ? Image.memory(imageBytes, fit: BoxFit.cover)
+                        : Image.network(imageUrl!, fit: BoxFit.cover),
                   ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _priceController,
-                    decoration: LaDolcePosUi.input(
-                      hintText: AppLocalizations.of(context)?.listPrice ?? (AppLocalizations.of(context)?.listPrice ?? 'List Price*'),
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text('₭', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 14),
+              ],
+              Container(
+                constraints: const BoxConstraints(minHeight: 132),
+                padding: const EdgeInsets.all(16),
+                decoration: Ld.card(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      primary.isEmpty ? (l10n?.productName ?? 'Product Name*') : primary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: primary.isEmpty ? Ld.faint : Ld.ink,
+                        height: 1.3,
                       ),
                     ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [MoneyInputFormatter()],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, top: 6),
-                    child: Text(
-                      AppLocalizations.of(context)?.openPriceHint ??
-                          '0 = enter the price at the POS',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    if (secondary.isNotEmpty)
+                      Text(secondary, maxLines: 1, overflow: TextOverflow.ellipsis, style: Ld.small),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          '₭${money(price)}',
+                          style: Ld.price(19, color: price == 0 ? Ld.muted : Ld.navy, weight: FontWeight.w600),
+                        ),
+                        if (price == 0)
+                          LdPill(l10n?.enterPrice ?? 'Enter price',
+                              icon: Icons.edit_note_rounded, background: Ld.infoWash, foreground: Ld.info),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  DropdownButtonFormField<int>(
-                    isExpanded: true,
-                    decoration: LaDolcePosUi.input(hintText: AppLocalizations.of(context)?.category ?? (AppLocalizations.of(context)?.category ?? 'Category')),
-                    value: _selectedCategoryId,
-                    items: widget.categories.map((c) {
-                      return DropdownMenuItem<int>(
-                        value: c['id'],
-                        child: Text(
-                          c['name'] ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() => _selectedCategoryId = val);
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildSection(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.shopping_cart_outlined,
-                          size: 18, color: LaDolcePosUi.mutedText),
-                      const SizedBox(width: 8),
-                      Text(AppLocalizations.of(context)?.customerSelfOrder ?? (AppLocalizations.of(context)?.customerSelfOrder ?? 'Customer self-order'),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSelfOrderTile(
-                    icon: Icons.check_circle_outline,
-                    iconColor: Colors.green,
-                    title: AppLocalizations.of(context)?.tableAvailable ?? (AppLocalizations.of(context)?.tableAvailable ?? 'Available'),
-                    subtitle: AppLocalizations.of(context)?.customersCanSelectAndOrder ?? (AppLocalizations.of(context)?.customersCanSelectAndOrder ?? 'Customers can select and order'),
-                    isSelected: !_blockSelfOrder && !_hideInSelfOrder,
-                    onTap: () => setState(() {
-                      _blockSelfOrder = false;
-                      _hideInSelfOrder = false;
-                    }),
-                  ),
-                  const Divider(height: 1, indent: 44),
-                  _buildSelfOrderTile(
-                    icon: Icons.remove_circle_outline,
-                    iconColor: Colors.orange,
-                    title: AppLocalizations.of(context)?.runOutBlocked ?? (AppLocalizations.of(context)?.runOutBlocked ?? 'Run out (blocked)'),
-                    subtitle: AppLocalizations.of(context)?.shownAsRunOutCannotAdd ?? (AppLocalizations.of(context)?.shownAsRunOutCannotAdd ?? 'Shown as run out; cannot add to cart'),
-                    isSelected: _blockSelfOrder && !_hideInSelfOrder,
-                    onTap: () => setState(() {
-                      _blockSelfOrder = true;
-                      _hideInSelfOrder = false;
-                    }),
-                  ),
-                  const Divider(height: 1, indent: 44),
-                  // POS only: not listed in the customer app at all.
-                  _buildSelfOrderTile(
-                    icon: Icons.visibility_off_outlined,
-                    iconColor: Colors.deepPurple,
-                    title: AppLocalizations.of(context)?.posOnlyLabel ?? 'POS only',
-                    subtitle: AppLocalizations.of(context)?.posOnlyProductHelp ??
-                        'Hidden in self-order; only the cashier can sell it',
-                    isSelected: _hideInSelfOrder,
-                    onTap: () => setState(() {
-                      _hideInSelfOrder = true;
-                      _blockSelfOrder = false;
-                    }),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildSection(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.extension_outlined,
-                          size: 18, color: LaDolcePosUi.mutedText),
-                      const SizedBox(width: 8),
-                      Text(AppLocalizations.of(context)?.availableToppings ?? (AppLocalizations.of(context)?.availableToppings ?? 'Available Toppings'),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (widget.toppings.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(AppLocalizations.of(context)?.noToppingsConfigured ?? (AppLocalizations.of(context)?.noToppingsConfigured ?? 'No toppings configured.'),
-                        style: TextStyle(
-                          color: LaDolcePosUi.mutedText,
-                          fontSize: 13,
-                        ),
-                      ),
-                    )
-                  else
-                    for (final section in ToppingRules.sections(widget.toppings))
-                      _buildToppingSection(section),
-                ],
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _isSaving ? null : _save,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.save_outlined, size: 20),
-                label: Text(_isSaving ? 'Saving...' : (AppLocalizations.of(context)?.saveProduct ?? 'Save Product')),
-                style: LaDolcePosUi.primaryButtonStyle(),
+                  ],
+                ),
               ),
             ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
   /// One topping group (or the plain add-ons) as a heading + chips. "All"
   /// ticks every option of the group, e.g. Hot, Iced and Frappe at once.
-  Widget _buildToppingSection(ToppingSection section) {
+  Widget _buildToppingSection(ToppingSection section, bool wide) {
     final l10n = AppLocalizations.of(context);
     final ids = section.options.map((t) => t.id).toList();
     final allOn = ids.every(_selectedToppingIds.contains);
@@ -325,150 +416,138 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         ? (l10n?.toppingNoGroup ?? 'No group (add-on)')
         : '${section.title} · ${section.single ? (l10n?.toppingPickOne ?? 'Pick 1') : (l10n?.toppingPickMany ?? 'Pick many')}'
             '${section.required ? ' · ${l10n?.toppingRequired ?? 'Required'}' : ''}';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: LaDolcePosUi.mutedText),
-                ),
-              ),
-              TextButton(
-                onPressed: () => setState(() {
-                  if (allOn) {
-                    _selectedToppingIds.removeWhere(ids.contains);
-                  } else {
-                    for (final id in ids) {
-                      if (!_selectedToppingIds.contains(id)) _selectedToppingIds.add(id);
-                    }
-                  }
-                }),
-                child: Text(
-                  allOn ? (l10n?.clear ?? 'Clear') : (l10n?.toppingSelectAll ?? 'All'),
-                ),
-              ),
-            ],
-          ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: section.options.map((t) {
-              final isSelected = _selectedToppingIds.contains(t.id);
-              return FilterChip(
-                label: Text(
-                  t.extraPrice > 0 ? '${t.name} +₭${money(t.extraPrice)}' : t.name,
-                  style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    fontSize: 13,
-                    color: isSelected ? _productAccent : LaDolcePosUi.text,
-                  ),
-                ),
-                selected: isSelected,
-                selectedColor: _productAccent.withValues(alpha: 0.12),
-                checkmarkColor: _productAccent,
-                side: BorderSide(
-                  color: isSelected
-                      ? _productAccent.withValues(alpha: 0.4)
-                      : LaDolcePosUi.border,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                onSelected: (bool selected) {
-                  setState(() {
-                    if (selected) {
-                      _selectedToppingIds.add(t.id);
-                    } else {
-                      _selectedToppingIds.remove(t.id);
-                    }
-                  });
-                },
-              );
-            }).toList(),
-          ),
-        ],
+    final allButton = TextButton(
+      onPressed: () => setState(() {
+        if (allOn) {
+          _selectedToppingIds.removeWhere(ids.contains);
+        } else {
+          for (final id in ids) {
+            if (!_selectedToppingIds.contains(id)) _selectedToppingIds.add(id);
+          }
+        }
+      }),
+      child: Text(
+        allOn ? (l10n?.clear ?? 'Clear') : (l10n?.toppingSelectAll ?? 'All'),
       ),
     );
-  }
-
-  Widget _buildSection({required List<Widget> children}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: LaDolcePosUi.card,
-        borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-        border: Border.all(color: LaDolcePosUi.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    final chips = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: section.options.map((t) {
+        final isSelected = _selectedToppingIds.contains(t.id);
+        return FilterChip(
+          label: Text(
+            t.extraPrice > 0 ? '${t.displayName} +₭${money(t.extraPrice)}' : t.displayName,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              fontSize: 14,
+              color: isSelected ? Ld.navy : Ld.muted,
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
+          selected: isSelected,
+          backgroundColor: Ld.surface,
+          selectedColor: Ld.ground,
+          checkmarkColor: Ld.navy,
+          side: BorderSide(color: isSelected ? Ld.navy : Ld.line),
+          shape: const StadiumBorder(),
+          onSelected: (bool selected) {
+            setState(() {
+              if (selected) {
+                _selectedToppingIds.add(t.id);
+              } else {
+                _selectedToppingIds.remove(t.id);
+              }
+            });
+          },
+        );
+      }).toList(),
+    );
+    final heading = Text(
+      title,
+      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Ld.ink),
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(border: Border(top: BorderSide(color: Ld.lineSoft))),
+      child: wide
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 170,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(padding: const EdgeInsets.only(top: 8), child: heading),
+                      allButton,
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Padding(padding: const EdgeInsets.only(top: 4), child: chips)),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: heading),
+                    allButton,
+                  ],
+                ),
+                chips,
+              ],
+            ),
     );
   }
 
   Widget _buildSelfOrderTile({
     required IconData icon,
     required Color iconColor,
+    required Color iconBackground,
     required String title,
     required String subtitle,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(
-          children: [
-            Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_off,
-              size: 22,
-              color:
-                  isSelected ? _productAccent : LaDolcePosUi.mutedText,
-            ),
-            const SizedBox(width: 12),
-            Icon(icon, size: 20, color: iconColor),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: isSelected
-                          ? LaDolcePosUi.text
-                          : LaDolcePosUi.mutedText,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: LaDolcePosUi.mutedText,
-                    ),
-                  ),
-                ],
+    return Semantics(
+      selected: isSelected,
+      inMutuallyExclusiveGroup: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Ld.r),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          child: Row(
+            children: [
+              Icon(
+                isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                size: 24,
+                color: isSelected ? Ld.navy : Ld.muted,
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              LdIconTile(icon, size: 36, background: iconBackground, color: iconColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                        fontSize: 15,
+                        color: isSelected ? Ld.ink : Ld.muted,
+                      ),
+                    ),
+                    Text(subtitle, style: Ld.small),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

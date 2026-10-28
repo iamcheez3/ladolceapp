@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/ld.dart';
 
 class MaintenanceScreen extends StatelessWidget {
   final String messageEn;
@@ -18,92 +18,93 @@ class MaintenanceScreen extends StatelessWidget {
     final locale = Localizations.localeOf(context);
     final isLao = locale.languageCode == 'lo';
     final message = isLao ? messageLo : messageEn;
-    final l10n = AppLocalizations.of(context)!;
+    final short = MediaQuery.sizeOf(context).height < 700;
 
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF001460), // Brand navy
-              Color(0xFF1E293B), // Slate 800
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.handyman_rounded,
-                  size: 80,
-                  color: Color(0xFF3B82F6), // Brand blue
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  isLao ? 'ກຳລັງປັບປຸງລະບົບ' : (AppLocalizations.of(context)?.maintenanceMode ?? 'Maintenance Mode'),
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.notoSansLao(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+      backgroundColor: Ld.navy,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, viewport) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (viewport.maxHeight - 48).clamp(0.0, double.infinity),
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: short ? 72 : 88,
+                          height: short ? 72 : 88,
+                          decoration: BoxDecoration(
+                            color: Ld.navyRaised,
+                            borderRadius: BorderRadius.circular(Ld.rXl),
+                            border: Border.all(color: Ld.navyLine),
+                          ),
+                          child: Icon(
+                            Icons.handyman_rounded,
+                            size: short ? 36 : 44,
+                            color: Ld.gold,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: short ? 18 : 26),
+                      Text(
+                        isLao
+                            ? 'ກຳລັງປັບປຸງລະບົບ'
+                            : (AppLocalizations.of(context)?.maintenanceMode ?? 'Maintenance Mode'),
+                        textAlign: TextAlign.center,
+                        style: Ld.title(short ? 24 : 28, color: Colors.white),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: Ld.card(radius: Ld.rXl),
+                        child: Text(
+                          message,
+                          textAlign: TextAlign.center,
+                          style: Ld.body.copyWith(height: 1.5),
+                        ),
+                      ),
+                      SizedBox(height: short ? 28 : 40),
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            await ApiService().logout();
+                            if (context.mounted) {
+                              Navigator.of(
+                                context,
+                              ).pushNamedAndRemoveUntil('/login', (route) => false);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Ld.gold,
+                            foregroundColor: Ld.navy,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Ld.rMd),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.logout_rounded),
+                          label: Text(
+                            isLao ? 'ອອກຈາກລະບົບ' : (AppLocalizations.of(context)?.logout ?? 'Logout'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
-                  ),
-                  child: Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.notoSansLao(
-                      fontSize: 16,
-                      color: Colors.white.withOpacity(0.9),
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 48),
-                ElevatedButton(
-                  onPressed: () async {
-                    await ApiService().logout();
-                    if (context.mounted) {
-                      Navigator.of(
-                        context,
-                      ).pushNamedAndRemoveUntil('/login', (route) => false);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF001460),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 48,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    isLao ? 'ອອກຈາກລະບົບ' : (AppLocalizations.of(context)?.logout ?? 'Logout'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

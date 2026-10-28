@@ -4,19 +4,19 @@ class LaDolcePosUi {
   // Brand
   static const Color navy = Color(0xFF001460);
   static const Color navy2 = Color(0xFF142B8C);
-  static const Color surface = Color(0xFFF6F7FB);
+  static const Color surface = Color(0xFFEEF1F6); // = Ld.ground
   static const Color card = Colors.white;
-  static const Color accent = Color(0xFF3B82F6);
+  static const Color accent = Color(0xFF001460); // = Ld.navy (was blue)
   static const Color gold = Color(0xFFC6A15B);
 
   // Neutrals
-  static const Color text = Color(0xFF0F172A);
-  static const Color mutedText = Color(0xFF64748B);
-  static const Color border = Color(0xFFE2E8F0);
+  static const Color text = Color(0xFF13183A); // = Ld.ink
+  static const Color mutedText = Color(0xFF5A6180); // = Ld.muted
+  static const Color border = Color(0xFFD7DCE8); // = Ld.line
 
   // Layout
   static const double radius = 14;
-  static const double radiusSm = 10;
+  static const double radiusSm = 12;
 
   static LinearGradient get navyGradient => const LinearGradient(
         begin: Alignment.topLeft,

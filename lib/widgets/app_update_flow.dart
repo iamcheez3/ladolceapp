@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 
 import '../services/app_update_service.dart';
+import '../theme/ld.dart';
 
 /// The update dialogs: offer → download progress → Android installer.
 class AppUpdateFlow {
@@ -42,7 +43,7 @@ class AppUpdateFlow {
       if (release == null) {
         messenger.showSnackBar(SnackBar(
           content: Text(l10n?.appUpdateLatest ?? 'You have the latest version.'),
-          backgroundColor: Colors.green,
+          backgroundColor: Ld.success,
         ));
         return;
       }
@@ -52,7 +53,7 @@ class AppUpdateFlow {
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(SnackBar(
         content: Text(l10n?.appUpdateFailed('$e') ?? 'Update failed: $e'),
-        backgroundColor: Colors.red,
+        backgroundColor: Ld.danger,
       ));
     }
   }
@@ -73,7 +74,7 @@ class AppUpdateFlow {
       builder: (ctx) => PopScope(
         canPop: !release.force,
         child: AlertDialog(
-          icon: const Icon(Icons.system_update_rounded, size: 40),
+          icon: const LdIconTile(Icons.system_update_outlined, size: 56),
           title: Text(l10n?.appUpdateAvailableTitle ?? 'New version available'),
           content: SingleChildScrollView(
             child: Column(
@@ -95,7 +96,7 @@ class AppUpdateFlow {
                   const SizedBox(height: 14),
                   Text(l10n?.appUpdateRequired ?? 'This update is required.',
                       style: const TextStyle(
-                          color: Colors.red, fontWeight: FontWeight.bold)),
+                          color: Ld.danger, fontWeight: FontWeight.bold)),
                 ],
               ],
             ),
@@ -142,9 +143,20 @@ class AppUpdateFlow {
             builder: (_, value, _) => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                LinearProgressIndicator(value: value, minHeight: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: LinearProgressIndicator(
+                    value: value,
+                    minHeight: 10,
+                    color: Ld.navy,
+                    backgroundColor: Ld.ground,
+                  ),
+                ),
                 const SizedBox(height: 10),
-                Text(value == null ? '' : '${(value * 100).toStringAsFixed(0)}%'),
+                Text(
+                  value == null ? '' : '${(value * 100).toStringAsFixed(0)}%',
+                  style: Ld.price(18),
+                ),
               ],
             ),
           ),
@@ -176,7 +188,7 @@ class AppUpdateFlow {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(l10n?.appUpdateFailed('$e') ?? 'Update failed: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Ld.danger,
         ));
       }
     } finally {
@@ -201,7 +213,7 @@ class AppUpdateFlow {
         context: context,
         barrierDismissible: !release.force,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.security_update_good_rounded, size: 40),
+          icon: const LdIconTile(Icons.security_update_good_outlined, size: 56),
           title: Text(l10n?.appUpdateAllowTitle ?? 'Allow app updates'),
           content: Text(l10n?.appUpdateAllowBody ??
               'Android asks once: turn on "Allow from this source" for LaDolce, '

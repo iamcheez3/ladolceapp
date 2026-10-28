@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:ladolce/theme/ld_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:ladolce/models/product.dart';
@@ -102,26 +103,24 @@ Future<void> loadLayoutFonts() async {
     'assets/fonts/NotoSerifLao-Regular.ttf',
     'assets/fonts/NotoSerifLao-Bold.ttf',
   ]);
+  // The real app fonts (bundled since the Oct 2026 redesign).
+  await _loadFamily('NotoSansLao', [
+    'assets/fonts/NotoSansLao-Regular.ttf',
+    'assets/fonts/NotoSansLao-Medium.ttf',
+    'assets/fonts/NotoSansLao-SemiBold.ttf',
+    'assets/fonts/NotoSansLao-Bold.ttf',
+  ]);
+  await _loadFamily('NotoSerifLao', [
+    'assets/fonts/NotoSerifLao-Regular.ttf',
+    'assets/fonts/NotoSerifLao-Bold.ttf',
+  ]);
   await _loadFamily('MaterialIcons', ['$mf/materialicons-regular.otf']);
 }
 
-/// Same theme shape as PosApp in lib/main.dart, with the test fonts.
-ThemeData layoutTheme(String locale) => ThemeData(
-      fontFamily: locale == 'lo' ? 'LaoUI' : 'Inter',
-      fontFamilyFallback: locale == 'lo' ? const ['Inter'] : const ['LaoUI'],
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF001460),
-        primary: const Color(0xFF001460),
-        secondary: const Color(0xFF3B82F6),
-        surface: Colors.white,
-      ),
-      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF001460),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      useMaterial3: true,
+/// The app's real theme (lib/theme/ld_theme.dart). Latin falls back to
+/// Roboto, as on Android.
+ThemeData layoutTheme(String locale) => buildLdTheme().copyWith(
+      textTheme: buildLdTheme().textTheme.apply(fontFamilyFallback: const ['Roboto']),
     );
 
 /// MaterialApp shaped like PosApp (localisations, clamped text scaling).

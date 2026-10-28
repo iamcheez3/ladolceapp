@@ -3,7 +3,7 @@ import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import 'receipt_detail_screen.dart';
-import '../theme/ladolce_pos_ui.dart';
+import '../theme/ld.dart';
 import '../utils/money.dart';
 
 /// Paginated Receipt History Screen optimized for large datasets.
@@ -39,10 +39,12 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
   // Prevent duplicate fetch requests
   bool _isFetching = false;
 
-  static const Color _accent = Color(0xFF0D9488);
-  static const Color _iconCashBg = Color(0xFFDCFCE7);
-  static const Color _iconBankBg = Color(0xFFDBEAFE);
-  static const Color _iconOtherBg = Color(0xFFF3F4F6);
+  /// Receipt shown beside the list on tablets (null = the newest one).
+  int? _selectedId;
+
+  static const Color _iconCashBg = Ld.successWash;
+  static const Color _iconBankBg = Ld.infoWash;
+  static const Color _iconOtherBg = Ld.ground;
 
   @override
   void initState() {
@@ -154,7 +156,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
   String _formatAmount(dynamic raw) {
     final amount = double.tryParse(raw.toString()) ?? 0.0;
-    return 'K${money(amount)}';
+    return '₭${money(amount)}';
   }
 
   String? _formatVisitDuration(Map<String, dynamic> receipt) {
@@ -190,9 +192,9 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
       final yesterday = today.subtract(const Duration(days: 1));
       final dateOnly = DateTime(dt.year, dt.month, dt.day);
 
-      if (dateOnly == today) return (AppLocalizations.of(context)?.today2 ?? 'TODAY');
-      if (dateOnly == yesterday) return (AppLocalizations.of(context)?.yesterday2 ?? 'YESTERDAY');
-      return DateFormat('MMMM d, yyyy').format(dt).toUpperCase();
+      if (dateOnly == today) return (AppLocalizations.of(context)?.today ?? 'Today');
+      if (dateOnly == yesterday) return (AppLocalizations.of(context)?.yesterday ?? 'Yesterday');
+      return DateFormat('MMMM d, yyyy').format(dt);
     } catch (_) {
       return (AppLocalizations.of(context)?.unknownDate ?? 'Unknown Date');
     }
@@ -227,59 +229,99 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
     return int.tryParse(raw?.toString() ?? '');
   }
 
+  /// Landscape tablets show the list and the selected receipt side by side;
+  /// narrower screens open the receipt as its own page.
+  bool _isSplit(BuildContext context) =>
+      Ld.isTablet(context) && MediaQuery.sizeOf(context).width >= 900;
+
+  /// The receipt shown on the right in the split view: the one tapped, or
+  /// the newest one until something is tapped.
+  int? _shownReceiptId() {
+    if (_selectedId != null &&
+        _receipts.any((r) => _resolveReceiptId(r) == _selectedId)) {
+      return _selectedId;
+    }
+    for (final r in _receipts) {
+      final id = _resolveReceiptId(r);
+      if (id != null) return id;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final split = _isSplit(context);
+    final Widget list = _isLoading && _receipts.isEmpty
+        ? const Center(child: CircularProgressIndicator())
+        : _errorMessage != null && _receipts.isEmpty
+            ? _buildError()
+            : _receipts.isEmpty
+                ? _buildEmpty()
+                : _buildList(split: split);
+
+    Widget body = list;
+    if (split) {
+      final width = MediaQuery.sizeOf(context).width;
+      final shownId = _receipts.isEmpty ? null : _shownReceiptId();
+      body = Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: (width * 0.42).clamp(340.0, 460.0),
+            decoration: const BoxDecoration(
+              color: Ld.surface,
+              border: Border(right: BorderSide(color: Ld.line)),
+            ),
+            child: list,
+          ),
+          Expanded(
+            child: shownId == null
+                ? const ColoredBox(
+                    color: Ld.ground,
+                    child: Center(child: Icon(Icons.receipt_long_outlined, size: 64, color: Ld.faint)),
+                  )
+                : ReceiptDetailScreen(
+                    key: ValueKey(shownId),
+                    orderId: shownId,
+                    embedded: true,
+                    onRefunded: _refreshReceipts,
+                  ),
+          ),
+        ],
+      );
+    }
+
     return Scaffold(
-      backgroundColor: LaDolcePosUi.surface,
-      appBar: AppBar(
-        backgroundColor: LaDolcePosUi.navy,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(AppLocalizations.of(context)?.receiptsHistory ?? (AppLocalizations.of(context)?.receiptsHistory ?? 'Receipts History'),
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-        ),
-        leading: const BackButton(color: Colors.white),
+      backgroundColor: Ld.ground,
+      appBar: LdHeader(
+        title: AppLocalizations.of(context)?.receiptsHistory ?? 'Receipts History',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
+          LdNavIconButton(
+            icon: Icons.refresh_rounded,
+            tooltip: AppLocalizations.of(context)?.refresh ?? 'Refresh',
             onPressed: _isLoading ? null : _refreshReceipts,
           ),
         ],
       ),
-      body: _isLoading && _receipts.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null && _receipts.isEmpty
-              ? _buildError()
-              : _receipts.isEmpty
-                  ? _buildEmpty()
-                  : _buildList(),
+      body: body,
     );
   }
 
   Widget _buildError() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 32),
-            ),
+            const LdIconTile(Icons.error_outline_rounded, size: 64, background: Ld.dangerWash, color: Ld.danger),
             const SizedBox(height: 16),
-            Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+            Text(_errorMessage!, textAlign: TextAlign.center, style: Ld.body.copyWith(color: Ld.danger)),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: _fetchInitialReceipts,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
-              style: LaDolcePosUi.primaryButtonStyle(),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(AppLocalizations.of(context)?.retry ?? 'Retry'),
             ),
           ],
         ),
@@ -289,25 +331,23 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
   Widget _buildEmpty() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: _accent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(Icons.receipt_long_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
-            ),
+            const LdIconTile(Icons.receipt_long_outlined, size: 80, background: Ld.surface),
             const SizedBox(height: 20),
-            Text(AppLocalizations.of(context)?.noPaidReceiptsYet ?? (AppLocalizations.of(context)?.noPaidReceiptsYet ?? 'No paid receipts yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(
+              AppLocalizations.of(context)?.noPaidReceiptsYet ?? 'No paid receipts yet',
+              textAlign: TextAlign.center,
+              style: Ld.title(20),
+            ),
             const SizedBox(height: 6),
-            Text(AppLocalizations.of(context)?.completedOrdersWillAppearHere ?? (AppLocalizations.of(context)?.completedOrdersWillAppearHere ?? 'Completed orders will appear here'),
-              style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText),
+            Text(
+              AppLocalizations.of(context)?.completedOrdersWillAppearHere ?? 'Completed orders will appear here',
+              textAlign: TextAlign.center,
+              style: Ld.label,
             ),
           ],
         ),
@@ -315,18 +355,21 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList({required bool split}) {
     // Group receipts by date for display
     final grouped = <String, List<Map<String, dynamic>>>{};
     for (var receipt in _receipts) {
       final dayKey = _getDayKey(receipt);
       grouped.putIfAbsent(dayKey, () => []).add(receipt);
     }
+    final shownId = split ? _shownReceiptId() : null;
+    final side = split ? 8.0 : 16.0;
 
     return RefreshIndicator(
       onRefresh: _refreshReceipts,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(side, 4, side, 24 + Ld.navInset(context)),
         itemCount: grouped.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           // Show Load More button at the end
@@ -338,59 +381,43 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
           final dateKey = entry.key;
           final receipts = entry.value;
 
+          final tiles = List.generate(receipts.length, (i) {
+            final receipt = receipts[i];
+            final paymentMethod = (receipt['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown')).toString();
+            final isLast = i == receipts.length - 1;
+            final timeStr = _getTimeStr(receipt);
+            final selected = split && shownId != null && _resolveReceiptId(receipt) == shownId;
+
+            return Column(
+              children: [
+                _buildReceiptTile(receipt, paymentMethod, timeStr, i == 0, isLast,
+                    split: split, selected: selected),
+                if (!isLast && !split)
+                  const Divider(height: 1, thickness: 1, indent: 68, color: Ld.lineSoft),
+              ],
+            );
+          });
+
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Date header
               Padding(
-                padding: const EdgeInsets.only(top: 20, bottom: 10),
+                padding: EdgeInsets.fromLTRB(split ? 8 : 4, 16, 4, 8),
                 child: Text(
                   dateKey,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: LaDolcePosUi.mutedText,
-                    letterSpacing: 1.5,
-                  ),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ld.muted),
                 ),
               ),
-              // Receipts card for this date
-              Container(
-                decoration: BoxDecoration(
-                  color: LaDolcePosUi.card,
-                  borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-                  border: Border.all(color: LaDolcePosUi.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+              // Receipts card for this date (plain rows in the split list)
+              if (split)
+                ...tiles
+              else
+                Container(
+                  decoration: Ld.card(),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(children: tiles),
                 ),
-                child: Column(
-                  children: List.generate(receipts.length, (i) {
-                    final receipt = receipts[i];
-                    final paymentMethod = receipt['payment_method'] ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown');
-                    final isLast = i == receipts.length - 1;
-                    final timeStr = _getTimeStr(receipt);
-
-                    return Column(
-                      children: [
-                        _buildReceiptTile(receipt, paymentMethod, timeStr, i == 0, isLast),
-                        if (!isLast)
-                          Divider(
-                            height: 1,
-                            thickness: 1,
-                            indent: 68,
-                            endIndent: 0,
-                            color: LaDolcePosUi.border,
-                          ),
-                      ],
-                    );
-                  }),
-                ),
-              ),
             ],
           );
         },
@@ -403,131 +430,124 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
     String paymentMethod,
     String timeStr,
     bool isFirst,
-    bool isLast,
-  ) {
-    return InkWell(
-      onTap: () {
-        final id = _resolveReceiptId(receipt);
-        if (id == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context)?.thisReceiptIsMissingAnOrder ?? (AppLocalizations.of(context)?.thisReceiptIsMissingAnOrder ?? 'This receipt is missing an order id. Please refresh and try again.')),
-              backgroundColor: Colors.orange,
-            ),
+    bool isLast, {
+    bool split = false,
+    bool selected = false,
+  }) {
+    final dur = _formatVisitDuration(receipt);
+    final offline = receipt['offline'] == true ||
+        receipt['synced'] == false ||
+        (receipt['id'] is int && (receipt['id'] as int) < 0);
+    final hasDiscount = receipt['amount_discount'] is num && (receipt['amount_discount'] as num) > 0;
+    final ref = (receipt['name'] ?? receipt['order_reference'] ?? '').toString();
+    final meta = [if (timeStr.isNotEmpty) timeStr, paymentMethod].join(' · ');
+
+    final radius = split
+        ? BorderRadius.circular(Ld.r)
+        : BorderRadius.vertical(
+            top: isFirst ? const Radius.circular(Ld.rLg) : Radius.zero,
+            bottom: isLast ? const Radius.circular(Ld.rLg) : Radius.zero,
           );
-          return;
-        }
-        _showReceiptDetails(id);
-      },
-      borderRadius: BorderRadius.vertical(
-        top: isFirst ? Radius.circular(LaDolcePosUi.radius) : Radius.zero,
-        bottom: isLast ? Radius.circular(LaDolcePosUi.radius) : Radius.zero,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: _getIconBg(paymentMethod),
-                borderRadius: BorderRadius.circular(10),
+
+    return Material(
+      color: selected ? Ld.ground : Colors.transparent,
+      borderRadius: radius,
+      child: InkWell(
+        onTap: () {
+          final id = _resolveReceiptId(receipt);
+          if (id == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(AppLocalizations.of(context)?.thisReceiptIsMissingAnOrder ?? 'This receipt is missing an order id. Please refresh and try again.'),
+                backgroundColor: Colors.orange,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Image.asset(
-                  _getPaymentAsset(paymentMethod),
-                  fit: BoxFit.contain,
+            );
+            return;
+          }
+          if (_isSplit(context)) {
+            setState(() => _selectedId = id);
+            return;
+          }
+          _showReceiptDetails(id);
+        },
+        borderRadius: radius,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: split ? 10 : 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: selected ? Ld.surface : _getIconBg(paymentMethod),
+                  borderRadius: BorderRadius.circular(Ld.rSm),
                 ),
+                child: Image.asset(_getPaymentAsset(paymentMethod), fit: BoxFit.contain),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _formatAmount(receipt['amount_total']),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A2E),
-                      letterSpacing: -0.3,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ref,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Ld.ink),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${(receipt['name'] ?? receipt['order_reference'] ?? '').toString()} · $timeStr',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: LaDolcePosUi.mutedText,
-                    ),
-                  ),
-                  if ((receipt['amount_discount'] is num && (receipt['amount_discount'] as num) > 0))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        'Discount: -K${money((receipt['amount_discount'] as num))}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600,
+                    const SizedBox(height: 2),
+                    Text(meta, maxLines: 1, overflow: TextOverflow.ellipsis, style: Ld.small),
+                    if (hasDiscount)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          'Discount: -₭${money((receipt['amount_discount'] as num))}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12.5, color: Ld.danger, fontWeight: FontWeight.w600),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Builder(builder: (_) {
-                  final dur = _formatVisitDuration(receipt);
-                  if (dur == null) return const SizedBox.shrink();
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '⏱ $dur',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _accent,
+              const SizedBox(width: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _formatAmount(receipt['amount_total']),
+                        style: Ld.price(17, color: Ld.ink, weight: FontWeight.w600),
                       ),
                     ),
-                  );
-                }),
-                Builder(builder: (_) {
-                  final offline = receipt['offline'] == true ||
-                      receipt['synced'] == false ||
-                      (receipt['id'] is int && (receipt['id'] as int) < 0);
-                  if (!offline) return const SizedBox.shrink();
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(AppLocalizations.of(context)?.unsynced ?? (AppLocalizations.of(context)?.unsynced ?? 'Unsynced'),
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.orange),
-                    ),
-                  );
-                }),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: LaDolcePosUi.mutedText,
-                  size: 20,
+                    if (offline || dur != null) const SizedBox(height: 4),
+                    if (offline)
+                      LdPill(
+                        AppLocalizations.of(context)?.unsynced ?? 'Unsynced',
+                        background: Ld.warningWash,
+                        foreground: Ld.warning,
+                        icon: Icons.cloud_off_rounded,
+                      )
+                    else if (dur != null)
+                      LdPill(dur, background: Ld.ground, foreground: Ld.muted, icon: Icons.timer_outlined),
+                    if (offline && dur != null) ...[
+                      const SizedBox(height: 4),
+                      LdPill(dur, background: Ld.ground, foreground: Ld.muted, icon: Icons.timer_outlined),
+                    ],
+                  ],
                 ),
+              ),
+              if (!split) ...[
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, color: Ld.faint, size: 20),
               ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -535,7 +555,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
   Widget _buildLoadMoreButton() {
     return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 16),
+      padding: const EdgeInsets.only(top: 20, bottom: 12),
       child: Center(
         child: _isLoadingMore
             ? const SizedBox(
@@ -543,17 +563,17 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                 height: 24,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : ElevatedButton.icon(
+            : OutlinedButton.icon(
                 onPressed: _hasMore ? _loadMoreReceipts : null,
-                icon: const Icon(Icons.expand_more, size: 18),
+                icon: const Icon(Icons.expand_more_rounded, size: 20),
                 label: Text(_hasMore ? (AppLocalizations.of(context)?.loadMore ?? 'Load More') : (AppLocalizations.of(context)?.noMoreReceipts ?? 'No more receipts')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: LaDolcePosUi.navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Ld.surface,
+                  foregroundColor: Ld.navy,
+                  side: const BorderSide(color: Ld.line),
+                  minimumSize: const Size(0, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
               ),
       ),

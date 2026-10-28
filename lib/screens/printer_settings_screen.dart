@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
-import '../theme/ladolce_pos_ui.dart';
+import '../theme/ld.dart';
 import 'printer_edit_screen.dart';
 
 class PrinterSettingsScreen extends StatefulWidget {
-  const PrinterSettingsScreen({super.key});
+  /// True when shown inside the tablet Settings screen (right-hand pane):
+  /// no own app bar, the "Add printer" button sits in the section header.
+  final bool embedded;
+
+  /// Called after a printer was added, changed or deleted.
+  final VoidCallback? onChanged;
+
+  const PrinterSettingsScreen({super.key, this.embedded = false, this.onChanged});
 
   @override
   State<PrinterSettingsScreen> createState() => _PrinterSettingsScreenState();
@@ -15,8 +22,6 @@ class PrinterSettingsScreen extends StatefulWidget {
 class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   final ApiService _apiService = ApiService();
   bool _loading = true;
-
-  static const Color _accent = Color(0xFF4CAF50);
 
   @override
   void initState() {
@@ -41,77 +46,110 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
         builder: (_) => PrinterEditScreen(profile: profile),
       ),
     ).then((saved) {
-      if (saved == true && mounted) setState(() {});
+      if (saved == true && mounted) {
+        setState(() {});
+        widget.onChanged?.call();
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final profiles = printerService.profiles;
+    final l10n = AppLocalizations.of(context);
+    final title = l10n?.printers ?? 'Printers';
+    final addLabel = l10n?.addPrinter ?? 'Add Printer';
+
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(title, style: Ld.title(24), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 12),
+                FilledButton.icon(
+                  onPressed: () => _openPrinterScreen(),
+                  icon: const Icon(Icons.add_rounded, size: 20),
+                  label: Text(addLabel),
+                ),
+              ],
+            ),
+          ),
+          Expanded(child: _body(context, horizontal: 28, bottom: 24)),
+        ],
+      );
+    }
 
     return Scaffold(
-      backgroundColor: LaDolcePosUi.surface,
-      appBar: AppBar(
-        backgroundColor: LaDolcePosUi.navy,
+      backgroundColor: Ld.ground,
+      appBar: LdHeader(title: title),
+      body: _body(context, horizontal: 16, bottom: 96),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Ld.navy,
         foregroundColor: Colors.white,
-        title: Text(AppLocalizations.of(context)?.printers ?? (AppLocalizations.of(context)?.printers ?? 'Printers')),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : profiles.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 80, height: 80,
-                          decoration: BoxDecoration(
-                            color: _accent.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(Icons.print_outlined, color: _accent.withValues(alpha: 0.5), size: 40),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(AppLocalizations.of(context)?.noPrintersYet ?? (AppLocalizations.of(context)?.noPrintersYet ?? 'No printers yet'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Tap + to add your first printer.\nConfigure receipts, orders, and category routing.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 14, color: LaDolcePosUi.mutedText, height: 1.35),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.add, size: 18),
-                          label: Text(AppLocalizations.of(context)?.addPrinter ?? (AppLocalizations.of(context)?.addPrinter ?? 'Add Printer')),
-                          onPressed: () => _openPrinterScreen(),
-                          style: LaDolcePosUi.primaryButtonStyle(),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(top: 8, bottom: 90),
-                  itemCount: profiles.length,
-                  itemBuilder: (context, i) {
-                    final p = profiles[i];
-                    final isDefault = p.id == printerService.selectedReceiptPrinterId;
-                    return _PrinterCard(
-                      profile: p,
-                      isDefault: isDefault,
-                      accent: _accent,
-                      onTap: () => _openPrinterScreen(profile: p),
-                    );
-                  },
-                ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: _accent,
-        foregroundColor: Colors.white,
+        elevation: 0,
+        highlightElevation: 0,
         onPressed: () => _openPrinterScreen(),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
+        label: Text(addLabel, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
       ),
+    );
+  }
+
+  Widget _body(BuildContext context, {required double horizontal, required double bottom}) {
+    final profiles = printerService.profiles;
+    final l10n = AppLocalizations.of(context);
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (profiles.isEmpty) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + Ld.navInset(context)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const LdIconTile(Icons.print_outlined, size: 80),
+              const SizedBox(height: 20),
+              Text(
+                l10n?.noPrintersYet ?? 'No printers yet',
+                textAlign: TextAlign.center,
+                style: Ld.title(20),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Tap + to add your first printer.\nConfigure receipts, orders, and category routing.',
+                textAlign: TextAlign.center,
+                style: Ld.label,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: Text(l10n?.addPrinter ?? 'Add Printer'),
+                onPressed: () => _openPrinterScreen(),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, bottom + Ld.navInset(context)),
+      itemCount: profiles.length,
+      itemBuilder: (context, i) {
+        final p = profiles[i];
+        final isDefault = p.id == printerService.selectedReceiptPrinterId;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _PrinterCard(
+            profile: p,
+            isDefault: isDefault,
+            onTap: () => _openPrinterScreen(profile: p),
+          ),
+        );
+      },
     );
   }
 }
@@ -119,109 +157,101 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
 class _PrinterCard extends StatelessWidget {
   final PrinterProfile profile;
   final bool isDefault;
-  final Color accent;
   final VoidCallback onTap;
 
   const _PrinterCard({
     required this.profile,
     required this.isDefault,
-    required this.accent,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final mode = profile.printOrders
-        ? (AppLocalizations.of(context)?.orders ?? 'Orders')
-        : (profile.printReceiptsAndBills ? (AppLocalizations.of(context)?.receipt ?? 'Receipt') : (AppLocalizations.of(context)?.disabled ?? 'Disabled'));
+    final l10n = AppLocalizations.of(context);
+    final jobs = <String>[
+      if (profile.printReceiptsAndBills) l10n?.receipt ?? 'Receipt',
+      if (profile.printOrders) l10n?.orders ?? 'Orders',
+    ];
+    final disabled = jobs.isEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    return Material(
+      color: Ld.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Ld.rLg),
+        side: const BorderSide(color: Ld.line),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-        child: Container(
-          decoration: BoxDecoration(
-            color: LaDolcePosUi.card,
-            borderRadius: BorderRadius.circular(LaDolcePosUi.radius),
-            border: Border.all(color: LaDolcePosUi.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.print_outlined, color: accent, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+        borderRadius: BorderRadius.circular(Ld.rLg),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 10, 16),
+          child: Row(
+            children: [
+              const LdIconTile(Icons.print_outlined, size: 52),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.name,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17, color: Ld.ink),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${profile.ip}:${profile.port} · ${profile.paperWidthMm} mm',
+                      style: const TextStyle(fontSize: 14, color: Ld.muted),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (isDefault)
+                          LdPill(
+                            l10n?.defaultLabel ?? 'Default',
+                            background: Ld.successWash,
+                            foreground: Ld.success,
+                            icon: Icons.check_circle_outline_rounded,
+                          ),
+                        if (disabled)
+                          LdPill(
+                            l10n?.disabled ?? 'Disabled',
+                            background: Ld.warningWash,
+                            foreground: Ld.warning,
+                          ),
+                        for (final j in jobs) LdPill(j),
+                      ],
+                    ),
+                    if (profile.categoryFilters.isNotEmpty) ...[
+                      const SizedBox(height: 8),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2),
+                            child: Icon(Icons.category_outlined, size: 16, color: Ld.muted),
+                          ),
+                          const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              profile.name,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                              maxLines: 1,
+                              profile.categoryFilters.join(', '),
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (isDefault)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              margin: const EdgeInsets.only(left: 6),
-                              decoration: BoxDecoration(
-                                color: accent.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(AppLocalizations.of(context)?.defaultLabel ?? (AppLocalizations.of(context)?.defaultLabel ?? 'Default'),
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: accent),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            '${profile.ip}:${profile.port}',
-                            style: TextStyle(fontSize: 12, color: LaDolcePosUi.mutedText),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: LaDolcePosUi.surface,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              mode,
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: LaDolcePosUi.mutedText),
+                              style: Ld.small,
                             ),
                           ),
                         ],
                       ),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded, color: LaDolcePosUi.mutedText, size: 20),
-              ],
-            ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, color: Ld.muted),
+            ],
           ),
         ),
       ),

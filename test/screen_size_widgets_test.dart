@@ -71,6 +71,8 @@ List<Product> products() => [
           lo: 'ບິງຊູເຂົ້າໜຽວໝາກມ່ວງ ຖ້ວຍໃຫຍ່ ແບ່ງກັນກິນ', price: 189000),
       prod(5, en: 'Croissant', lo: 'ຄົວຊອງ', price: 1234000, cat: 'Bakery'),
       prod(6),
+      // No fixed price: the tile shows "Enter price".
+      prod(7, en: 'Butter croissant', lo: 'ຄົວຊອງເນີຍ', price: 0, cat: 'Bakery'),
     ];
 
 List<CartItem> cart() {
@@ -94,6 +96,9 @@ List<CartItem> cart() {
   ];
 }
 
+/// Quantities already in the ticket (gold badges on the catalog).
+const inCart = {1: 2, 3: 1000, 5: 12};
+
 const customer = {
   'name': 'Souksavanh Phommachanh Vongsakda (VIP Gold Member)',
   'reward_points': 1234567,
@@ -101,7 +106,7 @@ const customer = {
 
 /// Hosts the cart the way pos_screen does: inline rail (flex 3 of 8) at
 /// width >= 800, else the 85 % bottom sheet.
-Widget cartHost(Size size, PosTaxConfig tax) {
+Widget cartHost(Size size, PosTaxConfig tax, {bool named = false}) {
   final sidebar = CartSidebar(
     cartItems: cart(),
     onUpdateQuantity: (_, _) {},
@@ -114,6 +119,11 @@ Widget cartHost(Size size, PosTaxConfig tax) {
     onClearCustomer: () {},
     selectedCustomer: customer,
     taxConfig: tax,
+    ticketName: named ? 'Terrace table 12 (window side, near the garden)' : null,
+    ticketSubtitle: named ? 'POS/2026/000123' : null,
+    optionsButton: named
+        ? IconButton(onPressed: () {}, icon: const Icon(Icons.more_horiz_rounded), tooltip: 'More')
+        : null,
   );
   if (size.width >= 800) {
     return Scaffold(
@@ -201,6 +211,11 @@ void main() {
                 const PosTaxConfig(
                     active: true, percent: 10, inclusive: false, showOnReceipt: true)));
       });
+      testWidgets('cart_sidebar (named ticket) ${cfg.name} $loc', (t) async {
+        await surveyLayout(t,
+            target: 'cart_sidebar+named', cfg: cfg, locale: loc,
+            build: () => cartHost(cfg.size, PosTaxConfig.disabled, named: true));
+      });
       testWidgets('topping_picker POS ${cfg.name} $loc', (t) async {
         await surveyLayout(t,
             target: 'topping_picker', cfg: cfg, locale: loc,
@@ -215,13 +230,13 @@ void main() {
         await surveyLayout(t,
             target: 'product_grid', cfg: cfg, locale: loc,
             build: () => catalogHost(
-                cfg.size, ProductGrid(products: products(), onProductTap: (_) {})));
+                cfg.size, ProductGrid(products: products(), onProductTap: (_) {}, cartQuantities: inCart)));
       });
       testWidgets('product_list ${cfg.name} $loc', (t) async {
         await surveyLayout(t,
             target: 'product_list', cfg: cfg, locale: loc,
             build: () => catalogHost(
-                cfg.size, ProductList(products: products(), onProductTap: (_) {})));
+                cfg.size, ProductList(products: products(), onProductTap: (_) {}, cartQuantities: inCart)));
       });
     }
   }

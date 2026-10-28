@@ -14,12 +14,17 @@ import 'package:http/testing.dart';
 import 'package:ladolce/models/product.dart';
 import 'package:ladolce/models/topping.dart';
 import 'package:ladolce/screens/login_screen.dart';
+import 'package:ladolce/screens/maintenance_screen.dart';
 import 'package:ladolce/screens/manage_items_screen.dart';
 import 'package:ladolce/screens/manage_products_screen.dart';
 import 'package:ladolce/screens/pin_screen.dart';
+import 'package:ladolce/screens/pos_identity_screen.dart';
 import 'package:ladolce/screens/pos_settings_screen.dart';
 import 'package:ladolce/screens/product_edit_screen.dart';
 import 'package:ladolce/screens/receipt_history_screen.dart';
+import 'package:ladolce/screens/register_screen.dart';
+import 'package:ladolce/screens/rider_screen.dart';
+import 'package:ladolce/screens/self_orders_review_screen.dart';
 import 'package:ladolce/screens/tickets_screen.dart';
 import 'package:ladolce/screens/topping_edit_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -136,6 +141,44 @@ Map<String, dynamic> receiptJson(int i) => {
       'partner_name': 'Souksavanh Phommachanh Vongsakda',
     };
 
+Map<String, dynamic> selfOrderJson(int id, String pay) => {
+      'id': id,
+      'name': 'Order 000$id-123-4567-SELF',
+      'table_name': 'VIP Room 12 — Terrace (window side)',
+      'customer': 'Souksavanh Phommachanh Vongsakda (VIP Gold Member)',
+      'customer_phone': '020 5555 1234',
+      'amount_total': 258687000,
+      'payment_type': pay,
+      'transfer_proof_url': pay == 'transfer' ? '/web/image/1' : '',
+      'note': 'ບໍ່ໃສ່ນ້ຳກ້ອນ, ຫວານໜ້ອຍ — no ice, less sweet, pick up at 3 PM',
+      'delivery_place_name': 'Vientiane Center Mall, Tower B, 12th floor',
+      'delivery_place_address': 'Khouvieng Road, Nongchan Village, Sisattanak District',
+      'delivery_maps_url': 'https://maps.google.com/?q=17.96,102.61',
+      'lines': [
+        {'product_name': longEn, 'product_name_lo': longLo, 'qty': 99,
+         'subtotal': 258687000, 'toppings': [{'name': 'Oat milk instead of dairy'}],
+         'note': 'extra hot please'},
+        {'product_name': 'Croissant', 'qty': 1, 'subtotal': 0},
+      ],
+    };
+
+Map<String, dynamic> riderOrderJson(int id, String status) => {
+      'id': id,
+      'order_reference': 'Order 00012-001-000$id-DELIVERY',
+      'customer_name': 'Souksavanh Phommachanh Vongsakda (VIP Gold Member)',
+      'customer_phone': '020 5555 1234',
+      'delivery_place_name': 'Vientiane Center Mall, Tower B, 12th floor',
+      'delivery_place_address': 'Khouvieng Road, Nongchan Village, Sisattanak District',
+      'delivery_status': status,
+      'delivery_maps_url': 'https://maps.google.com/?q=17.96,102.61',
+      'amount_total': 258687000,
+      'note': 'ບໍ່ໃສ່ນ້ຳກ້ອນ — call when you arrive at the lobby',
+      'lines': [
+        {'product_name': longEn, 'product_name_lo': longLo, 'qty': 99,
+         'subtotal': 258687000, 'note': 'extra hot'},
+      ],
+    };
+
 final cachedUser = {
   'user_id': 5,
   'name': 'Khamphoui Sengdara Phommavong (Senior Cashier)',
@@ -183,6 +226,15 @@ http.Client fakeBackend([List<Map<String, dynamic>>? products]) =>
           {'id': 1, 'name': 'LaDolce Vientiane Center Mall (Ground Floor)'},
           {'id': 2, 'name': 'ລາໂດລເຊ ສາຂາ ຕະຫຼາດເຊົ້າມໍລ ຊັ້ນສອງ'},
         ];
+      } else if (p.endsWith('/pos/self_orders/pending')) {
+        data = [selfOrderJson(1, 'transfer'), selfOrderJson(2, 'pay_at_store')];
+      } else if (p.endsWith('/pos/rider/orders')) {
+        data = [
+          riderOrderJson(1, 'pending'),
+          riderOrderJson(2, 'on_the_way'),
+          riderOrderJson(3, 'arrived'),
+          riderOrderJson(4, 'delivered'),
+        ];
       } else if (p.endsWith('/pos/tables')) {
         data = [
           for (var i = 1; i <= 6; i++)
@@ -222,6 +274,8 @@ const probes = <String, String>{
   'tickets_screen': '0001-123',
   'manage_products_screen': '35,000',
   'receipt_history_screen': '1,234,567,00',
+  'self_orders_review_screen': '0001-123',
+  'rider_screen': '00012-001',
   'product_edit_screen': 'Iced Caramel',
 };
 
@@ -241,6 +295,18 @@ final screens = <String, ScreenBuilder>{
       ),
   'topping_edit_screen': () => ToppingEditScreen(topping: fxTopping()),
   'receipt_history_screen': () => const ReceiptHistoryScreen(),
+  'register_screen': () => const RegisterScreen(),
+  'register_screen(staff)': () => const RegisterScreen(showStaffRoles: true),
+  'pos_identity_screen': () => PosIdentityScreen(user: cachedUser),
+  'maintenance_screen': () => const MaintenanceScreen(
+        messageEn: 'We are upgrading the LaDolce point of sale system tonight. '
+            'Ordering will be back at 06:00 Vientiane time. Thank you for your patience.',
+        messageLo: 'ພວກເຮົາກຳລັງປັບປຸງລະບົບຂາຍໜ້າຮ້ານ LaDolce ຄືນນີ້. '
+            'ຈະກັບມາສັ່ງໄດ້ເວລາ 06:00 ໂມງ. ຂອບໃຈທີ່ລໍຖ້າ.',
+      ),
+  'self_orders_review_screen': () => const SelfOrdersReviewScreen(),
+  'rider_screen': () => const RiderScreen(
+      riderName: 'Khamphoui Sengdara Phommavong', riderId: 5),
 };
 
 /// Scroll every scrollable to the end so content below the fold is laid out

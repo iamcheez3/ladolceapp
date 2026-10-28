@@ -4,7 +4,7 @@ This is the list of what changed on 28 Oct 2026, after a full test of the app an
 
 | | Branch `sith`, latest commit |
 |---|---|
-| App (`ladolceapp`) | `0f6af84`, version **1.0.1 (build 9)** |
+| App (`ladolceapp`) | `REDESIGN_HASH`, version **1.0.1 (build 10)**: the fixes below plus the new look (section 3c) |
 | Backend (`ladolcepos`) | `0fdd9e6` |
 
 The older changes (topping groups, split payment, buy X get Y free, and so on) are in `IOS_BUILD_NOTES.md` in the app repo. Read that too if you haven't built since 10 Oct.
@@ -12,14 +12,14 @@ The older changes (topping groups, split payment, buy X get Y free, and so on) a
 ## 1. Build
 
 ```bash
-git checkout sith && git pull        # app must be at 0f6af84 or newer
+git checkout sith && git pull        # app must be at REDESIGN_HASH or newer
 flutter clean && flutter pub get
 cd ios && pod install && cd ..
-flutter test                         # 592 tests, all should pass
+flutter test                         # 1,708 tests, all should pass
 flutter build ipa
 ```
 
-- No new packages; `pubspec.yaml` only changed the version to `1.0.1+9`.
+- No new packages. `pubspec.yaml` changed the version to `1.0.1+10` and added the bundled font `NotoSansLao` (see 3c).
 - The translation files are generated and committed, so you don't need to run `flutter gen-l10n`.
 - Don't commit line-ending-only changes. Some files are CRLF and some are LF.
 
@@ -150,6 +150,25 @@ Use this list if anything on iOS calls the server by its own code (native code, 
 - Customers: unchanged.
 - **iOS check:** make sure `Set-Cookie` is visible in the login response on iOS. Some HTTP stacks store cookies themselves and hide the header. If it's missing, saves only work on the last device that logged in.
 
+## 3c. New look (build 10)
+
+Every screen was restyled: navy and gold, white "paper" ticket, prices in the receipt font. It is the **same app**: same buttons, menus, dialogs, server calls and printing. **No API changes** come from the redesign.
+
+- **Theme:** colours, sizes and shared widgets are in `lib/theme/ld.dart`. The app theme is in `lib/theme/ld_theme.dart`, used by `main.dart`.
+- **Fonts:** the UI font is now bundled: `assets/fonts/NotoSansLao-*.ttf`, family `NotoSansLao` in `pubspec.yaml`. Prices and titles use the already bundled `NotoSerifLao`. Nothing is downloaded at runtime for the UI any more, and `main.dart` no longer uses `google_fonts`. Nothing to do on iOS beyond `flutter pub get`.
+- **Back gestures:** iOS uses the normal swipe-from-left-edge back (Cupertino page transitions). Android uses predictive back. The POS "unsaved items" guard (`PopScope`) is unchanged.
+- **Status bar:** white icons app-wide, set once in `MaterialApp.builder`. The tablet POS (light top) switches to dark icons. `Info.plist` doesn't set `UIViewControllerBasedStatusBarAppearance`, so Flutter controls it. Keep it that way.
+- **Layout:**
+  - Screens 1100 px wide or more show the ticket as a navy rail on the right.
+  - Smaller screens show a ticket bar at the bottom that opens a sheet.
+  - Automated tests check 88 screens/widgets at 9 sizes (320×568 up to 1280×800, text ×1.3), in Lao and English: no overflow.
+- **Small additions** (no new server calls):
+  - Open cash drawer and Sync are also in the side menu.
+  - Quick cash buttons on Charge.
+  - Search and category filter on Manage products.
+  - Pull down to refresh on lists that already reload.
+  - Tap anywhere on a switch row to toggle it.
+
 ## 4. Please test on iPhone / iPad
 
 - [ ] Product with price 0: tap it on the POS, type a price, and the line shows that price. Charge it; Odoo shows the same price.
@@ -158,6 +177,7 @@ Use this list if anything on iOS calls the server by its own code (native code, 
 - [ ] Reprint a receipt with Lao item names: the names are readable.
 - [ ] Back gesture on the POS with unsaved items: it asks before discarding.
 - [ ] Small iPhone (SE size) and iPad, portrait and landscape: no cut-off text, the PIN pad fits, and Save buttons are not under the home indicator.
+- [ ] New look: Lao text uses the bundled font, not a fallback. Status bar text is white on the navy screens (PIN, POS, settings). Swipe from the left edge goes back on pushed screens. Bottom sheets (ticket, charge, toppings) close with a swipe down and their buttons stay above the home indicator.
 
 ## 5. Not tested yet
 

@@ -7,7 +7,7 @@ import 'loading_screen.dart';
 import '../services/api_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/push_notifications_service.dart';
-import '../utils/responsive_layout.dart';
+import '../theme/ld.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV TOOLS FLAG
@@ -26,8 +26,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const Color _brandNavy = Color(0xFF001460);
-  static const Color _brandSurface = Color(0xFFF6F7FB);
 
   final _formKey = GlobalKey<FormState>();
   final _loginController = TextEditingController();
@@ -53,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),
-            backgroundColor: const Color(0xFF001460),
+            backgroundColor: Ld.navy,
           ),
         );
       });
@@ -79,9 +77,21 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _devUnlocked = !_devUnlocked);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_devUnlocked ? '🔓 Staff mode unlocked' : '🔒 Staff mode hidden'),
+          content: Row(
+            children: [
+              Icon(
+                _devUnlocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(_devUnlocked ? 'Staff mode unlocked' : 'Staff mode hidden'),
+              ),
+            ],
+          ),
           duration: const Duration(seconds: 2),
-          backgroundColor: const Color(0xFF001460),
+          backgroundColor: Ld.navy,
         ),
       );
       if (_devUnlocked && kShowDevTools) _loadCurrentUrl();
@@ -109,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Icon(
                 Icons.construction_rounded,
                 size: 20,
-                color: Color(0xFF001460),
+                color: Ld.navy,
               ),
               SizedBox(width: 8),
               Text(
@@ -126,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Text(
                   'Override the API base URL for this device.\n'
                   'Leave empty to use the default from .env.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style: TextStyle(fontSize: 12, color: Ld.muted),
                 ),
                 const SizedBox(height: 14),
                 TextField(
@@ -137,23 +147,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Base URL',
                     hintText: 'http://your-server:8069/api',
                     filled: true,
-                    fillColor: const Color(0xFFF6F7FB),
+                    fillColor: Ld.ground,
                     prefixIcon: const Icon(
                       Icons.link_rounded,
-                      color: Color(0xFF001460),
+                      color: Ld.navy,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                      borderSide: const BorderSide(color: Ld.line),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                      borderSide: const BorderSide(color: Ld.line),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF001460),
+                        color: Ld.navy,
                         width: 1.5,
                       ),
                     ),
@@ -167,23 +177,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Database (optional)',
                     hintText: 'ladolce',
                     filled: true,
-                    fillColor: const Color(0xFFF6F7FB),
+                    fillColor: Ld.ground,
                     prefixIcon: const Icon(
                       Icons.storage_rounded,
-                      color: Color(0xFF001460),
+                      color: Ld.navy,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                      borderSide: const BorderSide(color: Ld.line),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFDCE5FF)),
+                      borderSide: const BorderSide(color: Ld.line),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF001460),
+                        color: Ld.navy,
                         width: 1.5,
                       ),
                     ),
@@ -210,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Dev overrides reset to default URL'),
-                    backgroundColor: Color(0xFF001460),
+                    backgroundColor: Ld.navy,
                   ),
                 );
               },
@@ -219,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // Save
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF001460),
+                backgroundColor: Ld.navy,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -246,7 +256,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Saved dev settings'),
-                    backgroundColor: const Color(0xFF001460),
+                    backgroundColor: Ld.navy,
                   ),
                 );
               },
@@ -285,146 +295,140 @@ class _LoginScreenState extends State<LoginScreen> {
     final platformLabel = platform == 'ios'
         ? (l10n?.deviceIphone ?? 'iPhone / iPad')
         : (l10n?.deviceAndroid ?? 'Android device');
-    final platformIcon = platform == 'ios' ? '🍎' : '📱';
+    final platformIcon = platform == 'ios'
+        ? Icons.phone_iphone_rounded
+        : Icons.phone_android_rounded;
 
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5FF),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFDCE5FF)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Ld.rXl)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const LdIconTile(Icons.devices_rounded, size: 60),
+                const SizedBox(height: 16),
+                Text(
+                  l10n?.alreadySignedIn ?? 'Already signed in',
+                  textAlign: TextAlign.center,
+                  style: Ld.title(20),
                 ),
-                child: const Icon(
-                  Icons.devices_rounded,
-                  size: 32,
-                  color: _brandNavy,
+                const SizedBox(height: 8),
+                Text(
+                  l10n?.accountActiveOtherDevice ??
+                      'Your account is currently active on another device.',
+                  textAlign: TextAlign.center,
+                  style: Ld.label,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l10n?.alreadySignedIn ?? 'Already signed in',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: _brandNavy,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n?.accountActiveOtherDevice ??
-                    'Your account is currently active on another device.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[600],
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 14),
-              // Device info pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(platformIcon, style: const TextStyle(fontSize: 18)),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          platformLabel,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: _brandNavy,
-                          ),
-                        ),
-                        if (maskedId.isNotEmpty)
-                          Text(
-                            l10n?.deviceIdLabel(maskedId) ?? 'ID: $maskedId',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[500],
-                              fontFamily: 'monospace',
+                const SizedBox(height: 16),
+                // Device info pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: Ld.card(radius: Ld.r, color: Ld.ground),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(platformIcon, size: 22, color: Ld.navy),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              platformLabel,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: Ld.ink,
+                              ),
                             ),
-                          ),
-                      ],
+                            if (maskedId.isNotEmpty)
+                              Text(
+                                l10n?.deviceIdLabel(maskedId) ?? 'ID: $maskedId',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Ld.muted,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1),
+                      child: Icon(Icons.info_outline_rounded, size: 18, color: Ld.warning),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        l10n?.continueSignsOutOther ??
+                            'Continuing will sign out that device.',
+                        style: Ld.small,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                l10n?.continueSignsOutOther ??
-                    'Continuing will sign out that device.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                          foregroundColor: Ld.navy,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Ld.r),
+                          ),
+                          side: const BorderSide(color: Ld.line),
+                        ),
+                        child: Text(
+                          l10n?.cancel ?? 'Cancel',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Ld.navy,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 48),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Ld.r),
+                          ),
+                        ),
+                        child: Text(
+                          l10n?.continueLabel ?? 'Continue',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: const BorderSide(color: Color(0xFFDCE5FF)),
-                      ),
-                      child: Text(
-                        l10n?.cancel ?? 'Cancel',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: _brandNavy,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _brandNavy,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        l10n?.continueLabel ?? 'Continue',
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -581,14 +585,336 @@ class _LoginScreenState extends State<LoginScreen> {
     return 'g${uid.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}';
   }
 
+  InputDecoration _fieldDecoration({
+    required String label,
+    required IconData icon,
+    Widget? suffix,
+  }) {
+    OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Ld.r),
+          borderSide: BorderSide(color: c, width: w),
+        );
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      prefixIcon: Icon(icon, color: Ld.muted),
+      suffixIcon: suffix,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      border: border(Ld.line),
+      enabledBorder: border(Ld.line),
+      focusedBorder: border(Ld.navy, 1.5),
+      errorBorder: border(Ld.danger),
+      focusedErrorBorder: border(Ld.danger, 1.5),
+    );
+  }
+
+  Widget _languageToggle(BuildContext context) {
+    final code = Localizations.localeOf(context).languageCode;
+    Widget option(String label, Locale locale, bool selected) {
+      return Semantics(
+        button: true,
+        selected: selected,
+        child: Material(
+          color: selected ? Colors.white : Colors.transparent,
+          shape: const StadiumBorder(),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () => PosApp.setLocale(context, locale),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 52, minHeight: 40),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? Ld.navy : Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Ld.navyLine),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          option('ລາວ', const Locale('lo', ''), code == 'lo'),
+          option('EN', const Locale('en', ''), code == 'en'),
+        ],
+      ),
+    );
+  }
+
+  /// Bear, wordmark and (when set) the active dev server override under it.
+  /// The bear is the hidden 10-tap staff/dev switch.
+  Widget _brand(BuildContext context, {required bool compact}) {
+    final logo = compact ? 72.0 : 96.0;
+    Widget subtitle;
+    if (kShowDevTools && _currentBaseUrl.isNotEmpty) {
+      subtitle = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.circle, size: 8, color: Color(0xFF4ADE80)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              _currentBaseUrl,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Ld.onNavyMuted,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (kShowDevTools && _currentDbName.isNotEmpty) {
+      subtitle = Text(
+        'DB: $_currentDbName',
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 12,
+          color: Ld.onNavyMuted,
+          fontFamily: 'monospace',
+        ),
+      );
+    } else {
+      subtitle = const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: _onLogoTap,
+            behavior: HitTestBehavior.opaque,
+            child: Image.asset(
+              'assets/images/ladolce_bear_logo.png',
+              width: logo,
+              height: logo,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => Icon(
+                Icons.pets_rounded,
+                size: logo * 0.6,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          SizedBox(height: compact ? 6 : 10),
+          Text(
+            'LaDolce',
+            textAlign: TextAlign.center,
+            style: Ld.title(compact ? 30 : 38, color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          subtitle,
+        ],
+      ),
+    );
+  }
+
+  Widget _formCard(BuildContext context, {required bool tablet}) {
+    final l10n = AppLocalizations.of(context);
+    final loginLabel = l10n?.loginButton ?? 'LOGIN';
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: tablet
+            ? BorderRadius.circular(28)
+            : const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        26,
+        24,
+        (tablet ? 24 : 20) + (tablet ? 0 : Ld.navInset(context)),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n?.welcomeBack ?? 'Welcome back',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Ld.title(24),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _loginController,
+              textInputAction: TextInputAction.next,
+              style: Ld.body,
+              decoration: _fieldDecoration(
+                label: l10n?.emailOrLogin ?? 'Email / Login',
+                icon: Icons.person_outline_rounded,
+              ),
+              validator: (value) => value!.isEmpty
+                  ? (l10n?.pleaseEnterLogin ?? 'Please enter login')
+                  : null,
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              style: Ld.body,
+              decoration: _fieldDecoration(
+                label: l10n?.password ?? 'Password',
+                icon: Icons.lock_outline_rounded,
+                suffix: IconButton(
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Ld.muted,
+                  ),
+                ),
+              ),
+              validator: (value) => value!.isEmpty
+                  ? (l10n?.pleaseEnterPassword ?? 'Please enter password')
+                  : null,
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _login,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Ld.navy,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Ld.navy.withValues(alpha: 0.75),
+                  disabledForegroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Ld.rMd),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.2,
+                        ),
+                      )
+                    : Text(
+                        loginLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ),
+            if (FirebaseAuthService.isGoogleAuthAvailable) ...[
+              const SizedBox(height: 12),
+              _GoogleAuthButton(
+                label: l10n?.continueWithGoogle ?? 'Continue with Google',
+                isLoading: _isLoading,
+                onPressed: _continueWithGoogle,
+              ),
+            ],
+            const SizedBox(height: 8),
+            if (_devUnlocked)
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const RegisterScreen(showStaffRoles: true),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  foregroundColor: Ld.muted,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.badge_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        l10n?.registerStaffAccount ?? 'Register Staff Account',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const RegisterScreen(showStaffRoles: false),
+                  ),
+                );
+              },
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                foregroundColor: Ld.navy,
+              ),
+              child: Text(
+                l10n?.createAccount ?? 'Create a new account',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tablet = Ld.isTablet(context);
+    final compact = MediaQuery.sizeOf(context).height < 700;
     return Scaffold(
+      backgroundColor: Ld.navy,
       // ── Dev wrench button (bottom-right) ─────────────────────────────────
       floatingActionButton: (_devUnlocked && kShowDevTools)
           ? FloatingActionButton.small(
               onPressed: _showDevSettings,
-              backgroundColor: const Color(0xFF001460).withOpacity(0.85),
+              backgroundColor: Ld.navy,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Ld.r),
+                side: const BorderSide(color: Ld.navyLine),
+              ),
               tooltip: 'Dev: API Settings',
               child: Stack(
                 alignment: Alignment.center,
@@ -616,365 +942,39 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             )
           : null,
-      body: Container(
-        color: _brandNavy,
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Center(
-                child: SingleChildScrollView(
-                  padding: ResponsiveLayout.scrollablePaddingWithKeyboard(
-                    context,
-                    top: 20,
-                    horizontal: ResponsiveLayout.pageHorizontalPadding(context),
-                    bottomExtra: 20,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _brandSurface,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x33000000),
-                            blurRadius: 20,
-                            offset: Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Container(
-                                width: MediaQuery.of(context).size.width < 360
-                                    ? 80
-                                    : 108,
-                                height: MediaQuery.of(context).size.width < 360
-                                    ? 80
-                                    : 108,
-                                margin: const EdgeInsets.only(bottom: 14),
-                                decoration: BoxDecoration(
-                                  color: _brandNavy,
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                alignment: Alignment.center,
-                                child: GestureDetector(
-                                  onTap: _onLogoTap,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(18),
-                                    child: Image.asset(
-                                      'assets/images/ladolce_bear_logo.png',
-                                      width:
-                                          MediaQuery.of(context).size.width < 360
-                                          ? 64
-                                          : 88,
-                                      height:
-                                          MediaQuery.of(context).size.width < 360
-                                          ? 64
-                                          : 88,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) {
-                                        return const Icon(
-                                          Icons.pets_rounded,
-                                          size: 52,
-                                          color: Colors.white,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const Text(
-                                'LaDolce',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: _brandNavy,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              // Show active URL hint under subtitle when override is set
-                              if (kShowDevTools && _currentBaseUrl.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 2,
-                                    bottom: 2,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.circle,
-                                        size: 7,
-                                        color: Colors.green,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          _currentBaseUrl,
-                                          textAlign: TextAlign.center,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: Color(0xFF64748B),
-                                            fontFamily: 'monospace',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else if (kShowDevTools &&
-                                  _currentDbName.isNotEmpty)
-                                Text(
-                                  'DB: $_currentDbName',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Color(0xFF64748B),
-                                    fontFamily: 'monospace',
-                                  ),
-                                )
-                              else
-                                Text(
-                                  AppLocalizations.of(context)?.welcomeBack ??
-                                      'Welcome back',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Color(0xFF64748B),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              const SizedBox(height: 24),
-                              TextFormField(
-                                controller: _loginController,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      AppLocalizations.of(
-                                        context,
-                                      )?.emailOrLogin ??
-                                      'Email / Login',
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  prefixIcon: const Icon(
-                                    Icons.person_outline,
-                                    color: _brandNavy,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFDCE5FF),
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFDCE5FF),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: const BorderSide(
-                                      color: _brandNavy,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                validator: (value) => value!.isEmpty
-                                    ? (AppLocalizations.of(
-                                            context,
-                                          )?.pleaseEnterLogin ??
-                                          'Please enter login')
-                                    : null,
-                              ),
-                              const SizedBox(height: 14),
-                              TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      AppLocalizations.of(context)?.password ??
-                                      'Password',
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  prefixIcon: const Icon(
-                                    Icons.lock_outline,
-                                    color: _brandNavy,
-                                  ),
-                                  suffixIcon: IconButton(
-                                    onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
-                                    ),
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      color: const Color(0xFF64748B),
-                                    ),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFDCE5FF),
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFDCE5FF),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: const BorderSide(
-                                      color: _brandNavy,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                validator: (value) => value!.isEmpty
-                                    ? (AppLocalizations.of(
-                                            context,
-                                          )?.pleaseEnterPassword ??
-                                          'Please enter password')
-                                    : null,
-                              ),
-                              const SizedBox(height: 18),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _login,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _brandNavy,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2.2,
-                                          ),
-                                        )
-                                      : Text(
-                                          AppLocalizations.of(
-                                                context,
-                                              )?.loginButton ??
-                                              'LOGIN',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                ),
-                              ),
-                              if (FirebaseAuthService
-                                  .isGoogleAuthAvailable) ...[
-                                const SizedBox(height: 12),
-                                _GoogleAuthButton(
-                                  label:
-                                      AppLocalizations.of(
-                                        context,
-                                      )?.continueWithGoogle ??
-                                      'Continue with Google',
-                                  isLoading: _isLoading,
-                                  onPressed: _continueWithGoogle,
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              if (_devUnlocked) ...[              
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const RegisterScreen(showStaffRoles: true),
-                                      ),
-                                    );
-                                  },
-                                  child: Text(
-                                    AppLocalizations.of(
-                                          context,
-                                        )?.registerStaffAccount ??
-                                        'Register Staff Account',
-                                    style: TextStyle(
-                                      color: Color(0xFF64748B),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const RegisterScreen(showStaffRoles: false),
-                                    ),
-                                  );
-                                },
-                                child: Text(
-                                  AppLocalizations.of(context)?.createAccount ??
-                                      'Create a new account',
-                                  style: const TextStyle(
-                                    color: _brandNavy,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+      body: SafeArea(
+        bottom: tablet,
+        child: CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _languageToggle(context),
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                top: 10,
-                right: 16,
-                child: Row(
-                  children: [
-                    TextButton(
-                      onPressed: () =>
-                          PosApp.setLocale(context, const Locale('en', '')),
-                      style: TextButton.styleFrom(
-                        foregroundColor:
-                            Localizations.localeOf(context).languageCode == 'en'
-                            ? Colors.white
-                            : Colors.white60,
+                  Expanded(
+                    child: Center(child: _brand(context, compact: compact)),
+                  ),
+                  if (tablet)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 460),
+                        child: _formCard(context, tablet: true),
                       ),
-                      child: const Text('EN'),
-                    ),
-                    const Text('|', style: TextStyle(color: Colors.white54)),
-                    TextButton(
-                      onPressed: () =>
-                          PosApp.setLocale(context, const Locale('lo', '')),
-                      style: TextButton.styleFrom(
-                        foregroundColor:
-                            Localizations.localeOf(context).languageCode == 'lo'
-                            ? Colors.white
-                            : Colors.white60,
-                      ),
-                      child: const Text('ລາວ'),
-                    ),
-                  ],
-                ),
+                    )
+                  else
+                    _formCard(context, tablet: false),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -997,39 +997,42 @@ class _GoogleAuthButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: OutlinedButton.icon(
+      child: OutlinedButton(
         onPressed: isLoading ? null : onPressed,
-        icon: Container(
-          width: 24,
-          height: 24,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-          ),
-          child: const Text(
-            'G',
-            style: TextStyle(
-              color: Color(0xFF4285F4),
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF001460),
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
-          side: const BorderSide(color: Color(0xFFDCE5FF)),
+          foregroundColor: Ld.ink,
+          side: const BorderSide(color: Ld.line),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(Ld.rMd),
           ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'G',
+              style: TextStyle(
+                color: Color(0xFF4285F4),
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Ld.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

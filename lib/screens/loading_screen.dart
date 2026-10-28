@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 import 'dart:developer' as developer;
 import '../services/api_service.dart';
-import '../theme/coffee_luxury_background.dart';
+import '../theme/ld.dart';
 import '../utils/responsive_layout.dart';
 import 'customer_self_order_screen.dart';
 import 'pin_screen.dart';
@@ -153,129 +153,170 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Same base as PIN: solid navy. No frosted box — pattern + watermark
-    // from [PinStyleBackground] stay visually consistent.
+    final l10n = AppLocalizations.of(context);
+    final short = MediaQuery.sizeOf(context).height < 700;
     return Scaffold(
-      backgroundColor: kCoffeeBrandNavy,
+      backgroundColor: Ld.navy,
       body: SafeArea(
         child: LayoutBuilder(
-            builder: (context, viewport) {
-              final hPad =
-                  ResponsiveLayout.pageHorizontalPadding(context).clamp(
-                22.0,
-                44.0,
-              );
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 24),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: viewport.maxHeight),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                    const Text(
-                      'LaDolce',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(AppLocalizations.of(context)?.refreshingMenusTablesAndSalesData ?? (AppLocalizations.of(context)?.refreshingMenusTablesAndSalesData ?? 'Refreshing menus, tables, and sales data for this device'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.78),
-                        fontSize: 15,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    if (_hasError) ...[
-                      Icon(
-                        Icons.wifi_off_rounded,
-                        color: Colors.orange.shade300,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _statusMessage,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.88),
-                          fontSize: 16,
-                          height: 1.35,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: _initializeApp,
-                        icon: const Icon(Icons.refresh),
-                        label: Text(AppLocalizations.of(context)?.retry ?? (AppLocalizations.of(context)?.retry ?? 'Retry')),
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: kCoffeeBrandNavy,
-                          backgroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+          builder: (context, viewport) {
+            final hPad = ResponsiveLayout.pageHorizontalPadding(context).clamp(
+              20.0,
+              44.0,
+            );
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: (viewport.maxHeight - 44).clamp(0.0, double.infinity)),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/ladolce_bear_logo.png',
+                          width: short ? 72 : 96,
+                          height: short ? 72 : 96,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => const Icon(
+                            Icons.pets_rounded,
+                            size: 56,
+                            color: Colors.white,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => const LoginScreen(),
+                        const SizedBox(height: 10),
+                        Text(
+                          'LaDolce',
+                          style: Ld.title(short ? 30 : 38, color: Colors.white),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          l10n?.refreshingMenusTablesAndSalesData ??
+                              'Refreshing menus, tables, and sales data for this device',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Ld.onNavyMuted,
+                            fontSize: 15,
+                            height: 1.4,
+                          ),
+                        ),
+                        SizedBox(height: short ? 24 : 36),
+                        if (_hasError)
+                          _buildErrorCard(context)
+                        else ...[
+                          // Determinate bar — [syncAllData] reports step labels + 0..1
+                          Semantics(
+                            value: '${(_progress * 100).round()}%',
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: _progress,
+                                minHeight: 8,
+                                backgroundColor: Ld.navyRaised,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Ld.gold,
+                                ),
+                              ),
                             ),
-                          );
-                        },
-                        child: Text(AppLocalizations.of(context)?.returnToLogin ?? (AppLocalizations.of(context)?.returnToLogin ?? 'Return to Login'),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
                           ),
-                        ),
-                      ),
-                    ] else ...[
-                      // Determinate bar — [syncAllData] reports step labels + 0..1
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: LinearProgressIndicator(
-                          value: _progress,
-                          minHeight: 8,
-                          backgroundColor: Colors.white.withValues(alpha: 0.12),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            kCoffeeGold,
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _statusMessage,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                '${(_progress * 100).round()}%',
+                                style: Ld.price(15, color: Ld.gold),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _statusMessage,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ],
+                        ],
+                      ],
                     ),
                   ),
                 ),
               ),
             );
-            },
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 12),
+      decoration: Ld.card(radius: Ld.rXl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Center(
+            child: LdIconTile(
+              Icons.wifi_off_rounded,
+              size: 56,
+              background: Ld.warningWash,
+              color: Ld.warning,
+            ),
           ),
+          const SizedBox(height: 14),
+          Text(
+            _statusMessage,
+            textAlign: TextAlign.center,
+            style: Ld.body,
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _initializeApp,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(l10n?.retry ?? 'Retry'),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Ld.navy,
+                elevation: 0,
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Ld.rMd),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => const LoginScreen(),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Ld.navy,
+              minimumSize: const Size(0, 48),
+            ),
+            child: Text(
+              l10n?.returnToLogin ?? 'Return to Login',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,8 @@ import 'package:ladolce/l10n/app_localizations.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../theme/ld.dart';
+
 class CustomerSupportScreen extends StatelessWidget {
   final String facebookUrl;
   final String whatsappNumber;
@@ -14,9 +16,6 @@ class CustomerSupportScreen extends StatelessWidget {
     this.whatsappNumber = '',
     this.whatsappLink = '',
   });
-
-  static const Color _brandNavy = Color(0xFF001460);
-  static const Color _brandNavy2 = Color(0xFF142B8C);
 
   Future<void> _openUrl(String? raw) async {
     final t = (raw ?? '').trim();
@@ -32,220 +31,165 @@ class CustomerSupportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final hasFb = facebookUrl.trim().isNotEmpty;
     final hasWa = whatsappLink.trim().isNotEmpty;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.customerSupport ?? (AppLocalizations.of(context)?.customerSupport ?? 'Customer support')),
-        backgroundColor: _brandNavy,
-        foregroundColor: Colors.white,
-        elevation: 0,
+    final fbCard = _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _cardTitle(
+            const LdIconTile(Icons.facebook_rounded, background: Ld.infoWash, color: Ld.info),
+            'Facebook',
+          ),
+          const SizedBox(height: 12),
+          if (!hasFb)
+            const Text(
+              'Not configured. Ask staff to set the Facebook URL in Odoo (Customer support links).',
+              style: Ld.label,
+            )
+          else ...[
+            Text(
+              facebookUrl,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Ld.small,
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: () => _openUrl(facebookUrl),
+              icon: const Icon(Icons.open_in_new_rounded, size: 20),
+              label: Text(l10n?.openFacebook ?? 'Open Facebook'),
+            ),
+          ],
+        ],
       ),
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_brandNavy, _brandNavy2, Color(0xFFF6F7FB)],
-            stops: [0.0, 0.22, 0.22],
+    );
+
+    final waCard = _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _cardTitle(
+            const LdIconTile(Icons.chat_outlined, background: Ld.successWash, color: Ld.success),
+            'WhatsApp',
           ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 8),
-              Text(AppLocalizations.of(context)?.reachTheAdmin ?? (AppLocalizations.of(context)?.reachTheAdmin ?? 'Reach the admin'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+          const SizedBox(height: 12),
+          if (!hasWa)
+            const Text(
+              'Not configured. Ask staff to set the WhatsApp number in Odoo (Customer support links).',
+              style: Ld.label,
+            )
+          else ...[
+            if (whatsappNumber.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  whatsappNumber,
+                  style: Ld.price(18, color: Ld.ink),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(AppLocalizations.of(context)?.useTheOptionsYourStoreHas ?? (AppLocalizations.of(context)?.useTheOptionsYourStoreHas ?? 'Use the options your store has enabled in Odoo.'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+            Text(
+              whatsappLink,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Ld.small,
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: Ld.card(radius: Ld.r),
+                child: QrImageView(
+                  data: whatsappLink,
+                  version: QrVersions.auto,
+                  size: 180,
+                  backgroundColor: Colors.white,
                 ),
               ),
-              const SizedBox(height: 20),
-              _card(
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => _openUrl(whatsappLink),
+              icon: const Icon(Icons.chat_outlined, size: 20),
+              label: Text(l10n?.openInWhatsapp ?? 'Open in WhatsApp'),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: Ld.ground,
+      appBar: LdHeader(
+        title: l10n?.customerSupport ?? 'Customer support',
+      ),
+      body: LayoutBuilder(
+        builder: (context, c) {
+          final wide = c.maxWidth >= 720;
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(16, 20, 16, 32 + Ld.navInset(context)),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: wide ? 960 : 560),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1877F2).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'f',
-                            style: TextStyle(
-                              color: Color(0xFF1877F2),
-                              fontWeight: FontWeight.w900,
-                              fontSize: 20,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Facebook',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            color: _brandNavy,
-                            fontSize: 17,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      l10n?.reachTheAdmin ?? 'Reach the admin',
+                      style: Ld.title(22),
                     ),
-                    const SizedBox(height: 10),
-                    if (!hasFb)
-                      const Text(
-                        'Not configured. Ask staff to set the Facebook URL in Odoo (Customer support links).',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      l10n?.useTheOptionsYourStoreHas ?? 'Use the options your store has enabled in Odoo.',
+                      style: Ld.label,
+                    ),
+                    const SizedBox(height: 18),
+                    if (wide)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: fbCard),
+                          const SizedBox(width: 14),
+                          Expanded(child: waCard),
+                        ],
                       )
                     else ...[
-                      Text(
-                        facebookUrl,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF475569),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: () => _openUrl(facebookUrl),
-                        icon: const Icon(Icons.open_in_new, size: 20),
-                        label: Text(AppLocalizations.of(context)?.openFacebook ?? (AppLocalizations.of(context)?.openFacebook ?? 'Open Facebook')),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _brandNavy,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              _card(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.chat, color: Color(0xFF25D366), size: 28),
-                        SizedBox(width: 10),
-                        Text(
-                          'WhatsApp',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            color: _brandNavy,
-                            fontSize: 17,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    if (!hasWa)
-                      const Text(
-                        'Not configured. Ask staff to set the WhatsApp number in Odoo (Customer support links).',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      )
-                    else ...[
-                      if (whatsappNumber.trim().isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            whatsappNumber,
-                            style: const TextStyle(
-                              color: Color(0xFF475569),
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      Text(
-                        whatsappLink,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      fbCard,
                       const SizedBox(height: 14),
-                      Center(
-                        child: Material(
-                          elevation: 3,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: QrImageView(
-                              data: whatsappLink,
-                              version: QrVersions.auto,
-                              size: 180,
-                              backgroundColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: () => _openUrl(whatsappLink),
-                        icon: const Icon(Icons.chat, size: 20),
-                        label: Text(AppLocalizations.of(context)?.openInWhatsapp ?? (AppLocalizations.of(context)?.openInWhatsapp ?? 'Open in WhatsApp')),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
+                      waCard,
                     ],
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
+  Widget _cardTitle(Widget icon, String title) {
+    return Row(
+      children: [
+        icon,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w700, color: Ld.ink, fontSize: 17),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _card({required Widget child}) {
-    return Material(
-      elevation: 2,
-      borderRadius: BorderRadius.circular(18),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        child: child,
-      ),
+    return Container(
+      decoration: Ld.card(radius: Ld.rXl),
+      padding: const EdgeInsets.all(18),
+      child: child,
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:ladolce/l10n/app_localizations.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../models/topping.dart';
+import '../theme/ld.dart';
 import '../utils/money.dart';
 
 /// Result returned when the user saves the split.
@@ -58,8 +59,6 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
   late List<_SplitLine> _lines;
   late String _newTicketName;
 
-  static const _green = Color(0xFF4CAF50);
-  static const _darkGreen = Color(0xFF388E3C);
 
   @override
   void initState() {
@@ -160,18 +159,17 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.renameNewTicket ?? (AppLocalizations.of(context)?.renameNewTicket ?? 'Rename New Ticket')),
+        title: Text(AppLocalizations.of(context)?.renameNewTicket ?? 'Rename New Ticket'),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: InputDecoration(labelText: AppLocalizations.of(context)?.ticketName ?? (AppLocalizations.of(context)?.ticketName ?? 'Ticket Name')),
+          decoration: InputDecoration(labelText: AppLocalizations.of(context)?.ticketName ?? 'Ticket Name'),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(AppLocalizations.of(context)?.cancel ?? (AppLocalizations.of(context)?.cancel ?? 'Cancel'))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _green, foregroundColor: Colors.white),
+              child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel')),
+          FilledButton(
             onPressed: () {
               final name = ctrl.text.trim();
               if (name.isNotEmpty) {
@@ -188,62 +186,66 @@ class _SplitTicketScreenState extends State<SplitTicketScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
-      appBar: AppBar(
-        backgroundColor: _green,
-        foregroundColor: Colors.white,
-        title: Text(AppLocalizations.of(context)?.splitTicket ?? (AppLocalizations.of(context)?.splitTicket ?? 'Split Ticket'), style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 0,
+      backgroundColor: Ld.ground,
+      appBar: LdHeader(
+        title: l10n?.splitTicket ?? 'Split Ticket',
+        subtitle: widget.ticketName,
         actions: [
-          TextButton(
+          FilledButton.icon(
             onPressed: _save,
-            child: const Text(
-              'SAVE',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+            style: FilledButton.styleFrom(
+              backgroundColor: Ld.gold,
+              foregroundColor: Ld.navy,
+              minimumSize: const Size(64, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
             ),
+            icon: const Icon(Icons.check_rounded, size: 20),
+            label: Text(l10n?.save ?? 'Save'),
           ),
-          const SizedBox(width: 8),
         ],
       ),
-      body: Row(
-        children: [
-          // ─── Left: Original Ticket ───────────────────────────────────────
-          Expanded(
-            child: _TicketColumn(
-              title: widget.ticketName,
-              lines: _originalLines,
-              total: _originalTotal,
-              isNew: false,
-              onLineTap: (line) {
-                setState(() => line.movedToNew = true);
-              },
-              moveButtonLabel: 'MOVE →',
-              accentColor: const Color(0xFF1E3A8A),
-            ),
+      body: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ─── Left: Original Ticket ─────────────────────────────────────
+              Expanded(
+                child: _TicketColumn(
+                  title: widget.ticketName,
+                  lines: _originalLines,
+                  total: _originalTotal,
+                  isNew: false,
+                  onLineTap: (line) {
+                    setState(() => line.movedToNew = true);
+                  },
+                  moveButtonLabel: 'Move →',
+                  accentColor: Ld.navy,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // ─── Right: New Ticket ────────────────────────────────────────
+              Expanded(
+                child: _TicketColumn(
+                  title: _newTicketName,
+                  lines: _newLines,
+                  total: _newTotal,
+                  isNew: true,
+                  onTitleTap: _editNewTicketName,
+                  onLineTap: (line) {
+                    setState(() => line.movedToNew = false);
+                  },
+                  moveButtonLabel: '← Move back',
+                  accentColor: Ld.success,
+                ),
+              ),
+            ],
           ),
-          // Divider
-          Container(width: 1, color: Colors.grey[300]),
-          // ─── Right: New Ticket ──────────────────────────────────────────
-          Expanded(
-            child: _TicketColumn(
-              title: _newTicketName,
-              lines: _newLines,
-              total: _newTotal,
-              isNew: true,
-              onTitleTap: _editNewTicketName,
-              onLineTap: (line) {
-                setState(() => line.movedToNew = false);
-              },
-              moveButtonLabel: '← MOVE BACK',
-              accentColor: _darkGreen,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -275,160 +277,188 @@ class _TicketColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      decoration: Ld.card(),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Header (the new ticket's name can be edited).
+          InkWell(
+            onTap: isNew ? onTitleTap : null,
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 52),
+              padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Ld.lineSoft)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isNew ? Icons.call_split_rounded : Icons.receipt_long_outlined,
+                    size: 18,
+                    color: accentColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Ld.title(16),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isNew)
+                    const SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: Icon(Icons.edit_outlined, size: 18, color: Ld.muted),
+                    ),
+                ],
+              ),
+            ),
           ),
-          child: Row(
-            children: [
-              Expanded(
+
+          // Items list
+          Expanded(
+            child: lines.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        isNew
+                            ? (l10n?.tapItemsOnTheLeftTo ?? 'Tap items on the\nleft to move them here')
+                            : (l10n?.allItemsMoved ?? 'All items moved'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Ld.muted, fontSize: 14),
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: lines.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1, indent: 12, endIndent: 12),
+                    itemBuilder: (context, i) {
+                      final line = lines[i];
+                      return InkWell(
+                        onTap: () => onLineTap(line),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 52),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            child: Row(
+                              children: [
+                                // Which way a tap moves the line.
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: Ld.ground,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    isNew ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
+                                    size: 16,
+                                    color: accentColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                // Name + toppings
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        line.product.displayName,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600, fontSize: 14.5, color: Ld.ink),
+                                      ),
+                                      if (line.selectedToppings.isNotEmpty)
+                                        Text(
+                                          line.selectedToppings.map((t) => t.displayName).join(', '),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: Ld.muted, fontSize: 12.5),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                // Price
+                                Text(
+                                  '₭${money(line.unitPrice)}',
+                                  style: Ld.price(14, color: Ld.ink, weight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+
+          // Total row
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Ld.ground,
+              border: Border(top: BorderSide(color: Ld.lineSoft)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n?.total ?? 'Total',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: Ld.muted),
+                  ),
+                ),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text('₭${money(total)}', style: Ld.price(18)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Move every line at once.
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accentColor,
+                  side: BorderSide(color: lines.isEmpty ? Ld.lineSoft : accentColor),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: lines.isEmpty
+                    ? null
+                    : () {
+                        // move all visible items at once
+                        for (final l in List.from(lines)) {
+                          onLineTap(l);
+                        }
+                      },
                 child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  moveButtonLabel,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (isNew)
-                GestureDetector(
-                  onTap: onTitleTap,
-                  child: const Icon(Icons.edit, size: 16, color: Colors.grey),
-                ),
-              if (!isNew)
-                Icon(Icons.add_circle_outline, size: 18, color: Colors.grey[400]),
-            ],
-          ),
-        ),
-
-        // Items list
-        Expanded(
-          child: lines.isEmpty
-              ? Center(
-                  child: Text(
-                    isNew ? (AppLocalizations.of(context)?.tapItemsOnTheLeftTo ?? 'Tap items on the\nleft to move them here') : (AppLocalizations.of(context)?.allItemsMoved ?? 'All items moved'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.only(top: 4),
-                  itemCount: lines.length,
-                  separatorBuilder: (_, _) =>
-                      Divider(height: 1, color: Colors.grey[200]),
-                  itemBuilder: (context, i) {
-                    final line = lines[i];
-                    return InkWell(
-                      onTap: () => onLineTap(line),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        child: Row(
-                          children: [
-                            // Indicator icon
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: accentColor.withValues(alpha: 0.12),
-                              child: Icon(
-                                isNew
-                                    ? Icons.arrow_back_ios_new
-                                    : Icons.arrow_forward_ios,
-                                size: 12,
-                                color: accentColor,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            // Name + toppings
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    line.product.displayName,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14),
-                                  ),
-                                  if (line.selectedToppings.isNotEmpty)
-                                    Text(
-                                      line.selectedToppings
-                                          .map((t) => t.displayName)
-                                          .join(', '),
-                                      style: TextStyle(
-                                          color: Colors.grey[500],
-                                          fontSize: 11),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            // Price
-                            Text(
-                              '₭${money(line.unitPrice)}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: accentColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-
-        // Total row
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey.shade200)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(AppLocalizations.of(context)?.total ?? (AppLocalizations.of(context)?.total ?? 'Total'),
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              Text(
-                '₭${money(total)}',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: accentColor),
-              ),
-            ],
-          ),
-        ),
-
-        // Move button
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accentColor,
-              foregroundColor: Colors.white,
-              shape: const RoundedRectangleBorder(),
-              elevation: 0,
-            ),
-            onPressed: lines.isEmpty ? null : () {
-              // move all visible items at once
-              for (final l in List.from(lines)) {
-                onLineTap(l);
-              }
-            },
-            child: Text(
-              moveButtonLabel,
-              style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

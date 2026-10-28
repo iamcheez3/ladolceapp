@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ladolce/l10n/app_localizations.dart';
 
 import '../models/topping.dart';
+import '../theme/ld.dart';
 import '../utils/money.dart';
 
 /// One heading of the picker: a topping group ("Type", "Size"...) or, with a
@@ -169,19 +170,21 @@ class ToppingPicker extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: cardStyle ? 18 : 15,
-                    fontWeight: FontWeight.w800,
+                    fontFamily: Ld.serif,
+                    fontSize: cardStyle ? 19 : 17,
+                    fontWeight: FontWeight.w700,
                     color: accent,
+                    height: 1.3,
                   ),
                 ),
               ),
               if (s.groupId != null && s.single)
-                _chip(l10n?.toppingPickOne ?? 'Pick 1', Colors.blueGrey),
+                _chip(l10n?.toppingPickOne ?? 'Pick 1', Ld.navy, Ld.ground),
               if (s.required) ...[
                 const SizedBox(width: 6),
                 chosen
-                    ? Icon(Icons.check_circle, size: 18, color: Colors.green.shade600)
-                    : _chip(l10n?.toppingRequired ?? 'Required', Colors.deepOrange),
+                    ? _chip(l10n?.toppingRequired ?? 'Required', Ld.success, Ld.successWash, icon: Icons.check_rounded)
+                    : _chip(l10n?.toppingRequired ?? 'Required', Ld.danger, Ld.dangerWash),
               ],
             ],
           ),
@@ -224,15 +227,24 @@ class ToppingPicker extends StatelessWidget {
     return isOn ? Icons.check_circle : Icons.add_circle_outline;
   }
 
-  Widget _chip(String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+  Widget _chip(String text, Color color, Color background, {IconData? icon}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
+          color: background,
+          borderRadius: BorderRadius.circular(13),
         ),
-        child: Text(
-          text,
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 3),
+            ],
+            Text(
+              text,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+            ),
+          ],
         ),
       );
 
@@ -240,20 +252,20 @@ class ToppingPicker extends StatelessWidget {
   /// it (so tiles in a row line up), radio/tick at the top right.
   Widget _tile(BuildContext context, Topping t, bool isOn, bool single) {
     final l10n = AppLocalizations.of(context);
-    final radius = BorderRadius.circular(cardStyle ? 16 : 12);
+    final radius = BorderRadius.circular(cardStyle ? Ld.rLg : Ld.r);
     return Material(
-      color: isOn ? const Color(0xFFEFF6FF) : Colors.white,
+      color: isOn ? accent.withValues(alpha: 0.07) : Ld.surface,
       borderRadius: radius,
       child: InkWell(
         onTap: () => _tap(t),
         borderRadius: radius,
         child: Container(
-          constraints: BoxConstraints(minHeight: cardStyle ? 64 : 56),
-          padding: EdgeInsets.fromLTRB(10, cardStyle ? 10 : 8, 6, cardStyle ? 10 : 8),
+          constraints: BoxConstraints(minHeight: cardStyle ? 64 : 58),
+          padding: EdgeInsets.fromLTRB(12, cardStyle ? 10 : 9, 8, cardStyle ? 10 : 9),
           decoration: BoxDecoration(
             borderRadius: radius,
             border: Border.all(
-              color: isOn ? accent : const Color(0xFFE2E8F0),
+              color: isOn ? accent : Ld.line,
               width: isOn ? 2 : 1,
             ),
           ),
@@ -270,19 +282,18 @@ class ToppingPicker extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: cardStyle ? 14 : 13,
-                        fontWeight: isOn ? FontWeight.w800 : FontWeight.w600,
-                        color: isOn ? accent : const Color(0xFF0F172A),
+                        fontSize: cardStyle ? 15 : 14,
+                        fontWeight: isOn ? FontWeight.w700 : FontWeight.w600,
+                        color: isOn ? accent : Ld.ink,
+                        height: 1.3,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       t.extraPrice > 0 ? _price(t) : (l10n?.free ?? 'Free'),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isOn ? accent.withValues(alpha: 0.7) : Colors.grey,
-                      ),
+                      style: t.extraPrice > 0
+                          ? Ld.price(13, color: isOn ? accent : Ld.navy, weight: FontWeight.w600)
+                          : const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: Ld.muted),
                     ),
                   ],
                 ),
@@ -290,7 +301,7 @@ class ToppingPicker extends StatelessWidget {
               Icon(
                 _icon(isOn, single),
                 size: 20,
-                color: isOn ? accent : const Color(0xFFCBD5E1),
+                color: isOn ? accent : Ld.faint,
               ),
             ],
           ),

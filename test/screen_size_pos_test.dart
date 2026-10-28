@@ -1,6 +1,8 @@
 // Layout survey of the POS screen and its sheets at many screen sizes:
 //   pos_screen/main          catalog (+ inline cart rail at width >= 800)
+//   pos_screen/drawer        the side drawer (burger menu)
 //   pos_screen/topping_sheet the "Select toppings" bottom sheet
+//   pos_screen/ticket_options the ⋯ ticket options menu
 //   pos_screen/cart          inline rail, or the phone cart sheet
 //   pos_screen/charge        the charge (payment) sheet
 //   pos_screen/charge_split  the charge sheet in split-payment mode
@@ -135,6 +137,20 @@ void main() {
                 }
               });
 
+              // Side drawer (burger): profile header, nav rows, quick
+              // actions, Lock / switch user.
+              await stage(t, 'drawer', cfg, loc, seen, () async {
+                t.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
+                await settle(t);
+                if (find.text(l10n.lockSwitchUser).evaluate().isEmpty) {
+                  throw StateError('drawer did not open');
+                }
+              });
+              if (find.byType(Drawer).evaluate().isNotEmpty) {
+                Navigator.of(t.element(find.byType(Drawer))).pop();
+                await settle(t);
+              }
+
               await stage(t, 'topping_sheet', cfg, loc, seen, () async {
                 await tapText(t, longName);
                 if (find.byType(ToppingPicker).evaluate().isEmpty) {
@@ -164,18 +180,36 @@ void main() {
                 await tapText(t, croissant);
               } catch (_) {}
 
+              // Ticket options (⋯) menu with items in the ticket.
+              await stage(t, 'ticket_options', cfg, loc, seen, () async {
+                final more = find.byTooltip(l10n.ticketOptions);
+                if (more.evaluate().isEmpty) {
+                  throw StateError('ticket options button not found');
+                }
+                await t.tap(more.first);
+                await settle(t);
+                if (find.text(l10n.clearTicket).evaluate().isEmpty) {
+                  throw StateError('ticket options did not open');
+                }
+              });
+              final menuItem = find.text(l10n.printBill);
+              if (menuItem.evaluate().isNotEmpty) {
+                Navigator.of(t.element(menuItem.first)).pop();
+                await settle(t);
+              }
+
               final reached = await stage(t, 'cart', cfg, loc, seen, () async {
                 if (cfg.size.width < 800) {
-                  await tapText(t, l10n.currentTicket);
+                  await tapText(t, l10n.currentTicket2);
                 }
-                if (find.text(l10n.charge2).evaluate().isEmpty) {
+                if (find.text(l10n.charge).evaluate().isEmpty) {
                   throw StateError('cart not shown; texts: ${find.byType(Text).evaluate().map((e) => (e.widget as Text).data).whereType<String>().take(40).join(" | ")}');
                 }
               });
               if (!reached) return;
 
               final charged = await stage(t, 'charge', cfg, loc, seen, () async {
-                await tapText(t, l10n.charge2);
+                await tapText(t, l10n.charge);
                 if (find.text(l10n.splitPayment).evaluate().isEmpty) {
                   throw StateError('charge sheet did not open');
                 }
