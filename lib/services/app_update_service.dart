@@ -51,11 +51,15 @@ class InstalledVersion {
 /// In-app update outside Google Play (Android only): ask the server for the
 /// newest uploaded build, download it, and open Android's installer. Staff
 /// still tap "Install"; Android never lets an app replace itself silently.
-/// Google Play forbids this, so drop it from a Play build.
+/// Google Play forbids this, so a Play build turns it off:
+/// `flutter build appbundle --dart-define=PLAY_STORE=true -P playStore=true`
+/// (the -P flag also drops REQUEST_INSTALL_PACKAGES, see build.gradle.kts).
 class AppUpdateService {
   static const MethodChannel _channel = MethodChannel('ladolce/app_update');
 
-  static bool get isSupported => Platform.isAndroid;
+  static const bool playStoreBuild = bool.fromEnvironment('PLAY_STORE');
+
+  static bool get isSupported => Platform.isAndroid && !playStoreBuild;
 
   final ApiService _api = ApiService();
 

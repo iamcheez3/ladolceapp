@@ -69,6 +69,13 @@ android {
         }
     }
 
+    // Google Play build (`flutter build appbundle -P playStore=true
+    // --dart-define=PLAY_STORE=true`): this release manifest removes
+    // REQUEST_INSTALL_PACKAGES, because Play forbids self-updating apps.
+    if (project.hasProperty("playStore")) {
+        sourceSets.getByName("release").manifest.srcFile("src/playStore/AndroidManifest.xml")
+    }
+
     buildTypes {
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
