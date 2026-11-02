@@ -279,14 +279,6 @@ const probes = <String, String>{
   'product_edit_screen': 'Iced Caramel',
 };
 
-/// Text that must be on screen once the fixtures loaded (else "no-data").
-const probes = <String, String>{
-  'tickets_screen': '0001-123',
-  'manage_products_screen': '35,000',
-  'receipt_history_screen': '1,234,567,00',
-  'product_edit_screen': 'Iced Caramel',
-};
-
 final screens = <String, ScreenBuilder>{
   'login_screen': () => const LoginScreen(),
   'pin_screen': () => PinScreen(cachedUser: cachedUser),
