@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "33195432980-o2ep0otsi8aelr14rf7pegtvc8odan16.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ladolce.app",
+            "certificate_hash": "28f8eaf7f11214b5b85092913be74674cb71e2d1"
+          }
+        },
+        {
           "client_id": "33195432980-s13ibahs6daodvr10jrf1nuut4gffqls.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
