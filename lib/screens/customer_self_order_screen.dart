@@ -333,6 +333,9 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
   String _clientId = '';
   int _rewardPoints = 0;
   int _rewardRank = 0;
+  // Daily check-in event status from the server; null = hidden (old server or offline).
+  Map<String, dynamic>? _checkin;
+  bool _checkinBusy = false;
   String? _customerImageBase64;
   String _qrImageDataUrl = '';
   String _bankName = '';
@@ -564,6 +567,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     _loadBranches();
     _loadCatalog();
     _loadProfile();
+    _loadCheckin();
     _loadHistory();
     _loadSelfOrderConfig();
     _loadProfileImage();
@@ -5509,6 +5513,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     await Future.wait([
       _loadCatalog(),
       _loadProfile(),
+      _loadCheckin(),
       _loadHistory(forceRefresh: true),
       _loadSelfOrderConfig(),
       _loadBranches(),
@@ -8043,6 +8048,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                 _profileIdentity(avatar, isSmall: isSmall),
                 const SizedBox(height: 20),
                 _profilePointsCard(isSmall: isSmall),
+                _profileCheckinCard(),
                 const SizedBox(height: 22),
                 Text(
                   _l10n?.yourCorner ?? 'Your corner',
@@ -8453,6 +8459,190 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _loadCheckin() async {
+    try {
+      final status = await _apiService.fetchCheckin();
+      if (mounted) setState(() => _checkin = status);
+    } catch (_) {
+      // Offline or an old server: the card stays as it was.
+    }
+  }
+
+  /// Check in today, or claim the reward for [day].
+  Future<void> _checkinAction({int? day}) async {
+    if (_checkinBusy) return;
+    setState(() => _checkinBusy = true);
+    try {
+      final status = day == null
+          ? await _apiService.checkInToday()
+          : await _apiService.claimCheckin(day);
+      if (!mounted || status == null) return;
+      final before = _rewardPoints;
+      setState(() {
+        _checkin = status;
+        final points = status['points'];
+        if (points is num) _rewardPoints = points.toInt();
+      });
+      if (day != null && _rewardPoints > before) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_l10n?.checkinClaimed('${_rewardPoints - before}') ??
+              '+${_rewardPoints - before} points added!'),
+        ));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_l10n?.checkinFailed ?? 'Could not check in. Please try again.'),
+      ));
+      _loadCheckin();
+    } finally {
+      if (mounted) setState(() => _checkinBusy = false);
+    }
+  }
+
+  /// "Daily check-in": milestones (day 1, 3, 7…) and one button that checks in
+  /// today or claims the next reward. Hidden when the event is off.
+  Widget _profileCheckinCard() {
+    final status = _checkin;
+    if (status == null || status['enabled'] != true) return const SizedBox.shrink();
+    final days = (status['days'] as num?)?.toInt() ?? 0;
+    final checkedIn = status['checked_in_today'] == true;
+    final milestones = [
+      for (final m in (status['milestones'] as List? ?? const []))
+        Map<String, dynamic>.from(m as Map),
+    ];
+    final claimable = milestones.where((m) => m['can_claim'] == true).firstOrNull;
+
+    Widget milestone(Map<String, dynamic> m) {
+      final day = (m['day'] as num).toInt();
+      final claimed = m['claimed'] == true;
+      final canClaim = m['can_claim'] == true;
+      final circle = Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: claimed ? Ld.navy : (canClaim ? Ld.gold : Ld.ground),
+          border: Border.all(color: claimed || canClaim ? Colors.transparent : Ld.line),
+        ),
+        child: Icon(
+          claimed ? Icons.check_rounded : Icons.card_giftcard_rounded,
+          size: 20,
+          color: claimed ? Ld.gold : (canClaim ? Ld.navy : Ld.faint),
+        ),
+      );
+      final body = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          circle,
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              _l10n?.checkinDayLabel('$day') ?? 'Day $day',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Ld.ink),
+            ),
+          ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '+${m['points']}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: claimed ? Ld.faint : Ld.goldInk,
+              ),
+            ),
+          ),
+        ],
+      );
+      return Expanded(
+        child: canClaim && !_checkinBusy
+            ? InkWell(
+                borderRadius: BorderRadius.circular(Ld.r),
+                onTap: () => _checkinAction(day: day),
+                child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: body),
+              )
+            : Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: body),
+      );
+    }
+
+    final String label;
+    final VoidCallback? onPressed;
+    if (!checkedIn) {
+      label = _l10n?.checkinButton ?? 'Check in today';
+      onPressed = () => _checkinAction();
+    } else if (claimable != null) {
+      label = _l10n?.checkinClaim('${claimable['points']}') ?? 'Claim +${claimable['points']} points';
+      onPressed = () => _checkinAction(day: (claimable['day'] as num).toInt());
+    } else {
+      label = _l10n?.checkinDone ?? 'Checked in today · see you tomorrow';
+      onPressed = null;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        decoration: Ld.card(radius: 24, border: Ld.lineSoft),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(color: Ld.goldWash, shape: BoxShape.circle),
+                  child: const Icon(Icons.event_available_rounded, size: 22, color: Ld.goldInk),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _l10n?.checkinTitle ?? 'Daily check-in',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Ld.ink),
+                      ),
+                      Text(
+                        _l10n?.checkinDays('$days') ?? '$days check-in days',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Ld.small,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [for (final m in milestones) milestone(m)],
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _checkinBusy ? null : onPressed,
+              style: FilledButton.styleFrom(
+                backgroundColor: claimable != null && checkedIn ? Ld.gold : Ld.navy,
+                foregroundColor: claimable != null && checkedIn ? Ld.ink : Colors.white,
+                minimumSize: const Size.fromHeight(48),
+                shape: const StadiumBorder(),
+                textStyle: const TextStyle(fontFamily: Ld.sans, fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              child: _checkinBusy
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
       ),
     );
   }

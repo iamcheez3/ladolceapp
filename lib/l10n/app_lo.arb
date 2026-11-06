@@ -838,5 +838,13 @@
   "couldNotShare": "ແບ່ງປັນບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.",
   "photoPermissionToSave": "ຕ້ອງອະນຸຍາດຮູບພາບເພື່ອບັນທຶກຮູບ",
   "shareCardText": "ຂ້ອຍເປັນລູກຄ້າປະຈຳ LaDolce! ສັ່ງຜ່ານແອັບ LaDolce.",
-  "rewardPoints": "ຄະແນນສະສົມ"
+  "rewardPoints": "ຄະແນນສະສົມ",
+  "checkinTitle": "ເຊັກອິນປະຈຳວັນ",
+  "checkinDays": "ເຊັກອິນແລ້ວ {days} ວັນ",
+  "checkinDayLabel": "ວັນທີ {day}",
+  "checkinButton": "ເຊັກອິນມື້ນີ້",
+  "checkinClaim": "ຮັບ +{points} ຄະແນນ",
+  "checkinDone": "ເຊັກອິນມື້ນີ້ແລ້ວ · ພົບກັນມື້ອື່ນ",
+  "checkinClaimed": "ໄດ້ຮັບ +{points} ຄະແນນແລ້ວ!",
+  "checkinFailed": "ເຊັກອິນບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່."
 }

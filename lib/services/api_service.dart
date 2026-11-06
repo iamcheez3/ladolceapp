@@ -4394,6 +4394,31 @@ class ApiService {
     }
   }
 
+  /// Daily check-in event (customers only). Null when the server has no
+  /// check-in yet (404), so the Profile card stays hidden.
+  Future<Map<String, dynamic>?> fetchCheckin() => _checkinCall('pos/checkin');
+  Future<Map<String, dynamic>?> checkInToday() =>
+      _checkinCall('pos/checkin/today', body: const {});
+  Future<Map<String, dynamic>?> claimCheckin(int day) =>
+      _checkinCall('pos/checkin/claim', body: {'day': day});
+
+  Future<Map<String, dynamic>?> _checkinCall(String path,
+      {Map<String, dynamic>? body}) async {
+    final base = await getBaseUrl();
+    final url = Uri.parse('$base/$path');
+    final headers = await _authHeaders(json: true);
+    final response = await (body == null
+            ? http.get(url, headers: headers)
+            : http.post(url, headers: headers, body: jsonEncode(body)))
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode == 404) return null;
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 && data['status'] == 'success') {
+      return Map<String, dynamic>.from(data['data'] as Map);
+    }
+    throw Exception(data['message'] ?? 'Check-in failed');
+  }
+
   Future<Map<String, dynamic>> redeemVoucher(int partnerId, int productId) async {
     final base = await getBaseUrl();
     try {

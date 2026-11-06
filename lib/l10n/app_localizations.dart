@@ -5137,6 +5137,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reward points'**
   String get rewardPoints;
+
+  /// No description provided for @checkinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily check-in'**
+  String get checkinTitle;
+
+  /// No description provided for @checkinDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} check-in days'**
+  String checkinDays(String days);
+
+  /// No description provided for @checkinDayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day}'**
+  String checkinDayLabel(String day);
+
+  /// No description provided for @checkinButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Check in today'**
+  String get checkinButton;
+
+  /// No description provided for @checkinClaim.
+  ///
+  /// In en, this message translates to:
+  /// **'Claim +{points} points'**
+  String checkinClaim(String points);
+
+  /// No description provided for @checkinDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in today · see you tomorrow'**
+  String get checkinDone;
+
+  /// No description provided for @checkinClaimed.
+  ///
+  /// In en, this message translates to:
+  /// **'+{points} points added!'**
+  String checkinClaimed(String points);
+
+  /// No description provided for @checkinFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check in. Please try again.'**
+  String get checkinFailed;
 }
 
 class _AppLocalizationsDelegate

@@ -2746,4 +2746,36 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String get rewardPoints => 'ຄະແນນສະສົມ';
+
+  @override
+  String get checkinTitle => 'ເຊັກອິນປະຈຳວັນ';
+
+  @override
+  String checkinDays(String days) {
+    return 'ເຊັກອິນແລ້ວ $days ວັນ';
+  }
+
+  @override
+  String checkinDayLabel(String day) {
+    return 'ວັນທີ $day';
+  }
+
+  @override
+  String get checkinButton => 'ເຊັກອິນມື້ນີ້';
+
+  @override
+  String checkinClaim(String points) {
+    return 'ຮັບ +$points ຄະແນນ';
+  }
+
+  @override
+  String get checkinDone => 'ເຊັກອິນມື້ນີ້ແລ້ວ · ພົບກັນມື້ອື່ນ';
+
+  @override
+  String checkinClaimed(String points) {
+    return 'ໄດ້ຮັບ +$points ຄະແນນແລ້ວ!';
+  }
+
+  @override
+  String get checkinFailed => 'ເຊັກອິນບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.';
 }

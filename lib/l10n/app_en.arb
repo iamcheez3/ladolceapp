@@ -1337,5 +1337,17 @@
   "couldNotShare": "Could not share. Please try again.",
   "photoPermissionToSave": "Photo permission is needed to save the image",
   "shareCardText": "I'm a LaDolce regular! Order with the LaDolce app.",
-  "rewardPoints": "Reward points"
+  "rewardPoints": "Reward points",
+  "checkinTitle": "Daily check-in",
+  "checkinDays": "{days} check-in days",
+  "@checkinDays": {"placeholders": {"days": {"type": "String"}}},
+  "checkinDayLabel": "Day {day}",
+  "@checkinDayLabel": {"placeholders": {"day": {"type": "String"}}},
+  "checkinButton": "Check in today",
+  "checkinClaim": "Claim +{points} points",
+  "@checkinClaim": {"placeholders": {"points": {"type": "String"}}},
+  "checkinDone": "Checked in today · see you tomorrow",
+  "checkinClaimed": "+{points} points added!",
+  "@checkinClaimed": {"placeholders": {"points": {"type": "String"}}},
+  "checkinFailed": "Could not check in. Please try again."
 }

@@ -63,6 +63,20 @@ final _customer = {
   'reward_rank': 12,
 };
 
+final _checkin = {
+  'enabled': true,
+  'days': 4,
+  'checked_in_today': true,
+  'points': 1234567,
+  'milestones': [
+    {'day': 1, 'points': 20, 'claimed': true, 'can_claim': false},
+    {'day': 3, 'points': 30, 'claimed': false, 'can_claim': true},
+    {'day': 7, 'points': 50, 'claimed': false, 'can_claim': false},
+    {'day': 10, 'points': 70, 'claimed': false, 'can_claim': false},
+    {'day': 15, 'points': 100000, 'claimed': false, 'can_claim': false},
+  ],
+};
+
 /// The shared fake backend plus the customer endpoints (orders, profile).
 http.Client _backend() => MockClient((req) async {
       final p = req.url.path;
@@ -71,6 +85,8 @@ http.Client _backend() => MockClient((req) async {
         data = _orders;
       } else if (p.endsWith('/pos/customers') && req.method == 'GET') {
         data = [_customer];
+      } else if (p.endsWith('/pos/checkin')) {
+        data = _checkin;
       }
       if (data == null) {
         return http.Response.fromStream(await fx.fakeBackend().send(req));

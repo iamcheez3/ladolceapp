@@ -2779,4 +2779,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rewardPoints => 'Reward points';
+
+  @override
+  String get checkinTitle => 'Daily check-in';
+
+  @override
+  String checkinDays(String days) {
+    return '$days check-in days';
+  }
+
+  @override
+  String checkinDayLabel(String day) {
+    return 'Day $day';
+  }
+
+  @override
+  String get checkinButton => 'Check in today';
+
+  @override
+  String checkinClaim(String points) {
+    return 'Claim +$points points';
+  }
+
+  @override
+  String get checkinDone => 'Checked in today · see you tomorrow';
+
+  @override
+  String checkinClaimed(String points) {
+    return '+$points points added!';
+  }
+
+  @override
+  String get checkinFailed => 'Could not check in. Please try again.';
 }
