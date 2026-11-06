@@ -156,7 +156,7 @@ class AppLocalizationsLo extends AppLocalizations {
   String get verifyAndRegister => 'ຢືນຢັນ & ລົງທະບຽນ';
 
   @override
-  String get otpResentSuccessfully => 'ສົ່ງລະຫັດ OTP ໃໝ່ສຳເລັດແລ້ວ!';
+  String get otpResentSuccessfully => 'ສົ່ງລະຫັດ OTP ໃໝ່ສຳເລັດແລ້ວ';
 
   @override
   String get resendCode => 'ສົ່ງລະຫັດໃໝ່';
@@ -257,7 +257,7 @@ class AppLocalizationsLo extends AppLocalizations {
   }
 
   @override
-  String get featureComingSoon => 'ຄຸນສົມບັດນີ້ຈະມາໃນໄວໆນີ້!';
+  String get featureComingSoon => 'ຄຸນສົມບັດນີ້ຈະມາໃນໄວໆນີ້';
 
   @override
   String get allItems => 'ລາຍການທັງໝົດ';
@@ -425,7 +425,7 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String ticketUpdatedWithItems(String name, String count) {
-    return 'ອັບເດດບິນ $name ດ້ວຍ $count ລາຍການໃໝ່!';
+    return 'ອັບເດດບິນ $name ດ້ວຍ $count ລາຍການໃໝ່';
   }
 
   @override
@@ -448,7 +448,7 @@ class AppLocalizationsLo extends AppLocalizations {
   }
 
   @override
-  String get billPrinted => '🧾 ພິມບິນແລ້ວ!';
+  String get billPrinted => 'ພິມບິນແລ້ວ';
 
   @override
   String get failedToPrintBill =>
@@ -459,7 +459,7 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String orderReprinted(String count) {
-    return '🖨️ ພິມອໍເດີຄືນໄປຫາເຄື່ອງພິມຄົວ $count ເຄື່ອງ.';
+    return 'ພິມອໍເດີຄືນໄປຫາເຄື່ອງພິມຄົວ $count ເຄື່ອງ.';
   }
 
   @override
@@ -467,7 +467,7 @@ class AppLocalizationsLo extends AppLocalizations {
       'ບໍ່ມີເຄື່ອງພິມທີ່ພ້ອມໃຊ້ສຳລັບການພິມຄືນນີ້.';
 
   @override
-  String get cashDrawerOpened => '🗃️ ເປີດລິ້ນຊັກເງິນແລ້ວ!';
+  String get cashDrawerOpened => 'ເປີດລິ້ນຊັກເງິນແລ້ວ';
 
   @override
   String get failedToOpenDrawer =>
@@ -603,7 +603,7 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String customerSelected(String name) {
-    return 'ເລືອກລູກຄ້າ $name ແລ້ວ!';
+    return 'ເລືອກລູກຄ້າ $name ແລ້ວ';
   }
 
   @override
@@ -630,7 +630,7 @@ class AppLocalizationsLo extends AppLocalizations {
   }
 
   @override
-  String get orderPaidSuccessfully => 'ຊຳລະເງິນສຳເລັດແລ້ວ!';
+  String get orderPaidSuccessfully => 'ຊຳລະເງິນສຳເລັດແລ້ວ';
 
   @override
   String transferTicketFixedTo(String method) {
@@ -690,11 +690,11 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String ticketOpenedAt(String table) {
-    return 'ເປີດບິນທີ່ $table ແລ້ວ!';
+    return 'ເປີດບິນທີ່ $table ແລ້ວ';
   }
 
   @override
-  String get rewardClaimed => 'ຮັບລາງວັນແລ້ວ!';
+  String get rewardClaimed => 'ຮັບລາງວັນແລ້ວ';
 
   @override
   String voucherCustomer(String name) {
@@ -723,11 +723,11 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String syncedOfflineOrders(String count) {
-    return '✅ ຊິງຄ໌ອໍເດີອອບໄລນ໌ $count ລາຍການຂຶ້ນເຊີບເວີແລ້ວ.';
+    return 'ຊິງຄ໌ອໍເດີອອບໄລນ໌ $count ລາຍການຂຶ້ນເຊີບເວີແລ້ວ.';
   }
 
   @override
-  String get syncedAllData => '✅ ຊິງຄ໌ຂໍ້ມູນທັງໝົດແລ້ວ.';
+  String get syncedAllData => 'ຊິງຄ໌ຂໍ້ມູນທັງໝົດແລ້ວ.';
 
   @override
   String syncFailed(String error) {
@@ -930,7 +930,7 @@ class AppLocalizationsLo extends AppLocalizations {
       'ຕ້ອງການສິດເຂົ້າເຖິງບ່ອນເກັບຂໍ້ມູນເພື່ອບັນທຶກ QR';
 
   @override
-  String get qrSavedToGallery => 'ບັນທຶກ QR ໃສ່ຄັງຮູບແລ້ວ ✓';
+  String get qrSavedToGallery => 'ບັນທຶກ QR ໃສ່ຄັງຮູບແລ້ວ';
 
   @override
   String get couldNotSaveQr => 'ບັນທຶກ QR ບໍ່ໄດ້. ກະລຸນາລອງໃໝ່.';
@@ -951,7 +951,7 @@ class AppLocalizationsLo extends AppLocalizations {
   String get itemRunOut => 'ສິນຄ້ານີ້ໝົດແລ້ວ ບໍ່ສາມາດສັ່ງໄດ້.';
 
   @override
-  String get couponApplied => 'ໃຊ້ຄູປອງສຳເລັດແລ້ວ!';
+  String get couponApplied => 'ໃຊ້ຄູປອງສຳເລັດແລ້ວ';
 
   @override
   String get phoneNumberRequiredTitle => 'ຕ້ອງການເບີໂທລະສັບ';
@@ -1008,7 +1008,7 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String addMoreForFreeDelivery(String amount) {
-    return 'ເພີ່ມອີກ ₭$amount ເພື່ອຮັບການຈັດສົ່ງຟຣີ!';
+    return 'ເພີ່ມອີກ ₭$amount ເພື່ອຮັບການຈັດສົ່ງຟຣີ';
   }
 
   @override
@@ -1114,7 +1114,7 @@ class AppLocalizationsLo extends AppLocalizations {
   String get deletingAccount => 'ກຳລັງລຶບບັນຊີ...';
 
   @override
-  String get clientIdCopied => 'ຄັດລອກ Client ID ແລ້ວ!';
+  String get clientIdCopied => 'ຄັດລອກ Client ID ແລ້ວ';
 
   @override
   String rewardPointsLabel(String points) {
@@ -1128,7 +1128,7 @@ class AppLocalizationsLo extends AppLocalizations {
   String get noRewardsAvailable => 'ຍັງບໍ່ມີລາງວັນໃນຂະນະນີ້.';
 
   @override
-  String get notEnoughPoints => 'ຄະແນນບໍ່ພໍ!';
+  String get notEnoughPoints => 'ຄະແນນບໍ່ພໍ';
 
   @override
   String get redeemRewardTitle => 'ແລກລາງວັນ?';
@@ -1142,16 +1142,16 @@ class AppLocalizationsLo extends AppLocalizations {
   String get customerNotLoggedIn => 'ລູກຄ້າຍັງບໍ່ໄດ້ເຂົ້າສູ່ລະບົບຢ່າງຖືກຕ້ອງ.';
 
   @override
-  String get voucherCreated => 'ສ້າງບັດສ່ວນຫຼຸດສຳເລັດແລ້ວ!';
+  String get voucherCreated => 'ສ້າງບັດສ່ວນຫຼຸດສຳເລັດແລ້ວ';
 
   @override
   String get redeem => 'ແລກ';
 
   @override
-  String get claimedSuccessfully => 'ຮັບລາງວັນສຳເລັດແລ້ວ!';
+  String get claimedSuccessfully => 'ຮັບລາງວັນສຳເລັດແລ້ວ';
 
   @override
-  String get rewardClaimedEnjoy => 'ທ່ານໄດ້ຮັບລາງວັນແລ້ວ. ຂໍໃຫ້ມ່ວນຊື່ນ!';
+  String get rewardClaimedEnjoy => 'ທ່ານໄດ້ຮັບລາງວັນແລ້ວ';
 
   @override
   String get scanQrAtCounter => 'ສະແກນ QR ນີ້ທີ່ເຄົາເຕີເພື່ອຮັບລາງວັນຂອງທ່ານ.';
@@ -1238,7 +1238,7 @@ class AppLocalizationsLo extends AppLocalizations {
   String get recommendedProducts => 'ສິນຄ້າແນະນຳ';
 
   @override
-  String get recommendedBadge => '⭐ ແນະນຳ';
+  String get recommendedBadge => 'ແນະນຳ';
 
   @override
   String get mostPopular => 'ນິຍົມທີ່ສຸດ';
@@ -1907,10 +1907,10 @@ class AppLocalizationsLo extends AppLocalizations {
       'ເຄື່ອງພິມຜິດພາດ. ກະລຸນາກວດການເຊື່ອມຕໍ່.';
 
   @override
-  String get orderRefundedSuccessfully => '✅ ຄືນເງິນອໍເດີສຳເລັດແລ້ວ.';
+  String get orderRefundedSuccessfully => 'ຄືນເງິນອໍເດີສຳເລັດແລ້ວ.';
 
   @override
-  String get receiptReprinted => '🖨️ ພິມໃບຮັບເງິນຄືນແລ້ວ!';
+  String get receiptReprinted => 'ພິມໃບຮັບເງິນຄືນແລ້ວ';
 
   @override
   String get noPendingSelfOrders => 'ບໍ່ມີອໍເດີລູກຄ້າທີ່ລໍຖ້າ';
@@ -2088,7 +2088,7 @@ class AppLocalizationsLo extends AppLocalizations {
       'ສົ່ງຂໍ້ຄວາມບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.';
 
   @override
-  String get sendingImage => '📷 ກຳລັງສົ່ງຮູບ…';
+  String get sendingImage => 'ກຳລັງສົ່ງຮູບ…';
 
   @override
   String get printers => 'ເຄື່ອງພິມ';
@@ -2223,7 +2223,7 @@ class AppLocalizationsLo extends AppLocalizations {
   String get cannotLoadRanking => 'ໂຫຼດອັນດັບບໍ່ໄດ້';
 
   @override
-  String get climbTheAdventureLadder => 'ໄຕ່ອັນດັບຂຶ້ນໄປ!';
+  String get climbTheAdventureLadder => 'ໄຕ່ອັນດັບຂຶ້ນໄປ';
 
   @override
   String get yourRank => 'ອັນດັບຂອງທ່ານ: -';
@@ -2330,7 +2330,7 @@ class AppLocalizationsLo extends AppLocalizations {
   String get cancelled => 'ຍົກເລີກແລ້ວ';
 
   @override
-  String get offline => '⚡ ອອບໄລນ໌';
+  String get offline => 'ອອບໄລນ໌';
 
   @override
   String get removeCoupon => 'ລຶບຄູປອງ';
@@ -2483,7 +2483,7 @@ class AppLocalizationsLo extends AppLocalizations {
   String get statusReadyPill => 'ພ້ອມໃຫ້ມາຮັບ';
 
   @override
-  String get orderReadySent => 'ແຈ້ງແລ້ວ ✓';
+  String get orderReadySent => 'ແຈ້ງແລ້ວ';
 
   @override
   String get splitPayment => 'ແຍກຈ່າຍ';
@@ -2656,15 +2656,6 @@ class AppLocalizationsLo extends AppLocalizations {
   String get profileCoffeeTime => 'ເວລາກາເຟ';
 
   @override
-  String get greetingMorning => 'ສະບາຍດີຕອນເຊົ້າ,';
-
-  @override
-  String get greetingAfternoon => 'ສະບາຍດີຕອນບ່າຍ,';
-
-  @override
-  String get greetingEvening => 'ສະບາຍດີຕອນແລງ,';
-
-  @override
   String rankOfTop50(String rank) {
     return 'ອັນດັບ $rank ໃນ 50';
   }
@@ -2773,7 +2764,7 @@ class AppLocalizationsLo extends AppLocalizations {
 
   @override
   String checkinClaimed(String points) {
-    return 'ໄດ້ຮັບ +$points ຄະແນນແລ້ວ!';
+    return 'ໄດ້ຮັບ +$points ຄະແນນແລ້ວ';
   }
 
   @override

@@ -124,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(width: 8),
               Text(
                 'Dev: API Server',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -1016,7 +1016,7 @@ class _GoogleAuthButton extends StatelessWidget {
               style: TextStyle(
                 color: Color(0xFF4285F4),
                 fontSize: 18,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 10),

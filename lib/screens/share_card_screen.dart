@@ -388,11 +388,10 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Text(
-                          (l10n?.shareTo ?? 'Share to').toUpperCase(),
+                          l10n?.shareTo ?? 'Share to',
                           style: const TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1,
+                            fontWeight: FontWeight.w600,
                             color: Ld.muted,
                           ),
                         ),
@@ -519,7 +518,7 @@ class _MemberCard extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: Ld.sans,
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: 3.6,
                       color: style.accent,
                     ),
@@ -563,7 +562,7 @@ class _MemberCard extends StatelessWidget {
                   if (showRank) ...[
                     Text(
                       '#$rank',
-                      style: Ld.price(66, color: style.accent, weight: FontWeight.w800)
+                      style: Ld.price(66, color: style.accent, weight: FontWeight.w600)
                           .copyWith(height: 1.05),
                     ),
                     Text(
@@ -603,7 +602,7 @@ class _MemberCard extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         child: Text(
                           pts,
-                          style: Ld.price(58, color: style.accent, weight: FontWeight.w800)
+                          style: Ld.price(58, color: style.accent, weight: FontWeight.w600)
                               .copyWith(height: 1.05),
                         ),
                       ),

@@ -71,7 +71,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
       final ok = await printerService
           .printReceiptFromRawData(_receiptData!, queueNumber: qn)
           .timeout(const Duration(seconds: 20), onTimeout: () => false);
-      _snack(ok ? (AppLocalizations.of(context)?.receiptReprinted ?? '🖨️ Receipt reprinted!') : (AppLocalizations.of(context)?.printerErrorCheckConnection ?? 'Printer error. Check connection.'), ok ? Colors.green : Colors.red);
+      _snack(ok ? (AppLocalizations.of(context)?.receiptReprinted ?? 'Receipt reprinted') : (AppLocalizations.of(context)?.printerErrorCheckConnection ?? 'Printer error. Check connection.'), ok ? Colors.green : Colors.red);
     } catch (e) {
       _snack('Printer error: ${e.toString()}', Colors.red);
     } finally {
@@ -182,7 +182,7 @@ class _ReceiptDetailScreenState extends State<ReceiptDetailScreen> {
           }
         }
 
-        _snack('✅ Order refunded successfully.', Colors.green);
+        _snack(AppLocalizations.of(context)?.orderRefundedSuccessfully ?? 'Order refunded', Colors.green);
         // Go back to history after a short delay so the snack is visible
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {

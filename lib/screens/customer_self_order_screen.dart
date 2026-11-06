@@ -655,6 +655,14 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     }
   }
 
+  /// Branch the customer orders from (home header).
+  String get _selectedBranchName {
+    for (final b in _branches) {
+      if (_branchIdFromMap(b) == _selectedBranchId) return _branchNameFromMap(b);
+    }
+    return '';
+  }
+
   int? _branchIdFromMap(Map<String, dynamic> branch) {
     for (final key in const ['id', 'branch_id', 'pos_branch_id']) {
       final raw = branch[key];
@@ -2493,7 +2501,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
       if (isSuccess) {
         showSnack(
           SnackBar(
-            content: Text(_l10n?.qrSavedToGallery ?? (_l10n?.qrSavedToGallery ?? 'QR saved to gallery ✓')),
+            content: Text(_l10n?.qrSavedToGallery ?? (_l10n?.qrSavedToGallery ?? 'QR saved to gallery')),
             backgroundColor: Ld.success,
           ),
         );
@@ -5210,15 +5218,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
         _selectedTabIndex != 1 &&
         !(_selectedTabIndex == 0 && !isWide);
     final isHome = _selectedTabIndex == 0;
-    final greetingName = _customerName.trim().split(RegExp(r'\s+')).first;
 
     return Scaffold(
       backgroundColor: Ld.ground,
       appBar: LdHeader(
         title: 'LaDolce',
-        subtitle: isHome && greetingName.isNotEmpty
-            ? '${_l10n?.welcomeBack ?? 'Welcome back'}, $greetingName'
-            : null,
+        subtitle: isHome && _selectedBranchName.isNotEmpty ? _selectedBranchName : null,
         leading: Padding(
           padding: const EdgeInsets.only(left: 4),
           child: Image.asset(
@@ -8001,7 +8006,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
     );
   }
 
-  /// Profile tab, "Coffee time": greeting, navy points card with the bear
+  /// Profile tab, "Coffee time": name, navy points card with the bear
   /// watermark, the customer's corner (rewards, vouchers, ranking, places),
   /// the share-my-card banner and the settings.
   Widget _buildProfileTab({bool isWide = false, bool isSmall = false}) {
@@ -8141,12 +8146,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
 
   Widget _profileIdentity(ImageProvider? avatar, {required bool isSmall}) {
     final size = isSmall ? 72.0 : 80.0;
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? (_l10n?.greetingMorning ?? 'Good morning,')
-        : hour < 17
-        ? (_l10n?.greetingAfternoon ?? 'Good afternoon,')
-        : (_l10n?.greetingEvening ?? 'Good evening,');
     final initial = _customerName.isEmpty
         ? 'C'
         : _customerName.characters.first.toUpperCase();
@@ -8248,16 +8247,6 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                greeting,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: Ld.serif,
-                  fontSize: 15,
-                  color: Ld.muted,
-                ),
-              ),
-              Text(
                 _customerName.isEmpty ? (_l10n?.roleCustomer ?? 'Customer') : _customerName,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -8345,13 +8334,12 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        (_l10n?.rewardPoints ?? 'Reward points').toUpperCase(),
+                        _l10n?.rewardPoints ?? 'Reward points',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.4,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                           color: Ld.gold,
                         ),
                       ),
@@ -8400,7 +8388,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                     children: [
                       Text(
                         pts,
-                        style: Ld.price(isSmall ? 42 : 50, color: Ld.gold, weight: FontWeight.w800)
+                        style: Ld.price(isSmall ? 42 : 50, color: Ld.gold, weight: FontWeight.w600)
                             .copyWith(height: 1.1),
                       ),
                       const SizedBox(width: 6),
@@ -8795,7 +8783,7 @@ class _CustomerSelfOrderScreenState extends State<CustomerSelfOrderScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: Text(
                             _rewardRank > 0 ? '#$_rewardRank' : NumberFormat.compact().format(_rewardPoints),
-                            style: Ld.price(16, color: Ld.gold, weight: FontWeight.w800),
+                            style: Ld.price(16, color: Ld.gold, weight: FontWeight.w600),
                           ),
                         ),
                       ),
@@ -9487,9 +9475,8 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
           label,
           style: const TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: Ld.muted,
-            letterSpacing: 0.5,
           ),
         ),
         const SizedBox(height: 8),
@@ -9549,9 +9536,8 @@ class _ProfileEditScreenState extends State<_ProfileEditScreen> {
         Text(_l10n?.dateOfBirthCaps ?? (_l10n?.dateOfBirthCaps ?? 'DATE OF BIRTH'),
           style: TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: Ld.muted,
-            letterSpacing: 0.6,
           ),
         ),
         const SizedBox(height: 8),

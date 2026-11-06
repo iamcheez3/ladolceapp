@@ -173,7 +173,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     final caption = _pendingCaption.trim();
     setState(() {
       _isSending = true;
-      _uploadingLabel = caption.isEmpty ? (AppLocalizations.of(context)?.sendingImage ?? '📷 Sending image…') : '📷 $caption';
+      // '📷' only marks an image upload here; the row below shows a camera icon instead.
+      _uploadingLabel = '📷 ${caption.isEmpty ? (AppLocalizations.of(context)?.sendingImage ?? 'Sending image…') : caption}';
       _pendingImage = null;
       _pendingCaption = '';
     });

@@ -655,7 +655,7 @@ class _PosScreenState extends State<PosScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_l10n?.syncedOfflineOrders('$syncedCount') ??
-        '✅ Synced $syncedCount offline orders to server.'),
+        'Synced $syncedCount offline orders to the server'),
               backgroundColor: Colors.green,
             ),
           );
@@ -726,7 +726,7 @@ class _PosScreenState extends State<PosScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_l10n?.syncedAllData ?? '✅ Synced all data.'),
+          content: Text(_l10n?.syncedAllData ?? 'All data synced'),
           backgroundColor: Colors.green,
         ),
       );
@@ -1856,7 +1856,7 @@ class _PosScreenState extends State<PosScreen> {
                 content: Text(
                   reprintCount > 0
                       ? _l10n?.orderReprinted('$reprintCount') ??
-        '🖨️ Order reprinted to $reprintCount kitchen printer(s).'
+        'Order reprinted to $reprintCount kitchen printer(s)'
                       : (_l10n?.noPrinterForReprint ??
                             'No available printer could print this reprint request.'),
                 ),
@@ -1985,7 +1985,7 @@ class _PosScreenState extends State<PosScreen> {
               content: Text(
                 opened
                     ? (_l10n?.cashDrawerOpened ??
-                          '🗃️ Cash drawer opened!')
+                          'Cash drawer opened')
                     : (_l10n?.failedToOpenDrawer ??
                           'Failed to open drawer. Check printer connection.'),
               ),
@@ -4953,7 +4953,7 @@ class _PosScreenState extends State<PosScreen> {
         SnackBar(
           content: Text(
             ok
-                ? (_l10n?.billPrinted ?? '🧾 Bill printed!')
+                ? (_l10n?.billPrinted ?? 'Bill printed')
                 : (_l10n?.failedToPrintBill ??
                       'Failed to print bill. Check printer connection.'),
           ),

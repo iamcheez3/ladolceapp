@@ -27,7 +27,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should land on the login screen when no cached user is provided.
-      expect(find.text('LOGIN'), findsOneWidget);
+      expect(find.text('Login'), findsOneWidget);
       expect(find.byType(TextField), findsWidgets);
     });
   });

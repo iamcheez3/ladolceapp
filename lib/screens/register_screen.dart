@@ -328,7 +328,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     'Verify & register'),
                                 style: TextStyle(
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                       ),
@@ -375,7 +375,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     'Resend Code',
                                 style: TextStyle(
                                   color: Ld.navy,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                 ),
                               ),
@@ -1033,7 +1033,7 @@ class _GoogleAuthButton extends StatelessWidget {
               style: TextStyle(
                 color: Color(0xFF4285F4),
                 fontSize: 18,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 10),
